@@ -79,7 +79,8 @@ struct SessionIndexTable: NSViewRepresentable {
     var reloading = false
 
     /// A change of up to `SessionIndex.updateLimit` row IDs removes and inserts them, and each
-    /// other row view shows its new name and start; a larger change reloads the table. An open
+    /// other row view shows its new name and start. A larger change keeps each row view at its
+    /// place and shows the new row of that place in it; a new rate reloads the table. An open
     /// field whose row stays keeps its view, and the mark takes its new row; a removed or reloaded field
     /// opens again with the text typed so far. A new name of the edited marker (an agent edit) replaces
     /// the typed text, as in the Name field of the inspector.
@@ -89,8 +90,7 @@ struct SessionIndexTable: NSViewRepresentable {
         guard timePart(pane, "show compare", { rows != self.rows || rate != self.rate }) else { return }
         let old = self.rows
         let change = timePart(pane, "show change") {
-            rate == self.rate
-                ? SessionIndex.change(from: old, to: rows) : (old: 0..<old.count, new: 0..<rows.count)
+            rate == self.rate ? SessionIndex.change(from: old, to: rows) : nil
         }
         (self.rows, self.rate) = (rows, rate)
         timePart(pane, "show echo") {
@@ -103,14 +103,20 @@ struct SessionIndexTable: NSViewRepresentable {
         let reopening = editing != nil
         reloading = true
         timePart(pane, "show table") {
-            if let table, change.old.count + change.new.count <= SessionIndex.updateLimit {
+            guard let table else { return }
+            if let change, change.old.count + change.new.count <= SessionIndex.updateLimit {
                 table.beginUpdates()
                 table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
                 table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
                 table.endUpdates()
                 refreshRows(of: table, from: old, change: change)
+            } else if change != nil {
+                // The table keeps the row views below the new count, drops the others, and makes the new
+                // rows in view from `rows`.
+                table.noteNumberOfRowsChanged()
+                refreshRows(of: table, from: old, change: nil)
             } else {
-                table?.reloadData()
+                table.reloadData()
             }
         }
         reloading = false
@@ -124,28 +130,40 @@ struct SessionIndexTable: NSViewRepresentable {
         }
     }
 
-    /// Each row view that the table holds outside `change` shows the row of `old` at its old
-    /// place: it takes the new row. A new start goes into the start cell, because a reload of a
-    /// cell ends the field editor of its row; a new name or kind loads the name cell again.
+    /// Each row view that the table holds outside `change.new` shows the row of `old` at its old
+    /// place, or with no `change` at its own place: its cells take the new row in place. A reload of a
+    /// cell ends the field editor of its row, so only the name cell of the open field loads again, and
+    /// only when its row takes another item, name, or kind; the field opens again on its marker row.
     private func refreshRows(
-        of table: NSTableView, from old: [SessionIndex.Row], change: (old: Range<Int>, new: Range<Int>)
+        of table: NSTableView, from old: [SessionIndex.Row], change: (old: Range<Int>, new: Range<Int>)?
     ) {
+        let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
         let start = table.column(withIdentifier: SessionIndexTable.startColumn)
-        var named = IndexSet()
+        var field: Int?
         table.enumerateAvailableRowViews { view, n in
-            guard !change.new.contains(n), let view = view as? IndexRowView else { return }
-            let was = old[n < change.new.lowerBound ? n : n - change.new.upperBound + change.old.upperBound]
-            guard was != rows[n] else { return }
+            let w = change.map { n < $0.new.lowerBound ? n : n - $0.new.upperBound + $0.old.upperBound } ?? n
+            guard change?.new.contains(n) != true, old.indices.contains(w), let view = view as? IndexRowView else {
+                return
+            }
+            let (was, row) = (old[w], rows[n])
+            guard was != row else { return }
             configure(view, row: n)
-            if was.name != rows[n].name || was.kind != rows[n].kind { named.insert(n) }
-            if was.position != rows[n].position,
+            if was.id != row.id || was.name != row.name || was.kind != row.kind,
+                let cell = table.view(atColumn: name, row: n, makeIfNecessary: false) as? IndexCell
+            {
+                if editing?.superview === cell {
+                    field = n
+                } else {
+                    cell.show(text: row.name, symbol: Self.symbol(row.kind))
+                }
+            }
+            if was.position != row.position,
                 let cell = table.view(atColumn: start, row: n, makeIfNecessary: false) as? IndexCell
             {
-                cell.show(text: timeDisplayText(rows[n].position, rate: rate, playing: false), symbol: nil)
+                cell.show(text: timeDisplayText(row.position, rate: rate, playing: false), symbol: nil)
             }
         }
-        let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
-        if !named.isEmpty { table.reloadData(forRowIndexes: named, columnIndexes: [name]) }
+        if let field { table.reloadData(forRowIndexes: [field], columnIndexes: [name]) }
     }
 
     /// A live scroll of the list that moves it holds the index follow while play or a take runs.

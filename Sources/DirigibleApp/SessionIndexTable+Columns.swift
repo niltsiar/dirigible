@@ -84,6 +84,7 @@ extension IndexTableSource {
     /// Shows the optional columns of `columns` and hides the others.
     func apply(_ columns: IndexColumns) {
         guard let table else { return }
+        var changed = false
         for column in IndexColumns.Column.allCases {
             let id = SessionIndexTable.identifier(of: column)
             let hidden = !columns.shown.contains(column)
@@ -91,6 +92,7 @@ extension IndexTableSource {
                 continue
             }
             tableColumn.isHidden = hidden
+            changed = true
             // AppKit keeps the cells of a hidden column, and they miss the changes that came meanwhile.
             if !hidden {
                 table.reloadData(
@@ -98,6 +100,8 @@ extension IndexTableSource {
                     columnIndexes: [table.column(withIdentifier: id)])
             }
         }
+        // A hidden column leaves the table at its old width and the first column with the freed room.
+        if changed { table.sizeToFit() }
     }
 
     /// The menu of a Control-click or a right-click on a column header: one item for each optional

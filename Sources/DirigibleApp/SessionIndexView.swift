@@ -33,8 +33,11 @@ struct SessionIndexView: View {
         VStack(spacing: 8) {
             IndexSearchField(model: model, text: Bindable(pane).search)
             IndexKindFilter(kind: Bindable(pane).kind)
-            SessionIndexTable(model: model, pane: pane, rows: rows, rate: studio.session.sampleRate)
-                .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }
+            SessionIndexTable(
+                model: model, pane: pane, rows: rows, rate: studio.session.sampleRate,
+                columns: model.app?.indexColumns ?? IndexColumns()
+            )
+            .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }
             HStack {
                 IndexAddButton(model: model).fixedSize()
                 Spacer()

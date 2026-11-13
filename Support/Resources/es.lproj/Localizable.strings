@@ -876,6 +876,9 @@
 "index.empty.session" = "Sin clips, marcadores ni capítulos";
 "index.empty.hint" = "Pulsa %@ para añadir un marcador.";
 "index.column.start" = "Inicio";
+"index.column.track" = "Pista";
+"index.column.duration" = "Duración";
+"index.column.end" = "Fin";
 "index.action.go.to" = "Ir a";
 "index.action.show.info" = "Mostrar información";
 "index.action.play.from.here" = "Reproducir desde aquí";

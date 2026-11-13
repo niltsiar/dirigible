@@ -876,6 +876,9 @@
 "index.empty.session" = "Keine Clips, Marker oder Kapitel";
 "index.empty.hint" = "Mit %@ einen Marker hinzufügen.";
 "index.column.start" = "Start";
+"index.column.track" = "Spur";
+"index.column.duration" = "Dauer";
+"index.column.end" = "Ende";
 "index.action.go.to" = "Gehe zu";
 "index.action.show.info" = "Info zeigen";
 "index.action.play.from.here" = "Ab hier abspielen";

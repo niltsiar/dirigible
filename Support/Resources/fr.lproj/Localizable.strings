@@ -876,6 +876,9 @@
 "index.empty.session" = "Aucun clip, marqueur ou chapitre";
 "index.empty.hint" = "Appuyez sur %@ pour ajouter un marqueur.";
 "index.column.start" = "Début";
+"index.column.track" = "Piste";
+"index.column.duration" = "Durée";
+"index.column.end" = "Fin";
 "index.action.go.to" = "Aller à";
 "index.action.show.info" = "Afficher les informations";
 "index.action.play.from.here" = "Lire à partir d'ici";

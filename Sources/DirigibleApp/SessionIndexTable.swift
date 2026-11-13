@@ -79,11 +79,12 @@ struct SessionIndexTable: NSViewRepresentable {
     var reloading = false
 
     /// A change of up to `SessionIndex.updateLimit` row IDs removes and inserts them, and each
-    /// other row view shows its new name and start. A larger change keeps each row view at its
-    /// place and shows the new row of that place in it; a new rate reloads the table. An open
-    /// field whose row stays keeps its view, and the mark takes its new row; a removed or reloaded field
-    /// opens again with the text typed so far. A new name of the edited marker (an agent edit) replaces
-    /// the typed text, as in the Name field of the inspector.
+    /// other row view shows its new name and start. A larger change that drops no row view keeps each
+    /// row view at its place and shows the new row of that place in it; a larger change that drops one,
+    /// or a new rate, reloads the table. An open field whose row stays keeps its view, and the mark
+    /// takes its new row; a removed or reloaded field opens again with the text typed so far. A new
+    /// name of the edited marker (an agent edit) replaces the typed text, as in the Name field of the
+    /// inspector.
     func show(_ rows: [SessionIndex.Row], rate: Int) { timePart(pane, "show") { showRows(rows, rate: rate) } }
 
     private func showRows(_ rows: [SessionIndex.Row], rate: Int) {
@@ -110,10 +111,13 @@ struct SessionIndexTable: NSViewRepresentable {
                 table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
                 table.endUpdates()
                 refreshRows(of: table, from: old, change: change)
-            } else if change != nil {
-                // The table keeps the row views below the new count, drops the others, and makes the new
-                // rows in view from `rows`.
+            } else if change != nil, Self.lastRowView(of: table) < rows.count {
+                // The table keeps the row views and makes the new rows in view from `rows`. A row view
+                // that this call drops stays in the table as a subview for good, so a drop reloads.
                 table.noteNumberOfRowsChanged()
+                // After a `reloadData`, the call can keep the old frame, and a scroll to a row past it
+                // stops at the old end.
+                table.tile()
                 refreshRows(of: table, from: old, change: nil)
             } else {
                 table.reloadData()
@@ -164,6 +168,12 @@ struct SessionIndexTable: NSViewRepresentable {
             }
         }
         if let field { table.reloadData(forRowIndexes: [field], columnIndexes: [name]) }
+    }
+
+    private static func lastRowView(of table: NSTableView) -> Int {
+        var last = -1
+        table.enumerateAvailableRowViews { _, n in last = max(last, n) }
+        return last
     }
 
     /// A live scroll of the list that moves it holds the index follow while play or a take runs.

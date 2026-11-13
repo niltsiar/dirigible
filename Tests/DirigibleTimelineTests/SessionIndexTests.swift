@@ -84,6 +84,27 @@ struct SessionIndexTests {
         #expect(found("Host") == ["a", "c"], "a marker has no track name")
     }
 
+    @Test func theShownPicksFollowTheKindAndTheSearch() throws {
+        let index = try index()
+        let all: Set<SessionIndex.Pick> = [
+            .clip("a"), .clip("b"), .clip("c"), .marker("h1"), .marker("m1"), .marker("m2"),
+        ]
+        func shown(
+            _ picks: Set<SessionIndex.Pick>, _ kind: SessionIndex.Kind?, _ search: String,
+            keeping: SessionIndex.Pick? = nil
+        ) -> Set<SessionIndex.Pick> {
+            index.shownPicks(of: picks, kind: kind, search: search, keeping: keeping)
+        }
+        #expect(shown(all, nil, "capture") == [.clip("a"), .clip("c")])
+        #expect(shown(all, .marker, "") == [.marker("m1"), .marker("m2")], "a chapter is not a marker")
+        #expect(shown(all, nil, "capture", keeping: .marker("m1")) == [.clip("a"), .clip("c"), .marker("m1")])
+        #expect(shown([.clip("b"), .marker("m1")], nil, "capture") == [], "a pick that no row shows goes")
+        #expect(shown([.clip("b"), .marker("m1")], nil, "") == [.clip("b"), .marker("m1")])
+        #expect(shown(all, .chapter, "x") == [], "the filter and the search combine")
+        #expect(shown([], .marker, "zzz") == [])
+        #expect(shown([.clip("gone")], nil, "capture") == [.clip("gone")], "a gone pick is not a hidden row")
+    }
+
     @Test func aMarkerRowDoesNotMatchTheTextOfAClipTrack() throws {
         #expect(ids(try index().rows(kind: .marker, search: "host")) == [])
     }

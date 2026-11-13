@@ -199,10 +199,23 @@ public struct SessionIndex: Equatable, Sendable {
         let needle = Array(Self.folded(search).utf8)
         // The same array, not a copy: the list compares it with the rows it shows.
         if kind == nil, needle.isEmpty { return rows }
-        return rows.filter { row in
-            row.id == kept
-                || (kind == nil || row.kind == kind) && (needle.isEmpty || Self.contains(row.searchText, needle))
+        return rows.filter { Self.shows($0, kind: kind, needle: needle, keeping: kept) }
+    }
+
+    /// The picks of `picks` that `rows(kind:search:keeping:)` shows. It tests only the rows whose
+    /// pick is in `picks`, in one pass; a pick with no row in the index stays.
+    public func shownPicks(of picks: Set<Pick>, kind: Kind?, search: String, keeping kept: Pick? = nil) -> Set<Pick> {
+        let needle = Array(Self.folded(search).utf8)
+        if picks.isEmpty || kind == nil && needle.isEmpty { return picks }
+        var shown = picks
+        for row in rows where picks.contains(row.id) && !Self.shows(row, kind: kind, needle: needle, keeping: kept) {
+            shown.remove(row.id)
         }
+        return shown
+    }
+
+    private static func shows(_ row: Row, kind: Kind?, needle: [UInt8], keeping kept: Pick?) -> Bool {
+        row.id == kept || (kind == nil || row.kind == kind) && (needle.isEmpty || contains(row.searchText, needle))
     }
 
     /// A byte search: 12,250 rows with `String.contains` took 11.7 ms per key.

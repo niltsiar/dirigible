@@ -184,14 +184,25 @@ extension SessionIndexEditBenchmark {
         for count in [1, 100] {
             let ids = (0..<count).map { start.tracks[$0 % 6].clips[500 + $0 / 6].id }
             let picks = Set(ids.map { SessionIndex.Pick.clip($0) })
+            // The last row in timeline order, as after a Shift-click down to it: the list shows it as
+            // its last row, so a Delete of 100 rows removes each row in view.
+            let anchor = try #require(SessionIndex(session: start).rows.last { picks.contains($0.id) }).id
             try await Self.time(
                 ListEdit(
                     name: "delete of \(count) \(count == 1 ? "row" : "rows")",
                     prepare: { shown, _ in
                         guard shown else { return }
                         try focusList(true)
-                        model.timeline.selectRows(picks, anchor: picks.first, form: .indexSet)
+                        model.timeline.selectRows(picks, anchor: anchor, form: .indexSet)
                         try #require(model.timeline.selectedRows == picks, "the \(count) rows are not selected")
+                        let table = try #require(model.leadingPane.table)
+                        let row = try #require(source()?.rows.firstIndex { $0.id == anchor })
+                        let clip = try #require(table.enclosingScrollView?.contentView)
+                        clip.scroll(
+                            to: NSPoint(x: clip.bounds.minX, y: table.rect(ofRow: row).maxY - clip.bounds.height))
+                        table.enclosingScrollView?.reflectScrolledClipView(clip)
+                        let view = table.rows(in: table.visibleRect)
+                        try #require(NSMaxRange(view) == row + 1, "the list does not end at the anchor row: \(view)")
                     },
                     command: { shown in
                         if shown {

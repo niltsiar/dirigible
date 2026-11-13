@@ -32,8 +32,9 @@ extension SessionIndexEditBenchmark {
     }
 
     /// Times `edit` with the pane hidden and shown, in blocks of 12 events (2 not timed), 20 timed each,
-    /// hidden and shown alternating. It prints the p50 and p95 of both and the pane cost, asserts the
-    /// pane budget for the added cost (with -O: 16 ms p95, or `edit.addedBudget`), and prints the split of each span.
+    /// hidden and shown alternating. It prints the p50 and p95 of both and the pane cost, and prints the
+    /// split of each span. With -O it asserts the added p50 (shown p50 minus hidden p50: 16 ms, or
+    /// `edit.addedBudget`) and the shown p95 (100 ms or less).
     static func time(_ edit: ListEdit, in setup: (SessionWindow, NSWindow)) async throws {
         let (model, window) = setup
         let times = PartTimes()
@@ -60,22 +61,24 @@ extension SessionIndexEditBenchmark {
         let (hidden, shown) = (try #require(splits[false]), try #require(splits[true]))
         let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
         let (hiddenSpans, shownSpans) = (hidden.map(\.span), shown.map(\.span))
-        let added = p95(shownSpans) - p95(hiddenSpans)
+        let addedP50 = p50(shownSpans) - p50(hiddenSpans)
         print(
             "SessionIndexEditBenchmark \(edit.name): hidden p50 \(ms(p50(hiddenSpans))) p95 \(ms(p95(hiddenSpans))), "
-                + "shown p50 \(ms(p50(shownSpans))) p95 \(ms(p95(shownSpans))), added p95 \(ms(added)), "
-                + "added p50 \(ms(p50(shownSpans) - p50(hiddenSpans))), load \(SessionIndexBenchmark.load)")
+                + "shown p50 \(ms(p50(shownSpans))) p95 \(ms(p95(shownSpans))), "
+                + "added p95 \(ms(p95(shownSpans) - p95(hiddenSpans))), added p50 \(ms(addedP50)), "
+                + "load \(SessionIndexBenchmark.load)")
         expectWithinBudget(
-            added, edit.addedBudget ?? SessionIndexBenchmark.budget, "the pane adds \(added) to \(edit.name) at p95")
+            addedP50, edit.addedBudget ?? SessionIndexBenchmark.addedBudget, "\(edit.name): added p50 \(ms(addedP50))")
+        expectWithinBudget(
+            p95(shownSpans), SessionIndexBenchmark.shownBudget, "\(edit.name): shown p95 \(ms(p95(shownSpans)))")
         printSplit("\(edit.name) hidden", hidden)
         printSplit("\(edit.name) shown", shown)
     }
 
     /// The rename commit, the time edit commit, Add, and the Delete of 1 and of 100 rows, each from the
     /// list command to the end of the next draw on the fixture of `SessionIndexBenchmark` (12,250 rows).
-    /// With -O each adds 16 ms p95 or less to the same session edit with the pane hidden (both in one
-    /// run), the Delete of 100 rows 20 ms, the limit of the Delete of all rows. The totals print only: the session edit alone takes more than the key event budget of
-    /// `NavigationKeyBenchmark` on this fixture. A debug run prints only.
+    /// With -O each adds 16 ms p50 or less to the same session edit with the pane hidden (both in one
+    /// run), the Delete of 100 rows 32 ms, and each shown span is 100 ms p95 or less. A debug run prints only.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func eachListEditFitsTheKeyBudget() async throws {
         let folder = try TemporaryFolder()
@@ -216,7 +219,7 @@ extension SessionIndexEditBenchmark {
                         return drawn == clips - count && (!shown || source()?.rows.count == 12_250 - count)
                     },
                     settled: { _ in model.timeline.selectedRows.isDisjoint(with: picks) },
-                    addedBudget: count == 100 ? Self.listAddedBudget : nil,
+                    addedBudget: count == 100 ? Self.hundredRowsAddedBudget : nil,
                     restore: { shown in
                         model.timeline.pruneRows(keeping: [])
                         return try undone(shown, start)

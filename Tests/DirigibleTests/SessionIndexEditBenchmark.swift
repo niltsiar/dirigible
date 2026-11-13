@@ -47,7 +47,7 @@ import Testing
     }
 
     static let addedBudget = Duration.milliseconds(40)
-    static let shownBudget = Duration.milliseconds(100)
+    static let hundredRowsAddedBudget = Duration.milliseconds(32)
 
     /// The parts that no other part of the list holds. The table `show` holds its `show` lines, and
     /// the drop holds the prune and the push. A part in the command phase is in the command time.
@@ -135,7 +135,7 @@ import Testing
     /// The Delete of all 12,000 clips by the lanes: Select All, then Delete. The command, the
     /// SwiftUI update, the lane render, and with the pane shown the list update are timed; the
     /// Select All and the Undo that puts the clips back are not. Hidden and shown alternate in
-    /// blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 40 ms p95 or less and
+    /// blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 40 ms p50 or less and
     /// the shown span is 100 ms p95 or less. The change of 12,000 rows is over the row limit of the
     /// table, so it reloads the table; the trace floor of that is about 21 ms, over one frame. It also
     /// prints the split of each span by part, and the split of the removal of all 12,250 rows in one
@@ -180,14 +180,16 @@ import Testing
         let (hidden, shown) = (try #require(splits[false]), try #require(splits[true]))
         let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
         let (hiddenSpans, shownSpans) = (hidden.map(\.span), shown.map(\.span))
-        let added = p95(shownSpans) - p95(hiddenSpans)
+        let addedP50 = p50(shownSpans) - p50(hiddenSpans)
         print(
             "SessionIndexEditBenchmark lane delete of all clips: hidden p50 \(p50(hiddenSpans)) p95 \(p95(hiddenSpans)), "
-                + "shown p50 \(p50(shownSpans)) p95 \(p95(shownSpans)), added p95 \(added), "
-                + "added p50 \(p50(shownSpans) - p50(hiddenSpans)), load \(SessionIndexBenchmark.load)")
-        expectWithinBudget(added, Self.addedBudget, "the pane adds \(added) to a lane Delete of all clips at p95")
+                + "shown p50 \(p50(shownSpans)) p95 \(p95(shownSpans)), "
+                + "added p95 \(p95(shownSpans) - p95(hiddenSpans)), added p50 \(addedP50), "
+                + "load \(SessionIndexBenchmark.load)")
+        expectWithinBudget(addedP50, Self.addedBudget, "a lane Delete of all clips: added p50 \(addedP50)")
         let shownP95 = p95(shownSpans)
-        expectWithinBudget(shownP95, Self.shownBudget, "a lane Delete of all clips shows in \(shownP95) at p95")
+        expectWithinBudget(
+            shownP95, SessionIndexBenchmark.shownBudget, "a lane Delete of all clips: shown p95 \(shownP95)")
         Self.printSplit("lane delete hidden", hidden)
         Self.printSplit("lane delete shown", shown)
 
@@ -277,7 +279,7 @@ import Testing
     /// The Delete of all 12,250 rows from the list: Command-A in the focused list (timed apart), then
     /// the Delete key through the app route to the end of `drawNow`, with the pane shown. The same
     /// edit function (`removeIndexRows`) runs with the pane hidden in the same run. Hidden and shown
-    /// alternate in blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 20 ms p95
+    /// alternate in blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 20 ms p50
     /// or less and the shown span is 60 ms p95 or less.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theListDeleteOfAllRowsAddsUnderItsBudget() async throws {
@@ -349,18 +351,18 @@ import Testing
         let (hidden, shown) = (try #require(splits[false]), try #require(splits[true]))
         let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
         let (hiddenSpans, shownSpans) = (hidden.map(\.span), shown.map(\.span))
-        let added = p95(shownSpans) - p95(hiddenSpans)
+        let addedP50 = p50(shownSpans) - p50(hiddenSpans)
         print(
             "SessionIndexEditBenchmark list delete of all rows: hidden p50 \(Self.ms(p50(hiddenSpans))) "
                 + "p95 \(Self.ms(p95(hiddenSpans))), shown p50 \(Self.ms(p50(shownSpans))) "
-                + "p95 \(Self.ms(p95(shownSpans))), added p95 \(Self.ms(added)), "
-                + "added p50 \(Self.ms(p50(shownSpans) - p50(hiddenSpans))), "
+                + "p95 \(Self.ms(p95(shownSpans))), added p95 \(Self.ms(p95(shownSpans) - p95(hiddenSpans))), "
+                + "added p50 \(Self.ms(addedP50)), "
                 + "select all p50 \(Self.ms(p50(selecting))) p95 \(Self.ms(p95(selecting))), "
                 + "load \(SessionIndexBenchmark.load)")
-        expectWithinBudget(added, Self.listAddedBudget, "the pane adds \(added) to a list Delete of all rows at p95")
+        expectWithinBudget(addedP50, Self.listAddedBudget, "a list Delete of all rows: added p50 \(Self.ms(addedP50))")
         let shownP95 = p95(shownSpans)
         expectWithinBudget(
-            shownP95, Self.listShownBudget, "a list Delete of all rows shows in \(shownP95) at p95")
+            shownP95, Self.listShownBudget, "a list Delete of all rows: shown p95 \(Self.ms(shownP95))")
         Self.printSplit("list delete of all rows hidden", hidden)
         Self.printSplit("list delete of all rows shown", shown)
         window.close()

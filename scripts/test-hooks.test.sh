@@ -397,11 +397,20 @@ git -C "$repo" status --porcelain | cmp -s - "$tmp/status-before" || fail "stopp
 cmp -s "$repo/.git/index" "$tmp/index-before" || fail "stopped dirty run: the real index changed"
 
 # C17: no variable of the caller reaches a hook test, PATH and HOME do, and the key tree takes its
-# own build lock. The caller sets each variable, and a stub test writes env to a file and then
-# runs the with-lock.sh of the key tree.
+# own build lock. The caller sets each variable, and a stub test writes env to a file, takes the
+# fake tools off its PATH wherever they sit, and runs the with-lock.sh of the key tree.
 new_repo
 cp "$here/with-lock.sh" "$here/lock-words.sh" "$repo/scripts/"
-printf '#!/bin/bash\nenv > "$ENV_FILE"\nPATH="${PATH#"$FAKE_BIN:"}" scripts/with-lock.sh true\n' > "$repo/t/a.test.sh"
+cat > "$repo/t/a.test.sh" <<'STUB'
+#!/bin/bash
+env > "$ENV_FILE"
+p=":$PATH:"
+p="${p//:$FAKE_BIN:/:}"
+p="${p#:}"
+PATH="${p%:}"
+command -v date > "$ENV_FILE.date"
+scripts/with-lock.sh true
+STUB
 commit 'env'
 (cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" ENV_FILE="$tmp/env" FAKE_BIN="$tmp/bin" \
     BASE=main FILTER=x SINCE=HEAD CHECK_RISK=1 HOOK_TESTS=t/a.test.sh MFLAGS=-s MAKELEVEL=3 \
@@ -414,6 +423,7 @@ caller_vars='^(BASE|FILTER|SINCE|CHECK_RISK|HOOK_TESTS|MAKEFLAGS|MFLAGS|MAKELEVE
 [[ -z "$(grep -oE "$caller_vars" "$tmp/env")" ]] \
     || fail "caller context: the stub test saw $(grep -oE "$caller_vars" "$tmp/env" | tr -d '=' | tr '\n' ' ')"
 { grep -q '^PATH=' "$tmp/env" && grep -q '^HOME=' "$tmp/env"; } || fail 'caller context: PATH or HOME is not in the env of the stub test'
+[[ -s "$tmp/env.date" && "$(cat "$tmp/env.date")" != "$tmp/bin/date" ]] || fail "caller context: with-lock.sh got the fake date of the test PATH: $(cat "$tmp/env.date" 2>&1)"
 
 # A hook test that runs `bash` gets /bin/bash, not the first bash on the PATH of the caller, and a
 # pass is reused when only the PATH bash differs: the key holds no bash version.

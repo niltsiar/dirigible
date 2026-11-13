@@ -110,6 +110,11 @@ struct SessionIndexTable: NSViewRepresentable {
                 table.beginUpdates()
                 table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
                 table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
+                // The table lays out the rows in view at `endUpdates`. The scroll of `showSelection` to an
+                // anchor out of view then lays them out again at the anchor, with new cell views.
+                if let n = pushedAnchorRow(), !NSLocationInRange(n, table.rows(in: table.visibleRect)) {
+                    table.scrollRowToVisible(n)
+                }
                 table.endUpdates()
                 refreshRows(of: table, from: old, change: change)
             } else if change != nil, Self.lastRowView(of: table) < rows.count {

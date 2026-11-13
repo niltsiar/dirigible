@@ -260,6 +260,37 @@ import Testing
         await model.close()
     }
 
+    /// A list Delete of the rows in view whose next row leaves the view moves the list to the next row
+    /// in the table update: the table makes no cell view for the rows that come to the old place.
+    @Test func aDeleteThatMovesTheListMakesCellViewsOnlyAtTheNextRow() async throws {
+        let windows = try SessionIndexWindowTests()
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table) = try await windows.openRows()
+        model.timeline.follows = false
+        let source = try #require(table.dataSource as? IndexTableSource)
+        let marks = Self.marks(from: 1)
+        try Self.add(marks, to: studio)
+        await until("the list shows 306 rows") { table.numberOfRows == 306 }
+        // Rows: clip a, then the marks from row 1. The list scrolls to the anchor, the last row.
+        let picks = Set(marks[0..<100].map { SessionIndex.Pick.marker($0.id) })
+        model.timeline.selectRows(picks, anchor: .marker(marks[99].id), form: .indexSet)
+        await until("rows 1 to 100 are selected") { table.selectedRowIndexes == IndexSet(1..<101) }
+        window.contentView?.layoutSubtreeIfNeeded()
+        let view = table.rows(in: table.visibleRect)
+        try #require(!NSLocationInRange(1, view) && NSMaxRange(view) <= 101, "the list shows only deleted rows")
+        let cells = source.cellViews
+
+        model.deleteIndexRows()
+        await until("the list shows 206 rows") { table.numberOfRows == 206 }
+        window.contentView?.layoutSubtreeIfNeeded()
+        let shown = table.rows(in: table.visibleRect)
+        #expect(table.selectedRowIndexes == [1] && NSLocationInRange(1, shown), "the list shows the next row")
+        let made = source.cellViews - cells
+        #expect(made <= 2 * shown.length, "\(made) cell views for \(shown.length) rows in view")
+        #expect(try Self.stale(table) == [], "each row in view shows its own row")
+        await model.close()
+    }
+
     /// An open row field stays open with its text over a change over the limit: the same field when
     /// its row keeps its place, else a field on the new row of the edited marker. Nothing is saved
     /// until Return.

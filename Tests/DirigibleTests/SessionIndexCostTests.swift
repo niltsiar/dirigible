@@ -80,8 +80,9 @@ import Testing
         }
     }
 
-    /// A change of more rows than the update limit keeps the row views in view: they show their new
-    /// rows, with no `reloadData` and no new cell view for them. A reload makes each row in view again.
+    /// A change of more rows than the update limit that drops no row view in view keeps them: they
+    /// show their new rows, with no `reloadData` and no new cell view for them. A reload makes each row
+    /// in view again.
     @Test func aChangeOverTheLimitKeepsTheRowViewsInView() async throws {
         let windows = try SessionIndexWindowTests()
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
@@ -90,29 +91,71 @@ import Testing
         model.timeline.follows = false
         let table = try #require(rows as? IndexTableView)
         let source = try #require(table.dataSource as? IndexTableSource)
+        let first = try (0..<6).map { try #require(table.rowView(atRow: $0, makeIfNecessary: false)) }
+        let (reloads, cells) = (table.reloads, source.cellViews)
         let marks = Self.marks(from: 1)
         try Self.add(marks, to: studio)
         await until("the list shows 306 rows") { table.numberOfRows == 306 }
         window.contentView?.layoutSubtreeIfNeeded()
-        let held = try (0..<6).map { try #require(table.rowView(atRow: $0, makeIfNecessary: false)) }
-        let (reloads, cells) = (table.reloads, source.cellViews)
-
-        try Self.remove(marks, from: studio)
-        await until("the list shows 6 rows") { table.numberOfRows == 6 }
-        window.contentView?.layoutSubtreeIfNeeded()
+        var held: [Int: NSTableRowView] = [:]
+        table.enumerateAvailableRowViews { view, n in held[n] = view }
         #expect(table.reloads == reloads, "\(table.reloads - reloads) reloadData calls")
-        #expect(source.cellViews == cells, "\(source.cellViews - cells) cell views made for 6 held rows")
-        #expect((0..<6).allSatisfy { table.rowView(atRow: $0, makeIfNecessary: false) === held[$0] })
+        #expect(source.cellViews - cells == 2 * (held.count - 6), "cell views only for the \(held.count - 6) new rows")
+        #expect((0..<6).allSatisfy { table.rowView(atRow: $0, makeIfNecessary: false) === first[$0] })
         #expect(try Self.stale(table) == [], "each row in view shows its own row")
 
+        // Rows: clip a, the marks, then 5 rows from frame 48,000. The kept marks fill the rows in view.
+        let kept = held.count - 6
+        try #require(kept >= 0 && marks.count - kept > SessionIndex.updateLimit, "\(held.count) rows in view")
+        try Self.remove(Array(marks[kept...]), from: studio)
+        await until("the list shows \(held.count) rows") { table.numberOfRows == held.count }
+        window.contentView?.layoutSubtreeIfNeeded()
+        #expect(table.reloads == reloads, "\(table.reloads - reloads) reloadData calls")
+        #expect(source.cellViews - cells == 2 * (held.count - 6), "no cell view made for the held rows")
+        #expect(held.allSatisfy { table.rowView(atRow: $0.key, makeIfNecessary: false) === $0.value })
+        #expect(try Self.stale(table) == [], "each row in view shows its own row")
+        await model.close()
+    }
+
+    /// A change that drops row views, again and again, keeps the views of the list at one count: a
+    /// view that stays in the table adds to each display of the window. A removal of all rows and an
+    /// Undo, and a removal of 300 of 306 rows and an Undo.
+    @Test func aChangeThatDropsRowViewsLeavesNoViewBehind() async throws {
+        let windows = try SessionIndexWindowTests()
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table) = try await windows.openRows()
+        model.timeline.follows = false
+        let marks = Self.marks(from: 1)
         try Self.add(marks, to: studio)
         await until("the list shows 306 rows") { table.numberOfRows == 306 }
-        window.contentView?.layoutSubtreeIfNeeded()
-        var available = 0
-        table.enumerateAvailableRowViews { _, _ in available += 1 }
-        #expect(table.reloads == reloads, "\(table.reloads - reloads) reloadData calls")
-        #expect(source.cellViews - cells == 2 * (available - 6), "cell views only for the \(available - 6) new rows")
-        #expect((0..<6).allSatisfy { table.rowView(atRow: $0, makeIfNecessary: false) === held[$0] })
+        let clips = studio.session.tracks.flatMap { $0.clips.map(\.id) }
+        let markers = Array(studio.session.markers.keys)
+        func settle() {
+            window.contentView?.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+        }
+        settle()
+        var counts = [windows.views(NSView.self, in: table).count]
+        for cycle in 0..<3 {
+            try studio.edit(ripple: false) { session throws(SessionError) in
+                try session.removeClips(clips)
+                for id in markers { try session.removeMarker(id) }
+            }
+            await until("cycle \(cycle): the list shows no row") { table.numberOfRows == 0 }
+            settle()
+            try studio.undo()
+            await until("cycle \(cycle): the list shows 306 rows") { table.numberOfRows == 306 }
+            settle()
+            try Self.remove(marks, from: studio)
+            await until("cycle \(cycle): the list shows 6 rows") { table.numberOfRows == 6 }
+            settle()
+            #expect(try Self.stale(table) == [], "cycle \(cycle): each of the 6 rows shows its own row")
+            try Self.add(marks, to: studio)
+            await until("cycle \(cycle): the list shows 306 rows") { table.numberOfRows == 306 }
+            settle()
+            counts.append(windows.views(NSView.self, in: table).count)
+        }
+        #expect(Set(counts).count == 1, "views of the list after each cycle: \(counts)")
         #expect(try Self.stale(table) == [], "each row in view shows its own row")
         await model.close()
     }

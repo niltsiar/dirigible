@@ -98,6 +98,7 @@ struct SessionIndexTests {
         #expect(chapters(rows) == expected, "h1, k0, and k1 get the durations of the new end")
         #expect(rows.filter { $0.kind != .chapter } == stale.filter { $0.kind != .chapter }, "no other row changes")
         #expect(try row("k1", in: after).duration == 96_000, "to the new session end")
+        #expect(chapters(rows) == [52_000, 44_000, 96_000], "h1 and k0 last to the next chapter")
     }
 
     @Test func anEndTrimChangesTheDurationsInAnUpdate() throws {

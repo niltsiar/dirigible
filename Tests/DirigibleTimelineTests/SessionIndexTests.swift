@@ -59,6 +59,37 @@ struct SessionIndexTests {
         #expect(rows.first { $0.item == .marker("m2") }?.position == 240_000)
     }
 
+    func row(_ id: String, in session: Session) throws -> SessionIndex.Row {
+        try #require(SessionIndex(session: session).rows.first { ids([$0]) == [id] })
+    }
+
+    /// The session ends at 288,000, the end of clip c.
+    @Test func aChapterLastsToTheNextChapter() throws {
+        var session = try Self.session()
+        #expect(try row("h1", in: session).duration == 240_000, "5 s to the session end, not 4 s to the marker m2")
+        #expect(try row("m1", in: session).duration == nil, "a marker has no duration")
+        #expect(try row("m2", in: session).duration == nil)
+        #expect(try row("a", in: session).duration == 96_000, "a clip lasts its length")
+        #expect(try row("b", in: session).duration == 96_000)
+        try session.setMarker(Marker(id: "h2", name: "Next", position: 144_000, kind: .chapter))
+        #expect(try row("h1", in: session).duration == 96_000, "2 s to the next chapter")
+        #expect(try row("h2", in: session).duration == 144_000, "to the session end")
+        try session.setMarker(Marker(id: "h3", name: "Late", position: 400_000, kind: .chapter))
+        #expect(try row("h3", in: session).duration == .zero, "a chapter after the session end lasts 0")
+        #expect(try row("h2", in: session).duration == 256_000, "to the chapter h3")
+    }
+
+    @Test func anEndTrimChangesTheDurationsInAnUpdate() throws {
+        let before = try Self.session()
+        var after = before
+        try after.trim("c", to: 192_000..<240_000)
+        let updated = SessionIndex(session: after, updating: SessionIndex(session: before), of: before)
+        #expect(updated == SessionIndex(session: after))
+        #expect(try row("c", in: after).duration == 48_000, "the clip lasts its new length")
+        #expect(updated.rows.first { ids([$0]) == ["c"] }?.duration == 48_000)
+        #expect(updated.rows.first { ids([$0]) == ["h1"] }?.duration == 192_000, "the session end moved to 240,000")
+    }
+
     @Test func theFilterKeepsOneKind() throws {
         let index = try index()
         #expect(ids(index.rows(kind: nil, search: "")).count == 6)
@@ -138,7 +169,7 @@ struct SessionIndexTests {
             let markers = Array(session.markers.values)
             let at = Frames(Int.random(in: 0..<80, using: &random) * 25_000)
             let track = tracks.randomElement(using: &random)!
-            switch Int.random(in: 0..<9, using: &random) {
+            switch Int.random(in: 0..<10, using: &random) {
             case 0 where !clips.isEmpty:
                 try session.removeClips([clips.randomElement(using: &random)!.id])
             case 1:
@@ -165,6 +196,9 @@ struct SessionIndexTests {
                 try session.removeMarker(markers.randomElement(using: &random)!.id)
             case 8:
                 try session.renameTrack(track, to: "Track \(step)")
+            case 9 where !clips.isEmpty:
+                let clip = clips.randomElement(using: &random)!
+                try? session.trim(clip.id, to: clip.start..<clip.end - 1_000)
             default: break
             }
             index = SessionIndex(session: session, updating: index, of: before)
@@ -190,7 +224,9 @@ struct SessionIndexTests {
         }
         for n in 0..<20 {
             try session.setMarker(
-                Marker(id: MarkerID("r\(n)"), name: "Mark \(n)", position: Frames(n * 150_000), kind: .marker))
+                Marker(
+                    id: MarkerID("r\(n)"), name: "Mark \(n)", position: Frames(n * 150_000),
+                    kind: n % 4 == 0 ? .chapter : .marker))
         }
         var (undo, redo): ([Session], [Session]) = ([], [])
         var index = SessionIndex(session: session)

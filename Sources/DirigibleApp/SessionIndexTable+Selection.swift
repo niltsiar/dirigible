@@ -38,6 +38,12 @@ extension IndexTableSource {
         if !listWrite { table.scrollRowToVisible(anchored ?? first) }
     }
 
+    /// The row that `showSelection` scrolls to when the pushed anchor is a selected row of `rows`.
+    func pushedAnchorRow() -> Int? {
+        guard !listWrite, let pane, let anchor = pane.pushedAnchor, pane.pushedRows.contains(anchor) else { return nil }
+        return rows.firstIndex { $0.id == anchor }
+    }
+
     /// A click on row `n`. A plain click: the table takes it and the row action runs, also for the row
     /// that shows already. Shift extends the rows from the anchor, and Command toggles the row; neither seeks.
     func click(row n: Int, clickCount: Int = 1, flags: NSEvent.ModifierFlags = []) {

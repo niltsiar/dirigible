@@ -23,7 +23,7 @@ Verification proves or disproves one claim with repeatable evidence: a before/af
 - Audio levels: `ffmpeg -i <file> -af ebur128 -f null -` for integrated loudness (LUFS) and true peak. `ffmpeg -i <file> -af astats -f null -` for RMS, peak, and noise floor.
 - Session files: `xmllint --noout <file>`, then read the actual elements. To check an edit with no screen, apply it to a scratch package with the `dirigible` CLI, then read the result with `dirigible info`, `render`, or `export` and `afinfo`. Start no CLI build while a test or a bench runs.
 - The built app: read `references/driving-the-app.md` when a check launches, drives, or captures the app, when you check a visual report of the user, or when a doc quotes macOS text.
-- Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`. Compare the benches with main through `scripts/bench-pairs.sh`. Fix the pair count before the runs, and do not pick the clean pairs after the results.
+- Performance: same-machine baseline and treatment timings, or an Instruments trace from `xcrun xctrace record`. Compare the benches with main through `scripts/bench-pairs.sh`. Fix the pair count before the runs, and do not pick the clean pairs after the results. A time bar (for example, under 1 s) is `VERIFIED` only when the bar minus the median of the runs is larger than the max-min spread of the runs, else `INCONCLUSIVE`; a median over the bar is `NOT VERIFIED`.
 - Memory: `leaks <pid>` or `footprint <pid>` before and after the suspected operation.
 
 ## Artifacts

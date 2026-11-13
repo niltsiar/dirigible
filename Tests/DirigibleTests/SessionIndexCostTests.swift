@@ -201,6 +201,65 @@ import Testing
         await model.close()
     }
 
+    /// A list Delete of 100 rows in view selects the row after them with no scroll through the old
+    /// rows: the list stays in place, the next row shows where the deleted rows were, and the table
+    /// makes cell views only for the rows that come into view.
+    @Test func aDeleteOfManyRowsMakesCellViewsOnlyForTheRowsThatComeIntoView() async throws {
+        let windows = try SessionIndexWindowTests()
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table) = try await windows.openRows()
+        model.timeline.follows = false
+        let source = try #require(table.dataSource as? IndexTableSource)
+        let marks = Self.marks(from: 1)
+        try Self.add(marks, to: studio)
+        await until("the list shows 306 rows") { table.numberOfRows == 306 }
+        // Rows: clip a, then the marks from row 1.
+        let picks = Set(marks[100..<200].map { SessionIndex.Pick.marker($0.id) })
+        model.timeline.selectRows(picks, anchor: .marker(marks[100].id), form: .indexSet)
+        await until("rows 101 to 200 are selected") { table.selectedRowIndexes == IndexSet(101..<201) }
+        window.contentView?.layoutSubtreeIfNeeded()
+        func available() -> Set<SessionIndex.Pick> {
+            var ids: Set<SessionIndex.Pick> = []
+            table.enumerateAvailableRowViews { _, n in ids.insert(source.rows[n].id) }
+            return ids
+        }
+        let (view, held, cells) = (table.rows(in: table.visibleRect), available(), source.cellViews)
+        try #require(NSLocationInRange(101, view), "the list shows the anchor row")
+
+        model.deleteIndexRows()
+        await until("the list shows 206 rows") { table.numberOfRows == 206 }
+        window.contentView?.layoutSubtreeIfNeeded()
+        let next = SessionIndex.Pick.marker(marks[200].id)
+        #expect(model.timeline.selectedRows == [next] && table.selectedRowIndexes == [101], "the next row is selected")
+        #expect(table.rows(in: table.visibleRect) == view, "the list stays in place")
+        let new = available().subtracting(held)
+        #expect(source.cellViews - cells == 2 * new.count, "cell views only for the \(new.count) rows that came in")
+        #expect(try Self.stale(table) == [], "each row in view shows its own row")
+        await model.close()
+    }
+
+    /// A list Delete whose next row leaves the view scrolls to it when the table shows the new rows.
+    @Test func aDeleteScrollsToTheNextRowWhenItLeavesTheView() async throws {
+        let windows = try SessionIndexWindowTests()
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, _, table) = try await windows.openRows()
+        model.timeline.follows = false
+        let marks = Self.marks(from: 1)
+        try Self.add(marks, to: studio)
+        await until("the list shows 306 rows") { table.numberOfRows == 306 }
+        // Rows: clip a, then the marks from row 1. The list scrolls to the anchor, the last row.
+        let picks = Set(marks[0..<200].map { SessionIndex.Pick.marker($0.id) })
+        model.timeline.selectRows(picks, anchor: .marker(marks[199].id), form: .indexSet)
+        await until("rows 1 to 200 are selected") { table.selectedRowIndexes == IndexSet(1..<201) }
+        try #require(!NSLocationInRange(1, table.rows(in: table.visibleRect)), "row 1 is out of view")
+
+        model.deleteIndexRows()
+        await until("the list shows 106 rows") { table.numberOfRows == 106 }
+        #expect(table.selectedRowIndexes == [1], "the next row is row 1")
+        #expect(table.visibleRect.contains(table.rect(ofRow: 1)), "the list shows the next row")
+        await model.close()
+    }
+
     /// An open row field stays open with its text over a change over the limit: the same field when
     /// its row keeps its place, else a field on the new row of the edited marker. Nothing is saved
     /// until Return.

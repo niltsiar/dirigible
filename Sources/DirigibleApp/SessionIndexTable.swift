@@ -74,8 +74,7 @@ struct SessionIndexTable: NSViewRepresentable {
     private var rate = 48_000
     /// True while the table takes a selection that the window pushed: no row action runs then.
     var pushingRows = false
-    /// True while a mouse or key handler of the table writes the rows: the list does not scroll to the
-    /// anchor then, as the user already sees the rows.
+    /// True while `fromList` runs: a push then does not scroll the list to the anchor.
     var listWrite = false
     /// The row that a range with Shift-Up Arrow or Shift-Down Arrow ends at: the row of the last
     /// Shift-click or arrow. Nil: the anchor.

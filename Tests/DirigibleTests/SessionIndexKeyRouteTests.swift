@@ -173,6 +173,45 @@ import Testing
         await model.close()
     }
 
+    @Test func aHeldDeleteKeyInTheListRemovesOneSelection() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        let before = studio.session
+        try windows.click(row: 3, table, in: window)
+        windows.app.timeline(.delete, event: key(.keyDown, "\u{7f}", code: 51, in: window), in: window)
+        await until("the list shows 5 rows") { table.numberOfRows == 5 }
+        try #require(model.timeline.selectedRows == [.clip("c")], "the next row is the new target")
+        let after = studio.session
+        for _ in 0..<3 {
+            windows.app.timeline(
+                .delete, event: key(.keyDown, "\u{7f}", code: 51, repeat: true, in: window), in: window)
+        }
+        #expect(studio.session == after && table.numberOfRows == 5, "a repeat removed a row")
+        #expect(model.timeline.selectedRows == [.clip("c")] && model.indexDeleted?.count == 1)
+        try studio.undo()
+        #expect(studio.session == before && !studio.canUndo, "one Undo gives back the one press")
+        await model.close()
+    }
+
+    @Test func aHeldCommandDeleteKeyInTheListRemovesOneMarker() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        try windows.click(row: 2, table, in: window)
+        try #require(model.timeline.marker == "m1")
+        let held = { (repeats: Bool) in
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: "\u{7f}",
+                charactersIgnoringModifiers: "\u{7f}", isARepeat: repeats, keyCode: 51)!
+        }
+        windows.app.timeline(.deleteMarker, event: held(false), in: window)
+        await until("the list shows 5 rows") { table.numberOfRows == 5 }
+        let after = studio.session
+        for _ in 0..<3 { windows.app.timeline(.deleteMarker, event: held(true), in: window) }
+        #expect(studio.session == after && table.numberOfRows == 5, "a repeat removed a marker")
+        await model.close()
+    }
+
     @Test func escapeDuringAnIndexDragRestoresTheStartWidthAndKeepsTheSelection() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, window, table, _) = try await list()

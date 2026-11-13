@@ -84,10 +84,10 @@ extension AppDelegate {
         }
         // The list gets the keys of its rows. A menu click acts as its key, except Return, Shift-Return,
         // Add Marker, and Add Chapter.
-        if let model = key, model.indexListHasFocus(in: keyWindow),
-            model.indexCommand(command, isKey: event?.type == .keyDown)
-        {
-            return
+        if let model = key, model.indexListHasFocus(in: keyWindow) {
+            // Delete selects the next row, so a held Delete removes one selection, not row after row.
+            if command == .delete, let event, event.type == .keyDown, event.isARepeat { return }
+            if model.indexCommand(command, isKey: event?.type == .keyDown) { return }
         }
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
         if let selector = command.selector {

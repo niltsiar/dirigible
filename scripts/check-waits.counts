@@ -4,3 +4,4 @@ Sources/DirigibleMCP/RideWork.swift	1	The DEBUG hold of interruptWritesNothing w
 Tests/DirigibleCLITests/LevelOverTimeCommandTests.swift	6	interruptWritesNothing waits for the hold line and for the exit of the child
 Tests/DirigibleTests/SessionIndexBenchmark.swift	12	A bench reads the clock to time its span and sleeps one 60 Hz frame between events
 Tests/DirigibleTests/SessionIndexEditBenchmark.swift	9	A bench reads the clock to time its span and sleeps one 60 Hz frame between events
+Tests/DirigibleTests/SessionIndexEditBenchmark+Edits.swift	1	A bench sleeps one 60 Hz frame between events

@@ -152,27 +152,9 @@ import Testing
         let selection = model.timeline.selection
         try windows.click(row: 2, table, in: window)
         windows.app.timeline(.delete, event: key(.keyDown, "\u{7f}", code: 51, in: window), in: window)
-        windows.app.timeline(.selectAll, event: chord("a", code: 0, .command, in: window), in: window)
-        #expect(beeps() == 2, "Delete and Command-A beep")
+        #expect(beeps() == 1, "Delete beeps")
         #expect(table.numberOfRows == 6 && studio.session.markers["m1"] != nil && !studio.canUndo)
         #expect(model.timeline.selectedRows == [.marker("m1")] && model.timeline.selection == selection)
-        await model.close()
-    }
-
-    @Test func shiftKeysBeepInTheList() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, beeps) = try await list()
-        try windows.click(row: 2, table, in: window)
-        await model.settleTransport()
-        let head = studio.playhead
-        try windows.arrow(true, shift: true, in: window)
-        try windows.arrow(false, shift: true, in: window)
-        try windows.click(row: 3, table, in: window, flags: .shift)
-        try windows.click(row: 3, table, in: window, flags: .command)
-        await model.settleTransport()
-        #expect(beeps() == 4, "Shift-Up, Shift-Down, Shift-click, and Command-click beep")
-        #expect(model.timeline.selectedRows == [.marker("m1")] && table.selectedRow == 2, "the row stays")
-        #expect(studio.playhead == head, "the playhead stays")
         await model.close()
     }
 

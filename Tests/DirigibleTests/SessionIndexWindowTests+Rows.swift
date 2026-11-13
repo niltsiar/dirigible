@@ -212,7 +212,7 @@ extension SessionIndexWindowTests {
         #expect(model.timeline.selectedRows == [.clip("a"), .clip("c")])
         #expect(studio.playhead == head, "a lane write does not seek")
         #expect(model.timeline.rowsRevision == revision + 1 && model.leadingPane.pushes == pushes + 1, "one push")
-        #expect(table.selectedRow == 4, "the list shows the anchor row c")
+        #expect(table.selectedRowIndexes == [0, 4], "the list shows the rows a and c")
         await model.close()
     }
 

@@ -114,14 +114,25 @@ struct TimelineState {
 
     /// Who writes the rows. A row action of the list (`index`) writes the selection and the current
     /// marker first, then the rows. A write of the lanes (`lane`) comes from the `didSet` of
-    /// `selection` or `marker`, writes only the rows, and so calls nothing again.
-    enum RowForm { case index, lane }
+    /// `selection` or `marker`, writes only the rows, and so calls nothing again. A write of a row
+    /// set (`indexSet`: Shift-click, Command-click, the arrows with Shift, Select All, a filter drop,
+    /// the row after a Delete) also leaves the lanes with nothing that the list does not select:
+    /// no clip row clears a clip set, and rows without the current marker clear it.
+    enum RowForm { case index, indexSet, lane }
 
     mutating func selectRows(_ rows: Set<SessionIndex.Pick>, anchor: SessionIndex.Pick?, form: RowForm = .index) {
-        if form == .index {
+        if form != .lane {
             let clips = Set(rows.compactMap { if case .clip(let id) = $0 { id } else { nil } })
-            if let set = ClipSet(clips) { selection = .clips(set) }
-            if case .marker(let id)? = anchor { marker = id }
+            if let set = ClipSet(clips) {
+                selection = .clips(set)
+            } else if form == .indexSet, case .clips = selection {
+                selection = .none
+            }
+            if case .marker(let id)? = anchor {
+                marker = id
+            } else if form == .indexSet, let current = marker, !rows.contains(.marker(current)) {
+                marker = nil
+            }
         }
         selectedRows = rows
         anchorRow = anchor

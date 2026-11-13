@@ -38,7 +38,11 @@ struct SessionIndexView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onChange(of: pane.search) { pane.table?.mark.holdFollow(.search) }
+        .onChange(of: pane.search) {
+            pane.table?.mark.holdFollow(.search)
+            model.dropHiddenIndexRows()
+        }
+        .onChange(of: pane.kind) { model.dropHiddenIndexRows() }
     }
 
     /// The text of the empty session with the key of Add Marker, as the menu shows it.

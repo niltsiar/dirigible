@@ -4,9 +4,9 @@ import DirigibleTimeline
 import SwiftUI
 
 /// The list of the session index: a view-based `NSTableView` (a SwiftUI `List` of 12,250 rows took
-/// 140 ms per search key). It reloads only when the shown rows change. One row can be selected,
-/// and a click or a plain arrow runs the row action. A row is one accessibility element, the kind
-/// first.
+/// 140 ms per search key). It reloads only when the shown rows change. Several rows can be selected:
+/// a plain click or a plain arrow runs the row action, and Shift-click, Command-click, the arrows with
+/// Shift, and Select All select rows with no seek. A row is one accessibility element, the kind first.
 struct SessionIndexTable: NSViewRepresentable {
     static let nameColumn = NSUserInterfaceItemIdentifier("name")
     static let startColumn = NSUserInterfaceItemIdentifier("start")
@@ -37,7 +37,7 @@ struct SessionIndexTable: NSViewRepresentable {
         table.addTableColumn(start)
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         table.rowHeight = 22
-        table.allowsMultipleSelection = false
+        table.allowsMultipleSelection = true
         table.allowsColumnReordering = false
         table.allowsColumnResizing = false
         table.allowsTypeSelect = false
@@ -72,6 +72,12 @@ struct SessionIndexTable: NSViewRepresentable {
     private var rate = 48_000
     /// True while the table takes a selection that the window pushed: no row action runs then.
     var pushingRows = false
+    /// True while a mouse or key handler of the table writes the rows: the list does not scroll to the
+    /// anchor then, as the user already sees the rows.
+    var listWrite = false
+    /// The row that a range with Shift-Up Arrow or Shift-Down Arrow ends at: the row of the last
+    /// Shift-click or arrow. Nil: the anchor.
+    var movedEnd: SessionIndex.Pick?
     /// The cell views that the table asked for, for the tests.
     private(set) var cellViews = 0
     /// The name field of the open row edit, and true while a reload removes it.
@@ -294,7 +300,6 @@ struct SessionIndexTable: NSViewRepresentable {
 /// The list view. A click runs the row action itself, so a click on the row that shows also acts.
 /// The table does not call `super.mouseDown`, so `doubleAction` never fires: the second click of a
 /// double click plays from the row here.
-/// Shift-arrows, Shift-click, Command-click, Delete, and Select All beep: the list selects one row.
 final class IndexTableView: NSTableView {
     var beep: () -> Void = {}
     let mark = IndexPlayMark()
@@ -322,14 +327,18 @@ final class IndexTableView: NSTableView {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if flags.contains(.control) { return super.mouseDown(with: event) }
         window?.makeFirstResponder(self)
-        if !flags.isDisjoint(with: [.shift, .command]) { return beep() }
         let n = row(at: convert(event.locationInWindow, from: nil))
-        if n >= 0 { (dataSource as? IndexTableSource)?.click(row: n, clickCount: event.clickCount) }
+        guard n >= 0, let source = dataSource as? IndexTableSource else { return }
+        source.fromList { source.click(row: n, clickCount: event.clickCount, flags: flags) }
     }
 
     override func keyDown(with event: NSEvent) {
         let arrow = event.keyCode == 125 || event.keyCode == 126
-        if arrow, event.modifierFlags.contains(.shift) { return beep() }
+        if arrow, event.modifierFlags.contains(.shift) {
+            let others = event.modifierFlags.intersection([.command, .option, .control])
+            guard others.isEmpty, let source = dataSource as? IndexTableSource else { return beep() }
+            return source.fromList { source.extend(down: event.keyCode == 125) }
+        }
         // F2 has no menu item.
         if event.keyCode == 120 {
             (dataSource as? IndexTableSource)?.model?.renameSelectedIndexRow()
@@ -338,7 +347,8 @@ final class IndexTableView: NSTableView {
         // The route from the table up through the window does not run the item of Space, as it does
         // for J, K, L, N, and H: the table asks the main menu itself.
         if event.keyCode == 49, NSApp.mainMenu?.performKeyEquivalent(with: event) == true { return }
-        super.keyDown(with: event)
+        guard let source = dataSource as? IndexTableSource else { return super.keyDown(with: event) }
+        source.fromList { super.keyDown(with: event) }
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -347,5 +357,8 @@ final class IndexTableView: NSTableView {
 
     @objc func delete(_ sender: Any?) { beep() }
 
-    override func selectAll(_ sender: Any?) { beep() }
+    override func selectAll(_ sender: Any?) {
+        guard let source = dataSource as? IndexTableSource else { return }
+        source.fromList { source.selectAll() }
+    }
 }

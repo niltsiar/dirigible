@@ -228,38 +228,28 @@ import Testing
         await model.close()
     }
 
-    /// The edit of a list Delete of all rows: `removeClips` of 12,000 IDs and 250 marker removals in
-    /// one edit. It is the base of `deleteOfAllRowsAddsUnderOneFrame`: the pane is hidden, so the
-    /// span holds the edit, the lane render, and the draw, and no list work. Prints only; the hidden
-    /// p95 sets the added limit of the list Delete (the lower of 16 ms and 50 ms minus this p95).
+    /// The edit of a list Delete of all rows (`SessionWindow.removeIndexRows`: 12,000 clips and 250
+    /// markers in one edit) with the pane hidden: the span holds the edit, the lane render, and the
+    /// draw, and no list work. `theListDeleteOfAllRowsAddsUnderItsBudget` times it again in one run
+    /// with the shown pane; this one prints only.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theListDeleteEditGivesItsPaneHiddenBase() async throws {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
         let (model, studio, window) = try await SessionIndexBenchmark.openPane(app, folder: folder.url, shown: false)
         let clips = studio.session.tracks.reduce(0) { $0 + $1.clips.count }
-        let ids = studio.session.tracks.flatMap { $0.clips.map(\.id) }
-        let markers = Array(studio.session.markers.keys)
-        try #require(ids.count == 12_000 && markers.count == 250 && clips == ids.count)
+        let picks = Self.allPicks(studio.session)
+        try #require(clips == 12_000 && picks.count == 12_250)
         func drawn() -> Int? { model.timelineView?.lanes.inputs?.session.tracks.reduce(0) { $0 + $1.clips.count } }
         let times = PartTimes()
         var spans: [Split] = []
-        var failure: String?
+        var edited = false
         for event in 0..<22 {
             drawNow(window)
             try await Task.sleep(for: .microseconds(16_700))
             let (split, done) = await Self.timedEvent(
-                model, window, times,
-                command: {
-                    do {
-                        try studio.edit(ripple: false) { session throws(SessionError) in
-                            try session.removeClips(ids)
-                            for id in markers { try session.removeMarker(id) }
-                        }
-                    } catch { failure = "\(error)" }
-                },
-                finished: { drawn() == 0 })
-            try #require(done, "Hidden list Delete \(event): edit \(failure ?? "ok"), lanes \(drawn() ?? -1)")
+                model, window, times, command: { edited = model.removeIndexRows(picks) }, finished: { drawn() == 0 })
+            try #require(done && edited, "Hidden list Delete \(event): edit \(edited), lanes \(drawn() ?? -1)")
             try #require(studio.session.markers.isEmpty, "Hidden list Delete \(event) left a marker")
             if event >= 2 { spans.append(split) }
             try studio.undo()
@@ -271,6 +261,108 @@ import Testing
         print(
             "SessionIndexEditBenchmark list delete edit pane hidden: p50 \(Self.ms(p50(hidden))), "
                 + "p95 \(Self.ms(p95(hidden))), load \(SessionIndexBenchmark.load)")
+        window.close()
+        await model.close()
+    }
+
+    static func allPicks(_ session: Session) -> Set<SessionIndex.Pick> {
+        Set(
+            session.tracks.flatMap { $0.clips.map { SessionIndex.Pick.clip($0.id) } }
+                + session.markers.keys.map { .marker($0) })
+    }
+
+    static let listAddedBudget = Duration.milliseconds(20)
+    static let listShownBudget = Duration.milliseconds(60)
+
+    /// The Delete of all 12,250 rows from the list: Command-A in the focused list (timed apart), then
+    /// the Delete key through the app route to the end of `drawNow`, with the pane shown. The same
+    /// edit function (`removeIndexRows`) runs with the pane hidden in the same run. Hidden and shown
+    /// alternate in blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 20 ms p95
+    /// or less and the shown span is 60 ms p95 or less.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theListDeleteOfAllRowsAddsUnderItsBudget() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (model, studio, window) = try await SessionIndexBenchmark.openPane(app, folder: folder.url, shown: false)
+        app.key = model
+        let clips = studio.session.tracks.reduce(0) { $0 + $1.clips.count }
+        let picks = Self.allPicks(studio.session)
+        let rows = picks.count
+        try #require(clips == 12_000 && rows == 12_250)
+        func drawn() -> Int? { model.timelineView?.lanes.inputs?.session.tracks.reduce(0) { $0 + $1.clips.count } }
+        func event(_ characters: String, code: UInt16, _ flags: NSEvent.ModifierFlags) -> NSEvent {
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: characters,
+                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+        }
+        let (selectKey, deleteKey) = (event("a", code: 0, .command), event("\u{7f}", code: 51, []))
+        let times = PartTimes()
+        var splits: [Bool: [Split]] = [false: [], true: []]
+        var selecting: [Duration] = []
+        var edited = false
+        var n = 0
+        for shown in [false, true, false, true] {
+            if model.leadingPane.shown != shown {
+                model.toggleIndex()
+                try await SessionIndexBenchmark.showsRows(model, shown ? rows : nil)
+            }
+            let table = shown ? model.leadingPane.table : nil
+            let source = table?.dataSource as? IndexTableSource
+            for turn in 0..<12 {
+                if let table {
+                    try #require(window.makeFirstResponder(table), "Delete \(n): the list did not take the focus")
+                    let start = ContinuousClock.now
+                    app.timeline(.selectAll, event: selectKey, in: window)
+                    let selected = SessionIndexBenchmark.spin(window) { table.selectedRowIndexes.count == rows }
+                    if turn >= 2 { selecting.append(ContinuousClock.now - start) }
+                    try #require(
+                        selected, "Select All \(n): \(table.selectedRowIndexes.count) of \(rows) rows selected")
+                    try #require(model.timeline.selectedRows.count == rows, "Select All \(n): rows not in the state")
+                }
+                drawNow(window)
+                try await Task.sleep(for: .microseconds(16_700))
+                edited = false
+                let (split, done) = await Self.timedEvent(
+                    model, window, times,
+                    command: {
+                        if shown {
+                            app.timeline(.delete, event: deleteKey, in: window)
+                        } else {
+                            edited = model.removeIndexRows(picks)
+                        }
+                    },
+                    finished: { drawn() == 0 && (!shown || source?.rows.isEmpty == true) },
+                    settled: { model.timeline.selectedRows.isEmpty })
+                try #require(done, "Delete \(n): the lanes or the list did not update, shown \(shown), edit \(edited)")
+                try #require(studio.session.tracks.allSatisfy { $0.clips.isEmpty }, "Delete \(n) left a clip")
+                try #require(studio.session.markers.isEmpty, "Delete \(n) left a marker")
+                if turn >= 2 { splits[shown, default: []].append(split) }
+                try studio.undo()
+                let back = SessionIndexBenchmark.spin(window) {
+                    drawn() == clips && (!shown || source?.rows.count == rows)
+                }
+                try #require(back, "Undo \(n): the lanes or the list did not show the rows again")
+                n += 1
+            }
+        }
+        let (hidden, shown) = (try #require(splits[false]), try #require(splits[true]))
+        let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
+        let (hiddenSpans, shownSpans) = (hidden.map(\.span), shown.map(\.span))
+        let added = p95(shownSpans) - p95(hiddenSpans)
+        print(
+            "SessionIndexEditBenchmark list delete of all rows: hidden p50 \(Self.ms(p50(hiddenSpans))) "
+                + "p95 \(Self.ms(p95(hiddenSpans))), shown p50 \(Self.ms(p50(shownSpans))) "
+                + "p95 \(Self.ms(p95(shownSpans))), added p95 \(Self.ms(added)), "
+                + "added p50 \(Self.ms(p50(shownSpans) - p50(hiddenSpans))), "
+                + "select all p50 \(Self.ms(p50(selecting))) p95 \(Self.ms(p95(selecting))), "
+                + "load \(SessionIndexBenchmark.load)")
+        expectWithinBudget(added, Self.listAddedBudget, "the pane adds \(added) to a list Delete of all rows at p95")
+        let shownP95 = p95(shownSpans)
+        expectWithinBudget(
+            shownP95, Self.listShownBudget, "a list Delete of all rows shows in \(shownP95) at p95")
+        Self.printSplit("list delete of all rows hidden", hidden)
+        Self.printSplit("list delete of all rows shown", shown)
         window.close()
         await model.close()
     }

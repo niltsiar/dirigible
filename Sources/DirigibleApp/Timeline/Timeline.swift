@@ -79,7 +79,7 @@ func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, v
 /// The timeline state of one window (decision 0017). None of it is saved.
 struct TimelineState {
     var selection = Selection.none {
-        didSet { laneRows(from: oldValue) }
+        didSet { if !writingRows { laneRows(from: oldValue) } }
     }
     var scale = TimelineScale(framesPerPoint: 512)
     /// Automatic Scroll: on at open.
@@ -103,7 +103,11 @@ struct TimelineState {
     /// The current marker (decision 0018): Marker Info…, Move, and Delete act on it. An undo can
     /// remove it from the session; then they beep.
     var marker: MarkerID? {
-        didSet { selectRows(marker.map { [.marker($0)] } ?? [], anchor: marker.map { .marker($0) }, form: .lane) }
+        didSet {
+            if !writingRows {
+                selectRows(marker.map { [.marker($0)] } ?? [], anchor: marker.map { .marker($0) }, form: .lane)
+            }
+        }
     }
     /// The rows of the index list that are selected, and the row that a range starts from. Only
     /// `selectRows` and `pruneRows(keeping:)` write them.
@@ -111,6 +115,9 @@ struct TimelineState {
     private(set) var anchorRow: SessionIndex.Pick?
     /// Raised at each write of the rows: the window gives the list the rows when it changes.
     private(set) var rowsRevision = 0
+    /// True while an index form of `selectRows` writes `selection` and `marker`: their lane form
+    /// would compute rows that the index form then replaces.
+    private var writingRows = false
 
     /// Who writes the rows. A row action of the list (`index`) writes the selection and the current
     /// marker first, then the rows. A write of the lanes (`lane`) comes from the `didSet` of
@@ -122,6 +129,8 @@ struct TimelineState {
 
     mutating func selectRows(_ rows: Set<SessionIndex.Pick>, anchor: SessionIndex.Pick?, form: RowForm = .index) {
         if form != .lane {
+            writingRows = true
+            defer { writingRows = false }
             let clips = Set(rows.compactMap { if case .clip(let id) = $0 { id } else { nil } })
             if let set = ClipSet(clips) {
                 selection = .clips(set)

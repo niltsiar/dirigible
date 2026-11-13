@@ -24,11 +24,12 @@ extension SessionWindow {
         let selected = timeline.selectedRows
         guard !selected.isEmpty, let session = studio?.session else { return }
         let pane = leadingPane
-        let kept = pane.sessionIndex(for: session)
-            .shownPicks(of: selected, kind: pane.kind, search: pane.search, keeping: pane.editedRow)
+        let index = pane.sessionIndex(for: session)
+        let kept = index.shownPicks(of: selected, kind: pane.kind, search: pane.search, keeping: pane.editedRow)
         guard kept != selected else { return }
+        // The rows are in timeline order, so the first kept row is the first kept pick.
         let anchor =
-            timeline.anchorRow.flatMap { kept.contains($0) ? $0 : nil } ?? SessionIndex.first(of: kept, in: session)
+            timeline.anchorRow.flatMap { kept.contains($0) ? $0 : nil } ?? index.rows.first { kept.contains($0.id) }?.id
         timeline.selectRows(kept, anchor: anchor, form: .indexSet)
     }
 

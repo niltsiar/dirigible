@@ -195,6 +195,7 @@ extension SessionWindow {
             beep()
             return true
         case .rows:
+            dropHiddenIndexRows()
             let only = timeline.selectedRows.count == 1 ? timeline.selectedRows.first : nil
             switch command {
             case .renameTrack where isKey:

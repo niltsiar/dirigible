@@ -62,7 +62,7 @@ extension SessionWindow {
 
 /// A timeline command of the View and Edit menus (decisions 0017, 0018). Esc is
 /// `cancelOperation(_:)` and reaches `UndoRoutingWindow`.
-enum TimelineCommand: Hashable {
+enum TimelineCommand: Hashable, CaseIterable {
     case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, pagePrevious, pageNext, toggleFollow
     case tallerTracks, shorterTracks, fitTracks
     case setIn, setOut, deselectAll, selectAll

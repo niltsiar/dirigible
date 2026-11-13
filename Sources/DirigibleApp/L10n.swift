@@ -865,4 +865,5 @@ enum L10n: String, CaseIterable {
     case indexActionPlayFromHere = "index.action.play.from.here"
     case indexMenuPlayFromHere = "index.menu.play.from.here"
     case indexPostSelectedGone = "index.post.selected.gone"
+    case indexPostDeleted = "index.post.deleted"
 }

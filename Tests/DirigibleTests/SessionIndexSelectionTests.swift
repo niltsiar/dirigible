@@ -219,6 +219,130 @@ import Testing
         await model.close()
     }
 
+    func pressDelete(in window: NSWindow) {
+        windows.app.timeline(.delete, event: key(.keyDown, "\u{7f}", code: 51, in: window), in: window)
+    }
+
+    @Test func deleteRemovesTheRowsInOneUndo() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, beeps) = try await list()
+        let before = studio.session
+        try windows.click(row: 3, table, in: window)
+        try windows.click(row: 2, table, in: window, flags: .command)
+        try windows.click(row: 5, table, in: window, flags: .command)
+        await model.settleTransport()
+        let head = studio.playhead
+        pressDelete(in: window)
+        #expect(studio.session.tracks[1].clips.isEmpty && studio.session.markers.keys.map(\.rawValue) == ["h1"])
+        #expect(studio.session.tracks[0].clips.count == 2, "a and c stay, and no gap closes")
+        await until("the list shows 3 rows") { table.numberOfRows == 3 }
+        #expect(model.timeline.selectedRows == [.clip("c")], "the row after the last removed row, or the last row")
+        #expect(table.selectedRowIndexes == [2] && model.timeline.selection == .clips(ClipSet("c")))
+        try studio.undo()
+        #expect(studio.session == before && !studio.canUndo, "one Undo gives back the three rows")
+        await model.settleTransport()
+        #expect(studio.playhead == head && beeps() == 0, "no seek, no beep")
+        await model.close()
+    }
+
+    @Test func deleteStatesTheCount() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        var posts: [String] = []
+        model.leadingPane.announce = { posts.append($0) }
+        try windows.click(row: 3, table, in: window)
+        try windows.click(row: 5, table, in: window, flags: .command)
+        pressDelete(in: window)
+        let text = L10n.indexPostDeleted.format(2)
+        #expect(posts == [text], "the post states the count once, and the dropped anchor posts no second text")
+        func banner() -> WindowBanner? { model.shown.banners.first { $0.key.hasPrefix("rowsDeleted") } }
+        await until("the banner shows") { banner() != nil }
+        #expect(banner()?.text == text && banner()?.kind == .info)
+        try studio.undo()
+        await until("the banner goes with the Undo") { banner() == nil }
+        await model.close()
+    }
+
+    @Test func deleteUsesOnlyTheSelectedRows() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        model.timeline.selection = .clips(ClipSet("a"))
+        try windows.click(row: 2, table, in: window)
+        try #require(model.timeline.selection == .clips(ClipSet("a")), "a plain click keeps the lane set")
+        pressDelete(in: window)
+        #expect(studio.session.markers["m1"] == nil && studio.session.markers.count == 2, "m1 goes")
+        #expect(studio.session.tracks[0].clips.map(\.id) == ["a", "c"], "a stays")
+        await model.close()
+    }
+
+    @Test func theNextRowIsSelectedWithNoSeek() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        try windows.addMarkers(to: studio)
+        await until("the list shows 46 rows") { table.numberOfRows == 46 }
+        let shown = table.rows(in: table.visibleRect)
+        let last = shown.upperBound - 1
+        try #require(last < 40, "the list shows part of the rows")
+        try windows.click(row: last - 1, table, in: window)
+        try windows.click(row: last, table, in: window, flags: .shift)
+        await model.settleTransport()
+        let (head, next) = (studio.playhead, try #require((table.dataSource as? IndexTableSource)?.rows[last + 1].id))
+        pressDelete(in: window)
+        await until("the list shows 44 rows") { table.numberOfRows == 44 }
+        #expect(model.timeline.selectedRows == [next] && table.selectedRowIndexes == [last - 1])
+        #expect(table.visibleRect.contains(table.rect(ofRow: last - 1)), "the next row is in view")
+        await model.settleTransport()
+        #expect(studio.playhead == head, "no seek")
+        await model.close()
+    }
+
+    @Test func deleteRightAfterASearchKeyKeepsTheHiddenRows() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await list()
+        model.leadingPane.search = "take"
+        await until("the list shows 2 rows") { table.numberOfRows == 2 }
+        selectAll(in: window)
+        try #require(model.timeline.selectedRows == [.clip("a"), .clip("c")])
+        model.leadingPane.search = "take2"
+        try #require(window.makeFirstResponder(table))
+        pressDelete(in: window)
+        #expect(studio.session.tracks[0].clips.map(\.id) == ["a"], "c goes and a stays")
+        await model.close()
+    }
+
+    @Test func noDeleteDuringATake() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table) = try await windows.openRows(routed: true)
+        windows.app.key = model
+        studio.environment = windows.hal.environment
+        await model.record()
+        try #require(!studio.isIdle, "the take runs")
+        try windows.click(row: 3, table, in: window)
+        let before = studio.session
+        pressDelete(in: window)
+        #expect(studio.session == before && model.indexDeleted == nil, "Delete does nothing during a take")
+        await model.stop()
+        await until("the take finalizes") { studio.transport == .idle }
+        await model.close()
+    }
+
+    @Test func eachBlockedCommandBeepsInTheList() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, beeps) = try await list()
+        try windows.click(row: 3, table, in: window)
+        let (before, rows) = (studio.session, model.timeline.selectedRows)
+        let blocked = TimelineCommand.allCases.filter { $0.indexFocus == .beep }
+        try #require(blocked.contains(.copy) && blocked.count > 20)
+        for command in blocked {
+            let count = beeps()
+            windows.app.timeline(command, event: chord("c", code: 8, .command, in: window), in: window)
+            windows.app.timeline(command, event: nil, in: window)
+            #expect(beeps() == count + 2, "\(command): a beep by key and by menu click")
+        }
+        #expect(studio.session == before && !studio.canUndo && model.timeline.selectedRows == rows)
+        await model.close()
+    }
+
     @Test func shiftDownScrollsToTheMovedEnd() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, _) = try await list()

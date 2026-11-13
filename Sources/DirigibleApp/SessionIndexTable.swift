@@ -239,6 +239,11 @@ struct SessionIndexTable: NSViewRepresentable {
                 self?.model?.playFromIndexRow(item)
                 return true
             })
+        view.actions.append(
+            NSAccessibilityCustomAction(name: L10n.menuEditDelete.text) { [weak self] in
+                self?.model?.deleteIndexRow(item.id)
+                return true
+            })
     }
 
     func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
@@ -355,7 +360,7 @@ final class IndexTableView: NSTableView {
         (dataSource as? IndexTableSource)?.rowMenu(at: row(at: convert(event.locationInWindow, from: nil)))
     }
 
-    @objc func delete(_ sender: Any?) { beep() }
+    @objc func delete(_ sender: Any?) { (dataSource as? IndexTableSource)?.model?.deleteIndexRows() }
 
     override func selectAll(_ sender: Any?) {
         guard let source = dataSource as? IndexTableSource else { return }

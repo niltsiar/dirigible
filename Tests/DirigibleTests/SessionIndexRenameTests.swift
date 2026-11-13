@@ -244,8 +244,10 @@ import Testing
             (table.rowView(atRow: n, makeIfNecessary: true)?.accessibilityCustomActions() ?? []).map(\.name)
         }
         #expect(
-            names(4) == [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text, L10n.indexActionPlayFromHere.text],
-            "a clip row has no Rename")
+            names(4) == [
+                L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text, L10n.indexActionPlayFromHere.text,
+                L10n.menuEditDelete.text,
+            ], "a clip row has no Rename")
         let action = try #require(
             table.rowView(atRow: 2, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
                 $0.name == L10n.headerRename.text

@@ -87,8 +87,7 @@ copy_pids() {
 }
 
 # Stop each copy process: SIGTERM, then a wait of up to 5 s, then SIGKILL to the same PID. It sets
-# stopped_copy to 1 when it stopped one, and always returns 0: start sends its output to /dev/null,
-# so a printed marker is lost, and a nonzero return ends the script under set -e.
+# stopped_copy to 1 when it stopped one (start sends its output to /dev/null), and returns 0.
 stopped_copy=0
 stop_copy() {
     local pids pid

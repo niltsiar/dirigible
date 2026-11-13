@@ -5,7 +5,7 @@
 - Amended: 2026-10-22, run 2026-10-22-watchdog-hangs.
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. `scripts/verify-copy.sh start` sets `DIRIGIBLE_LOG_FOLDER` to `build/verify/logs`, so the journal of the verify copy is not in the folder of the real app; only `stop` deletes it. For `DIRIGIBLE_AUDIO_OUTPUT=none`, the app writes one `audio-output` notice line after `app launch`, and for an unknown value an error line. A CLI journal has no such line.
 - Amended: 2026-11-04, run `2026-11-03-caf-removal` (see 0071). `take finalize` and `capture place` open the studio with a CLI journal, so a fault of the raw sweep that they await has its `raw` line. A locked CLI or MCP edit opens its journal at the first fault only. Each `take finalize` and `capture place` run uses one journal of the retention above.
-- Amended: 2026-11-13, run `2026-11-12-upkeep-nineteenth`. A `scripts/verify-copy.sh start` that stops a running copy deletes `build/verify/logs`, as `stop` does, because the stop ends the journal unclean. A `start` that stops no copy (after a `kill -9`) keeps the journal and the recovery hint. "Only `stop` deletes it" in the 2026-10-30 amendment holds for a `start` that stops no copy.
+- Amended: 2026-11-13, run `2026-11-12-upkeep-nineteenth`. A `scripts/verify-copy.sh start` that stops a running copy deletes `build/verify/logs`, as `stop` does, because the stop ends the journal unclean. A `start` that stops no copy (after a `kill -9`) keeps the journal and the recovery hint.
 
 ## Context
 

@@ -6,7 +6,7 @@ import SwiftUI
 /// The list of the session index: a view-based `NSTableView` (a SwiftUI `List` of 12,250 rows took
 /// 140 ms per search key). It reloads only when the shown rows change. Several rows can be selected:
 /// a plain click or a plain arrow runs the row action, and Shift-click, Command-click, the arrows with
-/// Shift, and Select All select rows with no seek. A row is one accessibility element, the kind first.
+/// Shift, and Select All select rows with no seek. The name cell says its row, the kind first.
 struct SessionIndexTable: NSViewRepresentable {
     static let nameColumn = NSUserInterfaceItemIdentifier("name")
     static let startColumn = NSUserInterfaceItemIdentifier("start")
@@ -150,21 +150,16 @@ struct SessionIndexTable: NSViewRepresentable {
         let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
         let start = table.column(withIdentifier: SessionIndexTable.startColumn)
         var field: Int?
-        table.enumerateAvailableRowViews { view, n in
+        table.enumerateAvailableRowViews { _, n in
             let w = change.map { n < $0.new.lowerBound ? n : n - $0.new.upperBound + $0.old.upperBound } ?? n
-            guard change?.new.contains(n) != true, old.indices.contains(w), let view = view as? IndexRowView else {
-                return
-            }
+            guard change?.new.contains(n) != true, old.indices.contains(w) else { return }
             let (was, row) = (old[w], rows[n])
             guard was != row else { return }
-            configure(view, row: n)
-            if was.id != row.id || was.name != row.name || was.kind != row.kind,
-                let cell = table.view(atColumn: name, row: n, makeIfNecessary: false) as? IndexCell
-            {
-                if editing?.superview === cell {
+            if let cell = table.view(atColumn: name, row: n, makeIfNecessary: false) as? IndexCell {
+                if editing?.superview !== cell {
+                    cell.show(text: row.name, symbol: Self.symbol(row.kind), spoken: Self.spoken(row, rate: rate))
+                } else if was.id != row.id || was.name != row.name || was.kind != row.kind {
                     field = n
-                } else {
-                    cell.show(text: row.name, symbol: Self.symbol(row.kind))
                 }
             }
             if was.position != row.position,
@@ -205,45 +200,27 @@ struct SessionIndexTable: NSViewRepresentable {
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
 
-    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        let id = NSUserInterfaceItemIdentifier("indexRow")
-        let view = tableView.makeView(withIdentifier: id, owner: nil) as? IndexRowView ?? IndexRowView()
-        view.identifier = id
-        configure(view, row: row)
-        return view
-    }
-
-    /// The label and the actions of row `row`.
-    private func configure(_ view: IndexRowView, row: Int) {
-        view.spoken = Self.spoken(rows[row], rate: rate)
+    /// The actions of row `row`. The row element that AppKit gives to an accessibility client is not
+    /// the row view: it takes its custom actions from the trailing row actions, which a swipe also shows.
+    func tableView(
+        _ tableView: NSTableView, rowActionsForRow row: Int, edge: NSTableView.RowActionEdge
+    ) -> [NSTableViewRowAction] {
+        guard edge == .trailing, rows.indices.contains(row) else { return [] }
         let item = rows[row]
-        view.actions = [
-            NSAccessibilityCustomAction(name: L10n.indexActionGoTo.text) { [weak self] in
-                self?.model?.selectIndexRow(item, byClick: true)
-                return true
-            },
-            NSAccessibilityCustomAction(name: L10n.indexActionShowInfo.text) { [weak self] in
-                self?.model?.showIndexInfo(item)
-                return true
-            },
-        ]
-        if item.kind != .clip {
-            view.actions.append(
-                NSAccessibilityCustomAction(name: L10n.headerRename.text) { [weak self] in
-                    self?.model?.renameIndexRow(item.id)
-                    return true
-                })
+        let actions: [(L10n, (SessionWindow) -> Void)] =
+            [
+                (.indexActionGoTo, { $0.selectIndexRow(item, byClick: true) }),
+                (.indexActionShowInfo, { $0.showIndexInfo(item) }),
+            ] + (item.kind == .clip ? [] : [(.headerRename, { $0.renameIndexRow(item.id) })]) + [
+                (.indexActionPlayFromHere, { $0.playFromIndexRow(item) }),
+                (.menuEditDelete, { $0.deleteIndexRow(item.id) }),
+            ]
+        return actions.map { name, run in
+            NSTableViewRowAction(style: .regular, title: name.text) { [weak self, weak tableView] _, _ in
+                tableView?.rowActionsVisible = false
+                if let model = self?.model { run(model) }
+            }
         }
-        view.actions.append(
-            NSAccessibilityCustomAction(name: L10n.indexActionPlayFromHere.text) { [weak self] in
-                self?.model?.playFromIndexRow(item)
-                return true
-            })
-        view.actions.append(
-            NSAccessibilityCustomAction(name: L10n.menuEditDelete.text) { [weak self] in
-                self?.model?.deleteIndexRow(item.id)
-                return true
-            })
     }
 
     func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
@@ -253,7 +230,7 @@ struct SessionIndexTable: NSViewRepresentable {
         let cell = tableView.makeView(withIdentifier: id, owner: nil) as? IndexCell ?? IndexCell(identifier: id)
         let item = rows[row]
         if id == SessionIndexTable.nameColumn {
-            cell.show(text: item.name, symbol: Self.symbol(item.kind))
+            cell.show(text: item.name, symbol: Self.symbol(item.kind), spoken: Self.spoken(item, rate: rate))
         } else {
             cell.show(text: timeDisplayText(item.position, rate: rate, playing: false), symbol: nil)
         }

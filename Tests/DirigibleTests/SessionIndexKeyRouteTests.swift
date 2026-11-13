@@ -109,11 +109,7 @@ import Testing
         windows.app.timeline(.markerInfo, event: pressReturn(shift: true, in: window), in: window)
         #expect(model.inspectorTab == .marker && model.timeline.marker == "m2", "Shift-Return shows the Marker tab")
         model.selectInspectorTab(.clip)
-        let showInfo = try #require(
-            table.rowView(atRow: 2, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
-                $0.name == L10n.indexActionShowInfo.text
-            })
-        _ = showInfo.handler?()
+        try #require(table.clientAction(row: 2, .indexActionShowInfo)).perform()
         #expect(model.inspectorTab == .marker && model.timeline.marker == "m1", "Show Info shows the Marker tab")
 
         await model.settleTransport()

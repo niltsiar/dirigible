@@ -240,19 +240,13 @@ import Testing
     @Test func theRenameActionOpensTheField() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, _, table, _) = try await open()
-        let names = { (n: Int) in
-            (table.rowView(atRow: n, makeIfNecessary: true)?.accessibilityCustomActions() ?? []).map(\.name)
-        }
+        let names = { (n: Int) in table.clientActions(row: n).map(\.name) }
         #expect(
             names(4) == [
                 L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text, L10n.indexActionPlayFromHere.text,
                 L10n.menuEditDelete.text,
             ], "a clip row has no Rename")
-        let action = try #require(
-            table.rowView(atRow: 2, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
-                $0.name == L10n.headerRename.text
-            })
-        _ = action.handler?()
+        try #require(table.clientAction(row: 2, .headerRename)).perform()
         let field = try #require(rowField(in: table), "the action opened no field")
         #expect(table.row(for: field) == 2 && model.timeline.selectedRows == [.marker("m1")], "the row is selected")
         await model.close()

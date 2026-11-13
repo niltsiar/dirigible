@@ -231,14 +231,15 @@ import Testing
         let table = try #require(model.leadingPane.table)
         await until("the table shows its rows") { table.numberOfRows == 6 }
         window.contentView?.layoutSubtreeIfNeeded()
-        let row = try #require(table.rowView(atRow: 1, makeIfNecessary: true), "row h1")
+        // A table row element of AppKit has no label of its own: a client reads the row from its cells.
+        let name = try #require(table.view(atColumn: 0, row: 1, makeIfNecessary: true), "name cell of h1")
+        let start = try #require(table.view(atColumn: 1, row: 1, makeIfNecessary: true), "start cell of h1")
         #expect(
-            row.isAccessibilityElement()
-                && row.accessibilityLabel()
-                    == IndexTableSource.spoken(
-                        SessionIndex(session: studio.session).rows[1], rate: 48_000)
+            name.isAccessibilityElement()
+                && name.accessibilityLabel()
+                    == IndexTableSource.spoken(SessionIndex(session: studio.session).rows[1], rate: 48_000)
         )
-        #expect(row.accessibilityChildren()?.isEmpty == true, "a row is one accessibility element")
+        #expect(!start.isAccessibilityElement(), "the name cell says the start too")
         await model.close()
     }
 

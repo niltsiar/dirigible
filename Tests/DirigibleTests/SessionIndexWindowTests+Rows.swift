@@ -330,7 +330,7 @@ extension SessionIndexWindowTests {
         }
         #expect(list.reloads == reloads, "\(list.reloads - reloads) reloadData calls for two edits of one item")
         #expect((0..<5).map(name) == ["Capture/take1-1-1", "Intro", "Pause", "Café intro", "Cut here"])
-        let labels = (0..<5).map { table.rowView(atRow: $0, makeIfNecessary: false)?.accessibilityLabel() }
+        let labels = (0..<5).map { table.spokenLabel(row: $0) }
         let spoken = SessionIndex(session: studio.session).rows.map { IndexTableSource.spoken($0, rate: 48_000) }
         #expect(labels == spoken, "each row says its own item")
         await model.close()
@@ -350,8 +350,7 @@ extension SessionIndexWindowTests {
         }
         let spoken = try #require(SessionIndex(session: studio.session).rows.last)
         await until("row m2 says Chapter") {
-            table.rowView(atRow: 5, makeIfNecessary: false)?.accessibilityLabel()
-                == IndexTableSource.spoken(spoken, rate: 48_000)
+            table.spokenLabel(row: 5) == IndexTableSource.spoken(spoken, rate: 48_000)
         }
         window.contentView?.layoutSubtreeIfNeeded()
         #expect(cell()?.imageView?.image?.tiffRepresentation == glyph("bookmark"), "the chapter glyph")
@@ -373,14 +372,15 @@ extension SessionIndexWindowTests {
     }
 
     /// Each row has the actions Go to, Show Info, Play from here, and Delete; a marker or chapter row
-    /// also has Rename.
+    /// also has Rename. The actions are read on the row elements that the table gives to an
+    /// accessibility client, which are not the row views.
     @Test func aRowHasItsCustomActions() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, _, table) = try await openRows()
+        try #require(table.clientRows.count == 6)
         let clips = [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text]
         for n in 0..<6 {
-            let row = try #require(table.rowView(atRow: n, makeIfNecessary: true))
-            let names = (row.accessibilityCustomActions() ?? []).map(\.name)
+            let names = table.clientActions(row: n).map(\.name)
             let renames = [1, 2, 5].contains(n)
             let expected =
                 clips + (renames ? [L10n.headerRename.text] : []) + [
@@ -388,8 +388,7 @@ extension SessionIndexWindowTests {
                 ]
             #expect(names == expected, "row \(n): \(names)")
         }
-        let row = try #require(table.rowView(atRow: 2, makeIfNecessary: true))
-        _ = row.accessibilityCustomActions()?.first { $0.name == L10n.indexActionGoTo.text }?.handler?()
+        try #require(table.clientAction(row: 2, L10n.indexActionGoTo)).perform()
         #expect(model.timeline.selectedRows == [.marker("m1")], "Go to acts as a click")
         await model.close()
     }

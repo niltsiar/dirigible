@@ -1,19 +1,7 @@
 import AppKit
 
-/// The row: the one accessibility element of its cells.
-final class IndexRowView: NSTableRowView {
-    var spoken = ""
-    var actions: [NSAccessibilityCustomAction] = []
-
-    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { actions }
-
-    override func isAccessibilityElement() -> Bool { true }
-    override func accessibilityRole() -> NSAccessibility.Role? { .row }
-    override func accessibilityLabel() -> String? { spoken }
-    override func accessibilityChildren() -> [Any]? { [] }
-}
-
-/// A cell with an optional glyph and a truncated text. It is no accessibility element: its row says it.
+/// A cell with an optional glyph and a truncated text. An accessibility client reads a row from its
+/// cells, so the name cell is the one accessibility element of its row and says the whole row.
 final class IndexCell: NSTableCellView {
     private let label = NSTextField(labelWithString: "")
     private let glyph = NSImageView()
@@ -78,8 +66,11 @@ final class IndexCell: NSTableCellView {
         return image
     }
 
-    func show(text: String, symbol: String?) {
+    /// With `spoken`, the cell is an accessibility element with that label; else it is none.
+    func show(text: String, symbol: String?, spoken: String? = nil) {
         endEditing()
+        setAccessibilityElement(spoken != nil)
+        setAccessibilityLabel(spoken)
         label.stringValue = text
         glyph.image = symbol.flatMap(Self.glyph)
         glyph.isHidden = symbol == nil

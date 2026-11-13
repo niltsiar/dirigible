@@ -73,12 +73,9 @@ extension SessionIndexWindowTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()
         func action(row n: Int) throws -> NSAccessibilityCustomAction {
-            try #require(
-                table.rowView(atRow: n, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
-                    $0.name == L10n.indexActionPlayFromHere.text
-                })
+            try #require(table.clientAction(row: n, .indexActionPlayFromHere))
         }
-        _ = try action(row: 4).handler?()
+        try action(row: 4).perform()
         await model.settleTransport()
         #expect(studio.playback != .stopped, "the action starts the play")
         #expect(studio.playhead >= 192_000 && studio.playhead < 192_000 + 48_000, "from the start of c")

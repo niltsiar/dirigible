@@ -42,9 +42,13 @@
 # test-filter test-app, below). FILTER before the push exits 1: the push runs the full targets. A
 # local git run with no FILTER whose targets have test or check prints the three lines and exits 1:
 # the full suite runs only in the push check. A local git run with FILTER whose targets have no
-# test-filter prints the three lines and exits 1: it would run no test. With no changed path,
-# FILTER gives the target test-filter and one stderr note. The mode --paths keeps the targets (a
-# probe of the table).
+# test-filter prints the three lines and exits 1: it would run no test. A local git run (SINCE too)
+# prints a fourth line `filter: <names>` when a changed Sources/ Swift path has tests: the suites that
+# the test files of its stem declare or extend (default_filter). The refusal with no FILTER names
+# them. A FILTER covers a name when one FILTER name is a substring of it; a FILTER that leaves out a
+# name exits 3 with the full FILTER in the reason, so with-lock.sh exits before the build lock.
+# With no changed path, FILTER gives the target test-filter and one stderr note. The mode --paths
+# keeps the targets (a probe of the table).
 # A local run with check-fast (the form of check with FILTER too) adds the word HOOK_TESTS=<tests>:
 # the tests of the changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one
 # word and scripts/test-hooks.sh splits it. A path of class tooling, bundle, or build needs a test:
@@ -404,6 +408,69 @@ classify() {
 }
 classify "$paths"
 
+# The parser of scripts/test-filter.sh, the same text: decl(line) gives the type of a top-level
+# declaration or extension line, suite_awk prints each type with a @Test in a top-level block, and
+# file_awk prints "D <type>" or "E <type>" for each declaration or extension line.
+decl_awk='function decl(l,   n, w) {
+    kind = ""
+    if (!match(l, "^((@[A-Za-z_][A-Za-z0-9_]*(\\([^)]*\\))?|public|internal|private|fileprivate|final|open)[ \t]+)*(struct|class|enum|actor|extension)[ \t]+[A-Za-z_][A-Za-z0-9_.]*")) return ""
+    n = split(substr(l, RSTART, RLENGTH), w, /[ \t]+/)
+    kind = w[n - 1]
+    return w[n]
+}'
+suite_awk='FNR == 1 { cur = "" }
+{
+    d = decl($0)
+    if (d != "") cur = d
+    if (cur != "" && $0 !~ /^[ \t]*\/\// && $0 ~ /@Test([^A-Za-z0-9_]|$)/) suite[cur] = 1
+    if (d != "" && $0 ~ /\{.*\}[ \t]*$/) cur = ""
+    else if ($0 ~ /^\}/) cur = ""
+}
+END { for (s in suite) print s }'
+file_awk='{ d = decl($0); if (d != "") print (kind == "extension" ? "E " : "D ") d }'
+# default_filter: the default FILTER names of the changed Sources/ Swift paths that keep their class.
+# The stem is the file name with no .swift and no +<part>. The prefix is the longest run of whole
+# CamelCase words at the start of the stem that starts the stem of a Swift file under Tests/. The
+# names are the suites that those test files declare or extend, less each name that a test target
+# name (a folder under Tests/) holds: swift test --filter matches <target>.<suite>/<test>, so such a
+# name runs the whole target.
+default_filter() {
+    local tests p stem k pre matched types="" suites t d names=""
+    local -a words files
+    [[ -d Tests ]] || return 0
+    tests="$(find Tests -type f -name '*.swift' | sort)"
+    while IFS= read -r p; do
+        case "$p" in Sources/*.swift) ;; *) continue ;; esac
+        stem="${p##*/}"
+        stem="${stem%.swift}"
+        stem="${stem%%+*}"
+        read -r -a words <<<"$(sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' <<<"$stem")"
+        matched=""
+        for ((k = ${#words[@]}; k >= 1; k--)); do
+            pre="$(printf '%s' "${words[@]:0:k}")"
+            matched="$(awk -v pre="$pre" '{ s = $0; sub(/.*\//, "", s); sub(/\.swift$/, "", s); sub(/\+.*/, "", s) } index(s, pre) == 1' <<<"$tests")"
+            [[ -z $matched ]] || break
+        done
+        [[ -n $matched ]] || continue
+        files=()
+        while IFS= read -r t; do files+=("$t"); done <<<"$matched"
+        types+="$(awk "$decl_awk $file_awk" "${files[@]}" | sed 's/^[DE] //')"$'\n'
+    done <<<"$kept"
+    [[ -n "${types//$'\n'/}" ]] || return 0
+    suites="$(find Tests -type f -name '*.swift' -exec awk "$decl_awk $suite_awk" {} + | sort -u)"
+    while IFS= read -r t; do
+        [[ -n $t ]] && grep -qxF -- "$t" <<<"$suites" || continue
+        for d in Tests/*/; do
+            d="${d%/}"
+            [[ "${d#Tests/}" != *"$t"* ]] || continue 2
+        done
+        names+=" $t"
+    done < <(sort -u <<<"$types")
+    echo "${names# }"
+}
+default=""
+[[ $mode != git || $push == 1 ]] || default="$(default_filter)"
+
 classes="" risk=no
 for c in docs comments tooling tests sources sources-risk bundle build; do
     [[ "$found" == *" $c "* ]] || continue
@@ -536,11 +603,12 @@ fi
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"
 echo "risk: $risk"
+[[ -z $default ]] || echo "filter: $default"
 if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && $needs_suite == yes ]]; then
     if [[ -n "$since_ref" ]]; then
-        echo "check-changed: the targets $targets run the full Swift suite. Run make check-changed SINCE=$since_ref FILTER='<name> <name>' for the tests of the group. The full suite runs only in the push check. A bare make test refuses too." >&2
+        echo "check-changed: the targets $targets run the full Swift suite. Run make check-changed SINCE=$since_ref FILTER='${default:-<name> <name>}' for the tests of the group. The full suite runs only in the push check. A bare make test refuses too." >&2
     else
-        echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='<name> <name>'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
+        echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='${default:-<name> <name>}'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
     fi
     exit 1
 fi
@@ -551,4 +619,19 @@ if [[ $mode == git && -n "${FILTER:-}" && " $targets " != *" test-filter "* ]]; 
         echo "check-changed: FILTER is set, but the targets $targets run no test. Run make test-filter FILTER='<name> <name>' for the tests, or run make check-changed with no FILTER for these targets." >&2
     fi
     exit 1
+fi
+# A FILTER covers a default name when one FILTER name is a substring of it. A FILTER that leaves out
+# a default name exits 3: scripts/with-lock.sh passes status 3 through before the build lock.
+if [[ -n $default && -n "${FILTER:-}" && " $targets " == *" test-filter "* ]]; then
+    read -r -a given <<<"$FILTER"
+    missing=""
+    for n in $default; do
+        for f in ${given[@]+"${given[@]}"}; do [[ "$n" != *"$f"* ]] || continue 2; done
+        missing+=" $n"
+    done
+    if [[ -n $missing ]]; then
+        full="${given[*]-}$missing"
+        echo "check-changed: FILTER='$FILTER' runs no test of the default suites$missing (the filter: line: the suites of the changed sources). Run make check-changed${since_ref:+ SINCE=$since_ref} FILTER='${full# }'." >&2
+        exit 3
+    fi
 fi

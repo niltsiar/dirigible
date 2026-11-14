@@ -19,7 +19,8 @@
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
 # ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word
 # (a tooling or build path that no hook test names), and the target static, in place of check-fast,
-# when the paths need no hook test.
+# when the paths need no hook test. Check the line `filter: <names>` of a local git run, its near
+# cases, and exit 3 for a FILTER that leaves out one of the names.
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
 # the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
 # .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.
@@ -1096,6 +1097,72 @@ got="$(run_in --floor 2>&1)" || fail "past origin/main with --floor: exit $?"
 [[ "$got" == "$("$script" --floor)" && "$got" == *SessionWriter.swift* ]] || fail "past origin/main with --floor: got [$got]"
 got="$(run_in --wait-load none 2>&1)" || fail "past origin/main with --wait-load: exit $?"
 [[ -z "$got" ]] || fail "past origin/main with --wait-load: got [$got]"
+
+# The default FILTER of a local git run, also with SINCE: the line `filter: <names>` after the three
+# lines holds each suite that the test files of a changed source declare or extend. A FILTER with no
+# name that a default name holds exits 3, and the reason names the full FILTER.
+# swift_suite <path> <declaration>: a test file with one block that holds one @Test.
+swift_suite() { mkdir -p "$(dirname "$tmp/r/$1")" && printf '%s {\n    @Test func t() {}\n}\n' "$2" > "$tmp/r/$1"; }
+idx_source=Sources/DirigibleApp/SessionIndexTable+Columns.swift
+default='SessionIndexColumnsTests SessionIndexCostTests'
+for since in '' set; do
+  new_repo
+  swift_suite Tests/DirigibleTests/SessionIndexCostTests.swift 'struct SessionIndexCostTests'
+  swift_suite Tests/DirigibleTests/SessionIndexColumnsTests+Scroll.swift 'extension SessionIndexColumnsTests'
+  put "$idx_source" x
+  label="default FILTER${since:+ with SINCE}" form="make check-changed"
+  if [[ -n $since ]]; then
+    since="$(g rev-parse HEAD)" form+=" SINCE=$since"
+    put "$idx_source" y
+  else
+    printf 'y\n' >> "$tmp/r/$idx_source"
+  fi
+  got="$(SINCE=$since run_in 2> "$tmp/default.err")"
+  code=$?
+  [[ $code -eq 1 && "$got" == "$(out sources test no)"$'\n'"filter: $default" ]] || fail "$label, no FILTER: exit $code, got [$got]"
+  grep -qF "$form FILTER='$default'" "$tmp/default.err" || fail "$label, no FILTER: no default in the reason: $(cat "$tmp/default.err")"
+  got="$(SINCE=$since FILTER=SessionIndexKeyTests run_in 2> "$tmp/default.err")"
+  code=$?
+  [[ $code -eq 3 ]] || fail "$label, a FILTER with no default name: exit $code (want 3), got [$got]"
+  grep -qF "$form FILTER='SessionIndexKeyTests $default'" "$tmp/default.err" || fail "$label, a FILTER with no default name: no full FILTER in the reason: $(cat "$tmp/default.err")"
+  for filter in SessionIndex "$default" 'Index NewTest'; do
+    got="$(SINCE=$since FILTER=$filter run_in 2>&1)" || fail "$label, FILTER='$filter': exit $?"
+    [[ "$got" == "$(out sources test-filter no)"$'\n'"filter: $default" ]] || fail "$label, FILTER='$filter': got [$got]"
+  done
+done
+got="$(run_in --paths <<<"$idx_source")" || fail "default FILTER with --paths: exit $?"
+[[ "$got" == "$(out sources test no)" ]] || fail "default FILTER with --paths: got [$got]"
+# default_case <label> <source> <FILTER> <classes> <risk> <filter line>: a change to the source of
+# the repo of the case, with the FILTER, prints the three lines and the filter line, and exits 0.
+default_case() {
+  printf 'y\n' >> "$tmp/r/$2"
+  got="$(FILTER=$3 run_in 2>&1)" || fail "$1: exit $?: $got"
+  [[ "$got" == "$(out "$4" test-filter "$5")"$'\n'"$6" ]] || fail "$1: got [$got]"
+}
+# A test file of the stem that only extends a suite of another file gives that suite.
+new_repo
+swift_suite Tests/DirigibleTests/AgentTakeNoticeTests.swift 'extension ConsentTests'
+swift_suite Tests/DirigibleTests/ConsentTests.swift 'struct ConsentTests'
+put Sources/DirigibleApp/AgentTakeNotice.swift x
+default_case 'default FILTER, an extension file' Sources/DirigibleApp/AgentTakeNotice.swift ConsentTests sources no 'filter: ConsentTests'
+# An extension block with no @Test of its own still names a suite of another file.
+new_repo
+put Tests/DirigibleMCPTests/MCPClipTableTests.swift $'extension MCPEditTableTests {\n    func clip() {}\n}'
+swift_suite Tests/DirigibleMCPTests/MCPEditTableTests.swift 'struct MCPEditTableTests'
+put Sources/DirigibleMCP/MCPClipTools.swift x
+default_case 'default FILTER, an extension with no @Test' Sources/DirigibleMCP/MCPClipTools.swift MCPEditTableTests sources no 'filter: MCPEditTableTests'
+# A suite name that a test target name holds runs the whole target: it drops.
+new_repo
+swift_suite Tests/DirigibleTimelineTests/TimelineTests.swift 'struct TimelineTests'
+swift_suite Tests/DirigibleTimelineTests/TimelineZoomTests.swift 'struct TimelineZoomTests'
+put Sources/DirigibleApp/Timeline/Timeline.swift x
+default_case 'default FILTER, a target name' Sources/DirigibleApp/Timeline/Timeline.swift TimelineZoomTests sources no 'filter: TimelineZoomTests'
+# The longest prefix of whole words: SessionWriter gives Session.
+new_repo
+swift_suite Tests/DirigibleCoreTests/SessionTests.swift 'struct SessionTests'
+g add -A
+g commit -q -m tests
+default_case 'default FILTER, a shorter prefix' Sources/DirigibleCore/SessionWriter.swift SessionTests sources-risk yes 'filter: SessionTests'
 
 # The mode --overlap <base> names other work that changes a Sources/ or Tests/ file of this branch:
 # the commits of <base> since the merge base, each other worktree (commits, working tree, and

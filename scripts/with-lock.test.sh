@@ -1397,6 +1397,23 @@ for holder_command in none 'make dmg'; do
     [[ ! -e "$pair/.git/dirigible-build-waits.log" && ! -e "$pair/.git/dirigible-build-holds.log" ]] || fail "real pair, holder [$holder_command]: a log line"
     [[ -z "$inner" ]] || { kill "$inner" 2>/dev/null; wait "$inner" 2>/dev/null; inner=""; }
 done
+# A FILTER that leaves out a default suite name of the changed source: the pair exits 3 at once
+# behind a release holder, with the full FILTER in the reason, no make call, and no log line.
+mkdir -p "$pair/Tests/DirigibleTests" "$pair/Sources/DirigibleApp"
+printf 'struct SessionIndexCostTests {\n    @Test func t() {}\n}\n' > "$pair/Tests/DirigibleTests/SessionIndexCostTests.swift"
+printf 'x\n' > "$pair/Sources/DirigibleApp/SessionIndexTable+Columns.swift"
+rm -rf "$plock" "$pair/.git/dirigible-build-waits.log" "$tmp/order"
+sleep 60 & inner=$!
+mkdir "$plock" && echo "$inner" > "$plock/pid" && echo 'make dmg' > "$plock/command"
+t0=$(date +%s)
+out="$(cd "$pair" && WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1 scripts/with-lock.sh "$fake/make" check-changed FILTER=SessionIndexKeyTests 2>&1)"
+code=$?
+elapsed=$(($(date +%s) - t0))
+[[ $code -eq 3 ]] && pair_in_time "$elapsed" && [[ "$out" == *"FILTER='SessionIndexKeyTests SessionIndexCostTests'"* && "$out" != *'held by pid'* && ! -e "$tmp/order" ]] ||
+    fail "real pair, a FILTER with no default name: exit $code after $elapsed s, make [$(cat "$tmp/order" 2>/dev/null)]: $out"
+[[ ! -e "$pair/.git/dirigible-build-waits.log" && ! -e "$pair/.git/dirigible-build-holds.log" ]] || fail "real pair, a FILTER with no default name: a log line"
+kill "$inner" 2>/dev/null; wait "$inner" 2>/dev/null; inner=""
+rm -rf "$plock"
 reset_builders
 # A script that builds nothing and only reads files (cost.sh, wiki.py) exits 2 at once with a live
 # holder: it names DLV-157 and the bare command, and writes no wait line. Any other command waits.

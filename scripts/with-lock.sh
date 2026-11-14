@@ -88,7 +88,8 @@
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
 # run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh
-# (its refusal of a bare run with no changed path and commits past origin/main) runs no command:
+# (its refusal of a bare run with no changed path and commits past origin/main, or of a FILTER that
+# leaves out a name of its filter: line) runs no command:
 # the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
 # log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
 # does not wait for another build or test. While a release call, a bench, a mutation pass, a flake
@@ -419,8 +420,9 @@ run_only() {
 }
 # lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift, or whose
 # Swift calls take the lock themselves (the header lists them). Any other command, goal, or
-# check-changed.sh failure is not lock-free (fail closed), except status 3 of check-changed.sh: it
-# prints the output and exits 3 at once.
+# check-changed.sh failure is not lock-free (fail closed), except status 3 of check-changed.sh (a
+# bare run past origin/main, or a FILTER that leaves out a default name): it prints the output and
+# exits 3 at once.
 lock_free() {
     local w out="" status=0
     if [[ "${WITH_LOCK_RUN_ONLY:-}" == 1 ]]; then run_only "$@"; return; fi

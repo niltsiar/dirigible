@@ -12,7 +12,7 @@ struct ScaleStripInputs: Equatable {
 /// The dB scale at the trailing edge of the track headers, beside each lane (decision 0017). It is
 /// a subview of `TrackHeaderRuler`, so the header rows keep their width. A tick sits where a
 /// 0 dBFS signal of that level ends in the lane, by the formula of the waveform. The header handle
-/// covers its trailing 6 pt and gives it a right-click and a Control-click.
+/// covers its trailing 6 pt and gives it a right-click, a Control-click, and a Command-wheel.
 final class WaveformScaleStrip: NSView {
     /// The width in points.
     static let width = 20.0
@@ -24,6 +24,8 @@ final class WaveformScaleStrip: NSView {
     static let labelFont = NSFont.systemFont(ofSize: 8)
     static let labelHeight = 10.0
 
+    /// The wheel steps: the gap and the pending trackpad delta (`WaveformScaleStrip+Wheel.swift`).
+    var wheel = WaveformWheel()
     /// The draws, for the tests.
     private(set) var draws = 0
     /// The document y at the top of the clip view: the strip keeps the position of the lanes.
@@ -124,7 +126,7 @@ final class WaveformScaleStrip: NSView {
 
     // MARK: Mouse
 
-    private var model: SessionWindow? {
+    var model: SessionWindow? {
         ((superview as? TrackHeaderRuler)?.scrollView as? TimelineScrollView)?.model
     }
 

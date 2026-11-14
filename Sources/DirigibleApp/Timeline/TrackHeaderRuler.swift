@@ -203,7 +203,8 @@ final class HeaderHost: NSHostingView<AnyView> {
 
 /// The 6 pt hit area at the trailing edge of the headers, above the rows: the drag, the
 /// double-click, the cursor, and the AX splitter of the header width. It covers the trailing 6 pt of
-/// the scale strip, so it gives the strip the menu of a right-click and a Control-click.
+/// the scale strip, so it gives the strip the menu of a right-click and a Control-click, and the
+/// wheel.
 final class HeaderHandle: NSView {
     weak var ruler: TrackHeaderRuler?
 
@@ -215,6 +216,10 @@ final class HeaderHandle: NSView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? { ruler?.strip.menu(for: event) }
+
+    override func scrollWheel(with event: NSEvent) {
+        if let strip = ruler?.strip { strip.scrollWheel(with: event) } else { super.scrollWheel(with: event) }
+    }
 
     override func mouseDragged(with event: NSEvent) { ruler?.dragged(.drag(x: x(event))) }
     override func mouseUp(with event: NSEvent) { ruler?.dragged(.up) }

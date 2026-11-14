@@ -416,7 +416,7 @@ classify "$paths"
 # names are the suites that those test files declare or extend (the parser of swift-suites.sh, with
 # no suite whose tests all have the slow gate), less each name that a test target name (a folder
 # under Tests/) holds: swift test --filter matches <target>.<suite>/<test>, so such a name runs the
-# whole target.
+# whole target. A name that holds a name of skip_suites drops too: test-filter.sh skips its tests.
 default_filter() {
     local tests p stem k pre matched types="" suites t d names=""
     local -a words files
@@ -443,6 +443,9 @@ default_filter() {
     suites="$(find Tests -type f -name '*.swift' -exec awk -v slow=skip "$decl_awk $suite_awk" {} + | sort -u)"
     while IFS= read -r t; do
         [[ -n $t ]] && grep -qxF -- "$t" <<<"$suites" || continue
+        for d in $skip_suites; do
+            [[ "$t" != *"$d"* ]] || continue 2
+        done
         for d in Tests/*/; do
             d="${d%/}"
             [[ "${d#Tests/}" != *"$t"* ]] || continue 2

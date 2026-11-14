@@ -43,7 +43,7 @@ done
 cd "$(dirname "$0")/.."
 out="$(mktemp)" started="$(mktemp)" skipped="$(mktemp)"
 trap 'rm -f "$out" "$started" "$skipped"' EXIT
-# decl_awk, suite_awk, and file_awk: the parser of the suites of the Swift test files.
+# decl_awk, suite_awk, and file_awk: the parser of the suites of the Swift test files; skip_suites.
 source scripts/swift-suites.sh
 suites=""
 # hint_suite <name>: prints the hint lines of a refused name to stderr.
@@ -79,7 +79,9 @@ run() {
     { [[ $built -eq 1 ]] || grep -qF 'No matching test cases were run' "$out"; } && grep -qF 'Test run with 0 tests' "$out" || ran=1
 }
 
-p1=(--skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests) p2=()
+p1=() p2=()
+for s in $skip_suites; do p1+=(--skip "$s"); done
+p1+=(--skip DirigibleCLITests)
 names=("$@") rx=() inCLI=()
 for name in "$@"; do
     cli=0

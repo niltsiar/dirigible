@@ -1173,6 +1173,18 @@ swift_suite Tests/DirigibleCoreTests/SessionTests.swift 'struct SessionTests'
 g add -A
 g commit -q -m tests
 default_case 'default FILTER, a shorter prefix' Sources/DirigibleCore/SessionWriter.swift SessionTests sources-risk yes 'filter: SessionTests'
+# A suite that test-filter.sh always skips (its --skip list) runs no test: it drops.
+new_repo
+swift_suite Tests/DirigibleTests/AppBundleTests.swift 'struct AppBundleTests'
+swift_suite Tests/DirigibleTests/AppBundleFormatTests.swift 'struct AppBundleFormatTests'
+put Sources/DirigibleApp/AppBundle.swift x
+default_case 'default FILTER, a skipped suite' Sources/DirigibleApp/AppBundle.swift AppBundleFormatTests sources no 'filter: AppBundleFormatTests'
+# A parenthesis in a quoted string of a @Test line does not count, so the next gated test does not
+# take the suite.
+new_repo
+put Tests/DirigibleTests/QuoteTests.swift "$(printf 'struct QuoteTests {\n    @Test("open (paren") func open() {}\n    @Test(%s) func slow() {}\n}' "$slow_gate")"
+put Sources/DirigibleApp/Quote.swift x
+default_case 'default FILTER, a parenthesis in a test name' Sources/DirigibleApp/Quote.swift QuoteTests sources no 'filter: QuoteTests'
 
 # The mode --overlap <base> names other work that changes a Sources/ or Tests/ file of this branch:
 # the commits of <base> since the merge base, each other worktree (commits, working tree, and

@@ -8,8 +8,12 @@
 # test-filter.sh refuses a name whose tests all skip. The parser reads the gate on the @Test line,
 # or on a later line before the trait parentheses of the @Test close (`@Test(` and then
 # `.enabled(if: ...)` on the next line). A gate in a test body or in a @Suite trait does not count.
+# A quoted string does not count in the parenthesis count (`@Test("a (b")`).
 # file_awk prints "D <type>" or "E <type>" for each declaration or extension line.
+# skip_suites: the suites that test-filter.sh always skips (swift test --skip); make test-app and
+# make test-dmg run them.
 # scripts/check-changed.test.sh and scripts/test-filter.test.sh test it.
+skip_suites='AppBundleTests DiskImageTests'
 decl_awk='function decl(l,   n, w) {
     kind = ""
     if (!match(l, "^((@[A-Za-z_][A-Za-z0-9_]*(\\([^)]*\\))?|public|internal|private|fileprivate|final|open)[ \t]+)*(struct|class|enum|actor|extension)[ \t]+[A-Za-z_][A-Za-z0-9_.]*")) return ""
@@ -17,7 +21,7 @@ decl_awk='function decl(l,   n, w) {
     kind = w[n - 1]
     return w[n]
 }'
-suite_awk='function parens(l,   o) { o = gsub(/\(/, "", l); return o - gsub(/\)/, "", l) }
+suite_awk='function parens(l,   o) { gsub(/"([^"\\]|\\.)*"/, "", l); o = gsub(/\(/, "", l); return o - gsub(/\)/, "", l) }
 FNR == 1 { cur = ""; held = "" }
 {
     if (held != "") {

@@ -9,7 +9,8 @@
 # names the lead as the step that grades. It finds keys.md in any folder of the run and takes
 # scores.tsv from the same folder. It reads a branch name in backticks.
 # It refuses a file of the run folder that holds a holdout key line of holdout-keys.md, except in an
-# eval folder, a build folder, a link, a file with no UTF-8 text, and a file over 1 MiB.
+# eval folder, a build folder, a link, a file that it cannot read, a file with no UTF-8 text, and a
+# file over 1 MiB.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -182,6 +183,14 @@ check 'a copy in a build folder, an app, a package, a wav, a file over 1 MiB, a 
 { printf '%s\n' "$hkey"; head -c $((1048576 - ${#hkey} - 1)) /dev/zero | tr '\0' x; } > "$run/notes.md"
 [[ "$(wc -c < "$run/notes.md")" -eq 1048576 ]] || fail 'the fixture of 1 MiB has another size'
 check 'a copy in a notes.md of exactly 1 MiB' 1 'notes.md' main "$run"
+
+# A file that the walk cannot read is skipped, with no key and with a key.
+fresh; put notes.md 'x'; chmod 000 "$run/notes.md"
+check 'an unreadable file and no holdout-keys.md' 0 '' main "$run"
+holdout H30 "$hkey"
+check 'an unreadable file' 0 '' main "$run"
+put plan.md "$hkey"
+check 'an unreadable file and a copy in plan.md' 1 'plan.md' main "$run"
 
 fresh; holdout H30 "$hkey"; put plan.md "$hkey"
 branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"

@@ -23,7 +23,7 @@ final class WaveformScaleStrip: NSView {
     private static let tick = 4.0
     static let labelFont = NSFont.systemFont(ofSize: 8)
     static let labelHeight = 10.0
-    /// The width between the strip edge and the tick that a label has.
+    /// The width of a label: the strip width less the edge pixel, the tick, and a 1 pt gap.
     static let labelRoom = width - 1 - tick - 1
 
     /// The wheel steps: the gap and the pending trackpad delta (`WaveformScaleStrip+Wheel.swift`).

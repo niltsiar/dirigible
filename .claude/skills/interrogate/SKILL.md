@@ -72,7 +72,7 @@ Put every finding in one bucket, with its lens and one line of rationale:
 Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return it, with these sections, each under a `##` heading:
 
 - **Intent:** the paragraph from step 2.
-- **Panel:** for each lens, the findings raised and the findings that survived.
+- **Panel:** for each lens, the findings raised and the findings that survived; a holdout that a lens proposes appears only as its ID, and its key line goes only to `holdout-keys.md`, because `scripts/check-eval-keys.sh` refuses a copy.
 - **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>, <weight>)`, then the description, why it matters, Invariant, and Siblings.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.

@@ -8,11 +8,11 @@ import Testing
 
 /// Timeline-navigation criteria N7 and N8: the mouse on the overview strip, Esc, the tooltip, and
 /// the strip as one accessibility element. The pane of `stripPane`: a 20 s session (979,200 frames
-/// of extent) on a 1780 pt strip, 550.11 frames per strip point; the lanes are 1440 pt wide.
+/// of extent) on a strip as wide as the pane: the header column and the 1440 pt of lanes.
 @Suite(.serialized) @MainActor struct OverviewMouseTests {
     let folder: TemporaryFolder
     let app = AppDelegate(recordings: nil)
-    static let stripFramesPerPoint = 979_200.0 / 1780
+    static let stripFramesPerPoint = 979_200.0 / (1440 + TrackHeaderRuler.columnWidth(for: .standard))
 
     init() throws { folder = try TemporaryFolder() }
 
@@ -76,12 +76,12 @@ import Testing
         await model.close()
     }
 
-    /// The trailing edge of a 335 pt frame moves to x 400; the leading edge stays at 0.
+    /// The trailing edge of the frame at 128 frames per point moves to x 400; the leading edge stays at 0.
     @Test func anEdgeDragZoomsAndKeepsTheOtherEdge() async throws {
         let (model, _, window, pane) = try await stripPane(folder, app)
         let (view, strip) = (pane.scroll, pane.overview)
         zoom(view, 128, origin: 0)
-        try send(.leftMouseDown, 335, to: strip)
+        try send(.leftMouseDown, 1440 * 128 / Self.stripFramesPerPoint, to: strip)
         try dragDrawsTheLanesOnce(400, model, window, pane)
         try send(.leftMouseUp, 400, to: strip)
         #expect(view.origin == 0, "the leading edge stays")

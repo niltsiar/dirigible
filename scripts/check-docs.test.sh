@@ -273,6 +273,10 @@ good; printf 'A Clean-Room rebuild.\n' >> "$tmp/NOTICE"; expect fail 'a hyphenat
 good; printf 'CLEAN ROOM.\n' >> "$tmp/docs/guide.md"; expect fail 'a clean room claim in the guide' "docs/guide.md: $cr"
 good; printf 'clean room\n' > "$tmp/docs/notes.txt"; expect fail 'a clean room claim in a new text file' "docs/notes.txt: $cr"
 good; printf 'a clean-room rebuild\n' >> "$tmp/docs/research/topic.md"; expect pass 'a clean room quote in a research note'
+good; printf 'A clean_room rebuild.\n' >> "$tmp/README.md"; expect fail 'an underscore clean room claim in the README' "README.md: $cr"
+good; printf 'A clean  room rebuild.\n' >> "$tmp/README.md"; expect fail 'a double-space clean room claim in the README' "README.md: $cr"
+good; printf 'A cleanroom rebuild.\n' >> "$tmp/README.md"; expect fail 'a one-word cleanroom claim in the README' "README.md: $cr"
+good; printf 'Clean the room.\n' >> "$tmp/README.md"; expect pass 'the two words with a word between them'
 good; printf 'a clean room\n' > "$tmp/scripts/check-docs.sh"; printf 'a clean room\n' > "$tmp/scripts/check-docs.test.sh"; expect pass 'the words in the two check-docs scripts'
 good; mkdir -p "$tmp/.build" "$tmp/build" "$tmp/.scratchpads"; for d in .build build .scratchpads; do printf 'a clean room\n' > "$tmp/$d/x.txt"; done
 expect pass 'a clean room claim in a build folder and a scratch folder'

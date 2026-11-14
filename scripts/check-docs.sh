@@ -403,7 +403,7 @@ while IFS= read -r f; do
     err "${f#./}: names a clean room; docs/provenance.md states how the code was made"
 done < <(cd "$root" && find . \( -path ./.git -o -path ./.build -o -path ./build -o -path ./.scratchpads -o -path ./docs/research \) -prune -o \
     -type f ! -path ./scripts/check-docs.sh ! -path ./scripts/check-docs.test.sh \
-    -exec grep -I -i -l -E 'clean[ -]room' {} + 2>/dev/null | sort)
+    -exec grep -I -i -l -E 'clean[^a-z]{0,3}room' {} + 2>/dev/null | sort)
 
 # NOTICE names each file in Support/Resources at any depth (not a hidden file or a *.lproj folder) and each
 # Sources/C<name> folder that is not own code, as a whole name: x.bin does not match x.bin.old.

@@ -10,7 +10,8 @@
 #        scripts/bench.sh LaneRenderBenchmark
 # The names, also with spaces in one argument (make bench FILTER='<name> <name>'), join into one
 # --filter '<name>|<name>'. A test run whose output has both no-test strings of test-filter.sh
-# ran no test: the script exits 1.
+# ran no test: the script exits 1. After a timed run it also runs `bench-pairs.sh --lines` on its
+# own output and exits 1, naming each line, when a time line has no form that --compare reads.
 # With --trace <file>, xctrace records a Time Profiler trace of the test run into <file> (a new
 # path), through scripts/test-helper.sh, and stops it after BENCH_TRACE_LIMIT (default 10m), so a
 # held dialog cannot hold the lock with no end. The trace adds sampling cost: it is not a timing
@@ -90,7 +91,12 @@ if grep -qF 'No matching test cases were run' "$out" && grep -qF 'Test run with 
     echo "bench: no test matched the filter $filter" >&2
     exit 1
 fi
-[[ -n "$trace" ]] || exit "$code"
+# A trace is no timing. A timed run must print only time lines that the pairs compare reads: a form
+# that it cannot read gives NO VERDICT in Phase 7 (bench-pairs.sh --lines names each such line).
+if [[ -z "$trace" ]]; then
+    "$root/scripts/bench-pairs.sh" --lines "$out" || exit 1
+    exit "$code"
+fi
 grep -qE 'Test run with [1-9]' "$out" ||
     { echo "bench: the traced run printed no Test run with line of 1 test or more (a dyld failure, a crash, or the time limit)" >&2; exit 1; }
 # A grep -q on a pipe can stop xcrun with SIGPIPE, so the table list is read first.

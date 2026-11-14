@@ -7,6 +7,11 @@
 # A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
+#        scripts/bench-pairs.sh --lines <log>
+# --lines reads one log with the compare reader and takes no lock: bench.sh runs it on its own log
+# after a timed run. It prints `bench: no pairs form: <line>` on stderr for each of the first 5 time
+# lines in a suite that no form reads, as printed, then `bench: <k> more lines with no pairs form`
+# when there are more, and exits 1 when the log has one.
 # Per case (the value of its form, in forms() below) the compare prints VERIFIED (no pair over the
 # rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread is over the rule, or
 # only some pairs are). A case name that two tests of a log print is one case for each test, named
@@ -38,7 +43,7 @@
 # and refuses an out folder that git does not ignore in a tree.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-if [[ "${1:-}" != "--compare" ]]; then
+if [[ "${1:-}" != "--compare" && "${1:-}" != "--lines" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
   filter="${2:?filter}"; count="${3:?pairs}"; out="${4:?out folder}"
   [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
@@ -75,9 +80,9 @@ if [[ "${1:-}" != "--compare" ]]; then
   done
   set -- --compare "$out"
 fi
-python3 - "${2:?usage: bench-pairs.sh --compare <out folder>}" "$root" <<'PY'
+python3 - "${2:?usage: bench-pairs.sh --compare <out folder> | --lines <log>}" "$root" "$1" <<'PY'
 import glob, os, re, statistics, subprocess, sys
-folder, root = sys.argv[1], sys.argv[2]
+folder, root, mode = sys.argv[1:4]
 N = r'([0-9][0-9.e-]*)'
 metric = {}
 # The cases (name, seconds, metric) of a line that a bench prints, from the first form that reads it.
@@ -91,8 +96,10 @@ def forms(line, suite):
     m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
     if m: return [(m.group(1), float(m.group(4)), 'p95') if m.group(3) == 'p95' else (m.group(1), float(m.group(2)), 'p50')]
     U = r'(?:ms|seconds)'
-    m = re.match(rf'(\w+Benchmark .+?): hidden p50 {N} (ms|seconds) p95 {N} {U}, shown p50 {N} {U} p95 {N} {U}, '
-                 rf'added p95 {N} {U}', line)
+    # A number of the pane form may be negative.
+    P = r'(-?[0-9][0-9.e-]*)'
+    m = re.match(rf'(\w+Benchmark .+?): hidden p50 {P} (ms|seconds) p95 {P} {U}, shown p50 {P} {U} p95 {P} {U}, '
+                 rf'added p95 {P} {U}', line)
     if m:
         scale = 1000 if m.group(3) == 'ms' else 1
         return [(f'{m.group(1)} added', float(m.group(7)) / scale, 'p95'),
@@ -135,11 +142,11 @@ def forms(line, suite):
     return []
 # A log: its cases ({name: ms}), its failed tests ({name: issue lines}), the cases of each test
 # ({test: {name: ms}}, read between its started and end lines), and each time line in a suite that
-# no form reads ((suite, the line with each number as N)).
+# no form reads ((suite, the line with each number as N)), and those lines as printed, in order.
 logs = {}
 def scan(path):
     if path in logs: return logs[path]
-    cases, failed, tests, unread = {}, {}, {}, set()
+    cases, failed, tests, unread, unread_lines = {}, {}, {}, set(), []
     suite, depth, test = None, 0, None
     for line in open(path, errors='replace'):
         line = line.rstrip('\n')
@@ -165,8 +172,14 @@ def scan(path):
                 and not split.match(line)
                 and re.search(r'(?<![\w.])[0-9][0-9.e-]* (?:seconds|ms)\b|seconds: [0-9]', line)):
             unread.add((suite, re.sub(r'[0-9]+(?:\.[0-9]+)?(?:e-?[0-9]+)?', 'N', line)))
-    logs[path] = cases, failed, tests, unread
+            unread_lines.append(line)
+    logs[path] = cases, failed, tests, unread, unread_lines
     return logs[path]
+if mode == '--lines':
+    raw = scan(folder)[4]
+    for line in raw[:5]: print(f'bench: no pairs form: {line}', file=sys.stderr)
+    if len(raw) > 5: print(f'bench: {len(raw) - 5} more lines with no pairs form', file=sys.stderr)
+    sys.exit(1 if raw else 0)
 paths = sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log') + glob.glob(f'{folder}/branch-*.log'))
 # A name that two tests of a log print is one case for each test in each log: "<name> (<test>)".
 def two_tests(path):

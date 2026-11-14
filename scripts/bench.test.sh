@@ -30,6 +30,7 @@ if [[ "$1" == test && -n "$FAKE_NONE" ]]; then
     echo 'No matching test cases were run'
     echo 'Test run with 0 tests passed after 0.001 seconds.' >&2
 else
+    [[ -z "${FAKE_UNREAD:-}" ]] || printf '◇ Suite XBenchmark started.\nXBenchmark wobble %s seconds\n' "$FAKE_UNREAD"
     echo "XBenchmark a: p50 0.001 seconds, p95 0.001 seconds"
     echo "Test run with 1 test passed"
 fi
@@ -79,6 +80,14 @@ FAKE_NONE=1 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" NoSuchBench > "$tmp/o
 code=$?
 [[ $code -eq 1 && "$(cat "$tmp/out")" == *'bench: no test matched the filter NoSuchBench'* ]] ||
     fail "no test: exit $code: $(cat "$tmp/out")"
+
+# A timed run whose output has a time line that bench-pairs.sh --compare reads in no form exits 1
+# and names the line; a trace run is no timing, so it does not check the lines.
+FAKE_UNREAD=0.5 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 1 && "$(tail -1 "$tmp/out")" == 'bench: no pairs form: XBenchmark wobble 0.5 seconds' ]] ||
+    fail "an unread time line: exit $code: $(cat "$tmp/out")"
+PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1 || fail "read time lines: bench.sh failed: $(cat "$tmp/out")"
 
 # A bare bench.sh takes the lock of its repo: each swift call gets the value in the pid file.
 : > "$tmp/lock.log"
@@ -132,6 +141,7 @@ record*)
         echo 'No matching test cases were run'
         echo 'Test run with 0 tests passed after 0.001 seconds.'
     else
+        [[ -z "${FAKE_UNREAD:-}" ]] || printf '◇ Suite XBenchmark started.\nXBenchmark wobble %s seconds\n' "$FAKE_UNREAD"
         echo "Test run with ${FAKE_TESTS:-1} test passed"
     fi
     exit "${FAKE_RECORD_EXIT:-0}" ;;
@@ -165,6 +175,8 @@ grep -qE '^bench: commit [0-9a-f]+ tree clean filter A\|B trace$' "$tmp/out" || 
 trace under logs/a.trace --under Span A B
 [[ $code -eq 0 && "$(head -1 "$tmp/xcrun.log")" == "$want" ]] || fail "trace --under: exit $code, the record call: $(head -1 "$tmp/xcrun.log") $(cat "$tmp/out")"
 [[ "$(cat "$tmp/logs/a.trace.top.txt" 2>&1)" == 'Leaf 1 100.0%' ]] || fail "trace --under: the top frames: $(cat "$tmp/logs/a.trace.top.txt" 2>&1)"
+FAKE_UNREAD=0.5 trace unread logs/a.trace A
+[[ $code -eq 0 && "$(cat "$tmp/out")" != *'no pairs form'* ]] || fail "trace with an unread time line: exit $code: $(cat "$tmp/out")"
 # A bench miss fails the test, and xctrace then exits nonzero: the trace is still the result.
 FAKE_RECORD_EXIT=54 trace miss logs/a.trace A
 [[ $code -eq 0 && -s "$tmp/logs/a.trace.top.txt" ]] || fail "trace of a failed test: exit $code: $(cat "$tmp/out")"

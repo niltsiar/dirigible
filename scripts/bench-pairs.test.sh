@@ -491,6 +491,40 @@ judged 'the lines of a pane cost' 1 \
 grep -qF 'main/branch p95 ms per pair: 47.90/60.00 47.90/60.00' <<< "$out" ||
   fail "the added p95 of the delete of 100 rows is its value: $out"
 
+# --lines <log>: bench.sh runs it on its own log. Each time line in a suite that no form reads prints
+# as `bench: no pairs form: <the line>` (the first 5, then a count line) and the exit is 1.
+mkdir "$tmp/ln"
+unread=()
+for i in 1 2 3 4 5 6 7; do unread+=("SessionIndexEditBenchmark wobble $i took 0.5 seconds"); done
+lines_of() { # lines_of <log lines...>: write $tmp/ln/x.log, run --lines on it into $out and $code
+  printf '%s\n' "$@" > "$tmp/ln/x.log"
+  out="$("$pairs" --lines "$tmp/ln/x.log" 2>&1)"
+  code=$?
+}
+lines_of 'bench: commit 0123 tree clean filter X' '◇ Suite SessionIndexEditBenchmark started.' "${unread[0]}"
+[[ $code -eq 1 && "$out" == 'bench: no pairs form: SessionIndexEditBenchmark wobble 1 took 0.5 seconds' ]] ||
+  fail "--lines on one unread line: exit $code: $out"
+lines_of 'bench: commit 0123 tree clean filter X' '◇ Suite XBenchmark started.' 'XBenchmark a: p50 0.001 seconds, p95 0.002 seconds' \
+  'finalize: no time here' 'bench: load 5.2 seconds'
+[[ $code -eq 0 && -z "$out" ]] || fail "--lines on read lines: exit $code: $out"
+lines_of '◇ Suite SessionIndexEditBenchmark started.' "${unread[@]}"
+[[ $code -eq 1 && "$out" == "$(printf 'bench: no pairs form: %s\n' "${unread[@]:0:5}")"$'\nbench: 2 more lines with no pairs form' ]] ||
+  fail "--lines on 7 unread lines: exit $code: $out"
+lines_of '◇ Suite SessionIndexEditBenchmark started.' "${unread[@]:0:5}"
+[[ $code -eq 1 && "$out" != *'more lines'* ]] || fail "--lines on 5 unread lines: exit $code: $out"
+lines_of "${unread[0]}"
+[[ $code -eq 0 ]] || fail "--lines on a time line outside a suite: exit $code: $out"
+
+# The pane cost form reads a negative value (an add that costs less than the table it waits for).
+mkdir "$tmp/neg"
+pset=neg
+neg='SessionIndexBenchmark pane delete: hidden p50 0.029643444 seconds p95 0.039911128 seconds, shown p50 0.03663298 seconds p95 0.039857725 seconds, added p95 -5.3403e-05 seconds, added p50 0.006989536 seconds, load 5.06884765625'
+for f in aa-1 aa-2 main-1 branch-1; do slog "$f" '◇ Suite SessionIndexBenchmark started.' "$neg"; done
+judged 'a negative pane value' 0 'VERIFIED SessionIndexBenchmark pane delete added' 'VERIFIED SessionIndexBenchmark pane delete shown'
+[[ "$out" != *'NO VERDICT'* ]] || fail "a negative pane value is read: $out"
+lines_of '◇ Suite SessionIndexBenchmark started.' "$neg"
+[[ $code -eq 0 && -z "$out" ]] || fail "--lines on a negative pane value: exit $code: $out"
+
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
 # with-lock.sh has no Makefile line of its own either (a Makefile change makes the push class bundle).

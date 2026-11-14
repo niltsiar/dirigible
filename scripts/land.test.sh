@@ -1201,7 +1201,7 @@ authors_case 'committer bot' fail t t@t 'github-actions[bot]' 41898282+github-ac
 authors_case 'committer Copilot' fail t t@t Copilot t@t m
 authors_case 'trailer Claude' fail t t@t t t@t $'m\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>'
 authors_case 'trailer in lower case' fail t t@t t t@t $'m\n\nCo-authored-by: Copilot <copilot@github.com>'
-authors_case 'owner' pass 'Borja Quevedo' borjota@gmail.com 'Borja Quevedo' borjota@gmail.com $'m\n\nCo-Authored-By: Jane Doe <jane@example.org>'
+authors_case 'owner' pass 'Ada Lovelace' ada@example.org 'Ada Lovelace' ada@example.org $'m\n\nCo-Authored-By: Jane Doe <jane@example.org>'
 # The whole range counts, not only the tip.
 setup
 ident_commit Claude t@t t t@t first

@@ -522,7 +522,7 @@ code=$?
 # swift on PATH stands for the build and the test run.
 b="$tmp/bench-repo"
 mkdir -p "$b/scripts" "$b/Sources/App" "$b/Tests"
-cp "$bench" "${bench%/*}/with-lock.sh" "${bench%/*}/lock-words.sh" "$b/scripts/"
+cp "$bench" "${bench%/*}/bench-pairs.sh" "${bench%/*}/with-lock.sh" "${bench%/*}/lock-words.sh" "$b/scripts/"
 printf '// swift-tools-version:6.0\n' > "$b/Package.swift"
 printf '{}\n' > "$b/Package.resolved"
 printf '@main\nstruct App {}\n' > "$b/Sources/App/App.swift"

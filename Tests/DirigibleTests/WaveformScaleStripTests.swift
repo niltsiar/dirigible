@@ -146,6 +146,20 @@ import Testing
         }
     }
 
+    /// A label fits the room left of its tick at each range: "-145" is wider than the room at 8 pt, so
+    /// its font shrinks, and a short label keeps 8 pt.
+    @Test func everyLabelFitsTheStrip() {
+        for range in WaveformRange.allCases {
+            for tick in WaveformScaleStrip.ticks(range: range, laneHeight: 100) {
+                let name = String(Int(tick.dB))
+                let font = WaveformScaleStrip.font(for: name)
+                let width = NSAttributedString(string: name, attributes: [.font: font]).size().width
+                #expect(width <= WaveformScaleStrip.labelRoom, "\(name) at \(range.rawValue) dB is \(width) pt wide")
+            }
+        }
+        #expect(WaveformScaleStrip.font(for: "-6") == WaveformScaleStrip.labelFont)
+    }
+
     /// The strip draws at the first draw and at a change of the range, the lane height, or the lane
     /// count: not at 120 updates of the same inputs and not at 120 drag events of the header handle.
     @Test func theStripDrawsOnlyOnAChange() async throws {

@@ -8,7 +8,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// The waveform range on the lane pixels: the column heights, the fade lines, the gain line, and the
-/// live take at each of the seven ranges. 100 pt lanes, 256 frames per point.
+/// live take at each range. 100 pt lanes, 256 frames per point.
 extension LaneRendererTests {
     /// The rows of a 0 dBFS signal at `dB` in a lane of `rows` rows at `range`.
     static func height(dB: Double, range: WaveformRange, rows: Double = 100) -> Int {
@@ -40,7 +40,8 @@ extension LaneRendererTests {
     /// 0 dBFS draws all of them, at each range.
     @Test func theRangeSetsTheWaveformHeight() throws {
         let expected: [WaveformRange: Int] = [
-            .db24: 0, .db36: 67, .db48: 100, .db60: 120, .db72: 133, .db84: 143, .db96: 150,
+            .db24: 0, .db36: 67, .db48: 100, .db60: 120, .db72: 133, .db84: 143, .db96: 150, .db120: 160,
+            .db145: 167,
         ]
         for range in WaveformRange.allCases {
             #expect(try Self.drawn(4135, at: range) == expected[range], "-24 dBFS at \(range.rawValue) dB")
@@ -48,11 +49,23 @@ extension LaneRendererTests {
         }
     }
 
+    /// A column at -110 dBFS (13,582 of `UInt32.max`) draws 35 / 145 of the 200 rows at 145 dB: 48 rows,
+    /// within one. At 96 dB it draws none: the signal is under the range.
+    @Test func aQuietSignalDrawsAt145() throws {
+        let bins = [PeakColumn(peak32: 13_582, rms32: 0)]
+        let inputs = Self.inputs(try Self.session(), peaks: bins, range: .db145)
+        let rows = Self.peakRows(try Self.render(inputs, width: 4, scale: 2))
+        #expect(abs(rows - 48) <= 1, "-110 dBFS at 145 dB drew \(rows) rows")
+        let shallow = Self.inputs(try Self.session(), peaks: bins, range: .db96)
+        #expect(Self.peakRows(try Self.render(shallow, width: 4, scale: 2)) == 0, "-110 dBFS is under 96 dB")
+    }
+
     /// A column at -1.0 dBFS (58409) draws (R - 1) / R of the 200 rows: the range reads a level and
     /// never adds a gain, so the top of a loud signal stays under the lane top.
     @Test func theZoomNeverCutsTheTop() throws {
         let expected: [WaveformRange: Int] = [
-            .db24: 192, .db36: 194, .db48: 196, .db60: 197, .db72: 197, .db84: 198, .db96: 198,
+            .db24: 192, .db36: 194, .db48: 196, .db60: 197, .db72: 197, .db84: 198, .db96: 198, .db120: 198,
+            .db145: 199,
         ]
         for range in WaveformRange.allCases {
             #expect(try Self.drawn(58409, at: range) == expected[range], "-1 dBFS at \(range.rawValue) dB")

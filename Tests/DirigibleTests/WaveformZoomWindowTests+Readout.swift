@@ -94,14 +94,14 @@ extension WaveformZoomWindowTests {
         await model.close()
     }
 
-    /// The menu of the strip and of the readout has the seven ranges with a check on the range of the
+    /// The menu of the strip and of the readout has the nine ranges with a check on the range of the
     /// window, then Reset, which is off at the app default.
     @Test func theRangeMenuChecksTheCurrentRange() async throws {
         let (model, _, window, view) = try await open()
         let strip = view.headers.strip
         var menu = try #require(strip.menu(for: try rightClick(strip, in: window)))
         let ranges = menu.items.dropLast().filter { !$0.isSeparatorItem }
-        #expect(ranges.map(\.tag) == WaveformRange.allCases.map(\.rawValue), "seven ranges, no 120 dB")
+        #expect(ranges.map(\.tag) == WaveformRange.allCases.map(\.rawValue) && ranges.count == 9, "nine ranges")
         #expect(ranges.map(\.title) == WaveformRange.allCases.map { waveformRangeText($0) })
         #expect(ranges.map(\.state) == WaveformRange.allCases.map { $0 == .db60 ? .on : .off })
         #expect(menu.items.last?.title == L10n.menuViewWaveformZoomReset.text)

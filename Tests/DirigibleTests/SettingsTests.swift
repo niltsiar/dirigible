@@ -102,9 +102,9 @@ import Testing
             String(format: try #require(es[L10n.redoAgent.rawValue]), name) == "Rehacer edición de Claude Code")
     }
 
-    /// The Default waveform range pop-up has the seven ranges in order, shows the app default, and a
+    /// The Default waveform range pop-up has the nine ranges in order, shows the app default, and a
     /// pick sets the app default.
-    @Test func theWaveformRangePopUpListsTheSevenRanges() async throws {
+    @Test func theWaveformRangePopUpListsTheNineRanges() async throws {
         let app = AppDelegate(recordings: nil)
         app.waveformRangeDefault = .db36
         let window = NSWindow(contentViewController: NSHostingController(rootView: WaveformRangeSettingsView(app: app)))
@@ -113,12 +113,12 @@ import Testing
             (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap(popUp(in:)).first
         }
         let popUp = try #require(window.contentView.flatMap(popUp(in:)), "the pop-up")
-        #expect(popUp.numberOfItems == WaveformRange.allCases.count && popUp.numberOfItems == 7)
+        #expect(popUp.numberOfItems == WaveformRange.allCases.count && popUp.numberOfItems == 9)
         #expect(popUp.indexOfSelectedItem == 1, "36 dB is the second range")
 
-        try #require(popUp.menu).performActionForItem(at: 6)
-        await until(limit: .seconds(10), "the pick sets the default") { app.waveformRangeDefault == .db96 }
-        #expect(app.waveformRangeDefault == .db96)
+        try #require(popUp.menu).performActionForItem(at: 8)
+        await until(limit: .seconds(10), "the pick sets the default") { app.waveformRangeDefault == .db145 }
+        #expect(app.waveformRangeDefault == .db145)
     }
 }
 

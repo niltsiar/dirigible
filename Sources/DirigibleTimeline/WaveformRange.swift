@@ -9,13 +9,15 @@ public enum WaveformRange: Int, CaseIterable, Sendable {
     case db72 = 72
     case db84 = 84
     case db96 = 96
+    case db120 = 120
+    case db145 = 145
 
     /// The range that a new window and a stored value that is not a range open at.
     public static let standard = WaveformRange.db60
 
     public var dB: Double { Double(rawValue) }
 
-    /// The next range that shows more dB per lane height, so a quiet signal draws taller. Nil at 96 dB.
+    /// The next range that shows more dB per lane height, so a quiet signal draws taller. Nil at 145 dB.
     public var zoomedIn: WaveformRange? { Self.allCases.first { $0.rawValue > rawValue } }
 
     /// The next range that shows fewer dB per lane height. Nil at 24 dB.

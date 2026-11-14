@@ -8,7 +8,7 @@ import os
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The waveform zoom of a session window: Waveform Zoom In and Out step the seven ranges, the range
+/// The waveform zoom of a session window: Waveform Zoom In and Out step the ranges, the range
 /// is window state, and Reset goes to the app default. 2 tracks of 20 s with a file on disk.
 @Suite(.serialized) @MainActor struct WaveformZoomWindowTests {
     let folder: TemporaryFolder
@@ -32,24 +32,24 @@ import os
         return view.lanes.inputs?.range == range
     }
 
-    /// Zoom In steps 60, 72, 84, 96 and is off at 96 dB; Zoom Out steps 96 down to 24 and is off at 24
-    /// dB. A step at the end beeps and keeps the range.
+    /// Zoom In steps 60, 72, 84, 96, 120, 145 and is off at 145 dB; Zoom Out steps 145 down to 24 and is
+    /// off at 24 dB. A step at the end beeps and keeps the range.
     @Test func theKeysStepTheRange() async throws {
         let (model, _, window, view) = try await open()
         var beeps = 0
         model.beep = { beeps += 1 }
         #expect(model.timeline.waveformRange == .db60, "a new window opens at the factory default")
 
-        for expected in [WaveformRange.db72, .db84, .db96] {
+        for expected in [WaveformRange.db72, .db84, .db96, .db120, .db145] {
             model.run(.waveformZoomIn)
             #expect(model.timeline.waveformRange == expected)
             #expect(await shows(expected, view, window), "Zoom In to \(expected.rawValue) dB")
         }
-        #expect(!model.isOn(.waveformZoomIn), "Zoom In is off at 96 dB")
+        #expect(!model.isOn(.waveformZoomIn), "Zoom In is off at 145 dB")
         model.run(.waveformZoomIn)
-        #expect(model.timeline.waveformRange == .db96 && beeps == 1, "a step past 96 dB beeps and keeps 96 dB")
+        #expect(model.timeline.waveformRange == .db145 && beeps == 1, "a step past 145 dB beeps and keeps 145 dB")
 
-        for expected in [WaveformRange.db84, .db72, .db60, .db48, .db36, .db24] {
+        for expected in [WaveformRange.db120, .db96, .db84, .db72, .db60, .db48, .db36, .db24] {
             model.run(.waveformZoomOut)
             #expect(model.timeline.waveformRange == expected)
             #expect(await shows(expected, view, window), "Zoom Out to \(expected.rawValue) dB")

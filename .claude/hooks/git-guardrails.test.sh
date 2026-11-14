@@ -2864,7 +2864,8 @@ for resp in "\"{\\\"taskId\\\":\\\"${dr_t}t1\\\",\\\"childThreadId\\\":\\\"threa
   ag_fields "$ag_dir/toolu_c7" "$dr_dt" "${dr_t}t1" 'S1 slice'
 done
 # A mode wait result in the state completed or failed removes the record: no end text follows it.
-# A running result, also one that timed out, keeps the record with the taskId.
+# A running result, also one that timed out, and a result in any other state keep the record with
+# the taskId.
 dr_wait() { # <status> [<more fields>]: a mode wait result whose summary quotes another status
   printf '[{"type":"text","text":"{\\"taskId\\":\\"%st1\\",\\"status\\":\\"%s\\"%s,\\"latestTerminalSummary\\":\\"was \\\\\\"status\\\\\\":\\\\\\"completed\\\\\\"\\"}"}]' "$dr_t" "$1" "${2:-}"
 }
@@ -2875,10 +2876,12 @@ for resp in "$(dr_wait completed ',\"workState\":\"result_available\"')" "$(dr_w
   dr_run "$ag_dir" "$(dr_post toolu_c7 "$resp")"
   dr_left "$ag_dir"
 done
-ag_dir="$tmp/dr-post-$((dr_n += 1))"
-ag_write "$ag_dir" "$ag_dt"
-dr_run "$ag_dir" "$(dr_post toolu_c7 "$(dr_wait running ',\"waitTimedOut\":true')")"
-ag_fields "$ag_dir/toolu_c7" "$dr_dt" "${dr_t}t1" 'S1 slice'
+for resp in "$(dr_wait running ',\"waitTimedOut\":true')" "$(dr_wait queued)"; do
+  ag_dir="$tmp/dr-post-$((dr_n += 1))"
+  ag_write "$ag_dir" "$ag_dt"
+  dr_run "$ag_dir" "$(dr_post toolu_c7 "$resp")"
+  ag_fields "$ag_dir/toolu_c7" "$dr_dt" "${dr_t}t1" 'S1 slice'
+done
 ag_dir="$tmp/dr-post-none"
 ag_write "$ag_dir" "$ag_dt"
 dr_run "$ag_dir" "$(dr_post toolu_c7 '[{"type":"text","text":"error: no child"}]')"

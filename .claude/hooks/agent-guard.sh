@@ -40,12 +40,14 @@
 #   relative to the cwd); a bare name takes each .scratchpads/runs/<slug> folder of the same text. An
 #   exit other than 0 or 1 of check-plan.sh lets the brief pass, with a note. This hook holds the plan
 #   gate; at the code gate, log-decision.sh refuses the phase 6 row until check-plan.sh exits 0.
-# - An Agent or SendMessage brief that this hook passes and that names a lock step, with no Build
-#   lock: none line, gets a record file in dirigible-lock-agents of the git common dir (or
-#   $DIRIGIBLE_LOCK_AGENTS). Its name is the tool_use_id (<epoch>-<pid> when that is empty or holds
-#   another character than a letter, a digit, _, or -), and its one line is <epoch> <tool> <key>
-#   <transcript_path> <description>, tab-separated: the key is the tool_use_id of an Agent call or the
-#   to of a SendMessage. Each write removes the record files over 24 h old. The release-wait rule of
+# - An Agent, SendMessage, or delegate_task brief that this hook passes and that names a lock step,
+#   with no Build lock: none line, gets a record file in dirigible-lock-agents of the git common dir
+#   (or $DIRIGIBLE_LOCK_AGENTS). Its name is the tool_use_id (<epoch>-<pid> when that is empty or
+#   holds another character than a letter, a digit, _, or -), and its one line is <epoch> <tool> <key>
+#   <transcript_path> <description>, tab-separated: the key is the tool_use_id of an Agent or
+#   delegate_task call or the to of a SendMessage; the description of a delegate_task is its title.
+#   delegate-record.sh puts the taskId of the call in the key, and removes the record at the end of
+#   the child. Each write removes the record files over 24 h old. The release-wait rule of
 #   git-guardrails.sh (AGT-152) reads them.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
@@ -157,12 +159,13 @@ while IFS= read -r file; do
     exit 2
   fi
 done < <(commit_files <<< "$text")
-if [[ -n "$lock_brief" && ( "$tool" == Agent || "$tool" == SendMessage ) ]]; then
+if [[ -n "$lock_brief" && ( "$tool" == Agent || "$tool" == SendMessage || "$tool" == mcp__t3-code__delegate_task ) ]]; then
   if [[ -n "${DIRIGIBLE_LOCK_AGENTS:-}" ]]; then rec_dir="$DIRIGIBLE_LOCK_AGENTS"
   else rec_dir="$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/dirigible-lock-agents"; fi
   id="$(plutil -extract tool_use_id raw -o - "$input" 2>/dev/null)" || id=""
   [[ "$id" =~ ^[A-Za-z0-9_-]+$ ]] || id="$(date +%s)-$$"
   if [[ "$tool" == Agent ]]; then key="$id" desc="$(plutil -extract tool_input.description raw -o - "$input" 2>/dev/null)"
+  elif [[ "$tool" == mcp__t3-code__delegate_task ]]; then key="$id" desc="$(plutil -extract tool_input.title raw -o - "$input" 2>/dev/null)"
   else key="$(plutil -extract tool_input.to raw -o - "$input" 2>/dev/null)" desc="resume $key"; fi
   path="$(plutil -extract transcript_path raw -o - "$input" 2>/dev/null)"
   mkdir -p "$rec_dir" && find "$rec_dir" -type f -mmin +1439 -delete 2>/dev/null

@@ -1302,8 +1302,14 @@ if [[ -n "$agent" ]]; then
 fi
 
 # A release call waits while an agent whose brief names a lock step runs (AGT-152). agent-guard.sh
-# writes a record of each Agent or SendMessage brief that names a lock step in dirigible-lock-agents
-# of the git common dir (or $DIRIGIBLE_LOCK_AGENTS), and removes it after 24 h. A record names an
+# writes a record of each Agent, SendMessage, or delegate_task brief that names a lock step in
+# dirigible-lock-agents of the git common dir (or $DIRIGIBLE_LOCK_AGENTS), and removes it after 24 h.
+# A delegate_task record has no meta file. delegate-record.sh puts the taskId of the call in its key,
+# and removes it at the end text of the child (Delegated task <taskId> (<title>) [completed]: or
+# [failed]: in a prompt) or at a task_cancel of the taskId. The record is live while it has a taskId
+# and is under 90 min old, or has no taskId and is under 5 min old; a note names a record with no
+# taskId 5 to 90 min old (the call returned none, or delegate-record.sh is not active in the
+# session). Each other record names an
 # agent and its meta file (<transcript_path without .jsonl>/subagents/agent-<id>.meta.json): an
 # Agent record by the toolUseId in the meta, a SendMessage record by the agent id in its to. A run
 # or a resume writes the meta with no finished at its start and with finished true at its end. An
@@ -1318,8 +1324,9 @@ fi
 # note names each Agent record 5 to 90 min old with no meta file. Misses: a wrapper word other than
 # nohup and nice, a land.sh with no path or inside a shell -c body, a script that a script runs, a
 # script over 64 KB or at a path with an unknown variable, a release command kept in a quoted variable
-# and run as bash -c "$NAME" or eval, a quoted NAME='a b' word before the command word, and a
-# delegate_task child. A python3 heredoc body with a process call or a backtick stays code to the
+# and run as bash -c "$NAME" or eval, a quoted NAME='a b' word before the command word, an end text
+# that reaches the lead inside a running turn, and a child thread that runs again after its end text
+# (a retry of its thread). A python3 heredoc body with a process call or a backtick stays code to the
 # mask, so a release text in its quotes can block.
 release_note=""
 release_past_re="(^|[[:space:];&|(\`\"'])RELEASE_PAST=(\"[^\"]*\"|'[^']*'|[^[:space:];&|()\`\"']*)(.*)\$"
@@ -1335,7 +1342,7 @@ if [[ -n "$release_found" ]]; then
     sub="${r_path%.jsonl}/subagents" meta=""
     if [[ "$r_tool" == SendMessage ]]; then
       [[ -f "$sub/agent-$r_key.meta.json" ]] && meta="$sub/agent-$r_key.meta.json"
-    else
+    elif [[ "$r_tool" != mcp__t3-code__delegate_task ]]; then
       meta="$(grep -l -F "\"toolUseId\":\"$r_key\"" "$sub"/agent-*.meta.json 2>/dev/null | head -n 1)"
     fi
     rlist+="${meta:-$r_tool $r_key}"$'\t'"$r_time"$'\t'"${rec##*/}"$'\t'"$r_tool"$'\t'"${meta:--}"$'\t'"$sub"$'\t'"$r_desc"$'\n'
@@ -1345,7 +1352,19 @@ if [[ -n "$release_found" ]]; then
     [[ -n "$agent" && "$agent" != "$last" ]] || continue
     last="$agent" age=$((now - r_time)) state="" id="$r_id"
     [[ "$meta" == - ]] && meta=""
-    if [[ -n "$meta" ]]; then
+    detail="meta: ${meta:-none under $sub}"
+    if [[ "$r_tool" == mcp__t3-code__delegate_task ]]; then
+      r_key="${agent#* }"
+      if [[ "$r_key" != "$r_id" ]]; then
+        detail="taskId: $r_key"
+        ((age < 5400)) && state="a delegate_task child with no end text or task_cancel yet"
+      elif ((age < 300)); then
+        detail="no taskId"
+        state="its delegate_task call returned no taskId yet"
+      elif ((age < 5400)); then
+        note_lines+=$'\n'"note: record $r_id ($r_desc) is $((age / 60)) min old and has no taskId, so the hook treats it as ended: its delegate_task call returned no taskId, or delegate-record.sh is not active in this session (the hook entries of .claude/settings.json load at session start: restart the session)."
+      fi
+    elif [[ -n "$meta" ]]; then
       id="${meta##*/agent-}" id="${id%.meta.json}"
       m_time="$(stat -f %m "$meta")"
       fin="$(plutil -extract finished raw -o - "$meta" 2>/dev/null)" || fin=""
@@ -1361,7 +1380,7 @@ if [[ -n "$release_found" ]]; then
     fi
     [[ -n "$state" ]] || continue
     live_ids+=" $id"
-    live_lines+=$'\n'"- $id: $r_tool \"$r_desc\", newest record at $(date -r "$r_time" +%H:%M) ($((age / 60)) min ago), $state (meta: ${meta:-none under $sub})"
+    live_lines+=$'\n'"- $id: $r_tool \"$r_desc\", newest record at $(date -r "$r_time" +%H:%M) ($((age / 60)) min ago), $state ($detail)"
   done < <(printf '%s' "$rlist" | sort -t $'\t' -k1,1 -k2,2nr)
   if [[ -n "$live_ids" ]]; then
     past="" ptext="$release_masked"
@@ -1375,8 +1394,8 @@ if [[ -n "$release_found" ]]; then
     for id in $past; do [[ " $live_ids " == *" $id "* ]] || unknown+=" $id"; done
     if [[ -n "$missing" || -n "$unknown" ]]; then
       block "is a release call (a push check, the hooks pass, a land, or make dmg) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}. Live agents:$live_lines$note_lines
-An agent stops being live when its meta file says finished true (the end of its run), 90 min after its run started, or 5 min after its newest record when no meta write follows it. A SendMessage resume makes it live again while one of its records is under 24 h old" \
-        "Start the release call after that agent hands back, and run lock-free work meanwhile. For a dead agent, or a brief with no lock step, pass RELEASE_PAST=<id>[,<id>] before the release call, with the id of each live agent. A brief with no with-lock.sh step needs the line Build lock: none."
+An agent stops being live when its meta file says finished true (the end of its run), 90 min after its run started, or 5 min after its newest record when no meta write follows it. A SendMessage resume makes it live again while one of its records is under 24 h old. A delegate_task record ends at the end text of its child (Delegated task <taskId> (<title>) [completed]: or [failed]:) or at a task_cancel of its taskId, and at the latest 90 min after its brief (5 min when its call returned no taskId)" \
+        "Start the release call after that agent hands back, and run lock-free work meanwhile; for a delegate_task child, that is after its end text. For a delegate_task child that handed back while the hook still names it, a dead agent, or a brief with no lock step, pass RELEASE_PAST=<id>[,<id>] before the release call, with the id of each live agent. A brief with no with-lock.sh step needs the line Build lock: none."
     fi
   fi
   release_note="${note_lines#$'\n'}"

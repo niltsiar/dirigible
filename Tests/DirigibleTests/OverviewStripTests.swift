@@ -294,7 +294,7 @@ import Testing
         try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
     let window = NSWindow(
         contentRect: NSRect(
-            x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth,
+            x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + WaveformScaleStrip.width + scrollerWidth,
             height: OverviewGeometry.height + 400 + scrollerWidth),
         styleMask: [.borderless], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false

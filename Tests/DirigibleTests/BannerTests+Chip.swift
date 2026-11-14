@@ -61,11 +61,40 @@ extension BannerTests {
             let width = view.headers.width.points
             await until(limit: .seconds(10), "the chip takes the header width \(width)") {
                 window.contentView?.layoutSubtreeIfNeeded()
-                return abs(shownFrame(chip).width - (width - 2 * RecordOverChip.inset)) < 1.5
+                return abs(
+                    shownFrame(chip).width
+                        - (TrackHeaderRuler.columnWidth(for: view.headers.width) - 2 * RecordOverChip.inset)) < 1.5
             }
             let frame = shownFrame(chip)
             let headers = view.headers.convert(view.headers.bounds, to: nil)
             #expect(frame.minX >= headers.minX && frame.maxX <= headers.maxX, "chip \(frame), headers \(headers)")
+        }
+        await model.close()
+    }
+
+    /// The readout of the waveform range has its own slot at the trailing end of the band and the chip
+    /// has the rest: at each header width the two frames do not intersect.
+    @Test func theChipAndTheReadoutDoNotIntersect() async throws {
+        let (model, _, window, view) = try await chipWindow()
+        model.timeline.waveformRange = .db96
+        func readout(in view: NSView) -> ReadoutView? {
+            (view as? ReadoutView) ?? view.subviews.lazy.compactMap(readout(in:)).first
+        }
+        for width in [180.0, 340, 480] {
+            view.headers.step(by: width - view.headers.width.points)
+            var frames: (chip: NSRect, readout: NSRect)?
+            await until(limit: .seconds(10), "the chip and the readout show at \(width) pt") {
+                window.contentView?.layoutSubtreeIfNeeded()
+                guard let chip = chipButton(window, view), let range = window.contentView.flatMap(readout(in:)) else {
+                    return false
+                }
+                frames = (shownFrame(chip), range.convert(range.bounds, to: nil))
+                return abs(frames!.chip.maxX + RecordOverChip.inset + WaveformReadout.slot - frames!.readout.maxX) < 1.5
+            }
+            let shown = try #require(frames)
+            #expect(!shown.chip.intersects(shown.readout), "\(width) pt: chip \(shown.chip), readout \(shown.readout)")
+            let headers = view.headers.convert(view.headers.bounds, to: nil)
+            #expect(shown.readout.maxX <= headers.maxX, "\(width) pt: the readout is inside the column")
         }
         await model.close()
     }
@@ -83,7 +112,9 @@ extension BannerTests {
         view.headers.step(by: HeaderWidth(0).points - view.headers.width.points)
         await until(limit: .seconds(10), "the chip takes the narrowest header") {
             window.contentView?.layoutSubtreeIfNeeded()
-            return abs(shownFrame(chip).width - (HeaderWidth(0).points - 2 * RecordOverChip.inset)) < 1.5
+            return abs(
+                shownFrame(chip).width - (TrackHeaderRuler.columnWidth(for: HeaderWidth(0)) - 2 * RecordOverChip.inset))
+                < 1.5
         }
         let title = try #require(titleField(chip), "the chip button has a title field")
         let font = try #require(title.font)

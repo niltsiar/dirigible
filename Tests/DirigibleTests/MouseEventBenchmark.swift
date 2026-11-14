@@ -98,7 +98,8 @@ func expectWithinBudget(
         try studio.edit(ripple: false) { s throws(SessionError) in s = session }
         let window = NSWindow(
             contentRect: NSRect(
-                x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth, height: 660 + scrollerWidth),
+                x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + WaveformScaleStrip.width + scrollerWidth,
+                height: 660 + scrollerWidth),
             styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .aqua)

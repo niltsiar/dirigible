@@ -182,7 +182,7 @@ import Testing
 
         switch proof {
         case .width(let width):
-            let x = scene.view.headers.convert(NSPoint(x: width, y: 0), to: nil).x
+            let x = scene.view.headers.convert(NSPoint(x: width + WaveformScaleStrip.width, y: 0), to: nil).x
             let rows = NSRect(x: 0, y: scene.lanes.minY, width: 1, height: scene.lanes.height)
                 .insetBy(dx: 0, dy: 4)
             // An overlay scroller knob covers the bottom rows of the lanes, as in the checks above.
@@ -260,25 +260,25 @@ import Testing
         try #require(view.lanes.frame.width > view.shown.maxX + 1000, "the lanes are wider than the view")
 
         var capture = try await check("the start", scene, .width(340), after: nil)
-        try handle(.leftMouseDown, 337, view)
-        for (pointer, width) in [(297.0, 300.0), (97, 180), (257, 260), (557, 480)] {
+        try handle(.leftMouseDown, 357, view)
+        for (pointer, width) in [(317.0, 300.0), (117, 180), (277, 260), (577, 480)] {
             try handle(.leftMouseDragged, pointer, view)
             capture = try await check("a drag to \(width)", scene, .width(width), after: capture)
         }
-        try handle(.leftMouseUp, 557, view)
+        try handle(.leftMouseUp, 577, view)
         capture = try await check("the mouse-up at 480", scene, .width(480), after: capture)
-        try handle(.leftMouseDown, 477, view)
-        try handle(.leftMouseDragged, 377, view)
+        try handle(.leftMouseDown, 497, view)
+        try handle(.leftMouseDragged, 397, view)
         window.sendEvent(try cgKey(53))
         capture = try await check("Esc in a drag", scene, .width(480), after: capture)
-        try handle(.leftMouseUp, 377, view)
+        try handle(.leftMouseUp, 397, view)
         _ = view.headers.handle.accessibilityPerformDecrement()
         capture = try await check("an AX decrement", scene, .width(460), after: capture)
 
         for width in [180.0, 480] {
             try handle(.leftMouseDown, Double(view.headers.ruleThickness) - 3, view)
-            try handle(.leftMouseDragged, width - 3, view)
-            try handle(.leftMouseUp, width - 3, view)
+            try handle(.leftMouseDragged, width + 17, view)
+            try handle(.leftMouseUp, width + 17, view)
             capture = try await check("the width \(width)", scene, .width(width), after: capture)
             for x in [720, 1333.37, 2100.5] {
                 view.scroll(toFrame: x * view.framesPerPoint)

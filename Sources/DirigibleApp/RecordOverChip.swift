@@ -8,10 +8,11 @@ enum RecordOverAction: Equatable {
     case turnOffRecord(TrackID)
 }
 
-/// The record-over warning as a chip in the ruler band over the track headers. The lanes do not
-/// move, and no ruler time is under it. It is a pull-down menu: the detail text, Go to End, Show
-/// Clip, and Turn Off Record for each track of the warning. It reads only the warning that the
-/// chrome loop writes on a change and the header width, so a play tick runs no body of it.
+/// The ruler band over the track headers: the record-over warning as a chip, and the range readout of
+/// the waveform zoom in its own slot at the trailing end. The lanes do not move, and no ruler time
+/// is under it. The chip is a pull-down menu: the detail text, Go to End, Show Clip, and Turn Off
+/// Record for each track of the warning. It reads only the warning that the chrome loop writes on a
+/// change and the header width, so a play tick runs no body of it.
 struct RecordOverChip: View {
     /// The space between the chip and the edge of the header corner, in points.
     static let inset = 4.0
@@ -29,7 +30,14 @@ struct RecordOverChip: View {
 
     var body: some View {
         let _ = model.countBody()
-        let warning = model.shown.recordOver
+        HStack(spacing: 0) {
+            chip(model.shown.recordOver)
+            WaveformReadout(model: model)
+        }
+        .frame(width: TrackHeaderRuler.columnWidth(for: model.headerWidth), height: TimelineRuler.thickness)
+    }
+
+    @ViewBuilder private func chip(_ warning: RecordOverWarning) -> some View {
         if !warning.isEmpty {
             let _ = model.countOverlay()
             Menu {
@@ -57,7 +65,9 @@ struct RecordOverChip: View {
             .accessibilityLabel(Text(verbatim: warning.detail))
             .padding(.horizontal, Self.inset)
             .padding(.vertical, 2)
-            .frame(width: model.headerWidth.points, height: TimelineRuler.thickness)
+            .frame(maxWidth: .infinity, maxHeight: TimelineRuler.thickness)
+        } else {
+            Spacer(minLength: 0)
         }
     }
 }

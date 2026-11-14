@@ -42,7 +42,7 @@ import Testing
             // A titled window, so the chrome has its toolbar and time display.
             let window = NSWindow(
                 contentRect: NSRect(
-                    x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth,
+                    x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + WaveformScaleStrip.width + scrollerWidth,
                     height: 660 + scrollerWidth + LoudnessStrip.height),
                 styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false

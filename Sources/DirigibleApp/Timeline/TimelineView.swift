@@ -197,6 +197,8 @@ final class TimelineScrollView: NSScrollView {
                 selectedLanes: session.tracks.indices.filter { source.marks.tracks.contains(session.tracks[$0].id) },
                 extent: Viewport.extent(end: end(of: session), rate: session.sampleRate))
         }
+        headers.strip.inputs = ScaleStripInputs(
+            range: drawn.range, laneHeight: drawn.laneHeight, lanes: drawn.session.tracks.count)
         ruler.inputs = drawn.geometry.map {
             RulerInputs(
                 markers: drawn.session.markers, marks: drawn.marks, geometry: $0, rate: drawn.session.sampleRate)

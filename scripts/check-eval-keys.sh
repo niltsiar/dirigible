@@ -10,7 +10,9 @@
 # folder (a review file, the analysis, the plan) names only the ID. Eval copies of the docs
 # lack evals.md (scripts/eval/build-copy.sh), so this header holds the rule for them. The check
 # also refuses a file that holds the key line of a `## H<n>` heading of holdout-keys.md (the line
-# after the heading), because an agent that read the copy has seen the key: replace the holdout.
+# after the heading), or one point of it ((a), (b), ...) of 40 characters or more, with each run of
+# whitespace read as one space (a line wrap), because an agent that read the copy has seen the key:
+# replace the holdout. A shorter point is common text, so only the whole key line holds it.
 # The walk runs only when holdout-keys.md has an H key. It skips holdout-keys.md, each eval folder
 # (a subfolder that holds a keys.md, with its subfolders), each .build, *.app, and *.dirigible
 # folder (as teardown-run.sh does), each link, each file that it cannot read, and each file that is
@@ -106,22 +108,30 @@ for sid, (kind, key) in after.items():
 
 TEXT = (".md", ".tsv", ".txt", ".json", ".csv", ".log", ".xml")
 CAP = 1048576
+MIN_POINT = 40
+
+
+def flat(text):
+    return " ".join(text.split())
 
 
 def holdout_keys(path):
-    """{ID: key line} of each `## H<n>` heading of holdout-keys.md; the key line follows the heading."""
+    """{ID: parts} of each `## H<n>` heading of holdout-keys.md: the key line after the heading, and
+    each point of it of MIN_POINT characters or more, flat and with no end punctuation."""
     if not os.path.isfile(path):
         return {}
     lines = open(path, encoding="utf-8").read().split("\n")
-    return {
-        m.group(1): lines[i + 1].strip()
-        for i, line in enumerate(lines[:-1])
-        if (m := re.match(r"## (H[0-9]+)\s*$", line)) and lines[i + 1].strip()
-    }
+    out = {}
+    for i, line in enumerate(lines[:-1]):
+        key = flat(lines[i + 1])
+        if re.match(r"## (H[0-9]+)\s*$", line) and key:
+            points = (p.rstrip(".;, ") for p in re.split(r"\([a-z]\) ", key))
+            out[line[3:].strip()] = {key} | {p for p in points if len(p) >= MIN_POINT}
+    return out
 
 
 def key_copies(folder, secrets):
-    """(ID, run-relative path) of each file of the run folder that holds a holdout key line."""
+    """(ID, run-relative path) of each file of the run folder that holds a part of a holdout key."""
     found = []
     for d, dirs, names in os.walk(folder):
         dirs[:] = sorted(
@@ -139,10 +149,10 @@ def key_copies(folder, secrets):
                 info = os.lstat(path)
                 if not stat.S_ISREG(info.st_mode) or info.st_size > CAP:
                     continue
-                text = open(path, encoding="utf-8").read()
+                text = flat(open(path, encoding="utf-8").read())
             except (OSError, UnicodeDecodeError):
                 continue
-            found += [(sid, rel) for sid, key in secrets.items() if key in text]
+            found += [(sid, rel) for sid, parts in secrets.items() if any(p in text for p in parts)]
     return found
 
 

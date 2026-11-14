@@ -130,6 +130,22 @@ import Testing
         }
     }
 
+    /// A label is as tall as its text and the draw keeps it inside its lane, so the 0 dB label sits
+    /// below the lane top. No two labels of a lane overlap as drawn, at each range and lane height.
+    @Test func theLabelsDoNotOverlapAsDrawn() {
+        let text = NSAttributedString(string: "-96", attributes: [.font: WaveformScaleStrip.labelFont])
+        #expect(WaveformScaleStrip.labelHeight >= text.size().height, "the label height is the text height")
+        for range in WaveformRange.allCases {
+            for height in LaneHeight.steps where height >= WaveformScaleStrip.labelsFrom {
+                let centers = WaveformScaleStrip.labelled(range: range, laneHeight: height)
+                    .map { WaveformScaleStrip.labelCenter(y: $0.y, laneHeight: height) }
+                for (above, below) in zip(centers, centers.dropFirst()) {
+                    #expect(below - above >= WaveformScaleStrip.labelHeight, "\(range.rawValue) dB at \(height) pt")
+                }
+            }
+        }
+    }
+
     /// The strip draws at the first draw and at a change of the range, the lane height, or the lane
     /// count: not at 120 updates of the same inputs and not at 120 drag events of the header handle.
     @Test func theStripDrawsOnlyOnAChange() async throws {

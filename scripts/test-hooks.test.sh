@@ -39,7 +39,7 @@ new_repo() {
     rm -rf "$repo" "$tmp/log" "$tmp/own"
     mkdir -p "$tmp/own" "$repo/scripts" "$repo/t" "$repo/.claude" "$repo/Support" "$repo/Tests" "$repo/docs" "$repo/Sources/Other"
     git -C "$repo" init -q -b main
-    cp "$here/test-hooks.sh" "$here/check-changed.sh" "$repo/scripts/"
+    cp "$here/test-hooks.sh" "$here/check-changed.sh" "$here/swift-suites.sh" "$repo/scripts/"
     printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
     for n in a b; do printf '#!/bin/bash\necho %s >> "$HOOKS_LOG"\n' "$n" > "$repo/t/$n.test.sh"; done
     chmod +x "$repo/t/"*.sh

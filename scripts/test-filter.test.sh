@@ -20,7 +20,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A package copy: the scripts and one CLI test file that names the suite CLIWordTests. It is a git
 # repo, so swift-test.sh takes the lock of the copy (with-lock.sh exits 2 outside a repo).
 mkdir -p "$tmp/pkg/scripts" "$tmp/pkg/Tests/DirigibleCLITests" "$tmp/bin"
-cp "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$repo/scripts/lock-words.sh" "$tmp/pkg/scripts/"
+cp "$repo/scripts/test-filter.sh" "$repo/scripts/swift-suites.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$repo/scripts/lock-words.sh" "$tmp/pkg/scripts/"
 git init -q "$tmp/pkg"
 export FAKE_PID_FILE="$tmp/pkg/.git/dirigible-build.lock/pid"
 printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg/Tests/DirigibleCLITests/CLIWordTests.swift"

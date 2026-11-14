@@ -44,7 +44,8 @@
 # the full suite runs only in the push check. A local git run with FILTER whose targets have no
 # test-filter prints the three lines and exits 1: it would run no test. A local git run (SINCE too)
 # prints a fourth line `filter: <names>` when a changed Sources/ Swift path has tests: the suites that
-# the test files of its stem declare or extend (default_filter). The refusal with no FILTER names
+# the test files of its stem declare or extend, with no suite whose tests all have the slow gate
+# (default_filter; the gate forms are in swift-suites.sh). The refusal with no FILTER names
 # them. A FILTER covers a name when one FILTER name is a substring of it; a FILTER that leaves out a
 # name exits 3 with the full FILTER in the reason, so with-lock.sh exits before the build lock.
 # With no changed path, FILTER gives the target test-filter and one stderr note. The mode --paths
@@ -62,6 +63,7 @@
 # becomes static: the gates of STATIC_GATES in the Makefile, with no hook test.
 # The push never adds either word. SINCE is local, so it adds them.
 set -euo pipefail
+source "$(dirname "$0")/swift-suites.sh"
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
 # comment-only. A path that ends in / is a folder. check-changed.test.sh fails when a floor path does not exist.
@@ -408,32 +410,13 @@ classify() {
 }
 classify "$paths"
 
-# The parser of scripts/test-filter.sh, the same text: decl(line) gives the type of a top-level
-# declaration or extension line, suite_awk prints each type with a @Test in a top-level block, and
-# file_awk prints "D <type>" or "E <type>" for each declaration or extension line.
-decl_awk='function decl(l,   n, w) {
-    kind = ""
-    if (!match(l, "^((@[A-Za-z_][A-Za-z0-9_]*(\\([^)]*\\))?|public|internal|private|fileprivate|final|open)[ \t]+)*(struct|class|enum|actor|extension)[ \t]+[A-Za-z_][A-Za-z0-9_.]*")) return ""
-    n = split(substr(l, RSTART, RLENGTH), w, /[ \t]+/)
-    kind = w[n - 1]
-    return w[n]
-}'
-suite_awk='FNR == 1 { cur = "" }
-{
-    d = decl($0)
-    if (d != "") cur = d
-    if (cur != "" && $0 !~ /^[ \t]*\/\// && $0 ~ /@Test([^A-Za-z0-9_]|$)/) suite[cur] = 1
-    if (d != "" && $0 ~ /\{.*\}[ \t]*$/) cur = ""
-    else if ($0 ~ /^\}/) cur = ""
-}
-END { for (s in suite) print s }'
-file_awk='{ d = decl($0); if (d != "") print (kind == "extension" ? "E " : "D ") d }'
 # default_filter: the default FILTER names of the changed Sources/ Swift paths that keep their class.
 # The stem is the file name with no .swift and no +<part>. The prefix is the longest run of whole
 # CamelCase words at the start of the stem that starts the stem of a Swift file under Tests/. The
-# names are the suites that those test files declare or extend, less each name that a test target
-# name (a folder under Tests/) holds: swift test --filter matches <target>.<suite>/<test>, so such a
-# name runs the whole target.
+# names are the suites that those test files declare or extend (the parser of swift-suites.sh, with
+# no suite whose tests all have the slow gate), less each name that a test target name (a folder
+# under Tests/) holds: swift test --filter matches <target>.<suite>/<test>, so such a name runs the
+# whole target.
 default_filter() {
     local tests p stem k pre matched types="" suites t d names=""
     local -a words files
@@ -457,7 +440,7 @@ default_filter() {
         types+="$(awk "$decl_awk $file_awk" "${files[@]}" | sed 's/^[DE] //')"$'\n'
     done <<<"$kept"
     [[ -n "${types//$'\n'/}" ]] || return 0
-    suites="$(find Tests -type f -name '*.swift' -exec awk "$decl_awk $suite_awk" {} + | sort -u)"
+    suites="$(find Tests -type f -name '*.swift' -exec awk -v slow=skip "$decl_awk $suite_awk" {} + | sort -u)"
     while IFS= read -r t; do
         [[ -n $t ]] && grep -qxF -- "$t" <<<"$suites" || continue
         for d in Tests/*/; do

@@ -1376,7 +1376,7 @@ pair_in_time() { [[ $1 -lt 10 ]]; }
 pair_in_time 8 || fail 'pair bound: 8 s (a loaded call) fails'
 ! pair_in_time 10 || fail 'pair bound: 10 s (the wait limit) passes'
 mkdir -p "$pair/scripts"
-cp "$script" "$(dirname "$script")/lock-words.sh" "$(dirname "$script")/check-changed.sh" "$pair/scripts/"
+cp "$script" "$(dirname "$script")/lock-words.sh" "$(dirname "$script")/check-changed.sh" "$(dirname "$script")/swift-suites.sh" "$pair/scripts/"
 git -C "$pair" init -q && git -C "$pair" add -A &&
     git -C "$pair" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base &&
     git -C "$pair" update-ref refs/remotes/origin/main HEAD &&

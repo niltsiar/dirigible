@@ -43,27 +43,8 @@ done
 cd "$(dirname "$0")/.."
 out="$(mktemp)" started="$(mktemp)" skipped="$(mktemp)"
 trap 'rm -f "$out" "$started" "$skipped"' EXIT
-
-# decl_awk: the awk function decl(line) returns the type name of a top-level struct, class, enum,
-# actor, or extension line at column 0 (attributes and modifiers can come first) and sets kind.
-decl_awk='function decl(l,   n, w) {
-    kind = ""
-    if (!match(l, "^((@[A-Za-z_][A-Za-z0-9_]*(\\([^)]*\\))?|public|internal|private|fileprivate|final|open)[ \t]+)*(struct|class|enum|actor|extension)[ \t]+[A-Za-z_][A-Za-z0-9_.]*")) return ""
-    n = split(substr(l, RSTART, RLENGTH), w, /[ \t]+/)
-    kind = w[n - 1]
-    return w[n]
-}'
-# A block runs from its declaration line to the next declaration line or a line that starts with }.
-suite_awk='FNR == 1 { cur = "" }
-{
-    d = decl($0)
-    if (d != "") cur = d
-    if (cur != "" && $0 !~ /^[ \t]*\/\// && $0 ~ /@Test([^A-Za-z0-9_]|$)/) suite[cur] = 1
-    if (d != "" && $0 ~ /\{.*\}[ \t]*$/) cur = ""
-    else if ($0 ~ /^\}/) cur = ""
-}
-END { for (s in suite) print s }'
-file_awk='{ d = decl($0); if (d != "") print (kind == "extension" ? "E " : "D ") d }'
+# decl_awk, suite_awk, and file_awk: the parser of the suites of the Swift test files.
+source scripts/swift-suites.sh
 suites=""
 # hint_suite <name>: prints the hint lines of a refused name to stderr.
 hint_suite() {

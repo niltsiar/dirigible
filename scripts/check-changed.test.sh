@@ -658,7 +658,7 @@ make_repo() {
   new_repo
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
-  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$repo/scripts/lock-words.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
+  cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/swift-suites.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$repo/scripts/lock-words.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
   # run-checks.sh runs check-commits.sh when BASE is set; land.test.sh has the cases of the real one.
   printf '#!/bin/bash\nexit 0\n' > "$tmp/r/scripts/check-commits.sh"
   chmod +x "$tmp/r/scripts/check-commits.sh"
@@ -1104,11 +1104,21 @@ got="$(run_in --wait-load none 2>&1)" || fail "past origin/main with --wait-load
 # swift_suite <path> <declaration>: a test file with one block that holds one @Test.
 swift_suite() { mkdir -p "$(dirname "$tmp/r/$1")" && printf '%s {\n    @Test func t() {}\n}\n' "$2" > "$tmp/r/$1"; }
 idx_source=Sources/DirigibleApp/SessionIndexTable+Columns.swift
-default='SessionIndexColumnsTests SessionIndexCostTests'
+default='SessionIndexColumnsTests SessionIndexCostTests SessionIndexDragTests'
+slow_gate='.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1")'
 for since in '' set; do
   new_repo
   swift_suite Tests/DirigibleTests/SessionIndexCostTests.swift 'struct SessionIndexCostTests'
   swift_suite Tests/DirigibleTests/SessionIndexColumnsTests+Scroll.swift 'extension SessionIndexColumnsTests'
+  # A suite whose tests all have the slow gate skips in test-filter: it is no default name. The gate
+  # stands on the @Test line or on a later line of its trait parentheses.
+  printf 'struct SessionIndexBenchmark {\n    @Test(.timeLimit(.minutes(1)), %s) func t() {}\n}\n' "$slow_gate" \
+    > "$tmp/r/Tests/DirigibleTests/SessionIndexBenchmark.swift"
+  printf 'struct SessionIndexEditBenchmark {\n    @Test(\n        %s, arguments: [false, true])\n    func t(late: Bool) {}\n}\n' "$slow_gate" \
+    > "$tmp/r/Tests/DirigibleTests/SessionIndexEditBenchmark.swift"
+  # One test with no gate keeps a suite, also when its traits take more than one line.
+  printf 'struct SessionIndexDragTests {\n    @Test(%s) func slow() {}\n    @Test(\n        "drag",\n        arguments: [1, 2])\n    func drag(x: Int) {}\n}\n' "$slow_gate" \
+    > "$tmp/r/Tests/DirigibleTests/SessionIndexDragTests.swift"
   put "$idx_source" x
   label="default FILTER${since:+ with SINCE}" form="make check-changed"
   if [[ -n $since ]]; then

@@ -30,8 +30,8 @@ struct PeakComputeTests {
         for (index, bin) in peaks.levels[0].enumerated() {
             let first = index * 256 % 96_000
             if first + 256 <= 48_000 {
-                #expect(abs(Int(bin.peak) - 32767) <= 33, "sine bin \(index)")
-                #expect(abs(Double(bin.rms) / 65535 - 0.354) <= 0.005, "sine bin \(index)")
+                #expect(abs(Double(bin.peak) / Double(UInt32.max) - 0.5) <= 0.0005, "sine bin \(index)")
+                #expect(abs(Double(bin.rms) / Double(UInt32.max) - 0.354) <= 0.005, "sine bin \(index)")
             } else if first >= 48_000 && first + 256 <= 96_000 {
                 #expect(bin == PeakColumn(peak: 0, rms: 0), "silence bin \(index)")
             }
@@ -50,12 +50,31 @@ struct PeakComputeTests {
 
         let bins = peaks.levels[0]
         #expect(bins.count == 188)
-        #expect(bins[0..<93].allSatisfy { abs(Int($0.peak) - 32767) <= 33 })
-        #expect(bins[94..<188].allSatisfy { abs(Int($0.peak) - 32767) <= 33 })
+        #expect(bins[0..<93].allSatisfy { abs(Double($0.peak) / Double(UInt32.max) - 0.5) <= 0.0005 })
+        #expect(bins[94..<188].allSatisfy { abs(Double($0.peak) / Double(UInt32.max) - 0.5) <= 0.0005 })
+    }
+
+    /// A 24-bit sine at -110 dBFS (about 26.5 steps of 24 bits) keeps its level in each level of
+    /// bins: a peak of -110 dBFS and an RMS of -113 dBFS, within the 24-bit steps.
+    @Test func aQuietSignalKeepsItsHeight() async throws {
+        let package = try MixPackage()
+        let scale = Float(pow(10, -110.0 / 20) / 0.5)
+        try package.addFile("q", channels: [sine(seconds: 2, rate: 48_000, frequency: 375).map { $0 * scale }])
+
+        let peaks = try await Self.compute(package, "q")
+
+        func decibels<Value: FixedWidthInteger>(_ value: Value) -> Double {
+            20 * log10(Double(value) / Double(Value.max))
+        }
+        for (index, level) in peaks.levels.enumerated() {
+            let full = level.dropLast()
+            #expect(!full.isEmpty && full.allSatisfy { abs(decibels($0.peak) + 110) <= 0.5 }, "peaks of level \(index)")
+            #expect(full.allSatisfy { abs(decibels($0.rms) + 113.01) <= 0.5 }, "RMS of level \(index)")
+        }
     }
 
     /// A DC level per 256-frame bin: bins 0..<16 hold 1/16, 2/16, 3/16, 4/16 in turn, bins
-    /// 16..<432 are silent, and bins 432..<512 hold 4/16.
+    /// 16..<432 are silent, and bins 432..<512 hold 4/16. A level k/16 stores k x 2^28.
     static func steps() throws -> MixPackage {
         let package = try MixPackage()
         var samples = [Float](repeating: 0, count: 131_072)
@@ -71,11 +90,15 @@ struct PeakComputeTests {
         let peaks = try await Self.compute(try Self.steps(), "steps")
 
         #expect(peaks.levels.map(\.count) == [512, 32, 2])
-        #expect(peaks.levels[0][0..<4].map(\.peak) == [4096, 8192, 12288, 16384])
-        #expect(peaks.levels[1][0] == PeakColumn(peak: 16384, rms: 11217))
+        #expect(peaks.levels[0][0..<4].map(\.peak) == [268_435_456, 536_870_912, 805_306_368, 1_073_741_824])
+        #expect(peaks.levels[1][0] == PeakColumn(peak32: 1_073_741_824, rms32: 735_140_772))
         #expect(peaks.levels[1][1] == PeakColumn(peak: 0, rms: 0))
-        #expect(peaks.levels[1][27] == PeakColumn(peak: 16384, rms: 16384))
-        #expect(peaks.levels[2] == [PeakColumn(peak: 16384, rms: 2804), PeakColumn(peak: 16384, rms: 9159)])
+        #expect(peaks.levels[1][27] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824))
+        #expect(
+            peaks.levels[2] == [
+                PeakColumn(peak32: 1_073_741_824, rms32: 183_785_193),
+                PeakColumn(peak32: 1_073_741_824, rms32: 600_239_927),
+            ])
     }
 
     @Test func fillReadsTheLargestLevelAtOrBelowTheStep() async throws {
@@ -87,16 +110,14 @@ struct PeakComputeTests {
         }
         let zero = PeakColumn(peak: 0, rms: 0)
 
-        #expect(
-            fill(count: 5, step: 256) == [
-                PeakColumn(peak: 4096, rms: 4096), PeakColumn(peak: 8192, rms: 8192),
-                PeakColumn(peak: 12288, rms: 12288), PeakColumn(peak: 16384, rms: 16384),
-                PeakColumn(peak: 4096, rms: 4096),
-            ])
-        #expect(fill(count: 2, step: 4096) == [PeakColumn(peak: 16384, rms: 11217), zero])
+        func level(_ sixteenths: UInt32) -> PeakColumn { PeakColumn(peak32: sixteenths << 28, rms32: sixteenths << 28) }
+        let quarter: UInt32 = 1_073_741_824
+
+        #expect(fill(count: 5, step: 256) == [level(1), level(2), level(3), level(4), level(1)])
+        #expect(fill(count: 2, step: 4096) == [PeakColumn(peak32: quarter, rms32: 735_140_772), zero])
         #expect(
             fill(count: 3, step: 100_000) == [
-                PeakColumn(peak: 16384, rms: 9159), PeakColumn(peak: 16384, rms: 9159), zero,
+                PeakColumn(peak32: quarter, rms32: 600_239_927), PeakColumn(peak32: quarter, rms32: 600_239_927), zero,
             ])
     }
 

@@ -1,9 +1,10 @@
 import DirigibleCore
 import Foundation
 
-/// The peak cache file, version 1 (decision 0017): a 64-byte little-endian header, then the bins
-/// of each level as a UInt16 peak and a UInt16 RMS. The cache file is a boundary: the reader
-/// refuses a file whose fields do not match the WAV, and a refusal is a miss.
+/// The peak cache file, version 2 (decision 0017): a 64-byte little-endian header, then the bins
+/// of each level as a UInt32 peak and a UInt32 RMS. The cache file is a boundary: the reader
+/// refuses a file whose fields do not match the WAV, and a refusal is a miss. A file of version 1
+/// (UInt16 values) has the same name, so the pass computes the peaks again and replaces it.
 public enum PeakFile {
     /// The cache folder of the command-line front end, the folder of the app of the real ID.
     public static let folder = folder(bundleID: "com.delineas.dirigible", caches: .cachesDirectory)
@@ -14,8 +15,10 @@ public enum PeakFile {
     }
 
     static let magic = Array("DIRPEAKS".utf8)
-    static let version: UInt32 = 1
+    static let version: UInt32 = 2
     static let headerSize = 64
+    /// The bytes of one bin: the header field at offset 28.
+    static let binBytes = 8
 
     /// The characters of a pool path that stay in a name. `-` separates the fields of a name,
     /// so it is escaped, and the prefix `<escaped path>-` of one pool file is not the prefix of another.
@@ -32,7 +35,7 @@ public enum PeakFile {
         var data = Data(magic)
         let fields: [UInt32] = [
             version, UInt32(Peaks.binFrames[0]), UInt32(peaks.levels.count), UInt32(peaks.channels),
-            UInt32(peaks.sampleRate), 0,
+            UInt32(peaks.sampleRate), UInt32(binBytes),
         ]
         for field in fields { append(field, to: &data) }
         for field in [peaks.stamp.size, Int64(peaks.stamp.seconds), Int64(peaks.stamp.nanoseconds)] {
@@ -40,7 +43,7 @@ public enum PeakFile {
         }
         append(UInt64(peaks.frames.count), to: &data)
         for level in peaks.levels {
-            var values = [UInt16]()
+            var values = [UInt32]()
             values.reserveCapacity(level.count * 2)
             for column in level { values += [column.peak.littleEndian, column.rms.littleEndian] }
             values.withUnsafeBytes { data.append(contentsOf: $0) }
@@ -64,17 +67,17 @@ public enum PeakFile {
             // cannot overflow for any UInt64 frame count.
             let counts = Peaks.binFrames.map { UInt64($0) }.map { frames / $0 + (frames % $0 == 0 ? 0 : 1) }
             guard u32(8) == version, u32(12) == UInt32(Peaks.binFrames[0]), u32(16) == UInt32(Peaks.binFrames.count),
-                u32(20) == UInt32(channels), u32(24) == UInt32(rate), u32(28) == 0,
+                u32(20) == UInt32(channels), u32(24) == UInt32(rate), u32(28) == UInt32(binBytes),
                 i64(32) == stamp.size, i64(40) == Int64(stamp.seconds), i64(48) == Int64(stamp.nanoseconds),
-                UInt64(raw.count - headerSize) == 4 * counts.reduce(0, +)
+                UInt64(raw.count - headerSize) == UInt64(binBytes) * counts.reduce(0, +)
             else { return nil }
             var offset = headerSize
             let levels = counts.map { count in
                 (0..<Int(count)).map { _ in
-                    defer { offset += 4 }
+                    defer { offset += binBytes }
                     return PeakColumn(
-                        peak: UInt16(littleEndian: raw.loadUnaligned(fromByteOffset: offset, as: UInt16.self)),
-                        rms: UInt16(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 2, as: UInt16.self)))
+                        peak32: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset, as: UInt32.self)),
+                        rms32: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 4, as: UInt32.self)))
                 }
             }
             return Peaks(

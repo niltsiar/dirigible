@@ -45,9 +45,9 @@ public struct LivePeaks: Sendable {
         let low = lower / binFrames
         let high = (upper + binFrames - 1) / binFrames
         if bins.count < high { bins.append(contentsOf: repeatElement(.zero, count: high - bins.count)) }
-        let column = PeakColumn(peak: quantize(peak), rms: quantize(rms))
+        let column = PeakColumn(peak32: quantize(peak), rms32: quantize(rms))
         for bin in low..<high {
-            bins[bin] = PeakColumn(peak: max(bins[bin].peak, column.peak), rms: max(bins[bin].rms, column.rms))
+            bins[bin] = PeakColumn(peak32: max(bins[bin].peak, column.peak), rms32: max(bins[bin].rms, column.rms))
         }
         let before = covered.last { $0.lowerBound <= Frames(lower) }?.upperBound ?? .zero
         cover(Frames(lower)..<Frames(upper))

@@ -83,9 +83,6 @@ final class LaneRenderer {
         (event, eventEntries) = (event + 1, 0)
     }
 
-    /// 20 log10(v / 65535) for each magnitude v.
-    private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
-
     /// Draws the rect of `region`: the lanes that its rows cross, in its columns. Then the live
     /// take over the clips. Each label of `labels` gets its chip: no peak or RMS span there.
     func draw(
@@ -314,36 +311,35 @@ final class LaneRenderer {
         let laneRows = region.window.laneRows
         let clamp = layerGains == nil ? 0 : Self.lineClamp(scale: region.window.scale)
         values.withUnsafeBufferPointer { values in
-            Self.decibels.withUnsafeBufferPointer { decibels in
-                func height(decibels decibel: Double, _ gain: Double) -> Int {
-                    Int((waveform.fraction(dB: decibel + gain) * Double(laneRows)).rounded())
+            /// The rows of a magnitude, 20 log10(v / `UInt32.max`) dB. For a 16-bit value v x 65537 the
+            /// quotient is the same `Double` as v / 65535.
+            func height(_ value: UInt32, _ gain: Double) -> Int {
+                guard value > 0 else { return 0 }
+                let decibels = 20 * log10(Double(value) / Double(UInt32.max))
+                return Int((waveform.fraction(dB: decibels + gain) * Double(laneRows)).rounded())
+            }
+            var index = 0
+            while index < values.count {
+                let column = range.lowerBound + index
+                // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
+                let factor = fades?.factor(index)
+                var columnGain = factor.map { gain + 20 * log10($0) } ?? gain
+                if let layerGains { columnGain += layerGains[layerGains.startIndex + index] }
+                let peak = height(values[index].peak, columnGain)
+                // A cache file can hold an RMS over its peak; the span never inverts.
+                let rms = min(height(values[index].rms, columnGain), peak)
+                // A column span is a strided fill: one call, not one Swift step per pixel.
+                // The start of the spans: the row under the chip in a chip column.
+                let floor = chip.map { $0.columns.contains(column) ? $0.bottom : 0 } ?? 0
+                let (top, middle) = (max(bottom - peak + 1, floor), max(bottom - rms + 1, floor))
+                region.span(palette.peak, column: column, rows: top..<middle)
+                region.span(palette.rms, column: column, rows: middle..<bottom + 1)
+                if factor != nil, fades?.line == true {
+                    let row = Self.lineRow(
+                        columnGain, waveform: waveform, bottom: bottom, laneRows: laneRows, clamp: clamp)
+                    region.span(palette.label, column: column, rows: row..<row + 1)
                 }
-                func height(_ value: UInt16, _ gain: Double) -> Int {
-                    value > 0 ? height(decibels: decibels[Int(value)], gain) : 0
-                }
-                var index = 0
-                while index < values.count {
-                    let column = range.lowerBound + index
-                    // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
-                    let factor = fades?.factor(index)
-                    var columnGain = factor.map { gain + 20 * log10($0) } ?? gain
-                    if let layerGains { columnGain += layerGains[layerGains.startIndex + index] }
-                    let peak = height(values[index].peak, columnGain)
-                    // A cache file can hold an RMS over its peak; the span never inverts.
-                    let rms = min(height(values[index].rms, columnGain), peak)
-                    // A column span is a strided fill: one call, not one Swift step per pixel.
-                    // The start of the spans: the row under the chip in a chip column.
-                    let floor = chip.map { $0.columns.contains(column) ? $0.bottom : 0 } ?? 0
-                    let (top, middle) = (max(bottom - peak + 1, floor), max(bottom - rms + 1, floor))
-                    region.span(palette.peak, column: column, rows: top..<middle)
-                    region.span(palette.rms, column: column, rows: middle..<bottom + 1)
-                    if factor != nil, fades?.line == true {
-                        let row = Self.lineRow(
-                            columnGain, waveform: waveform, bottom: bottom, laneRows: laneRows, clamp: clamp)
-                        region.span(palette.label, column: column, rows: row..<row + 1)
-                    }
-                    index += 1
-                }
+                index += 1
             }
         }
     }

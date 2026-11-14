@@ -14,7 +14,7 @@ struct LaneRendererTests {
 
     /// Peaks with the level-0 bins `bins` (256 frames each); the upper levels hold the maximum.
     static func peaks(_ bins: [PeakColumn]) -> Peaks {
-        let top = PeakColumn(peak: bins.map(\.peak).max() ?? 0, rms: bins.map(\.rms).max() ?? 0)
+        let top = PeakColumn(peak32: bins.map(\.peak).max() ?? 0, rms32: bins.map(\.rms).max() ?? 0)
         return Peaks(
             frames: Frames(bins.count * 256), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
             sampleRate: 48_000, levels: [bins, [top], [top]])

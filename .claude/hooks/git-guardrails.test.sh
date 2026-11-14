@@ -2915,6 +2915,24 @@ dr_left "$dr" toolu_e1 toolu_e2 toolu_e3 toolu_e4 toolu_e5
 dr_run "$tmp/dr-none" "$(dr_prompt "$(dr_end completed t1)")"
 dr_run "$tmp/dr-none" "$(dr_post toolu_c7 '"{\"taskId\":\"t\"}"')"
 [[ ! -e "$tmp/dr-none" ]] || { echo "FAIL: delegate-record.sh made a missing records folder"; failures=$((failures + 1)); }
+# dr_registered <settings file> <event> [<tool>...]: the event has an entry of delegate-record.sh, and
+# the matcher of an entry of it covers each tool (an entry with no matcher covers each tool).
+dr_registered() {
+  python3 -c '
+import json, re, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
+def covers(e, tool):
+    return e.get("matcher") in (None, "", "*") or re.fullmatch(e["matcher"], tool) is not None
+def runs(e):
+    return any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/delegate-record.sh") for h in e.get("hooks", []))
+ok = any(runs(e) for e in entries) and all(any(runs(e) and covers(e, t) for e in entries) for t in sys.argv[3:])
+sys.exit(0 if ok else 1)
+' "$@" 2>/dev/null
+}
+dr_registered "$settings" PostToolUse "$dr_dt" mcp__t3-code__task_cancel || { echo "FAIL: .claude/settings.json does not register delegate-record.sh for PostToolUse of delegate_task and task_cancel"; failures=$((failures + 1)); }
+dr_registered "$settings" UserPromptSubmit || { echo "FAIL: .claude/settings.json does not register delegate-record.sh for UserPromptSubmit"; failures=$((failures + 1)); }
+dr_registered "$tmp/old-settings.json" PostToolUse "$dr_dt" && { echo "FAIL: the delegate-record registration check passed a settings file with no PostToolUse entry"; failures=$((failures + 1)); }
+dr_registered "$tmp/old-settings.json" UserPromptSubmit && { echo "FAIL: the delegate-record registration check passed a settings file with no UserPromptSubmit entry"; failures=$((failures + 1)); }
 for brief in "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c2\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\\nBuild lock: none\"}}" \
   "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c3\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"Run make check-docs.\"}}" \
   "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_c4\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"a1\",\"message\":\"Go on with the next item.\"}}" \

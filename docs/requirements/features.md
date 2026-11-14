@@ -89,7 +89,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F75 | Gain envelope per clip; a range gain makes ramps | FCP | done, Release 4 runs 7, 8 and 26 (moved from Release 7) | R7 |
 | F76 | Session index: a list of clips, markers, and chapters with search | FCP | done, Release 6 run 9 and Release 6 run 10 | R7 |
 | F77 | Hum removal at 50 or 60 Hz | FCP | done, Release 4 run 25 | R8 |
-| F78 | Waveform vertical zoom | FCP | Release 6 | R7 |
+| F78 | Waveform vertical zoom | FCP | done, Release 6 run 11; Later: the waveform ranges 120 and 145 dB | R7 |
 | F79 | No feature: the catalog skipped this ID | - | Dropped (ID not used) | - |
 | F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | Logic | done, Release 6 run 8 | R7 |
 | F81 | Close gaps between the selected clips | Logic | done, Release 6 run 5 | R7 |

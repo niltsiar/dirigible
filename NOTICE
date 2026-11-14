@@ -1,9 +1,22 @@
 Dirigible
 Copyright 2026 Borja Quevedo
 
-This product includes agent skills adapted from https://github.com/cursor/plugins
-and https://github.com/mattpocock/skills, licensed under the MIT License. See .claude/skills/THIRD_PARTY.md.
+This product includes agent skills adapted from https://github.com/cursor/plugins,
+https://github.com/mattpocock/skills, and https://github.com/webreactiva/yesyak, licensed under
+the MIT License. See .claude/skills/THIRD_PARTY.md.
 
 This product includes LAME 4.0 (https://lame.sourceforge.io/), the libmp3lame encoder in
 Sources/CLame, licensed under the GNU Library General Public License, version 2 or later (LGPL).
-See Support/Resources/LAME-COPYING.txt and Sources/CLame/README.dirigible.
+See Support/Resources/LAME-COPYING.txt, Support/Resources/LAME-NOTICE.txt, and
+Sources/CLame/README.dirigible.
+
+This product includes whisper.cpp v1.9.5 and ggml (https://github.com/ggml-org/whisper.cpp), the
+transcription engine in Sources/CWhisper, licensed under the MIT License, Copyright (c) 2023-2026
+The ggml authors. See Support/Resources/whisper.cpp-LICENSE.txt. The ggml code in
+Sources/CWhisper/ggml/src/ggml-cpu/ops.cpp includes the YaRN algorithm of
+https://github.com/jquesnelle/yarn, licensed under the MIT License, Copyright (c) 2023 Jeffrey
+Quesnelle and Bowen Peng. See Support/Resources/yarn-LICENSE.txt.
+
+This product includes the Silero VAD v6.2.0 model (https://github.com/snakers4/silero-vad) in the
+ggml format of whisper.cpp, licensed under the MIT License, Copyright (c) 2020-present Silero Team.
+The model is Support/Resources/ggml-silero-v6.2.0.bin. See Support/Resources/silero-vad-LICENSE.txt.

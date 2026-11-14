@@ -150,3 +150,7 @@ Agents and humans follow the same rules. `AGENTS.md` has the commands, the testi
 Apache License 2.0. See `LICENSE` and `NOTICE`.
 
 The MP3 encoder is LAME 4.0 (`Sources/CLame`), under the GNU Library General Public License (LGPL), version 2 or later. The app holds its license text and notice in `Contents/Resources/LAME-COPYING.txt` and `LAME-NOTICE.txt`. `Sources/CLame/README.dirigible` lists the changed LAME files.
+
+The transcription engine is whisper.cpp v1.9.5 with ggml (`Sources/CWhisper`), under the MIT License. The app holds its license text in `Contents/Resources/whisper.cpp-LICENSE.txt`, and the license text of the YaRN code in ggml in `yarn-LICENSE.txt`.
+
+The voice activity model is Silero VAD v6.2.0 (`Contents/Resources/ggml-silero-v6.2.0.bin`), under the MIT License. The app holds its license text in `Contents/Resources/silero-vad-LICENSE.txt`.

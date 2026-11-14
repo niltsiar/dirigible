@@ -37,6 +37,13 @@ Pinned skills: `swift-concurrency`.
 
 A pinned skill is kept near its source commit. Its words stay out of the sum of `scripts/workflow-words.sh`. Adding a name to this line is the only way to pin a skill.
 
+Two texts of this repo adapt the evidence weights (`demonstrated`, `read`, `enumerated`) of `webreactiva/yesyak` (https://github.com/webreactiva/yesyak, commit `878db46fc1ceb3474aa2c24330dc7d6a4bfc5830`, 2026-10-31). We adapted them to this project. The git history shows each change against the original text.
+
+| Text | Source path |
+|---|---|
+| `interrogate/references/reviewer-prompt.md` | `skills/red-team-review/SKILL.md` |
+| `.claude/workflows/review-panel.js` (the `weight` description) | `skills/red-team-review/SKILL.md` |
+
 All sources use the MIT License:
 
 ```
@@ -46,6 +53,7 @@ Copyright (c) 2026 Lauren Tan
 Copyright (c) 2026 Cursor
 Copyright (c) 2026 Matt Pocock
 Copyright (c) 2026 Antoine van der Lee
+Copyright (c) 2026 Daniel Primo
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

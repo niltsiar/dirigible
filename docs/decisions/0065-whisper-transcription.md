@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Accepted: 2026-10-31, after plan gates 1 to 4 of run `2026-10-28-whisper-in-app`.
 - Amends: 0002 (the `CWhisper` target, `DirigibleAudio/Transcribe/`), 0011 (`dirigible transcribe`), 0041 (the tool `transcribe`), 0055 (a transcript from file words), 0034 (the C++ warning rule of `check-warnings.sh`).
+- Amended: 2026-11-14. The bundle also holds `silero-vad-LICENSE.txt` and `yarn-LICENSE.txt` (the MIT texts of the VAD model and of the YaRN code in ggml), and `NOTICE` names them.
 
 ## Context
 

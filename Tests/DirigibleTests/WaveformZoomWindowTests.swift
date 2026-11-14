@@ -189,6 +189,15 @@ import os
         await model.close()
     }
 
+    /// A command that is not a waveform zoom command changes no range: the horizontal zoom does not Reset.
+    @Test func aHorizontalZoomCommandLeavesTheRange() async throws {
+        let (model, _, _, _) = try await open()
+        model.timeline.waveformRange = .db96
+        model.zoomWaveform(.zoomIn)
+        #expect(model.timeline.waveformRange == .db96, "the horizontal zoom reset the range to the default")
+        await model.close()
+    }
+
     /// An open window keeps its range when the default changes, and Reset follows the new default at once.
     @Test func anOpenWindowFollowsTheDefault() async throws {
         let (model, _, _, _) = try await open()

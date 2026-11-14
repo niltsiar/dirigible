@@ -51,7 +51,7 @@ Fill `plan.md` with the Edit tool (`new-run.sh` made its skeleton):
 
 ### Checks by change class
 
-`scripts/check-changed.sh` prints `classes:`, `targets:`, and `risk:` (decision 0028). `make check-changed` runs the targets.
+`scripts/check-changed.sh` prints `classes:`, `targets:`, `risk:`, and, for a changed source with tests, `filter:` (decision 0028). `make check-changed` runs the targets.
 
 | Run | Plan gate and code gate |
 |---|---|
@@ -77,7 +77,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Run the **interrogate*
 2. Use Conventional Commits (`AGENTS.md`).
 3. After each slice, log a row and tick `run.md` with the minutes. Only the push check (`scripts/with-lock.sh make check-changed BASE=origin/main`) runs the full suite.
 4. If the plan proves wrong, stop, update `plan.md`, and log why.
-5. A slice that changes what a user sees or does updates `docs/guide.md`; a new or changed MCP tool, `dirigible` command, or recipe updates the agent manual (0051). Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
+5. A slice that changes what a user sees or does updates `docs/guide.md` with only the behavior that a verdict row shows on screen (a behavior known only from code or an API document waits for that row); a new or changed MCP tool, `dirigible` command, or recipe updates the agent manual (0051). Before its first commit, check the change on screen in the verify copy (`.claude/skills/verify-this/references/driving-the-app.md`), with the screenshot path in its `decisions.tsv` row: `<verdict>, on screen, <screenshot path>`.
 
 ## Phase 5: Clean up
 

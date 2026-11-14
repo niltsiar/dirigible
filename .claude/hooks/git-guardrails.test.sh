@@ -2073,6 +2073,31 @@ rw_rec "$rw/note-live" toolu_n2 900 Agent toolu_n2 'lost agent'
 expect_release block "$rw/note-live" "$P"
 release_has 'note: record toolu_n2 (lost agent) is 15 min old'
 
+# A delegate_task record has no meta file. With a taskId in its key it is live for 90 min; with no
+# taskId (its key is its file name) for 5 min, and then a note names it.
+rw_dt=mcp__t3-code__delegate_task
+rw_rec "$rw/dt" toolu_c7 1140 "$rw_dt" node:delegated-task:t1 'S1 slice'
+expect_release block "$rw/dt" "${release_forms[0]}"
+expect_release block "$rw/dt" "${release_forms[1]}"
+for text in 'toolu_c7: mcp__t3-code__delegate_task "S1 slice"' 'a delegate_task child with no end text or task_cancel yet' \
+  'taskId: node:delegated-task:t1' 'end text of its child (Delegated task <taskId> (<title>) [completed]: or [failed]:)' \
+  'task_cancel of its taskId' 'For a delegate_task child that handed back while the hook still names it, a dead agent'; do
+  release_has "$text"
+done
+expect_release allow "$rw/dt" "RELEASE_PAST=toolu_c7 $P"
+rw_rec "$rw/dt-89" toolu_c7 5340 "$rw_dt" node:delegated-task:t1 'S1 slice'
+expect_release block "$rw/dt-89" "$P"
+rw_rec "$rw/dt-91" toolu_c7 5460 "$rw_dt" node:delegated-task:t1 'S1 slice'
+expect_release allow "$rw/dt-91" "$P"
+release_out ''
+rw_rec "$rw/dt-4" toolu_d4 240 "$rw_dt" toolu_d4 'no task 4'
+expect_release block "$rw/dt-4" "$P"
+release_has 'its delegate_task call returned no taskId yet'
+rw_rec "$rw/dt-6" toolu_d6 360 "$rw_dt" toolu_d6 'no task 6'
+expect_release allow "$rw/dt-6" "$P"
+release_out 'note: record toolu_d6 (no task 6) is 6 min old and has no taskId'
+release_out 'delegate-record.sh is not active in this session'
+
 # A script file that bash, sh, zsh, or dash runs is read and its lines classified, one level deep.
 sd="$tmp/rw-scripts"
 mkdir -p "$sd"
@@ -2771,9 +2796,9 @@ grep -q "dirigible-provider-limits" "$tmp/agent-err" ||
 expect_limit allow "antigravity\t2026-02-30T10:00\n" antigravity gemini-4-argon
 expect_limit allow "antigravity\t$limit_after\n" antigravity gemini-4-argon Agent
 
-# Records of lock-step briefs (AGT-152). A passed Agent or SendMessage brief that names a lock step,
-# with no Build lock: none line, writes one record file; a refused brief, a brief with no lock step,
-# and a delegate_task write none.
+# Records of lock-step briefs (AGT-152). A passed Agent, SendMessage, or delegate_task brief that names
+# a lock step, with no Build lock: none line, writes one record file; a refused brief and a brief with
+# no lock step write none.
 ag_sess="$tmp/ag-e2e-s/sess.jsonl" ag_sub="$tmp/ag-e2e-s/sess/subagents" ag_rec_n=0
 mkdir -p "$ag_sub"
 ag_step='Run scripts/with-lock.sh make test-hooks HOOK_TESTS=x'
@@ -2800,12 +2825,103 @@ expect_records 1 "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c1\",\"transc
 ag_fields "$ag_dir/toolu_c1" Agent toolu_c1 'S1 slice'
 expect_records 1 "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_s1\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"a0123456789abcdef\",\"message\":\"$ag_step\"}}"
 ag_fields "$ag_dir/toolu_s1" SendMessage a0123456789abcdef 'resume a0123456789abcdef'
+ag_dt="{\"tool_name\":\"mcp__t3-code__delegate_task\",\"tool_use_id\":\"toolu_c7\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"title\":\"S1 slice\",\"task\":\"$ag_step\"}}"
+expect_records 1 "$ag_dt"
+ag_fields "$ag_dir/toolu_c7" mcp__t3-code__delegate_task toolu_c7 'S1 slice'
+# delegate-record.sh keeps the delegate_task records: the PostToolUse result of the call puts the taskId
+# in the key, and the end text of the child or a task_cancel removes the record of that exact taskId.
+dr_hook="$(dirname "$0")/delegate-record.sh" dr_dt=mcp__t3-code__delegate_task dr_t=node:delegated-task:
+# dr_run <records dir> <input>: the hook exits 0 and prints nothing.
+dr_run() {
+  local code
+  printf '%s' "$2" | DIRIGIBLE_LOCK_AGENTS="$1" "$dr_hook" > "$tmp/dr.out" 2>&1
+  code=$?
+  [[ $code -eq 0 && ! -s "$tmp/dr.out" ]] || { echo "FAIL: delegate-record.sh exit $code, output '$(cat "$tmp/dr.out")': $2"; failures=$((failures + 1)); }
+}
+# dr_post <tool_use_id> <tool_response JSON>: the PostToolUse input of a delegate_task call.
+dr_post() {
+  printf '{"hook_event_name":"PostToolUse","tool_name":"%s","tool_use_id":"%s","tool_input":{"title":"S1 slice","task":"x"},"tool_response":%s}' "$dr_dt" "$1" "$2"
+}
+# dr_prompt <prompt, JSON-escaped>, dr_cancel <taskId>: a UserPromptSubmit input, a task_cancel input.
+dr_prompt() { printf '{"hook_event_name":"UserPromptSubmit","prompt":"%s"}' "$1"; }
+dr_cancel() {
+  printf '{"hook_event_name":"PostToolUse","tool_name":"mcp__t3-code__task_cancel","tool_use_id":"toolu_k","tool_input":{"taskId":"%s"},"tool_response":[{"type":"text","text":"{}"}]}' "$1"
+}
+# dr_left <dir> <file>...: the folder holds exactly these record files, in ls order.
+dr_left() {
+  local d="$1" got
+  shift
+  got="$(ls "$d" | tr '\n' ' ')"
+  [[ "$got" == "${*:+$* }" ]] || { echo "FAIL: delegate-record.sh left '$got' in ${d##*/}, want '$*'"; failures=$((failures + 1)); }
+}
+dr_n=0
+for resp in "\"{\\\"taskId\\\":\\\"${dr_t}t1\\\",\\\"childThreadId\\\":\\\"thread:x\\\"}\"" \
+  "[{\"type\":\"text\",\"text\":\"{\\\"taskId\\\": \\\"${dr_t}t1\\\", \\\"childThreadId\\\": \\\"thread:x\\\"}\"}]" \
+  "[{\"type\":\"text\",\"text\":\"note\"},{\"type\":\"text\",\"text\":\"{\\\"taskId\\\":\\\"${dr_t}t1\\\"}\"}]"; do
+  ag_dir="$tmp/dr-post-$((dr_n += 1))"
+  ag_write "$ag_dir" "$ag_dt"
+  dr_run "$ag_dir" "$(dr_post toolu_c7 "$resp")"
+  ag_fields "$ag_dir/toolu_c7" "$dr_dt" "${dr_t}t1" 'S1 slice'
+done
+ag_dir="$tmp/dr-post-none"
+ag_write "$ag_dir" "$ag_dt"
+dr_run "$ag_dir" "$(dr_post toolu_c7 '[{"type":"text","text":"error: no child"}]')"
+ag_fields "$ag_dir/toolu_c7" "$dr_dt" toolu_c7 'S1 slice'
+# The end text removes only the record whose key is the whole taskId, and only in the states completed
+# and failed at the start of the prompt or of a line of it. Other tools keep their records.
+dr_fill() {
+  rm -rf "$1"
+  rw_rec "$1" toolu_e1 60 "$dr_dt" "${dr_t}t1"
+  rw_rec "$1" toolu_e2 60 "$dr_dt" "${dr_t}t1-2"
+  rw_rec "$1" toolu_e3 60 "$dr_dt" "${dr_t}a.b"
+  rw_rec "$1" toolu_e4 60 "$dr_dt" "${dr_t}t2"
+  rw_rec "$1" toolu_e5 60 Agent "${dr_t}t1"
+}
+dr_end() { # <state> <taskId>: the end text of a child, JSON-escaped, with its result line
+  printf 'Delegated task %s (S1 slice (x)) [%s]:\\nDone.' "$dr_t$2" "$1"
+}
+dr="$tmp/dr-end"
+for prompt in 'Go on with the next slice.' "$(dr_end completed t3)" "$(dr_end running t1)" "See: $(dr_end completed t1)" \
+  "$(dr_end completed aXb)" "$(dr_end canceled t1)"; do
+  dr_fill "$dr"
+  dr_run "$dr" "$(dr_prompt "$prompt")"
+  dr_left "$dr" toolu_e1 toolu_e2 toolu_e3 toolu_e4 toolu_e5
+done
+dr_fill "$dr"
+dr_run "$dr" "$(dr_prompt "$(dr_end completed t1)\\n\\nCall the next tool.")"
+dr_left "$dr" toolu_e2 toolu_e3 toolu_e4 toolu_e5
+dr_fill "$dr"
+dr_run "$dr" "$(dr_prompt "$(dr_end failed t2)\\n\\n$(dr_end failed a.b)")"
+dr_left "$dr" toolu_e1 toolu_e2 toolu_e5
+# A task_cancel removes the record of its exact taskId.
+for id in t1-x aXb t; do
+  dr_fill "$dr"
+  dr_run "$dr" "$(dr_cancel "$dr_t$id")"
+  dr_left "$dr" toolu_e1 toolu_e2 toolu_e3 toolu_e4 toolu_e5
+done
+dr_fill "$dr"
+dr_run "$dr" "$(dr_cancel "${dr_t}t1")"
+dr_left "$dr" toolu_e2 toolu_e3 toolu_e4 toolu_e5
+dr_fill "$dr"
+dr_run "$dr" "$(dr_cancel "${dr_t}a.b")"
+dr_left "$dr" toolu_e1 toolu_e2 toolu_e4 toolu_e5
+# An input that the hook does not know, and a missing records folder, give exit 0 and no output.
+dr_fill "$dr"
+for in_text in '' 'not json' "Delegated task ${dr_t}t1 (S1 slice) [completed]: not json" \
+  "{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"$dr_dt\",\"tool_use_id\":\"toolu_e1\",\"tool_response\":\"{\\\"taskId\\\":\\\"x\\\"}\"}"; do
+  dr_run "$dr" "$in_text"
+done
+dr_left "$dr" toolu_e1 toolu_e2 toolu_e3 toolu_e4 toolu_e5
+dr_run "$tmp/dr-none" "$(dr_prompt "$(dr_end completed t1)")"
+dr_run "$tmp/dr-none" "$(dr_post toolu_c7 '"{\"taskId\":\"t\"}"')"
+[[ ! -e "$tmp/dr-none" ]] || { echo "FAIL: delegate-record.sh made a missing records folder"; failures=$((failures + 1)); }
 for brief in "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c2\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\\nBuild lock: none\"}}" \
   "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c3\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"Run make check-docs.\"}}" \
   "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_c4\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"a1\",\"message\":\"Go on with the next item.\"}}" \
   "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c5\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\",\"isolation\":\"worktree\"}}" \
   "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c6\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\\ngit commit -F .scratchpads/runs/x/commit-msg.txt\"}}" \
-  "{\"tool_name\":\"mcp__t3-code__delegate_task\",\"tool_use_id\":\"toolu_c7\",\"tool_input\":{\"task\":\"$ag_step\"}}"; do
+  "{\"tool_name\":\"mcp__t3-code__delegate_task\",\"tool_use_id\":\"toolu_c8\",\"tool_input\":{\"title\":\"t\",\"task\":\"$ag_step\\nBuild lock: none\"}}" \
+  "{\"tool_name\":\"mcp__t3-code__delegate_task\",\"tool_use_id\":\"toolu_c9\",\"tool_input\":{\"title\":\"t\",\"task\":\"Run make check-docs.\"}}"; do
   expect_records 0 "$brief"
 done
 # Each write removes the record files over 24 h old.
@@ -2835,6 +2951,15 @@ printf '{"toolUseId":"toolu_t1"}' > "$ag_sub/agent-at1.meta.json"
 expect_release block "$ag_dir" "$ag_push"
 release_has 'at1: Agent "S1 slice"'
 printf '{"toolUseId":"toolu_t1","finished":true}' > "$ag_sub/agent-at1.meta.json"
+expect_release allow "$ag_dir" "$ag_push"
+# End to end for a delegate_task child: the record holds the push check until the end text of the
+# child reaches the lead as a prompt.
+ag_dir="$tmp/ag-e2e-dt"
+ag_write "$ag_dir" "$ag_dt"
+dr_run "$ag_dir" "$(dr_post toolu_c7 "\"{\\\"taskId\\\":\\\"${dr_t}t1\\\"}\"")"
+expect_release block "$ag_dir" "$ag_push"
+release_has 'toolu_c7: mcp__t3-code__delegate_task "S1 slice"'
+dr_run "$ag_dir" "$(dr_prompt "$(dr_end completed t1)")"
 expect_release allow "$ag_dir" "$ag_push"
 DIRIGIBLE_LOCK_AGENTS="$tmp/lock-agents"
 fi # agent-guard

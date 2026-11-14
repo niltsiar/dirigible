@@ -144,11 +144,14 @@ An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a s
 ## How the project works
 
 Agents and humans follow the same rules. `AGENTS.md` has the commands, the testing rules, and the git rules. `CODING_STANDARDS.md` has the design rules and the **Safety** rules that a review checks. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`. Only collaborators open issues and pull requests: see [Contributing](docs/CONTRIBUTING.md).
+
 ## How Dirigible was made
 
-We wrote the code of Dirigible for this project. The exceptions are the third-party parts in the table of this file, each with its license and notice.
+We wrote the code of Dirigible for this project. The exceptions are the third-party parts in the table of docs/provenance.md, each with its license and notice.
 We learned how closed apps behave (for example Hindenburg PRO, Logic Pro, GarageBand, Final Cut Pro, Adobe Audition, Descript, Reaper, and Pro Tools) from their public documentation, from use and measurement of the apps, and from text in installed apps, such as menu and command names. That text comes from Final Cut Pro, Logic Pro, GarageBand, and the macOS system apps. We also read one option name in the text of one closed command-line tool. Each research note in docs/research names its sources.
 We did not decompile, disassemble, or copy the code of a closed app.
+We read Audacity code (GPL-3.0) to learn an approach. We did not copy, port, or translate it. Some features have the behavior or a default value of Audacity, for example the file names of an export for each chapter.
+We read soundcraft code (MIT or Apache-2.0) to learn an approach and default values. No soundcraft code is in the repo. A port of soundcraft code keeps its license notice.
 
 [How Dirigible was made](docs/provenance.md) holds the full statement and the table of third-party parts.
 

@@ -7,14 +7,14 @@
 # log-decision.sh (each phase 6 row) and check-governance.sh (the land) run it.
 # The lead grades a key: the refusal says so, and a run agent returns to the lead.
 # A holdout key line stands only in holdout-keys.md of the run folder: each other file of the run
-# folder (a review file, the analysis, the plan, a brief) names only the ID. Eval copies of the docs
+# folder (a review file, the analysis, the plan) names only the ID. Eval copies of the docs
 # lack evals.md (scripts/eval/build-copy.sh), so this header holds the rule for them. The check
 # also refuses a file that holds the key line of a `## H<n>` heading of holdout-keys.md (the line
 # after the heading), because an agent that read the copy has seen the key: replace the holdout.
 # The walk runs only when holdout-keys.md has an H key. It skips holdout-keys.md, each eval folder
 # (a subfolder that holds a keys.md, with its subfolders), each .build, *.app, and *.dirigible
-# folder (as teardown-run.sh does), each link, and each file that is no UTF-8 text of the
-# extensions .md .tsv .txt .json .csv .log .xml or is over 1 MiB (1048576 bytes).
+# folder (as teardown-run.sh does), each link, each file that it cannot read, and each file that is
+# no UTF-8 text of the extensions .md .tsv .txt .json .csv .log .xml or is over 1 MiB (1048576 bytes).
 # Usage: scripts/check-eval-keys.sh <base> <run folder> [<tree>]
 # The check diffs evals.md from `git merge-base <base> HEAD` to the HEAD of the run tree, so a key
 # change that only the base made after the branch point is no fault of the branch. <tree> is that
@@ -135,18 +135,19 @@ def key_copies(folder, secrets):
             rel = os.path.relpath(path, folder)
             if rel == "holdout-keys.md" or not name.endswith(TEXT):
                 continue
-            info = os.lstat(path)
-            if not stat.S_ISREG(info.st_mode) or info.st_size > CAP:
-                continue
             try:
+                info = os.lstat(path)
+                if not stat.S_ISREG(info.st_mode) or info.st_size > CAP:
+                    continue
                 text = open(path, encoding="utf-8").read()
-            except UnicodeDecodeError:
+            except (OSError, UnicodeDecodeError):
                 continue
             found += [(sid, rel) for sid, key in secrets.items() if key in text]
     return found
 
 
-for sid, rel in key_copies(run, holdout_keys(run + "/holdout-keys.md")):
+secrets = holdout_keys(run + "/holdout-keys.md")
+for sid, rel in key_copies(run, secrets) if secrets else []:
     print(
         f"check-eval-keys: the key of {sid} stands in {rel}; a holdout key stays only in "
         "holdout-keys.md; replace the holdout, because an agent that read the file has seen its key",

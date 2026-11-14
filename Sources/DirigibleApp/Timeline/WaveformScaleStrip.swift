@@ -23,6 +23,8 @@ final class WaveformScaleStrip: NSView {
     private static let tick = 4.0
     static let labelFont = NSFont.systemFont(ofSize: 8)
     static let labelHeight = 10.0
+    /// The width between the strip edge and the tick that a label has.
+    static let labelRoom = width - 1 - tick - 1
 
     /// The wheel steps: the gap and the pending trackpad delta (`WaveformScaleStrip+Wheel.swift`).
     var wheel = WaveformWheel()
@@ -85,6 +87,16 @@ final class WaveformScaleStrip: NSView {
         return shown
     }
 
+    /// The font of a label: `labelFont`, smaller in steps of 0.25 pt for a text that is wider than
+    /// `labelRoom` ("-145"). The glyph widths do not scale in line with the size, so it measures.
+    static func font(for text: String) -> NSFont {
+        var font = labelFont
+        while NSAttributedString(string: text, attributes: [.font: font]).size().width > labelRoom {
+            font = NSFont.systemFont(ofSize: font.pointSize - 0.25)
+        }
+        return font
+    }
+
     /// The y of a label center in its lane: the tick y, kept inside the lane.
     static func labelCenter(y: Double, laneHeight: Double) -> Double {
         min(max(y, labelHeight / 2), laneHeight - labelHeight / 2)
@@ -97,7 +109,6 @@ final class WaveformScaleStrip: NSView {
         guard let inputs else { return }
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let color = contrast ? NSColor.labelColor : NSColor.secondaryLabelColor
-        let attributes: [NSAttributedString.Key: Any] = [.font: Self.labelFont, .foregroundColor: color]
         let ticks = Self.ticks(range: inputs.range, laneHeight: inputs.laneHeight)
         let labels = Self.labelled(range: inputs.range, laneHeight: inputs.laneHeight)
         let first = max(0, Int(((top + dirtyRect.minY) / inputs.laneHeight).rounded(.down)))
@@ -115,7 +126,9 @@ final class WaveformScaleStrip: NSView {
                 path.line(to: NSPoint(x: bounds.maxX - 1, y: y))
             }
             for label in labels {
-                let text = NSAttributedString(string: String(Int(label.dB)), attributes: attributes)
+                let name = String(Int(label.dB))
+                let text = NSAttributedString(
+                    string: name, attributes: [.font: Self.font(for: name), .foregroundColor: color])
                 let size = text.size()
                 let y = origin + Self.labelCenter(y: label.y, laneHeight: inputs.laneHeight) - size.height / 2
                 text.draw(at: NSPoint(x: bounds.maxX - 1 - Self.tick - 1 - size.width, y: y))

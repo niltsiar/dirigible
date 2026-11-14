@@ -23,7 +23,11 @@ struct WaveformRangeTests {
         return session
     }
 
-    @Test(arguments: [(WaveformRange.db24, 25.0), (.db36, 50.0 / 3), (.db48, 12.5), (.db60, 10), (.db96, 6.25)])
+    @Test(arguments: [
+        (WaveformRange.db24, 25.0), (.db36, 50.0 / 3), (.db48, 12.5), (.db60, 10), (.db96, 6.25), (.db120, 5),
+        (.db145, 600.0 / 145),
+    ]
+    )
     func theGainLineFollowsTheRange(range: WaveformRange, y: Double) throws {
         let geometry = try geometry(range)
         let session = try session(gain: -6)
@@ -57,7 +61,7 @@ struct WaveformRangeTests {
     @Test func thePointsFollowTheRange() throws {
         let session = try session(points: [72_000: -12])
         let clips = session.tracks[0].clips
-        for (range, y) in [(WaveformRange.db24, 50.0), (.db60, 20), (.db96, 12.5)] {
+        for (range, y) in [(WaveformRange.db24, 50.0), (.db60, 20), (.db96, 12.5), (.db120, 10)] {
             let points = try geometry(range).envelopePoints(of: clips[0], at: 0, in: clips, trackGain: .zero, lane: 0)
             #expect(points.count == 1 && abs(points[0].y - y) < 1e-9, "\(range.dB) dB: \(points)")
         }
@@ -103,7 +107,8 @@ struct WaveformRangeTests {
         #expect(WaveformRange(stored: 24) == .db24)
         #expect(WaveformRange(stored: 50) == .db60, "not a range")
         #expect(WaveformRange(stored: "x") == .db60, "not a number")
-        #expect(WaveformRange(stored: 120) == .db60, "no range of 120 dB yet")
+        #expect(WaveformRange(stored: 120) == .db120 && WaveformRange(stored: 145) == .db145)
+        #expect(WaveformRange(stored: 100) == .db60, "between two ranges")
         #expect(WaveformRange(stored: -60) == .db60)
         #expect(WaveformRange(stored: nil) == .db60, "no stored value")
     }
@@ -111,7 +116,9 @@ struct WaveformRangeTests {
     @Test func theStepsRunUpAndDownTheRanges() {
         #expect(WaveformRange.standard == .db60)
         #expect(WaveformRange.db60.zoomedIn == .db72 && WaveformRange.db84.zoomedIn == .db96)
-        #expect(WaveformRange.db96.zoomedIn == nil)
+        #expect(WaveformRange.db96.zoomedIn == .db120 && WaveformRange.db120.zoomedIn == .db145)
+        #expect(WaveformRange.db145.zoomedIn == nil)
+        #expect(WaveformRange.db145.zoomedOut == .db120 && WaveformRange.db120.zoomedOut == .db96)
         #expect(WaveformRange.db60.zoomedOut == .db48 && WaveformRange.db36.zoomedOut == .db24)
         #expect(WaveformRange.db24.zoomedOut == nil)
     }

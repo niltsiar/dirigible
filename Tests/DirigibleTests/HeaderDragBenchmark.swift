@@ -69,7 +69,9 @@ import Testing
             for (event, width) in Self.path.enumerated() {
                 let time = try await bench.timed(.leftMouseDragged, width - 3)
                 if event >= 10 { times.append(time) }
-                try #require(Double(view.headers.ruleThickness) == width, "\(bench.zoom): live width \(width)")
+                try #require(
+                    Double(view.headers.ruleThickness) == width + WaveformScaleStrip.width,
+                    "\(bench.zoom): live width \(width)")
                 // Fallback 2 of 0023: the rows keep the start width until the mouse-up.
                 try #require(view.headers.host.frame.width == 340, "\(bench.zoom): the rows keep the start width")
                 if n == 0 {

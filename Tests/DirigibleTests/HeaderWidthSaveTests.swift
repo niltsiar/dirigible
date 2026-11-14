@@ -58,25 +58,25 @@ import Testing
 
     @Test func theWidthSavesAtTheMouseUpOnly() async throws {
         let (model, view) = try await open()
-        try handle(.leftMouseDown, 337, view)
-        try handle(.leftMouseDragged, 417, view)
+        try handle(.leftMouseDown, 357, view)
+        try handle(.leftMouseDragged, 437, view)
         #expect(stored == nil, "not saved during the drag")
-        try handle(.leftMouseUp, 417, view)
+        try handle(.leftMouseUp, 437, view)
         #expect(stored as? Double == 420, "saved at the up")
 
         defaults.removeObject(forKey: HeaderWidth.defaultsKey)
-        try handle(.leftMouseDown, 417, view)
-        try handle(.leftMouseDragged, 377, view)
+        try handle(.leftMouseDown, 437, view)
+        try handle(.leftMouseDragged, 397, view)
         try #require(view.headers.width == HeaderWidth(380))
         try #require(view.window).sendEvent(try cgKey(53))
-        try handle(.leftMouseUp, 377, view)
+        try handle(.leftMouseUp, 397, view)
         #expect(stored == nil, "not saved at Esc")
-        try handle(.leftMouseDown, 417, view)
-        try handle(.leftMouseUp, 417, view)
+        try handle(.leftMouseDown, 437, view)
+        try handle(.leftMouseUp, 437, view)
         #expect(stored == nil, "not saved at a click")
 
-        try handle(.leftMouseDown, 417, view, clicks: 2)
-        try handle(.leftMouseUp, 417, view, clicks: 2)
+        try handle(.leftMouseDown, 437, view, clicks: 2)
+        try handle(.leftMouseUp, 437, view, clicks: 2)
         #expect(stored as? Double == 340, "saved at a double-click")
         _ = view.headers.handle.accessibilityPerformIncrement()
         #expect(stored as? Double == 360, "saved at an AX step")
@@ -86,7 +86,7 @@ import Testing
     @Test func aNewWindowReadsTheSavedWidth() async throws {
         defaults.set(260.0, forKey: HeaderWidth.defaultsKey)
         let (model, view) = try await open()
-        #expect(view.headers.ruleThickness == 260, "read at open")
+        #expect(view.headers.ruleThickness == 280, "read at open")
         await end(model)
     }
 
@@ -110,7 +110,9 @@ import Testing
     func aBadStoredWidthGivesAWidthInRange(value: Stored, width: Double) async throws {
         defaults.set(value.value, forKey: HeaderWidth.defaultsKey)
         let (model, view) = try await open()
-        #expect(Double(view.headers.ruleThickness) == width, "stored value \(value) gives \(width)")
+        #expect(
+            Double(view.headers.ruleThickness) == width + WaveformScaleStrip.width,
+            "stored value \(value) gives \(width)")
         await end(model)
     }
 
@@ -119,13 +121,13 @@ import Testing
     @Test func aDragInOneWindowLeavesTheOtherWindow() async throws {
         let (first, one) = try await open("a")
         let (second, two) = try await open("b")
-        try handle(.leftMouseDown, 337, one)
-        try handle(.leftMouseDragged, 417, one)
-        try handle(.leftMouseUp, 417, one)
+        try handle(.leftMouseDown, 357, one)
+        try handle(.leftMouseDragged, 437, one)
+        try handle(.leftMouseUp, 437, one)
         #expect(one.headers.width == HeaderWidth(420))
         #expect(two.headers.width == .standard, "the other window keeps its width")
         let (third, three) = try await open("c")
-        #expect(three.headers.ruleThickness == 420, "read at open: a new window has the saved width")
+        #expect(three.headers.ruleThickness == 440, "read at open: a new window has the saved width")
         await end(first, second, third)
     }
 }

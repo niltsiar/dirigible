@@ -6,11 +6,13 @@ import SwiftUI
 /// The track headers left of the lanes (decision 0017): SwiftUI rows in the vertical ruler of the
 /// scroll view. The top of the clip view places them, so row n stays beside lane n in a vertical
 /// scroll. A wheel over them goes up the responder chain to the scroll view. A handle at the
-/// trailing edge sets the width (decision 0023). The ruler is opaque: the lanes under it never show
+/// trailing edge sets the width (decision 0023). The dB scale strip sits right of the rows, so the
+/// ruler is the header width plus the strip. The ruler is opaque: the lanes under it never show
 /// (the user report L5), and a 1 pt separator line marks its trailing edge.
 final class TrackHeaderRuler: NSRulerView {
     let host = HeaderHost(rootView: AnyView(EmptyView()))
     let handle = HeaderHandle()
+    let strip = WaveformScaleStrip()
     /// Saves the width at the mouse-up, a double-click, and an AX step. Nil: no save.
     var save: ((HeaderWidth) -> Void)?
     /// The calls of `layout()`, for the bench (probe Q4).
@@ -18,13 +20,19 @@ final class TrackHeaderRuler: NSRulerView {
     private var drag = PaneDrag<HeaderWidth>()
     /// The document y at the top of the clip view, and the height of all lanes.
     private var rows: (top: CGFloat, height: CGFloat) = (0, 0)
-    private let edge = CALayer()
+    let edge = CALayer()
+
+    /// The one trailing edge of the header column: the rows, the strip, the handle, the edge line, and
+    /// the band over them read it. The saved header width is the rows only.
+    var columnWidth: Double { Self.columnWidth(for: width) }
+
+    static func columnWidth(for width: HeaderWidth) -> Double { width.points + WaveformScaleStrip.width }
 
     /// The width applies at once: the scroll view tiles, and the lanes take the new width.
     var width = HeaderWidth.standard {
         didSet {
             guard width != oldValue else { return }
-            ruleThickness = width.points
+            ruleThickness = columnWidth
             if let model = (scrollView as? TimelineScrollView)?.model, model.headerWidth != width {
                 model.headerWidth = width
             }
@@ -35,7 +43,7 @@ final class TrackHeaderRuler: NSRulerView {
 
     init() {
         super.init(scrollView: nil, orientation: .verticalRuler)
-        ruleThickness = width.points
+        ruleThickness = columnWidth
         reservedThicknessForMarkers = 0
         reservedThicknessForAccessoryView = 0
         // macOS 14 does not clip subviews by default: a row above the lanes would cover the ruler.
@@ -46,6 +54,7 @@ final class TrackHeaderRuler: NSRulerView {
         layer?.addSublayer(edge)
         host.sizingOptions = []
         addSubview(host)
+        addSubview(strip)
         addSubview(handle)
         handle.ruler = self
     }
@@ -74,14 +83,23 @@ final class TrackHeaderRuler: NSRulerView {
         layouts += 1
         super.layout()
         placeRows()
-        handle.frame = NSRect(x: width.points - 6, y: 0, width: 6, height: bounds.height)
-        edge.frame = CGRect(x: width.points - 1, y: 0, width: 1, height: bounds.height)
+        placeStrip()
+        handle.frame = NSRect(x: columnWidth - 6, y: 0, width: 6, height: bounds.height)
+        edge.frame = CGRect(x: columnWidth - 1, y: 0, width: 1, height: bounds.height)
     }
 
     /// `top` is the document y at the top of the clip view; `height` is the height of all lanes.
     func place(top: CGFloat, height: CGFloat) {
         rows = (top, height)
         placeRows()
+        strip.top = top
+    }
+
+    /// The strip has the height of the ruler, right of the rows, and draws the lanes by `top`: a strip
+    /// as tall as all lanes would need a layer as tall as them.
+    private func placeStrip() {
+        let frame = NSRect(x: width.points, y: 0, width: WaveformScaleStrip.width, height: bounds.height)
+        if strip.frame != frame { strip.frame = frame }
     }
 
     /// During a drag the rows keep the start width and the ruler clips them: a layout of the rows at
@@ -184,13 +202,20 @@ final class HeaderHost: NSHostingView<AnyView> {
 }
 
 /// The 6 pt hit area at the trailing edge of the headers, above the rows: the drag, the
-/// double-click, the cursor, and the AX splitter of the header width.
+/// double-click, the cursor, and the AX splitter of the header width. It covers the trailing 6 pt of
+/// the scale strip, so it gives the strip the menu of a right-click and a Control-click.
 final class HeaderHandle: NSView {
     weak var ruler: TrackHeaderRuler?
 
     private func x(_ event: NSEvent) -> Double { Double(ruler?.convert(event.locationInWindow, from: nil).x ?? 0) }
 
-    override func mouseDown(with event: NSEvent) { ruler?.dragged(.down(x: x(event), clicks: event.clickCount)) }
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control) { return ruler?.strip.showMenu(event) ?? () }
+        ruler?.dragged(.down(x: x(event), clicks: event.clickCount))
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? { ruler?.strip.menu(for: event) }
+
     override func mouseDragged(with event: NSEvent) { ruler?.dragged(.drag(x: x(event))) }
     override func mouseUp(with event: NSEvent) { ruler?.dragged(.up) }
 

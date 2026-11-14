@@ -112,7 +112,7 @@ extension SessionWindow {
             importJob == nil && idleStudio.flatMap { timeline.selection.marks?.selection(in: $0.session) } != nil
         case .waveformZoomIn: timeline.waveformRange.zoomedIn != nil
         case .waveformZoomOut: timeline.waveformRange.zoomedOut != nil
-        case .waveformZoomReset: app.map { timeline.waveformRange != $0.waveformRangeDefault } == true
+        case .waveformZoomReset: canResetWaveformRange
         case .zoomBack: timeline.canGoBack
         case .zoomForward: timeline.canGoForward
         // No text field uses their keys, so they can be off during a take.

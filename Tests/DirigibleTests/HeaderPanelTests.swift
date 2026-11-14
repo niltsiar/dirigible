@@ -25,7 +25,9 @@ import Testing
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 60), app: app)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1440 + width.points + scrollerWidth, height: 400 + scrollerWidth),
+            contentRect: NSRect(
+                x: 0, y: 0, width: 1440 + width.points + WaveformScaleStrip.width + scrollerWidth,
+                height: 400 + scrollerWidth),
             styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         let view = TimelineScrollView(model: model, studio: studio, headerWidth: width)
@@ -76,21 +78,21 @@ import Testing
                 view.update(inputs)
             }
             drawNow(window)
-            try #require(Double(view.headers.ruleThickness) == 480 && view.shown.minX == 0, "\(zoom): \(view.shown)")
-            try handle(.leftMouseDown, 477, view)
+            try #require(Double(view.headers.ruleThickness) == 500 && view.shown.minX == 0, "\(zoom): \(view.shown)")
+            try handle(.leftMouseDown, 497, view)
             // Narrow to 180 pt, then widen back: the lanes grow, then shrink to the session.
             let path =
                 Array(stride(from: 460.0, through: 180, by: -20)) + Array(stride(from: 200.0, through: 480, by: 20))
             for width in path {
-                try handle(.leftMouseDragged, width - 3, view)
+                try handle(.leftMouseDragged, width + 17, view)
                 drawNow(window)
                 // The #expect macro compares a CGFloat with a Double as unequal: compare two Doubles.
-                #expect(Double(view.headers.ruleThickness) == width, "live width \(width)")
+                #expect(Double(view.headers.ruleThickness) == width + WaveformScaleStrip.width, "live width \(width)")
                 #expect(
                     view.lanes.frame.width >= view.shown.maxX,
                     "the lanes cover the view, \(zoom), \(width): \(view.lanes.frame.width) < \(view.shown.maxX)")
             }
-            try handle(.leftMouseUp, 477, view)
+            try handle(.leftMouseUp, 497, view)
         }
         window.close()
         await model.close()
@@ -114,11 +116,11 @@ import Testing
             return try await TimelineRulerTests.pixels(of: rect, TimelineColorTests.capture(window), window)
         }
         let before = try await rulerPixels()
-        try handle(.leftMouseDown, 337, view)
-        try handle(.leftMouseDragged, 177, view)
-        try handle(.leftMouseUp, 177, view)
+        try handle(.leftMouseDown, 357, view)
+        try handle(.leftMouseDragged, 197, view)
+        try handle(.leftMouseUp, 197, view)
         let after = try await rulerPixels()
-        #expect(Double(view.headers.ruleThickness) == 180 && after != before, "the capture shows the drag")
+        #expect(Double(view.headers.ruleThickness) == 200 && after != before, "the capture shows the drag")
         view.ruler.needsDisplay = true
         let full = try await rulerPixels()
         let stale = zip(after, full).filter { $0 != $1 }.count
@@ -142,16 +144,16 @@ import Testing
             try handle(.leftMouseDown, Double(view.headers.ruleThickness) - 3, view)
             let capacity = try #require(view.lanes.surfaces.shown?.capacity)
             for width in [400.0, 480, 440, 300, 180, 260, 340] {
-                try handle(.leftMouseDragged, width - 3, view)
+                try handle(.leftMouseDragged, width + 17, view)
                 drawNow(window)
                 // The 4 slots stay: a new capacity would drop them and render all lanes in view.
                 #expect(view.lanes.surfaces.shown?.capacity == capacity, "a header drag keeps the capacity at \(width)")
-                #expect(Double(view.headers.ruleThickness) == width, "live width \(width)")
+                #expect(Double(view.headers.ruleThickness) == width + WaveformScaleStrip.width, "live width \(width)")
                 #expect(
                     Double(view.shown.minX) == left,
                     "the lanes keep their left edge at \(left), \(width): \(view.shown.minX)")
             }
-            try handle(.leftMouseUp, 337, view)
+            try handle(.leftMouseUp, 357, view)
         }
         // H13: the lanes follow the system setting "Show scroll bars" after a header drag.
         #expect(view.scrollerStyle == NSScroller.preferredScrollerStyle, "scroller style")
@@ -170,14 +172,16 @@ import Testing
             func hit(_ x: Double, _ y: Double) -> NSView? {
                 window.contentView?.superview?.hitTest(view.headers.convert(NSPoint(x: x, y: y), to: nil))
             }
-            // The middle of lane 1, and the bottom of the headers (below the lanes).
+            // The middle of lane 1, and the bottom of the headers (below the lanes). The column ends
+            // at the trailing edge of the strip.
             let lane = view.headers.convert(NSPoint(x: 0, y: 50), from: view.lanes).y
+            let edge = view.headers.columnWidth
             for y in [lane, view.headers.bounds.maxY - 2] {
-                #expect(hit(width - 0.5, y) === view.headers.handle, "handle at \(width) - 0.5, y \(y)")
-                #expect(hit(width - 6, y) === view.headers.handle, "handle at \(width) - 6, y \(y)")
-                #expect(hit(width - 7, y) !== view.headers.handle, "not the handle at \(width) - 7, y \(y)")
+                #expect(hit(edge - 0.5, y) === view.headers.handle, "handle at \(edge) - 0.5, y \(y)")
+                #expect(hit(edge - 6, y) === view.headers.handle, "handle at \(edge) - 6, y \(y)")
+                #expect(hit(edge - 7, y) === view.headers.strip, "the strip at \(edge) - 7, y \(y)")
             }
-            #expect(hit(width + 1, lane) === view.lanes, "lanes at \(width) + 1")
+            #expect(hit(edge + 1, lane) === view.lanes, "lanes at \(edge) + 1")
         }
         window.close()
         await model.close()
@@ -191,18 +195,18 @@ import Testing
     @Test func theRowsTakeTheWidthAtTheMouseUp() async throws {
         let (window, view, model) = try await standalone(width: .standard)
         let paced = Paced(view: view, window: window, zoom: "header")
-        try handle(.leftMouseDown, 337, view)
-        _ = try await paced.timed(.leftMouseDragged, 417)
-        #expect(Double(view.headers.ruleThickness) == 420, "live width")
+        try handle(.leftMouseDown, 357, view)
+        _ = try await paced.timed(.leftMouseDragged, 437)
+        #expect(Double(view.headers.ruleThickness) == 440, "live width")
         #expect(view.headers.host.frame.width == 340, "the rows keep the start width during the drag")
-        _ = try await paced.timed(.leftMouseDragged, 397)
+        _ = try await paced.timed(.leftMouseDragged, 417)
         let hit = window.contentView?.superview?.hitTest(
-            view.headers.convert(NSPoint(x: 399.5, y: view.headers.bounds.midY), to: nil))
-        #expect(hit === view.headers.handle, "handle at 399.5 during the drag")
-        _ = try await paced.timed(.leftMouseUp, 397, renders: false)
+            view.headers.convert(NSPoint(x: 419.5, y: view.headers.bounds.midY), to: nil))
+        #expect(hit === view.headers.handle, "handle at 419.5 during the drag")
+        _ = try await paced.timed(.leftMouseUp, 417, renders: false)
         #expect(view.headers.host.frame.width == 400, "the rows take the width at the up")
-        try handle(.leftMouseDown, 397, view)
-        try handle(.leftMouseDragged, 297, view)
+        try handle(.leftMouseDown, 417, view)
+        try handle(.leftMouseDragged, 317, view)
         drawNow(window)
         // A standalone window has no Esc route (UndoRoutingWindow): the call of its Esc.
         #expect(view.headers.cancelDrag())
@@ -219,13 +223,13 @@ import Testing
     @Test func anUpdateDuringAHeaderDragKeepsTheDrag() async throws {
         let (model, studio, _, view) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
-        try handle(.leftMouseDown, 337, view)
-        try handle(.leftMouseDragged, 397, view)
+        try handle(.leftMouseDown, 357, view)
+        try handle(.leftMouseDragged, 417, view)
         let updates = view.updates
         model.run(.addTrack)
         await until("the lanes get the new track") { studio.session.tracks.count == 3 && view.updates > updates }
         #expect(view.headers.width == HeaderWidth(400), "the update keeps the width")
-        try handle(.leftMouseDragged, 417, view)
+        try handle(.leftMouseDragged, 437, view)
         #expect(view.headers.width == HeaderWidth(420), "the drag goes on after the update")
         try #require(view.window).sendEvent(try cgKey(53))
         #expect(view.headers.width == .standard, "the drag goes on: Esc gives the start width")
@@ -246,19 +250,19 @@ import Testing
         await until("the typed name is a draft") { model.drafts["t1"] == "Guest" }
         try #require(studio.session.track("t1")?.name == "T1")
 
-        try handle(.leftMouseDown, 337, view)
+        try handle(.leftMouseDown, 357, view)
         #expect(studio.session.track("t1")?.name == "Guest", "the names commit at the handle")
         #expect(window.firstResponder !== editor, "the names commit at the handle: the focus ends")
-        try handle(.leftMouseDragged, 377, view)
-        try handle(.leftMouseDragged, 417, view)
-        #expect(view.headers.ruleThickness == 420, "live width")
+        try handle(.leftMouseDragged, 397, view)
+        try handle(.leftMouseDragged, 437, view)
+        #expect(view.headers.ruleThickness == 440, "live width")
 
         window.sendEvent(try cgKey(53))
 
         #expect(view.headers.width == .standard, "Esc restores the start width")
-        #expect(view.headers.ruleThickness == 340, "Esc restores the ruler width")
+        #expect(view.headers.ruleThickness == 360, "Esc restores the ruler width")
         #expect(model.timeline.marks == marks, "the selection stays")
-        try handle(.leftMouseUp, 417, view)
+        try handle(.leftMouseUp, 437, view)
         #expect(view.headers.width == .standard, "Esc restores: the up after Esc changes nothing")
         await model.close()
     }
@@ -283,16 +287,16 @@ import Testing
     /// Criterion H3: a double-click on the handle sets 340 pt.
     @Test func aDoubleClickSetsTheStandardWidth() async throws {
         let (window, view, model) = try await standalone(width: .standard)
-        try handle(.leftMouseDown, 337, view)
-        try handle(.leftMouseDragged, 417, view)
-        try handle(.leftMouseUp, 417, view)
+        try handle(.leftMouseDown, 357, view)
+        try handle(.leftMouseDragged, 437, view)
+        try handle(.leftMouseUp, 437, view)
         try #require(view.headers.width == HeaderWidth(420), "live width")
 
-        try handle(.leftMouseDown, 417, view, clicks: 2)
-        try handle(.leftMouseUp, 417, view, clicks: 2)
+        try handle(.leftMouseDown, 437, view, clicks: 2)
+        try handle(.leftMouseUp, 437, view, clicks: 2)
 
         #expect(view.headers.width == .standard, "double-click")
-        #expect(view.headers.ruleThickness == 340, "double-click")
+        #expect(view.headers.ruleThickness == 360, "double-click")
         window.close()
         await model.close()
     }
@@ -315,7 +319,7 @@ import Testing
         view.headers.save = { saved.append($0.points) }
         #expect(handle.accessibilityPerformIncrement(), "increment")
         #expect(saved == [360], "increment saves")
-        #expect(view.headers.ruleThickness == 360, "increment")
+        #expect(view.headers.ruleThickness == 380, "increment")
         #expect(handle.accessibilityValue() as? Double == 360, "increment")
         #expect(handle.accessibilityPerformDecrement(), "decrement")
         #expect(view.headers.width == .standard, "decrement")

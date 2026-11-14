@@ -194,6 +194,13 @@ put review-diff-1.md $'Lens: (a) the made-up H31 lens gives the question\n   and
 check 'a key point that a line wrap splits' 1 'H31' main "$run"
 put review-diff-1.md 'Name the ID only.'
 check 'a short point of a holdout key' 0 '' main "$run"
+# The limit is 40 characters: a point of 40 is a copy, a point of 39 is common text.
+fresh; holdout H32 '(a) the made-up H32 lead keeps a point of 40. (b) the ID only.'
+put review-diff-1.md 'Lens: the made-up H32 lead keeps a point of 40.'
+check 'a key point of exactly 40 characters' 1 'H32' main "$run"
+fresh; holdout H33 '(a) the made-up H33 lead keeps a point of 9. (b) the ID only.'
+put review-diff-1.md 'Lens: the made-up H33 lead keeps a point of 9.'
+check 'a key point of 39 characters' 0 '' main "$run"
 
 # A file that the walk cannot read is skipped, with no key and with a key.
 fresh; put notes.md 'x'; chmod 000 "$run/notes.md"

@@ -28,7 +28,8 @@ extension SessionWindow {
             switch command {
             case .waveformZoomIn: range.zoomedIn
             case .waveformZoomOut: range.zoomedOut
-            default: app?.waveformRangeDefault == range ? nil : app?.waveformRangeDefault
+            case .waveformZoomReset: app?.waveformRangeDefault == range ? nil : app?.waveformRangeDefault
+            default: nil
             }
         guard let target else { return beep() }
         setWaveformRange(target)

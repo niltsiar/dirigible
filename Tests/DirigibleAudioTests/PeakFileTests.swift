@@ -5,7 +5,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The peak cache file of decision 0017, version 1 (timeline-view criterion 2).
+/// The peak cache file of decision 0017, version 2 (timeline-view criterion 2).
 struct PeakFileTests {
     static let stamp = FileStamp(size: 1_036_804_096, seconds: 1_790_293_732, nanoseconds: 540_000_123)
 
@@ -19,6 +19,44 @@ struct PeakFileTests {
 
     static func decode(_ data: Data, stamp: FileStamp = stamp, channels: Int = 1, rate: Int = 48_000) -> Peaks? {
         PeakFile.decode(data, stamp: stamp, channels: channels, rate: rate)
+    }
+
+    /// `peaks` as a cache file of version 1, little-endian: "DIRPEAKS", the UInt32 fields version 1,
+    /// 256 frames per bin, 3 levels, the channels, the rate, and 0, the Int64 stamp fields, the
+    /// UInt64 frames, then a UInt16 peak and a UInt16 RMS for each bin, 65535 = 0 dBFS.
+    static func version1(_ peaks: Peaks) -> Data {
+        func short<Value: FixedWidthInteger>(_ value: Value) -> UInt16 {
+            UInt16((Double(value) / Double(Value.max) * 65535).rounded()).littleEndian
+        }
+        var data = Data("DIRPEAKS".utf8)
+        let fields: [UInt32] = [1, 256, 3, UInt32(peaks.channels), UInt32(peaks.sampleRate), 0]
+        fields.map(\.littleEndian).withUnsafeBytes { data.append(contentsOf: $0) }
+        let stamp = [peaks.stamp.size, Int64(peaks.stamp.seconds), Int64(peaks.stamp.nanoseconds)]
+        stamp.map(\.littleEndian).withUnsafeBytes { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt64(peaks.frames.count).littleEndian) { data.append(contentsOf: $0) }
+        let values = peaks.levels.flatMap { $0.flatMap { [short($0.peak), short($0.rms)] } }
+        values.withUnsafeBytes { data.append(contentsOf: $0) }
+        return data
+    }
+
+    /// A cache file of version 1 on the disk is a miss, and the write of the peaks replaces it.
+    @Test func aVersion1FileIsAMiss() async throws {
+        let folder = try TemporaryFolder()
+        let cache = folder.url.appending(path: "Peaks")
+        let peaks = try await Self.peaks()
+        let old = Self.version1(peaks)
+        let name = PeakFile.name(path: "a.wav", stamp: Self.stamp)
+        try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        try old.write(to: cache.appending(path: name))
+
+        #expect(old.count == 64 + 4 * peaks.levels.map(\.count).reduce(0, +))
+        #expect(Self.decode(old) == nil, "a version 1 file decodes")
+        #expect(PeakFile.read(path: "a.wav", stamp: Self.stamp, channels: 1, rate: 48_000, in: cache) == nil)
+
+        try PeakFile.write(peaks, path: "a.wav", in: cache)
+
+        #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path) == [name])
+        #expect(PeakFile.read(path: "a.wav", stamp: Self.stamp, channels: 1, rate: 48_000, in: cache) == peaks)
     }
 
     /// Build values through the compute, encode, decode, and compare (the tdd writer and reader rule).
@@ -43,7 +81,7 @@ struct PeakFileTests {
 
             let data = PeakFile.encode(peaks)
 
-            #expect(data.count == 64 + 4 * peaks.levels.map(\.count).reduce(0, +))
+            #expect(data.count == 64 + 8 * peaks.levels.map(\.count).reduce(0, +))
             #expect(PeakFile.decode(data, stamp: stamp, channels: channels, rate: 48_000) == peaks)
         }
     }
@@ -51,10 +89,10 @@ struct PeakFileTests {
     /// Each row of the format table: change one field, and the reader refuses the file.
     @Test(arguments: [
         ("magic", 0, UInt64(0x5859_5A)),
-        ("version", 8, UInt64(2)),
+        ("version", 8, UInt64(3)),
         ("binFrames", 12, UInt64(512)),
         ("levels", 16, UInt64(2)),
-        ("reserved", 28, UInt64(1)),
+        ("binBytes", 28, UInt64(4)),
     ])
     func aChangedHeaderFieldIsRefused(field: String, offset: Int, value: UInt64) async throws {
         var data = PeakFile.encode(try await Self.peaks())
@@ -68,9 +106,11 @@ struct PeakFileTests {
     }
 
     /// Decision 0024 P1 and P9: the header starts with the magic "DIRPEAKS" and the UInt32
-    /// version 1, little-endian.
-    @Test func theWriterStampsVersion1() async throws {
-        #expect(PeakFile.encode(try await Self.peaks()).prefix(12) == Data("DIRPEAKS".utf8) + Data([1, 0, 0, 0]))
+    /// version 2, little-endian, and holds the 8 bytes of a bin at offset 28.
+    @Test func theWriterStampsVersion2() async throws {
+        let data = PeakFile.encode(try await Self.peaks())
+        #expect(data.prefix(12) == Data("DIRPEAKS".utf8) + Data([2, 0, 0, 0]))
+        #expect(data[28..<32] == Data([8, 0, 0, 0]))
     }
 
     @Test func anotherChannelCountIsRefused() async throws {
@@ -116,8 +156,8 @@ struct PeakFileTests {
         #expect(Self.decode(frames(1 << 40 + 1)) == nil)
         #expect(Self.decode(frames(.max)) == nil)
 
-        #expect(Self.decode(data.dropLast(4)) == nil)
-        #expect(Self.decode(data + Data(count: 4)) == nil)
+        #expect(Self.decode(data.dropLast(8)) == nil)
+        #expect(Self.decode(data + Data(count: 8)) == nil)
         #expect(Self.decode(data + Data(count: 2)) == nil)
         #expect(Self.decode(more) == nil)
         #expect(Self.decode(Data(data.prefix(63))) == nil)

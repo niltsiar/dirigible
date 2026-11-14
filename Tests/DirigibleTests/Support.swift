@@ -362,7 +362,7 @@ func randomPeaks(frames: Int) -> Peaks {
     func upper(_ factor: Int) -> [PeakColumn] {
         stride(from: 0, to: base.count, by: factor).map { start in
             let bins = base[start..<min(start + factor, base.count)]
-            return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
+            return PeakColumn(peak32: bins.map(\.peak).max()!, rms32: bins.map(\.rms).max()!)
         }
     }
     return Peaks(

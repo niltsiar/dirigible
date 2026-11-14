@@ -26,7 +26,7 @@ struct LivePeaksTests {
         return host(from)..<host(to)
     }
 
-    func column(_ peak: UInt16, _ rms: UInt16) -> PeakColumn { PeakColumn(peak: peak, rms: rms) }
+    func column(_ peak: UInt32, _ rms: UInt32) -> PeakColumn { PeakColumn(peak32: peak, rms32: rms) }
 
     // MARK: C4
 
@@ -49,7 +49,8 @@ struct LivePeaksTests {
 
         #expect(
             first.bins == [
-                column(32768, 16384), column(32768, 20480), column(57343, 16384), .zero, column(40959, 32768),
+                column(2_147_483_648, 1_073_741_824), column(2_147_483_648, 1_342_177_280),
+                column(3_758_096_383, 1_073_741_824), .zero, column(2_684_354_559, 2_147_483_648),
             ],
             "a bin does not hold the largest peak and RMS of its spans")
         #expect(first.covered == [Frames(0)..<Frames(7200), Frames(9600)..<Frames(12000)])
@@ -59,6 +60,22 @@ struct LivePeaksTests {
             if peaks.bins != first.bins || peaks.covered != first.covered { differ += 1 }
         }
         #expect(differ == 0, "the order of the spans changed the bins in \(differ) of 720 orders")
+    }
+
+    /// A span of a quiet signal keeps its level: a peak of -110 dBFS and an RMS of -113 dBFS.
+    @Test func aQuietSignalKeepsItsHeight() {
+        var peaks = live()
+        func decibels<Value: FixedWidthInteger>(_ value: Value) -> Double {
+            20 * log10(Double(value) / Double(Value.max))
+        }
+
+        peaks.add(
+            peak: Float(pow(10, -110.0 / 20)), rms: Float(pow(10, -113.0 / 20)), span: span(0, 50), latencyNanos: 0,
+            now: later)
+
+        #expect(peaks.bins.count == 1)
+        #expect(abs(decibels(peaks.bins[0].peak) + 110) <= 0.01, "peak \(peaks.bins[0].peak)")
+        #expect(abs(decibels(peaks.bins[0].rms) + 113) <= 0.01, "RMS \(peaks.bins[0].rms)")
     }
 
     func permutations(_ items: [Int]) -> [[Int]] {
@@ -77,7 +94,7 @@ struct LivePeaksTests {
         let added = peaks.add(peak: 0.5, rms: 0.25, span: span(-100, 100), latencyNanos: 0, now: later)
         #expect(added)
         #expect(peaks.covered == [Frames(0)..<Frames(4800)], "the span before the start: \(peaks.covered)")
-        #expect(peaks.bins == [column(32768, 16384), column(32768, 16384)])
+        #expect(peaks.bins == [column(2_147_483_648, 1_073_741_824), column(2_147_483_648, 1_073_741_824)])
 
         var before = live()
         let wholly = before.add(peak: 0.5, rms: 0.25, span: span(-200, -100), latencyNanos: 0, now: later)
@@ -224,8 +241,8 @@ struct LivePeaksTests {
                 peak: value, rms: value, span: span(Double(bin) * 50, Double(bin + 1) * 50), latencyNanos: 0, now: later
             )
         }
-        let small = column(4096, 4096)
-        let (three, twelve) = (column(32768, 32768), column(49151, 49151))
+        let small = column(268_435_456, 268_435_456)
+        let (three, twelve) = (column(2_147_483_648, 2_147_483_648), column(3_221_225_471, 3_221_225_471))
 
         var wide = [PeakColumn](repeating: column(1, 1), count: 4)
         peaks.fill(&wide, from: 0, step: 7.5 * 2400)

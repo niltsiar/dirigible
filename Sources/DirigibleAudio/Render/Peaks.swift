@@ -2,14 +2,21 @@ import AVFoundation
 import Accelerate
 import DirigibleCore
 
-/// One bin or one drawn column: linear magnitudes, 65535 = 0 dBFS.
+/// One bin or one drawn column: linear magnitudes, `UInt32.max` = 0 dBFS. The lowest step is
+/// -192.7 dBFS, so a 24-bit signal keeps its level down to its last bit.
 public struct PeakColumn: Hashable, Sendable {
-    public var peak: UInt16
-    public var rms: UInt16
+    public var peak: UInt32
+    public var rms: UInt32
 
-    public init(peak: UInt16, rms: UInt16) {
+    public init(peak32 peak: UInt32, rms32 rms: UInt32) {
         self.peak = peak
         self.rms = rms
+    }
+
+    /// Magnitudes of 16 bits, 65535 = 0 dBFS. A value v becomes v x 65537, the same level:
+    /// 65535 x 65537 = `UInt32.max`.
+    public init(peak: UInt16, rms: UInt16) {
+        self.init(peak32: UInt32(peak) * 65537, rms32: UInt32(rms) * 65537)
     }
 
     public static let zero = PeakColumn(peak: 0, rms: 0)
@@ -138,7 +145,7 @@ func computePeaks(
                     channel += 1
                 }
                 out[bins] = PeakColumn(
-                    peak: quantize(peak), rms: quantize((squares / Float(Int(length) * channels)).squareRoot()))
+                    peak32: quantize(peak), rms32: quantize((squares / Float(Int(length) * channels)).squareRoot()))
                 bins += 1
                 start += 256
             }
@@ -158,7 +165,7 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
         level.withUnsafeMutableBufferPointer { out in
             var index = 0
             while index < bins.count {
-                var peak: UInt16 = 0
+                var peak: UInt32 = 0
                 var squares = 0.0
                 let end = index + factor < bins.count ? index + factor : bins.count
                 for bin in index..<end {
@@ -166,7 +173,7 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
                     squares += Double(bins[bin].rms) * Double(bins[bin].rms)
                 }
                 out[index / factor] = PeakColumn(
-                    peak: peak, rms: UInt16((squares / Double(end - index)).squareRoot().rounded()))
+                    peak32: peak, rms32: UInt32((squares / Double(end - index)).squareRoot().rounded()))
                 index = end
             }
         }
@@ -174,5 +181,6 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
     return level
 }
 
-/// A linear magnitude as a `PeakColumn` value: 65535 = 0 dBFS.
-func quantize(_ value: Float) -> UInt16 { value >= 1 ? 65535 : UInt16((value * 65535).rounded()) }
+/// A linear magnitude as a `PeakColumn` value: `UInt32.max` = 0 dBFS. The product is a `Double`,
+/// because a `Float` cannot hold 2^32 - 1.
+func quantize(_ value: Float) -> UInt32 { value >= 1 ? .max : UInt32((Double(value) * Double(UInt32.max)).rounded()) }

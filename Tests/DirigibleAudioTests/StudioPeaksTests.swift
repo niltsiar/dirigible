@@ -83,7 +83,7 @@ struct StudioPeaksTests {
         let peaks = try #require(await waitForPeaks(studio))
 
         #expect(peaks.frames == 600_000)
-        #expect(abs(Int(peaks.levels[0][10].peak) - 32767) <= 33)
+        #expect(abs(Double(peaks.levels[0][10].peak) / Double(UInt32.max) - 0.5) <= 0.0005)
         #expect(blocks.calls == 3)
         let files = fixture.cacheFiles()
         #expect(files.count == 1 && files[0].hasPrefix("f1.wav-") && files[0].hasSuffix(".peaks"), "\(files)")
@@ -101,6 +101,31 @@ struct StudioPeaksTests {
 
         #expect(await waitForPeaks(second) == computed)
         #expect(blocks.calls == 0)
+    }
+
+    /// A cache file of version 1 from an earlier app: the pass computes the peaks again from the
+    /// WAV and replaces the file, so the next Studio loads with no compute.
+    @Test @MainActor func aVersion1CacheFileComputesAgain() async throws {
+        let fixture = try await PeakPackage.make()
+        var first: Studio? = try await fixture.studio()
+        let computed = try #require(await waitForPeaks(first!))
+        await first?.settle()
+        first = nil
+        let name = try #require(fixture.cacheFiles().first)
+        try PeakFileTests.version1(computed).write(to: fixture.cache.appending(path: name))
+
+        let blocks = StepCounter()
+        var second: Studio? = try await fixture.studio { _ = blocks.next() }
+
+        #expect(await waitForPeaks(second!) == computed)
+        #expect(blocks.calls == 3, "the version 1 file is a hit")
+        await second?.settle()
+        second = nil
+        #expect(fixture.cacheFiles() == [name])
+        let reads = StepCounter()
+        let third = try await fixture.studio { _ = reads.next() }
+        #expect(await waitForPeaks(third) == computed)
+        #expect(reads.calls == 0, "the file of the second Studio is a miss")
     }
 
     /// Code gate 1 item 2: a cache hit marks the cache file as used, so the launch prune of
@@ -135,7 +160,7 @@ struct StudioPeaksTests {
         let second = try await fixture.studio { _ = blocks.next() }
         let peaks = try #require(await waitForPeaks(second))
 
-        #expect(peaks.levels[0][10] == PeakColumn(peak: 16384, rms: 16384))
+        #expect(peaks.levels[0][10] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824))
         #expect(blocks.calls == 3)
         #expect(fixture.cacheFiles().count == 2)
     }
@@ -212,7 +237,7 @@ struct StudioPeaksTests {
         try studio.redo()
 
         await until(limit: .seconds(30), "f2 has the new peaks") {
-            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 16384, rms: 16384)
+            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824)
         }
 
         // An undo of the add removes f2; an undo of the removal brings it back.
@@ -222,7 +247,7 @@ struct StudioPeaksTests {
         try studio.undo()
 
         await until(limit: .seconds(30), "f2 has the peaks of the last rewrite") {
-            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 8192, rms: 8192)
+            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak32: 536_870_912, rms32: 536_870_912)
         }
     }
 

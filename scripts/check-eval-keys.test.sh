@@ -8,6 +8,8 @@
 # lines it checks the last one, or the tree that the caller names. The refusal of an ungraded key
 # names the lead as the step that grades. It finds keys.md in any folder of the run and takes
 # scores.tsv from the same folder. It reads a branch name in backticks.
+# It refuses a file of the run folder that holds a holdout key line of holdout-keys.md, except in an
+# eval folder, a build folder, a link, a file with no UTF-8 text, and a file over 1 MiB.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -143,6 +145,51 @@ g "$main" worktree add -q -b feat/b "$tmp/wt2"; work "$tmp/wt2"
 printf '# Run r1\n\n- Branch: feat/a\n- Branch: feat/b\n' > "$run/run.md"
 check 'two branches, no tree: the last branch has no key change' 0 '' main "$run"
 check 'two branches, the tree of the first branch' 1 'E4' main "$run" "$tmp/wt1"
+
+# A holdout key line stands only in holdout-keys.md of the run folder. The keys here are made up.
+hkey='(a) the made-up H30 key line.'
+# holdout <ID> <key>: append the heading and the key line of the ID to holdout-keys.md of the run.
+holdout() { printf '# Holdout keys\n\n## %s\n%s\n' "$1" "$2" >> "$run/holdout-keys.md"; }
+# put <path> <text>: a file in the run folder.
+put() { mkdir -p "$(dirname "$run/$1")"; printf '%s\n' "$2" > "$run/$1"; }
+
+fresh; holdout H30 "$hkey"; put review-plan-1.md "Round 1: $hkey"
+check 'a holdout key line copied in a review file' 1 'H30' main "$run"
+check 'the refusal names the file' 1 'review-plan-1.md' main "$run"
+check 'the refusal says to replace the holdout' 1 'replace the holdout' main "$run"
+put review-plan-1.md 'Round 1: H30 (the key stays in holdout-keys.md)'
+check 'a file that names only the ID' 0 '' main "$run"
+put probes/p1/plan.md "$hkey"
+check 'a copy in a file of a subfolder' 1 'probes/p1/plan.md' main "$run"
+
+fresh; holdout H30 "$hkey"
+check 'a key line only in holdout-keys.md' 0 '' main "$run"
+eval_folder eval-g1 H30 "$hkey"; put eval-g1/grade/packet-g1-4.md "$hkey"
+check 'a key line in an eval folder and its subfolder' 0 '' main "$run"
+rm -rf "$run/eval-g1"; holdout E12 '(b) the public E key.'; put notes.md '(b) the public E key.'
+check 'an E key of holdout-keys.md copied in notes.md' 0 '' main "$run"
+
+fresh; put notes.md "$hkey"
+check 'no holdout-keys.md' 0 '' main "$run"
+
+fresh; holdout H30 "$hkey"
+put probes/x/.build/a.md "$hkey"; put probes/y.app/a.md "$hkey"; put probes/z.dirigible/a.md "$hkey"; put take.wav "$hkey"
+{ printf '%s\n' "$hkey"; head -c $((1048576 + 1 - ${#hkey} - 1)) /dev/zero | tr '\0' x; } > "$run/notes.txt"
+[[ "$(wc -c < "$run/notes.txt")" -eq 1048577 ]] || fail 'the fixture over 1 MiB has another size'
+printf '\377\376%s\n' "$hkey" > "$run/binary.md"
+ln -s "$run/holdout-keys.md" "$run/link.md"
+check 'a copy in a build folder, an app, a package, a wav, a file over 1 MiB, a file with no UTF-8 text, and a link' 0 '' main "$run"
+{ printf '%s\n' "$hkey"; head -c $((1048576 - ${#hkey} - 1)) /dev/zero | tr '\0' x; } > "$run/notes.md"
+[[ "$(wc -c < "$run/notes.md")" -eq 1048576 ]] || fail 'the fixture of 1 MiB has another size'
+check 'a copy in a notes.md of exactly 1 MiB' 1 'notes.md' main "$run"
+
+fresh; holdout H30 "$hkey"; put plan.md "$hkey"
+branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"
+check 'a key copy and an ungraded key: the copy shows' 1 'H30' main "$run"
+check 'a key copy and an ungraded key: the ungraded key shows' 1 'E4' main "$run"
+
+# Eval copies of the docs lack evals.md (scripts/eval/build-copy.sh), so E77 and H26 read this header.
+[[ "$(sed -n '/^[^#]/q;p' "$script" | grep -c 'names only the ID')" -eq 1 ]] || fail 'the header of check-eval-keys.sh lacks the placement sentence'
 
 fresh
 check 'one argument' 2 'usage' main

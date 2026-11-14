@@ -40,21 +40,24 @@ struct LaneRenderBenchmark {
         try session.setMuted(true, tracks: ["t2"])
         let renderer = LaneRenderer()
 
-        for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
-            let inputs = LaneInputs(
-                session: session, peaks: states, missingMedia: [:], selection: .none,
-                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
-            let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
-            let pixels = windows.map { OwnedPixels($0) }
-            var times: [Duration] = []
-            for draw in 0..<120 {
-                let start = ContinuousClock.now
-                pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
-                times.append(ContinuousClock.now - start)
+        for range in WaveformRange.allCases {
+            for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
+                let inputs = LaneInputs(
+                    session: session, peaks: states, missingMedia: [:], selection: .none,
+                    scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: range)
+                let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+                let pixels = windows.map { OwnedPixels($0) }
+                var times: [Duration] = []
+                for draw in 0..<120 {
+                    let start = ContinuousClock.now
+                    pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
+                    times.append(ContinuousClock.now - start)
+                }
+                let p95 = times.sorted()[113]
+                print("LaneRenderBenchmark full draw, \(range.rawValue) dB, \(zoom): p95 \(p95)")
+                #expect(windows[0].pixels.columns.count == 2880 && windows[0].pixels.rows.count == 1200)
+                expectWithinBudget(p95, Self.budget, "\(range.rawValue) dB, \(zoom): p95 \(p95)")
             }
-            let p95 = times.sorted()[113]
-            #expect(windows[0].pixels.columns.count == 2880 && windows[0].pixels.rows.count == 1200)
-            expectWithinBudget(p95, Self.budget, "\(zoom): p95 \(p95)")
         }
     }
 }
@@ -266,21 +269,25 @@ extension LaneRenderBenchmark {
         }
         try session.setRides(rides)
         let renderer = LaneRenderer()
-        for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
-            let inputs = LaneInputs(
-                session: session, peaks: states, missingMedia: [:], selection: .none,
-                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
-            let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
-            let pixels = windows.map { OwnedPixels($0) }
-            var times: [Duration] = []
-            for draw in 0..<120 {
-                let start = ContinuousClock.now
-                pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
-                times.append(ContinuousClock.now - start)
+        for range in WaveformRange.allCases {
+            for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
+                let inputs = LaneInputs(
+                    session: session, peaks: states, missingMedia: [:], selection: .none,
+                    scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: range)
+                let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+                let pixels = windows.map { OwnedPixels($0) }
+                var times: [Duration] = []
+                for draw in 0..<120 {
+                    let start = ContinuousClock.now
+                    pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
+                    times.append(ContinuousClock.now - start)
+                }
+                let p95 = times.sorted()[113]
+                print(
+                    "LaneRenderBenchmark ridden clips, \(range.rawValue) dB, \(zoom): p50 \(times.sorted()[60]), p95 \(p95)"
+                )
+                expectWithinBudget(p95, Self.budget, "\(range.rawValue) dB, \(zoom): p95 \(p95)")
             }
-            let p95 = times.sorted()[113]
-            print("LaneRenderBenchmark ridden clips, \(zoom): p50 \(times.sorted()[60]), p95 \(p95)")
-            expectWithinBudget(p95, Self.budget, "\(zoom): p95 \(p95)")
         }
     }
 }

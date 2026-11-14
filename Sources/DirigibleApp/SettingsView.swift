@@ -1,3 +1,4 @@
+import DirigibleTimeline
 import Foundation
 import SwiftUI
 
@@ -107,6 +108,7 @@ struct SettingsView: View {
             if let app {
                 Divider()
                 PreRollSettingsView(app: app)
+                WaveformRangeSettingsView(app: app)
                 Divider()
                 AgentSettingsView(app: app)
             }
@@ -128,5 +130,26 @@ extension Text {
     func settingsHelp() -> some View {
         font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             .frame(width: 260, alignment: .leading)
+    }
+}
+
+/// The Default waveform range pop-up of Settings: the ranges of `WaveformRange`. A new window opens at
+/// the pick, and Reset Waveform Zoom goes back to it. An open window keeps its range.
+struct WaveformRangeSettingsView: View {
+    let app: AppDelegate
+    @State private var range: WaveformRange
+
+    init(app: AppDelegate) {
+        self.app = app
+        _range = State(initialValue: app.waveformRangeDefault)
+    }
+
+    var body: some View {
+        Picker(L10n.settingsWaveformRange.key, selection: $range) {
+            ForEach(WaveformRange.allCases, id: \.self) { range in
+                Text(verbatim: L10n.waveformZoomReadout.format(range.rawValue)).tag(range)
+            }
+        }
+        .onChange(of: range) { _, new in app.waveformRangeDefault = new }
     }
 }

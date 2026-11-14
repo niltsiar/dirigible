@@ -243,6 +243,7 @@ import SwiftUI
         showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
         inspectorWidth = InspectorWidth(stored: app.defaults?.object(forKey: InspectorWidth.defaultsKey))
         headerWidth = HeaderWidth(stored: app.defaults?.object(forKey: HeaderWidth.defaultsKey))
+        timeline = TimelineState(waveformRange: app.waveformRangeDefault)
     }
 
     func show() {

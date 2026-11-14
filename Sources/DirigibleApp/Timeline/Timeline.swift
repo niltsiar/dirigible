@@ -97,6 +97,8 @@ struct TimelineState {
     var visible: TimelineVisible?
     /// Taller Tracks and Shorter Tracks: automatic at open (0025).
     var laneHeight = LaneHeight.automatic
+    /// The dB that the lane height shows. A window opens at the app default and a Reset goes back to it.
+    var waveformRange: WaveformRange
     /// The zoom history has a step back or forward: Zoom Back and Zoom Forward are on (U5).
     var canGoBack = false
     var canGoForward = false
@@ -180,6 +182,8 @@ struct TimelineState {
         }
         selectRows(rows, anchor: anchor, form: .lane)
     }
+
+    init(waveformRange: WaveformRange = .standard) { self.waveformRange = waveformRange }
 
     /// A display tick during play or a take, or a seek: the new origin, or nil.
     mutating func follow(playhead: Frames, origin: Double, frames: Double, direction: Shuttle.Direction) -> Double? {

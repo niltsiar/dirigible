@@ -21,7 +21,8 @@ extension TimelineCommand {
             .reduceNoise, .repairSound, .restoreOriginal, .transcribe:
             .beep
         case .zoomIn, .zoomOut, .zoomToSession, .zoomToSelection, .zoomBack, .zoomForward, .pagePrevious, .pageNext,
-            .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .setIn, .setOut, .previousMarker, .nextMarker,
+            .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .waveformZoomIn, .waveformZoomOut,
+            .waveformZoomReset, .setIn, .setOut, .previousMarker, .nextMarker,
             .previousGainPoint, .nextGainPoint, .showInFinder, .importAudio, .importTranscript, .export,
             .exportSelection, .exportChapters, .exportTranscript, .episodeInfo, .findSilences:
             .lanes

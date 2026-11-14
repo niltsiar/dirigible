@@ -241,7 +241,7 @@ private struct TimelinePane: View {
     LaneInputs(
         session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia,
         selection: model.timeline.selection,
-        scale: model.timeline.scale, laneHeight: laneHeight)
+        scale: model.timeline.scale, laneHeight: laneHeight, range: model.timeline.waveformRange)
 }
 
 /// The progress of a running export, with Cancel and Record (decision 0019). The sheet can hold

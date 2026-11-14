@@ -1,4 +1,7 @@
+import AppKit
+import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -97,6 +100,25 @@ import Testing
             String(format: try #require(es[L10n.undoAgent.rawValue]), name) == "Deshacer edición de Claude Code")
         #expect(
             String(format: try #require(es[L10n.redoAgent.rawValue]), name) == "Rehacer edición de Claude Code")
+    }
+
+    /// The Default waveform range pop-up has the seven ranges in order, shows the app default, and a
+    /// pick sets the app default.
+    @Test func theWaveformRangePopUpListsTheSevenRanges() async throws {
+        let app = AppDelegate(recordings: nil)
+        app.waveformRangeDefault = .db36
+        let window = NSWindow(contentViewController: NSHostingController(rootView: WaveformRangeSettingsView(app: app)))
+        window.contentView?.layoutSubtreeIfNeeded()
+        func popUp(in view: NSView) -> NSPopUpButton? {
+            (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap(popUp(in:)).first
+        }
+        let popUp = try #require(window.contentView.flatMap(popUp(in:)), "the pop-up")
+        #expect(popUp.numberOfItems == WaveformRange.allCases.count && popUp.numberOfItems == 7)
+        #expect(popUp.indexOfSelectedItem == 1, "36 dB is the second range")
+
+        try #require(popUp.menu).performActionForItem(at: 6)
+        await until(limit: .seconds(10), "the pick sets the default") { app.waveformRangeDefault == .db96 }
+        #expect(app.waveformRangeDefault == .db96)
     }
 }
 

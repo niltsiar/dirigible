@@ -31,6 +31,16 @@ extension TimelineCommand {
             MenuItem(command: .tallerTracks, title: .menuViewTracksTaller, key: .downArrow, modifiers: .command),
             MenuItem(command: .shorterTracks, title: .menuViewTracksShorter, key: .upArrow, modifiers: .command),
         ],
+        [
+            MenuItem(
+                command: .waveformZoomIn, title: .menuViewWaveformZoomIn, key: .upArrow, modifiers: [.command, .option]),
+            MenuItem(
+                command: .waveformZoomOut, title: .menuViewWaveformZoomOut, key: .downArrow,
+                modifiers: [.command, .option]),
+            MenuItem(
+                command: .waveformZoomReset, title: .menuViewWaveformZoomReset, key: "0",
+                modifiers: [.command, .option]),
+        ],
         [MenuItem(command: .toggleFollow, title: .menuViewFollow, key: "f", modifiers: [.command, .option])],
     ]
     /// Fit Tracks to Window has no key (U2), so it is not in these keyed tables: the View menu adds

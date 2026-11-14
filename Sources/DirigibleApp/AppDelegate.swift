@@ -30,6 +30,13 @@ import Observation
     /// value or an unknown value is stored.
     var dragMode: DragMode { didSet { defaults?.set(dragMode.rawValue, forKey: Self.dragModeKey) } }
     static let dragModeKey = "timeline.dragMode"
+    /// The range of the waveform that a new window opens at and that Reset Waveform Zoom goes back to:
+    /// one value for all windows, kept in the app preferences as the dB. A window reads it when it
+    /// needs it, so an open window follows a change.
+    var waveformRangeDefault: WaveformRange {
+        didSet { defaults?.set(waveformRangeDefault.rawValue, forKey: Self.waveformRangeKey) }
+    }
+    static let waveformRangeKey = "timeline.waveform.range"
     /// The optional columns of the session index list: one value for all windows, kept in the app
     /// preferences. Name and Start always show.
     var indexColumns: IndexColumns { didSet { defaults?.set(indexColumns.stored, forKey: Self.indexColumnsKey) } }
@@ -173,6 +180,7 @@ import Observation
         self.defaults = defaults
         snaps = defaults?.object(forKey: Self.snapKey) as? Bool ?? true
         dragMode = defaults?.string(forKey: Self.dragModeKey).flatMap(DragMode.init(rawValue:)) ?? .overwrite
+        waveformRangeDefault = WaveformRange(stored: defaults?.object(forKey: Self.waveformRangeKey))
         indexColumns = IndexColumns(stored: defaults?.object(forKey: Self.indexColumnsKey))
         lastSpeed = Self.lastSpeed(stored: defaults?.object(forKey: Self.speedKey))
         // Only absolute paths, as for the folder preference. The hint reads no file.

@@ -886,3 +886,9 @@
 "index.post.selected.gone" = "Ausgewähltes Element entfernt";
 "index.post.deleted" = "%lld Elemente gelöscht";
 "index.footer.add" = "Hinzufügen";
+"menu.view.waveform.in" = "Wellenform einzoomen";
+"menu.view.waveform.out" = "Wellenform auszoomen";
+"menu.view.waveform.reset" = "Wellenform-Zoom zurücksetzen";
+"waveform.zoom.announce" = "Wellenformbereich: %lld dB";
+"waveform.zoom.readout" = "%lld dB";
+"settings.waveform.range" = "Standard-Wellenformbereich";

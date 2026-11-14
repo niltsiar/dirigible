@@ -886,3 +886,9 @@
 "index.post.selected.gone" = "Item selecionado removido";
 "index.post.deleted" = "%lld itens apagados";
 "index.footer.add" = "Adicionar";
+"menu.view.waveform.in" = "Ampliar Forma de Onda";
+"menu.view.waveform.out" = "Reduzir Forma de Onda";
+"menu.view.waveform.reset" = "Redefinir Zoom da Forma de Onda";
+"waveform.zoom.announce" = "Intervalo da forma de onda: %lld dB";
+"waveform.zoom.readout" = "%lld dB";
+"settings.waveform.range" = "Intervalo Padrão da Forma de Onda";

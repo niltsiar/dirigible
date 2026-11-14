@@ -886,3 +886,9 @@
 "index.post.selected.gone" = "Geselecteerd onderdeel verwijderd";
 "index.post.deleted" = "%lld onderdelen verwijderd";
 "index.footer.add" = "Voeg toe";
+"menu.view.waveform.in" = "Zoom golfvorm in";
+"menu.view.waveform.out" = "Zoom golfvorm uit";
+"menu.view.waveform.reset" = "Zet golfvormzoom terug";
+"waveform.zoom.announce" = "Bereik van de golfvorm: %lld dB";
+"waveform.zoom.readout" = "%lld dB";
+"settings.waveform.range" = "Standaardbereik van de golfvorm";

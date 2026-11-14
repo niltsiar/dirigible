@@ -9,7 +9,7 @@ This note answers the R13 open question in `docs/requirements/brief.md`. How doe
 ### Test environment
 
 - Toolchain: Xcode 26, Swift 6.2.4, native SwiftPM build system. Host: macOS 15.7.9.
-- Spike: a copy of the repo in `/private/tmp/claude-501/l10n-spike`. A probe in `DirigibleApp.init` prints lookups and exits.
+- Spike: a copy of the repo in a temporary folder, `l10n-spike`. A probe in `DirigibleApp.init` prints lookups and exits.
 - The probe reads SwiftUI `Text` output with `ImageRenderer`. It compares the pixels to `Text(verbatim:)` of each candidate string.
 - The spike did not run on macOS 14. Results for macOS 14 are "(unconfirmed)" where the behavior can differ.
 
@@ -132,4 +132,4 @@ Support/Resources/
 6. Swift Forums, "SwiftPM on Swift Build - October Update" (default switch plan). https://forums.swift.org/t/swiftpm-on-swift-build-october-update/82889
 7. Apple Support, "Change Language & Region Apps preferences on Mac". https://support.apple.com/en-za/guide/mac-help/mchlddb13d65/mac
 8. Apple, Bundling resources with a Swift package (`Bundle.module`). https://developer.apple.com/documentation/xcode/bundling-resources-with-a-swift-package
-9. Spike: `/private/tmp/claude-501/l10n-spike` (native build, apps `build/A.app` and `build/B.app`) and `/private/tmp/claude-501/l10n-spike-sb` (Swift Build).
+9. Spike: copies of the repo in a temporary folder, `l10n-spike` (native build, apps `build/A.app` and `build/B.app`) and `l10n-spike-sb` (Swift Build).

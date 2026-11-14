@@ -147,7 +147,7 @@ struct WaveformRangeSettingsView: View {
     var body: some View {
         Picker(L10n.settingsWaveformRange.key, selection: $range) {
             ForEach(WaveformRange.allCases, id: \.self) { range in
-                Text(verbatim: L10n.waveformZoomReadout.format(range.rawValue)).tag(range)
+                Text(verbatim: waveformRangeText(range)).tag(range)
             }
         }
         .onChange(of: range) { _, new in app.waveformRangeDefault = new }

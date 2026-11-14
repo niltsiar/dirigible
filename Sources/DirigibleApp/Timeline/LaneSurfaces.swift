@@ -174,16 +174,18 @@ struct LaneWindow: Equatable {
     /// The window that the layer shows.
     var shown: LaneWindow? { front.flatMap { slots[$0].window } }
 
-    /// Shows `window`, with new pixels in the `changed` rects (in the window, from `pixels(of:)`) and
-    /// in the part of the window that the window of the front does not hold. `draw` writes every
-    /// pixel of the rect of its region. A `shift` applies only when the front shows the same window;
-    /// else `changed` draws: one rect as the hull with that part, two or more each apart, so the
-    /// rows between them keep their pixels.
+    /// Shows `window`, with new pixels in the `changed` rects (in the window, from `pixels(of:)`) and in the part of
+    /// the window that the window of the front does not hold. `draw` writes every pixel of the rect of its region. A
+    /// `shift` applies only when the front shows the same window; else `changed` draws, less each rect that another
+    /// holds: one rect as the hull with that part, two or more each apart, so the rows between them keep their pixels.
     func show(
         _ window: LaneWindow, changed: [PixelRect], shift: Shift? = nil, draw: (borrowing PixelRegion) -> Void
     ) -> Result {
         let old = shown
-        let changed = changed.filter { !$0.isEmpty }
+        let changed = changed.filter { !$0.isEmpty }.reduce(into: [PixelRect]()) { kept, rect in
+            guard !kept.contains(where: { rect.intersection($0) == rect }) else { return }
+            kept = kept.filter { $0.intersection(rect) != $0 } + [rect]
+        }
         if changed.isEmpty, old == window { return .unchanged }
         let pick = slots.indices.filter { $0 != front }.min { slots[$0].commit < slots[$1].commit }!
         if let surface = slots[pick].surface, surface.isInUse || slots[pick].window?.capacity != window.capacity {

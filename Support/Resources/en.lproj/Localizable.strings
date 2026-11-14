@@ -886,3 +886,9 @@
 "index.post.selected.gone" = "Selected item removed";
 "index.post.deleted" = "Deleted %lld items";
 "index.footer.add" = "Add";
+"menu.view.waveform.in" = "Waveform Zoom In";
+"menu.view.waveform.out" = "Waveform Zoom Out";
+"menu.view.waveform.reset" = "Reset Waveform Zoom";
+"waveform.zoom.announce" = "Waveform range %lld dB";
+"waveform.zoom.readout" = "%lld dB";
+"settings.waveform.range" = "Default waveform range";

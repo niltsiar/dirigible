@@ -24,6 +24,7 @@ struct LocalizationCopyTests {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
         "index.column.start",
         "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
@@ -48,6 +49,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
+        "waveform.zoom.readout",
         "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
         "menu.edit.drag.mode.shuffle",
         "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
@@ -65,6 +67,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
+        "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
         "menu.edit.drag.mode.shuffle",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
@@ -86,6 +89,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
         "menu.edit.drag.mode.shuffle",
         "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
@@ -105,6 +109,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
         "index.column.start",
         "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
@@ -131,6 +136,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "panel.transcript.choice", "inspector.hertz",
     ],
     "pt": [
+        "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
         "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
@@ -148,6 +154,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "pt-PT": [
+        "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
         "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",

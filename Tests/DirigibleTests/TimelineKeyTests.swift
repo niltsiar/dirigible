@@ -179,7 +179,8 @@ import Testing
             TimelineCommand.viewGroups.map { $0.map(\.command) } == [
                 [.zoomIn, .zoomOut, .zoomToSession, .zoomToSelection], [.zoomBack, .zoomForward],
                 [.pagePrevious, .pageNext],
-                [.tallerTracks, .shorterTracks], [.toggleFollow],
+                [.tallerTracks, .shorterTracks], [.waveformZoomIn, .waveformZoomOut, .waveformZoomReset],
+                [.toggleFollow],
             ])
         #expect(TimelineCommand.viewItems.map(\.command) == TimelineCommand.viewGroups.flatMap { $0 }.map(\.command))
     }
@@ -200,6 +201,9 @@ import Testing
                 "pageNext \u{F72D} \(EventModifiers.option.rawValue)",
                 "tallerTracks \u{F701} \(EventModifiers.command.rawValue)",
                 "shorterTracks \u{F700} \(EventModifiers.command.rawValue)",
+                "waveformZoomIn \u{F700} \(EventModifiers([.command, .option]).rawValue)",
+                "waveformZoomOut \u{F701} \(EventModifiers([.command, .option]).rawValue)",
+                "waveformZoomReset 0 \(EventModifiers([.command, .option]).rawValue)",
                 "toggleFollow f \(EventModifiers([.command, .option]).rawValue)", "setIn i 0", "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)",
             ])

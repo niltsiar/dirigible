@@ -1011,6 +1011,9 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Taller Tracks** | **Pistas más altas** | Command-Down Arrow |
 | **Shorter Tracks** | **Pistas más bajas** | Command-Up Arrow |
 | **Fit Tracks to Window** | **Ajustar pistas a la ventana** | None |
+| **Waveform Zoom In** | **Acercar forma de onda** | Option-Command-Up Arrow |
+| **Waveform Zoom Out** | **Alejar forma de onda** | Option-Command-Down Arrow |
+| **Reset Waveform Zoom** | **Restablecer zoom de la forma de onda** | Option-Command-0 |
 | **Automatic Scroll** | **Desplazamiento automático** | Option-Command-F |
 | **Snap** | **Ajuste** | N |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |

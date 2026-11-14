@@ -65,6 +65,7 @@ extension SessionWindow {
 enum TimelineCommand: Hashable, CaseIterable {
     case zoomIn, zoomOut, zoomToSession, zoomToSelection, zoomBack, zoomForward, pagePrevious, pageNext, toggleFollow
     case tallerTracks, shorterTracks, fitTracks
+    case waveformZoomIn, waveformZoomOut, waveformZoomReset
     case setIn, setOut, deselectAll, selectAll
     case cut, copy, paste, delete
     /// The ripple items of decision 0037: Delete and Close Gap, Insert, and the two twins that
@@ -111,6 +112,8 @@ enum TimelineCommand: Hashable, CaseIterable {
         // A text field moves the caret to its start or end with Command-Up and Command-Down.
         case .tallerTracks, .shorterTracks: true
         case .fitTracks: false
+        // A text field does nothing with Option-Command-Up, Option-Command-Down, or Option-Command-0 (U18).
+        case .waveformZoomIn, .waveformZoomOut, .waveformZoomReset: false
         // A name field gets the key first: Shift-Command-V is a plain-paste habit in text fields (UQ5).
         case .replace, .fill: true
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
@@ -257,6 +260,7 @@ extension SessionWindow {
             case .shorterTracks: timeline.laneHeight = timeline.laneHeight.shorter(than: shown)
             default: timeline.laneHeight = .automatic
             }
+        case .waveformZoomIn, .waveformZoomOut, .waveformZoomReset: zoomWaveform(command)
         case .toggleFollow:
             timeline.follows.toggle()
             timeline.followHeld = false

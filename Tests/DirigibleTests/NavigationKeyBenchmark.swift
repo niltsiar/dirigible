@@ -49,6 +49,15 @@ import Testing
         }
     }
 
+    /// Waveform Zoom In from 60 to 72 dB, then Waveform Zoom Out: both timed. Each step draws the lanes
+    /// in view again. The menu choice and the wheel take the same path.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aWaveformZoomFitsTwoFrames() async throws {
+        try await Self.measure("waveform zoom") { model, n in
+            { model.run(n % 2 == 0 ? .waveformZoomIn : .waveformZoomOut) }
+        }
+    }
+
     /// Taller Tracks from 100 to 120 pt, then Shorter Tracks: both timed. Each step makes new
     /// surface slots (0022), a full render, and the header rows at the new height.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
@@ -88,6 +97,7 @@ import Testing
                 func update() {
                     var current = inputs
                     current.laneHeight = model.timeline.laneHeight.points(free: 600, tracks: 6)
+                    current.range = model.timeline.waveformRange
                     view.headers.host.rootView = AnyView(
                         TrackHeaders(model: model, studio: studio, laneHeight: current.laneHeight, selected: []))
                     MouseEventBenchmark.swiftUIUpdate(view, model, current)

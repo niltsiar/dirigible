@@ -870,4 +870,10 @@ enum L10n: String, CaseIterable {
     case indexPostSelectedGone = "index.post.selected.gone"
     case indexPostDeleted = "index.post.deleted"
     case indexFooterAdd = "index.footer.add"
+    case menuViewWaveformZoomIn = "menu.view.waveform.in"
+    case menuViewWaveformZoomOut = "menu.view.waveform.out"
+    case menuViewWaveformZoomReset = "menu.view.waveform.reset"
+    case waveformZoomAnnounce = "waveform.zoom.announce"
+    case waveformZoomReadout = "waveform.zoom.readout"
+    case settingsWaveformRange = "settings.waveform.range"
 }

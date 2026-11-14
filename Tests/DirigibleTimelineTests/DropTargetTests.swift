@@ -15,7 +15,7 @@ struct DropTargetTests {
     }
 
     func geometry(framesPerPoint: Double = 480, laneHeight: Double = 100) -> LaneGeometry {
-        LaneGeometry(scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: laneHeight)!
+        LaneGeometry(scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: laneHeight, range: .standard)!
     }
 
     @Test func xAtOrBeforeZeroGivesFrameZero() throws {

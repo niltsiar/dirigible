@@ -40,7 +40,7 @@ struct SnapSearchBenchmark {
         let clip = Self.frames / 2000
         for (name, framesPerPoint) in [("fit", Double(Self.frames) / 1440), ("60 pt boxes", Double(clip) / 60)] {
             let geometry = try #require(
-                LaneGeometry(scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100))
+                LaneGeometry(scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: .standard))
             let excluded: Set<ClipID> = [session.tracks[0].clips[1000].id]
             let setUp = ContinuousClock.now
             let snap = Snap(session, excluding: excluded, geometry: geometry)

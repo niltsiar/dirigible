@@ -35,7 +35,7 @@ public struct LaneGeometry: Equatable, Sendable {
     public let range: WaveformRange
 
     /// Nil unless the frames per point and the lane height are more than 0.
-    public init?(scale: TimelineScale, laneHeight: Double, range: WaveformRange = .standard) {
+    public init?(scale: TimelineScale, laneHeight: Double, range: WaveformRange) {
         guard scale.framesPerPoint > 0, laneHeight > 0 else { return nil }
         (self.scale, self.laneHeight, self.range) = (scale, laneHeight, range)
     }

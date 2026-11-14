@@ -172,7 +172,7 @@ import Testing
             ("a disc", disc, 10.0, 90.0, 3),
         ] {
             let inputs = Self.inputs(session)
-            let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: 100))
+            let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: 100, range: .standard))
             let (clips, clip) = (session.tracks[0].clips, session.tracks[0].clips[0])
             let handles = geometry.fadeHandles(of: clip, at: 0, in: clips, lane: 0)
             let points = geometry.envelopePoints(of: clip, at: 0, in: clips, trackGain: session.tracks[0].gain, lane: 0)

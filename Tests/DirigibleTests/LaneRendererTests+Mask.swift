@@ -34,7 +34,7 @@ extension LaneRendererTests {
             peaks: ["f1": .ready(randomPeaks(frames: 400_000)), "f2": .ready(randomPeaks(frames: 400_000))],
             missingMedia: ["f2": .short(180_000)],
             selection: .range(Marks(inPoint: 179_001, outPoint: 186_777, tracks: ["t2"])),
-            scale: TimelineScale(framesPerPoint: 133.37), laneHeight: 100)
+            scale: TimelineScale(framesPerPoint: 133.37), laneHeight: 100, range: .standard)
         let window = try #require(laneWindow(inputs, x: 1333, width: 100, scale: 2))
         let rows = window.pixels.rows
         let sentinel: UInt32 = 0xFFAB_CDEF

@@ -20,7 +20,7 @@ struct LaneInputs: Equatable {
     /// Points.
     var laneHeight: Double
     /// The dB that the lane height shows: the waveform, the fade lines, and the gain lines draw with it.
-    var range: WaveformRange = .standard
+    var range: WaveformRange
 
     /// The one point and frame conversion of the lanes (decision 0020).
     var geometry: LaneGeometry? { LaneGeometry(scale: scale, laneHeight: laneHeight, range: range) }

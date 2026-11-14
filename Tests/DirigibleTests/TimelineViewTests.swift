@@ -346,8 +346,8 @@ import Testing
         let inputs = LaneInputs(
             session: session, peaks: [:], missingMedia: [:], selection: .none,
             scale: TimelineScale(framesPerPoint: 512),
-            laneHeight: 100)
-        let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: inputs.laneHeight))
+            laneHeight: 100, range: .standard)
+        let geometry = try #require(LaneGeometry(scale: inputs.scale, laneHeight: inputs.laneHeight, range: .standard))
         let box = geometry.box(of: clip, lane: 1)
         let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 300, scale: 2)))
 

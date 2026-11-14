@@ -7,7 +7,7 @@ import DirigibleCore
 /// with offset 0 (x 100 to 200 pt), and clip B (file fb, 144,000 frames) at 144,000 ..< 192,000
 /// with offset 48,000 (x 300 to 400 pt). On t2, clip C (file fa) at 48,000 ..< 96,000.
 enum Fixture {
-    static let geometry = LaneGeometry(scale: TimelineScale(framesPerPoint: 480), laneHeight: 60)!
+    static let geometry = LaneGeometry(scale: TimelineScale(framesPerPoint: 480), laneHeight: 60, range: .standard)!
     static let a = Clip(id: "A", file: "fa", start: 48_000, offset: 0, length: 48_000)
     static let b = Clip(id: "B", file: "fb", start: 144_000, offset: 48_000, length: 48_000)
     static let c = Clip(id: "C", file: "fa", start: 48_000, offset: 0, length: 48_000)

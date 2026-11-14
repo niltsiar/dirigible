@@ -32,7 +32,8 @@ struct LaneHeightTests {
     /// Timeline-clarity C4: a lane counts as in view when half of its height or more shows. Lanes
     /// of 40 pt, 5 lanes from 0 to 200 pt.
     @Test func aLaneCountsInViewFromHalfItsHeight() throws {
-        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 40))
+        let geometry = try #require(
+            LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 40, range: .standard))
         #expect(geometry.lanesInView(top: 20, bottom: 200, count: 5) == 0..<5, "20 pt of the first lane")
         #expect(geometry.lanesInView(top: 21, bottom: 200, count: 5) == 1..<5, "19 pt of the first lane")
         #expect(geometry.lanesInView(top: 0, bottom: 180, count: 5) == 0..<5, "20 pt of the last lane")

@@ -67,7 +67,7 @@ import Testing
         try faded.setFades(["A": try #require(Fades(fadeIn: 5_120, fadeOut: 0))])
         let fadedInputs = LaneInputs(
             session: faded, peaks: inputs.peaks, missingMedia: [:], selection: .none, scale: inputs.scale,
-            laneHeight: inputs.laneHeight)
+            laneHeight: inputs.laneHeight, range: .standard)
         let window = try #require(laneWindow(fadedInputs, width: 220, scale: 2))
         let box = NSRect(x: 0, y: 0, width: 100, height: 100)
         let labels = [

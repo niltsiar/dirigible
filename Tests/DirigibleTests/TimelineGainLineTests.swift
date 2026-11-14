@@ -255,7 +255,8 @@ import Testing
         #expect(readout(view) == text(.gain(Gain(dB: 4)!, from: Gain(dB: 8)!)))
         let moved = start - view.lanes.readout.marker.frame.midX
         #expect(abs(moved - bar.frame.width * 2 / 40) <= 1, "the marker moved \(moved) pt on \(bar.frame.width) pt")
-        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 100))
+        let geometry = try #require(
+            LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 100, range: .standard))
         let clip = try #require(view.lanes.inputs?.session.clip("c1")?.clip)
         #expect(geometry.gainLineY(clip, trackGain: .zero, lane: 0) == 0, "the line stays on the lane top")
         try send(.leftMouseUp, view, 250, 3 + 4 / 0.6)

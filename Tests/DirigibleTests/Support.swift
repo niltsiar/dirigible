@@ -315,7 +315,7 @@ extension ClipInspection {
 @MainActor func laneInputs(_ model: SessionWindow, _ studio: Studio, selection: Selection = .none) -> LaneInputs {
     LaneInputs(
         session: studio.session, peaks: studio.peaks, missingMedia: studio.missingMedia, selection: selection,
-        scale: TimelineScale(framesPerPoint: 512), laneHeight: 100)
+        scale: TimelineScale(framesPerPoint: 512), laneHeight: 100, range: .standard)
 }
 
 /// The document view of `session` alone in a borderless window of its size, at 512 frames per
@@ -325,7 +325,7 @@ extension ClipInspection {
     let view = TimelineDocumentView()
     view.inputs = LaneInputs(
         session: session, peaks: [:], missingMedia: [:], selection: .none, scale: TimelineScale(framesPerPoint: 512),
-        laneHeight: 100)
+        laneHeight: 100, range: .standard)
     let window = NSWindow(
         contentRect: NSRect(origin: .zero, size: view.frame.size), styleMask: [.borderless], backing: .buffered,
         defer: false)

@@ -58,7 +58,7 @@ import Testing
             model.loudnessStrip = strip
             let inputs = LaneInputs(
                 session: session, peaks: peaks, missingMedia: [:], selection: .none,
-                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: .standard)
             view.update(inputs)
             view.update(inputs)
             model.timeline.scale = inputs.scale

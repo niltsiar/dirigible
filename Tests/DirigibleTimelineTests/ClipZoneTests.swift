@@ -183,7 +183,8 @@ struct ClipZoneTests {
     /// Code gate K1: fades that fill the clip leave no gain band (the hit is a handle or a move). At 50 frames per point and this start,
     /// the fade-in end x is 1 ulp over the fade-out start x, and a range from the two trapped.
     @Test func fadesThatFillTheClipLeaveNoBand() throws {
-        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 50), laneHeight: 60))
+        let geometry = try #require(
+            LaneGeometry(scale: TimelineScale(framesPerPoint: 50), laneHeight: 60, range: .standard))
         var session = try Fixture.session(withB: false)
         try session.addFile(AudioFile(id: "fl", path: "fl.wav", layout: .mono, length: 60_000_000))
         let clip = Clip(id: "L", file: "fl", start: 52_395_616, offset: 0, length: 48_000)

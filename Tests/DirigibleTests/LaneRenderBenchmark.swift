@@ -91,7 +91,7 @@ extension LaneRenderBenchmark {
             }
             let inputs = LaneInputs(
                 session: session, peaks: states, missingMedia: [:], selection: .none,
-                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: .standard)
             let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
             let pixels = windows.map { OwnedPixels($0) }
             let renderer = LaneRenderer()
@@ -133,7 +133,7 @@ extension LaneRenderBenchmark {
         }
         let inputs = LaneInputs(
             session: session, peaks: states, missingMedia: [:], selection: .none,
-            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: .standard)
         let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
         let pixels = windows.map { OwnedPixels($0) }
         let renderer = LaneRenderer()
@@ -179,7 +179,7 @@ extension LaneRenderBenchmark {
         }
         let inputs = LaneInputs(
             session: session, peaks: states, missingMedia: [:], selection: .none,
-            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100, range: .standard)
         let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
         let pixels = windows.map { OwnedPixels($0) }
         let renderer = LaneRenderer()
@@ -217,7 +217,7 @@ extension LaneRenderBenchmark {
         let inputs = LaneInputs(
             session: session, peaks: [:], missingMedia: [:], selection: .none,
             scale: TimelineScale(framesPerPoint: 512),
-            laneHeight: 100)
+            laneHeight: 100, range: .standard)
         let pixels = OwnedPixels(try #require(laneWindow(inputs, x: 4000, width: 10, scale: 2)))
 
         var times: [Duration] = []

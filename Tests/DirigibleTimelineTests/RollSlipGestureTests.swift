@@ -293,7 +293,7 @@ struct RollSlipGestureTests {
     }
 
     @Test mutating func aBoxUnderTwelvePointsIsAllRange() {
-        let narrow = LaneGeometry(scale: TimelineScale(framesPerPoint: 6_000), laneHeight: 60)!
+        let narrow = LaneGeometry(scale: TimelineScale(framesPerPoint: 6_000), laneHeight: 60, range: .standard)!
         let context = GestureContext(
             session: session, selection: .none, playhead: 0, geometry: narrow, canEdit: true, canRipple: true,
             snaps: false)

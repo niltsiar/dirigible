@@ -12,11 +12,15 @@ export GUIDE_HTML="$tmp/guide-html"
 # A minimal good tree: one research file, a brief with R1 and R10, releases for both, one accepted record,
 # three menu names in English and Spanish, a guide with each name in bold, a README with an image, and a
 # deliver Autonomy rules section with each friction token of a reflect cost.sh, and a CLI with the root
-# commands info and clip.
+# commands info and clip, and a NOTICE that names the one file of Support/Resources and the one vendored
+# folder, with an own-code folder that it does not name.
 good() {
-  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude" "$tmp/Sources" "$tmp/CODING_STANDARDS.md" "$tmp/CLAUDE.md"
+  rm -rf "$tmp/NOTICE" "$tmp/scripts" "$tmp/.build" "$tmp/build" "$tmp/.scratchpads" "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude" "$tmp/Sources" "$tmp/CODING_STANDARDS.md" "$tmp/CLAUDE.md"
   mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions" "$tmp/docs/images" \
     "$tmp/Support/Resources/en.lproj" "$tmp/Support/Resources/es.lproj"
+  printf 'x\n' > "$tmp/Support/Resources/LAME-NOTICE.txt"
+  printf 'Dirigible\n\nThis product includes LAME in Sources/CLame. See Support/Resources/LAME-NOTICE.txt.\n' > "$tmp/NOTICE"
+  printf '# How Dirigible was made\n' > "$tmp/docs/provenance.md"
   printf '# Topic\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n' > "$tmp/docs/research/topic.md"
   printf '| ID | Requirement |\n|---|---|\n| R1 | One. |\n| R10 | Ten. |\n\n## Answered questions\n\n- Q? See [0002](../decisions/0002-x.md).\n' > "$tmp/docs/requirements/brief.md"
   printf '# Releases\n\n## Release 1: a\n\nStatus: closed\n\n| Requirement | What |\n|---|---|\n| R1 | a |\n\n1. **x (F01, F03).**\n\n## Release 4: b\n\n| Requirement | What |\n|---|---|\n| R10 | b |\n\n1. **y (F02).**\n' > "$tmp/docs/requirements/releases.md"
@@ -32,8 +36,11 @@ good() {
   printf '# Guide\n\n### What Dirigible does not do yet\n\n**Export** **Exportar** **Cut** **Cortar** **Markers** **Marcadores**\n\nSee [the top](#guide), ![x](images/x.png), and [Apple](https://www.apple.com).\n' \
     > "$tmp/docs/guide.md"
   : > "$tmp/docs/images/x.png"
-  printf '<picture><source srcset="docs/images/x.png"><img src="docs/images/x.png" alt="x"></picture>\n\nSee [the guide](docs/guide.md) and [what it does not do](docs/guide.md#what-dirigible-does-not-do-yet).\n' \
+  printf '<picture><source srcset="docs/images/x.png"><img src="docs/images/x.png" alt="x"></picture>\n\nSee [the guide](docs/guide.md) and [what it does not do](docs/guide.md#what-dirigible-does-not-do-yet). See [how it was made](docs/provenance.md).\n' \
     > "$tmp/README.md"
+  mkdir -p "$tmp/Sources/CLame" "$tmp/Sources/CMainStack"
+  printf 'int x;\n' > "$tmp/Sources/CLame/a.c"
+  printf 'int y;\n' > "$tmp/Sources/CMainStack/b.c"
   mkdir -p "$tmp/.claude/workflows" "$tmp/.claude/agents"
   printf "const LENSES = [\n  { key: 'x', agentType: 'x-reviewer', gates: ['diff'] },\n]\nagent(task, { agentType: lens.agentType })\n" \
     > "$tmp/.claude/workflows/review-panel.js"
@@ -256,6 +263,33 @@ good; folder DirigibleMCP/Capture X.swift; map "$audio"
 expect fail 'a bare folder name for another target' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleMCP/Capture/'
 good; folder DirigibleAudio/New/Sub C.swift; map "$audio"
 expect fail 'a folder with only nested Swift files' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/New/'
+
+# The provenance statement stays true: no text file claims a clean room (a quote in docs/research and
+# the two check-docs scripts excepted), NOTICE names each shipped file and each vendored folder, and the
+# README links docs/provenance.md.
+cr="names a clean room; docs/provenance.md states how the code was made"
+good; printf 'A clean room rebuild.\n' >> "$tmp/README.md"; expect fail 'a clean room claim in the README' "README.md: $cr"
+good; printf 'A Clean-Room rebuild.\n' >> "$tmp/NOTICE"; expect fail 'a hyphenated clean room claim in NOTICE' "NOTICE: $cr"
+good; printf 'CLEAN ROOM.\n' >> "$tmp/docs/guide.md"; expect fail 'a clean room claim in the guide' "docs/guide.md: $cr"
+good; printf 'clean room\n' > "$tmp/docs/notes.txt"; expect fail 'a clean room claim in a new text file' "docs/notes.txt: $cr"
+good; printf 'a clean-room rebuild\n' >> "$tmp/docs/research/topic.md"; expect pass 'a clean room quote in a research note'
+good; printf 'a clean room\n' > "$tmp/scripts/check-docs.sh"; printf 'a clean room\n' > "$tmp/scripts/check-docs.test.sh"; expect pass 'the words in the two check-docs scripts'
+good; mkdir -p "$tmp/.build" "$tmp/build" "$tmp/.scratchpads"; for d in .build build .scratchpads; do printf 'a clean room\n' > "$tmp/$d/x.txt"; done
+expect pass 'a clean room claim in a build folder and a scratch folder'
+good; printf 'a clean room\0' > "$tmp/docs/images/x.png"; expect pass 'a clean room string in a binary file'
+
+good; printf 'x\n' > "$tmp/Support/Resources/x-LICENSE.txt"; expect fail 'a file of Support/Resources that NOTICE does not name' 'NOTICE: no line names Support/Resources/x-LICENSE.txt'
+good; printf 'x\n' > "$tmp/Support/Resources/x-LICENSE.txt"; printf 'See Support/Resources/x-LICENSE.txt.\n' >> "$tmp/NOTICE"; expect pass 'a file of Support/Resources that NOTICE names'
+good; printf 'x\n' > "$tmp/Support/Resources/x.bin"; expect fail 'a new .bin that NOTICE does not name' 'NOTICE: no line names Support/Resources/x.bin'
+good; printf 'x\n' > "$tmp/Support/Resources/x.bin"; printf 'See Support/Resources/x.bin.old\n' >> "$tmp/NOTICE"; expect fail 'a NOTICE line that names a longer file name' 'NOTICE: no line names Support/Resources/x.bin'
+good; printf 'x\n' > "$tmp/Support/Resources/.DS_Store"; expect pass 'a hidden file in Support/Resources'
+good; mkdir "$tmp/Support/Resources/fr.lproj"; printf '"a" = "b";\n' > "$tmp/Support/Resources/fr.lproj/Localizable.strings"; expect pass 'a localization folder that NOTICE does not name'
+good; mkdir -p "$tmp/Sources/CX"; printf 'int z;\n' > "$tmp/Sources/CX/c.c"; expect fail 'a C folder that NOTICE does not name' 'NOTICE: no line names Sources/CX'
+good; mkdir -p "$tmp/Sources/CX"; printf 'int z;\n' > "$tmp/Sources/CX/c.c"; printf 'x\n' > "$tmp/Sources/CX/README.dirigible"; expect fail 'a C folder with a README.dirigible that NOTICE does not name' 'NOTICE: no line names Sources/CX'
+good; mkdir -p "$tmp/Sources/CX"; printf 'int z;\n' > "$tmp/Sources/CX/c.c"; printf 'See Sources/CXY.\n' >> "$tmp/NOTICE"; expect fail 'a NOTICE line that names a longer folder name' 'NOTICE: no line names Sources/CX'
+good; mkdir -p "$tmp/Sources/CX"; printf 'int z;\n' > "$tmp/Sources/CX/c.c"; printf 'See Sources/CX.\n' >> "$tmp/NOTICE"; expect pass 'a C folder that NOTICE names'
+good; sed -i '' 's|(docs/provenance.md)|(docs/other.md)|' "$tmp/README.md"; printf '# Other\n' > "$tmp/docs/other.md"; expect fail 'a README with no link to the provenance file' 'README.md: no link to docs/provenance.md'
+good; rm "$tmp/docs/provenance.md"; expect fail 'a README link to a provenance file that is gone' 'docs/provenance.md: file is missing'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

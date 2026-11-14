@@ -1,6 +1,10 @@
 #!/bin/bash
 # Check the structure of the docs that plans and reviews depend on.
 # Usage: scripts/check-docs.sh [repo root]. `make check` runs it.
+# Rules of the provenance statement (the last rules of this script):
+#   No text file names a clean room, except docs/research and the two check-docs scripts.
+#   NOTICE names each file in Support/Resources and each Sources/C<name> folder that is not own code.
+#   README.md links docs/provenance.md, and that file exists.
 set -euo pipefail
 root="${1:-$(git rev-parse --show-toplevel)}"
 fail=0
@@ -393,5 +397,32 @@ else
         grep -qw -- "$f" <<<"$act_on" || err "${interrogate#"$root"/}: the Act on line of ## Output format has no $f (a field of scripts/check-plan.sh)"
     done <<<"$plan_fields"
 fi
+
+# No text file claims a clean room. find, not git ls-files: the test builds a tree with no index.
+while IFS= read -r f; do
+    err "${f#./}: names a clean room; docs/provenance.md states how the code was made"
+done < <(cd "$root" && find . \( -path ./.git -o -path ./.build -o -path ./build -o -path ./.scratchpads -o -path ./docs/research \) -prune -o \
+    -type f ! -path ./scripts/check-docs.sh ! -path ./scripts/check-docs.test.sh \
+    -exec grep -I -i -l -E 'clean[ -]room' {} + 2>/dev/null | sort)
+
+# NOTICE names each file directly in Support/Resources (not a hidden file or a folder) and each
+# Sources/C<name> folder that is not own code, as a whole name: x.bin does not match x.bin.old.
+own_c_folders=(CMainStack)
+named_in_notice() {
+    local escaped
+    escaped="$(sed 's/[][\.*^$+?(){}|]/\\&/g' <<<"$1")"
+    grep -qE "(^|[^A-Za-z0-9._-])${escaped}(\$|[^A-Za-z0-9_.-]|\\.(\$|[^A-Za-z0-9_-]))" "$root/NOTICE" 2>/dev/null
+}
+while IFS= read -r f; do
+    named_in_notice "$(basename "$f")" || err "NOTICE: no line names Support/Resources/$(basename "$f")"
+done < <(find "$root/Support/Resources" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | sort)
+while IFS= read -r d; do
+    name="$(basename "$d")"
+    [[ " ${own_c_folders[*]} " == *" $name "* ]] && continue
+    named_in_notice "Sources/$name" || err "NOTICE: no line names Sources/$name"
+done < <(find "$root/Sources" -mindepth 1 -maxdepth 1 -type d -name 'C*' 2>/dev/null | sort)
+
+grep -qF '](docs/provenance.md)' "$root/README.md" 2>/dev/null || err "README.md: no link to docs/provenance.md"
+[[ -f "$root/docs/provenance.md" ]] || err "docs/provenance.md: file is missing"
 
 exit "$fail"

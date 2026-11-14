@@ -5,7 +5,8 @@
 # git-guardrails.sh reads (AGT-152).
 # - PostToolUse of delegate_task: the first taskId of tool_response (a JSON string, or a list of text
 #   blocks; the form "taskId": "<id>", with or without spaces at the colon) goes into the key field of
-#   the record whose file name is the tool_use_id.
+#   the record whose file name is the tool_use_id. When the first "status" of that text is completed
+#   or failed (a mode wait call returns the end state, and no end text follows), the record goes.
 # - UserPromptSubmit: each line of prompt that starts with the end text of a child,
 #   Delegated task <taskId> (<title>) [completed]: or [failed]:, removes the record of that taskId.
 #   Another state, such as [running], keeps it.
@@ -57,19 +58,26 @@ fi
 use_id="$(get tool_use_id)"
 [[ "$use_id" =~ ^[A-Za-z0-9_-]+$ && -f "$rec_dir/$use_id" ]] || exit 0
 task_re='"taskId"[[:space:]]*:[[:space:]]*"([^"]+)"'
-id=""
+id="" text=""
 if [[ "$(plutil -type tool_response - <<< "$input" 2>/dev/null)" == array ]]; then
   n="$(get tool_response)"
   [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i = 0; i < n; i++)); do
-    [[ "$(get "tool_response.$i.text")" =~ $task_re ]] && { id="${BASH_REMATCH[1]}"; break; }
+    text="$(get "tool_response.$i.text")"
+    [[ "$text" =~ $task_re ]] && { id="${BASH_REMATCH[1]}"; break; }
   done
-elif [[ "$(get tool_response)" =~ $task_re ]]; then
-  id="${BASH_REMATCH[1]}"
+else
+  text="$(get tool_response)"
+  [[ "$text" =~ $task_re ]] && id="${BASH_REMATCH[1]}"
 fi
 [[ -n "$id" ]] || exit 0
 IFS=$'\t' read -r t r_tool key path desc < "$rec_dir/$use_id" || true
 [[ "$r_tool" == "$dt" ]] || exit 0
+status_re='"status"[[:space:]]*:[[:space:]]*"([a-z_]+)"'
+if [[ "$text" =~ $status_re ]] && [[ "${BASH_REMATCH[1]}" == completed || "${BASH_REMATCH[1]}" == failed ]]; then
+  rm -f "$rec_dir/$use_id"
+  exit 0
+fi
 printf '%s\t%s\t%s\t%s\t%s\n' "$t" "$r_tool" "${id//[$'\t\n']/ }" "$path" "$desc" > "$rec_dir/.$use_id.tmp" &&
   mv "$rec_dir/.$use_id.tmp" "$rec_dir/$use_id"
 exit 0

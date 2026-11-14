@@ -199,7 +199,7 @@ import os
     }
 
     /// An open window keeps its range when the default changes, and Reset follows the new default at once.
-    @Test func anOpenWindowFollowsTheDefault() async throws {
+    @Test func resetFollowsTheDefaultAndTheRangeStays() async throws {
         let (model, _, _, _) = try await open()
         model.timeline.waveformRange = .db96
         #expect(model.isOn(.waveformZoomReset), "R 96 dB, default 60 dB")

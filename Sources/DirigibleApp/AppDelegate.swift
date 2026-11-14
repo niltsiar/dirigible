@@ -31,8 +31,8 @@ import Observation
     var dragMode: DragMode { didSet { defaults?.set(dragMode.rawValue, forKey: Self.dragModeKey) } }
     static let dragModeKey = "timeline.dragMode"
     /// The range of the waveform that a new window opens at and that Reset Waveform Zoom goes back to:
-    /// one value for all windows, kept in the app preferences as the dB. A window reads it when it
-    /// needs it, so an open window follows a change.
+    /// one value for all windows, kept in the app preferences as the dB. An open window keeps its range
+    /// when this changes; only its Reset target and its readout follow.
     var waveformRangeDefault: WaveformRange {
         didSet { defaults?.set(waveformRangeDefault.rawValue, forKey: Self.waveformRangeKey) }
     }

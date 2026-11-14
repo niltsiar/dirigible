@@ -21,8 +21,8 @@ final class WaveformScaleStrip: NSView {
     /// The lane height from which the ticks have labels.
     static let labelsFrom = 48.0
     private static let tick = 4.0
-    private static let labelFont = NSFont.systemFont(ofSize: 8)
-    private static let labelHeight = 9.0
+    static let labelFont = NSFont.systemFont(ofSize: 8)
+    static let labelHeight = 10.0
 
     /// The draws, for the tests.
     private(set) var draws = 0
@@ -65,18 +65,27 @@ final class WaveformScaleStrip: NSView {
     }
 
     /// The ticks that carry a label in a lane: none under `labelsFrom`; from the top, a tick whose
-    /// label would touch the one above does not show it. -R dB keeps its label at the lane bottom.
+    /// label, as drawn inside the lane, would touch the one above does not show it. -R dB keeps its
+    /// label at the lane bottom.
     static func labelled(range: WaveformRange, laneHeight: Double) -> [(dB: Double, y: Double)] {
         guard laneHeight >= labelsFrom else { return [] }
         var shown: [(dB: Double, y: Double)] = []
         for tick in ticks(range: range, laneHeight: laneHeight) {
             let last = tick.dB == -range.dB
-            if let above = shown.last, tick.y - above.y < labelHeight {
+            if let above = shown.last,
+                labelCenter(y: tick.y, laneHeight: laneHeight) - labelCenter(y: above.y, laneHeight: laneHeight)
+                    < labelHeight
+            {
                 if last { shown.removeLast() } else { continue }
             }
             shown.append(tick)
         }
         return shown
+    }
+
+    /// The y of a label center in its lane: the tick y, kept inside the lane.
+    static func labelCenter(y: Double, laneHeight: Double) -> Double {
+        min(max(y, labelHeight / 2), laneHeight - labelHeight / 2)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -106,8 +115,7 @@ final class WaveformScaleStrip: NSView {
             for label in labels {
                 let text = NSAttributedString(string: String(Int(label.dB)), attributes: attributes)
                 let size = text.size()
-                let y = min(
-                    max(origin + label.y - size.height / 2, origin), origin + inputs.laneHeight - size.height)
+                let y = origin + Self.labelCenter(y: label.y, laneHeight: inputs.laneHeight) - size.height / 2
                 text.draw(at: NSPoint(x: bounds.maxX - 1 - Self.tick - 1 - size.width, y: y))
             }
         }

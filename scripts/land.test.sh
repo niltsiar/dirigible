@@ -1488,6 +1488,54 @@ mk "$run/two.bin" 2
 (cd "$t/main" && TEARDOWN_MIN_MB=1 "$here/teardown-run.sh" "$run") > "$t/out" 2>&1
 [[ ! -e "$run/two.bin" && -f "$t/main/.scratchpads/trash/$today/r/two.bin" ]] || fail 'teardown, TEARDOWN_MIN_MB=1: a 2 MB file stays or is not in the trash'
 
+# The name check reads the text files once: the named items of a big run folder stay, the run takes
+# seconds, and the grep calls of the script do not grow with the candidates. td_names <name> <count>:
+# <count> files in probes/copy/sub/ and a notes.md of 40000 lines (3.5 MB) that names the even-numbered
+# ones, each on many lines, so the output of a grep for one name is over a pipe buffer.
+td_names() {
+  local i
+  td_setup "$1"
+  mkdir -p "$run/probes/copy/sub"
+  for ((i = 1; i <= $2; i++)); do printf x > "$run/probes/copy/sub/$(printf 'take-%03d.bin' "$i")"; done
+  awk -v n="$2" 'BEGIN { for (k = 0; k < 40000; k++) printf "line %d names take-%03d.bin and then some more words of the notes here, text text\n", k, (k % (n / 2)) * 2 + 2 }' > "$run/notes.md"
+  mkdir -p "$t/shim"
+  printf '#!/bin/bash\necho x >> "%s/grep.calls"\nexec %s "$@"\n' "$t" "$(command -v grep)" > "$t/shim/grep"
+  chmod +x "$t/shim/grep"
+}
+td_names names20 20
+PATH="$t/shim:$PATH" td "$run"
+[[ $code -eq 0 ]] || fail "teardown, 20 candidates: exit $code: $(cat "$t/out")"
+calls20="$(wc -l < "$t/grep.calls" | tr -d ' ')"
+td_names names200 200
+start=$SECONDS
+PATH="$t/shim:$PATH" td "$run"
+took=$((SECONDS - start))
+[[ $code -eq 0 ]] || fail "teardown, 200 candidates: exit $code: $(cat "$t/out")"
+[[ $took -lt 20 ]] || fail "teardown, 200 candidates and a 3.5 MB notes.md: $took s, want under 20 s"
+named_moved=0 other_stay=0
+for ((i = 1; i <= 200; i++)); do
+  name="$(printf 'take-%03d.bin' "$i")"
+  if ((i % 2 == 0)); then
+    [[ -f "$run/probes/copy/sub/$name" ]] || named_moved=$((named_moved + 1))
+  else
+    [[ ! -e "$run/probes/copy/sub/$name" && -f "$t/main/.scratchpads/trash/$(date +%F)/r/probes/copy/sub/$name" ]] || other_stay=$((other_stay + 1))
+  fi
+done
+[[ $named_moved -eq 0 ]] || fail "teardown, 200 candidates: $named_moved of the 100 named files moved to the trash"
+[[ $other_stay -eq 0 ]] || fail "teardown, 200 candidates: $other_stay of the 100 other files did not move to the trash"
+[[ "$(wc -l < "$t/grep.calls" | tr -d ' ')" == "$calls20" ]] || fail "teardown: $calls20 grep calls with 20 candidates, $(wc -l < "$t/grep.calls" | tr -d ' ') with 200"
+# The extension rule is not case-sensitive, the *.app and .build rules are: a Foo.App folder and a
+# .Build folder are walked, not deleted, and C.WAV is audio.
+td_setup nocase
+mk "$run/probes/Foo.App/a.wav" 1; mk "$run/probes/.Build/b.wav" 1; mk "$run/probes/C.WAV" 1
+td "$run"
+[[ $code -eq 0 ]] || fail "teardown, Foo.App, .Build, C.WAV: exit $code: $(cat "$t/out")"
+for moved in probes/Foo.App/a.wav probes/.Build/b.wav probes/C.WAV; do
+  [[ ! -e "$run/$moved" && -f "$t/main/.scratchpads/trash/$today/r/$moved" ]] || fail "teardown, $moved is not in the trash"
+done
+[[ -d "$run/probes/Foo.App" && -d "$run/probes/.Build" ]] || fail 'teardown: a Foo.App or .Build folder was deleted'
+grep -qE '^moved: 3 items, ' "$t/out" && grep -qE '^deleted: 0 items, 0 KiB$' "$t/out" || fail "teardown, Foo.App, .Build, C.WAV: wrong counts: $(cat "$t/out")"
+
 # The trash sweep deletes the date folders more than 14 days old and keeps the others.
 td_setup sweep
 trash_root="$t/main/.scratchpads/trash"

@@ -34,6 +34,9 @@
 #    So no step deletes a file outside build output, a file of a package, or a file in a named
 #    folder. A recording of a real voice in any format (.f32, .raw, .opus, and the like), even when
 #    no text file names it, goes to the trash.
+#    The name check reads the text files once, in one awk pass after the walk, so its cost does not
+#    grow with the count of candidates. The Named rule keeps its meaning. A name with a character
+#    other than a letter, a digit, or one of _ . / - gets a scan of the text.
 # 4. It prints the removed worktree, the trash folder, the count and size of the moved and of the
 #    deleted items, and `free after:`. When the trash holds a date folder more than 14 days old, it
 #    prints a `trash:` line with the sweep command.
@@ -121,73 +124,36 @@ else
     echo "worktree removed: none (gone already)"
 fi
 
-names="$(mktemp)"
-trap 'rm -f "$names"' EXIT
-while IFS= read -r -d '' file; do cat "$file" >> "$names"; done < <(find -P "$run" \( -name '*.dirigible' -o -name '*.app' -o -name .build \) -prune -o -type f \
-    \( -name '*.md' -o -name '*.tsv' -o -name '*.txt' -o -name '*.json' -o -name '*.csv' -o -name '*.log' -o -name '*.xml' \) -print0)
-
-# has_token <text>: the names file holds the text with no letter, digit, - _ . before or after it.
-has_token() {
-    grep -aF -- "$1" "$names" | T="$1" awk 'BEGIN { t = ENVIRON["T"] }
-        { off = 0
-          while ((i = index(substr($0, off + 1), t)) > 0) {
-              p = off + i
-              pre = (p > 1) ? substr($0, p - 1, 1) : ""
-              post = substr($0, p + length(t), 1)
-              if (pre !~ /[A-Za-z0-9_.-]/ && post !~ /[A-Za-z0-9_.-]/) { f = 1; exit }
-              off = p
-          } }
-        END { exit !f }'
-}
-# is_named <rel> <file|dir>
-is_named() {
-    local rel="$1" anc="${1%/*}"
-    has_token "$rel" && return 0
-    [[ "$2" == file ]] && has_token "${rel##*/}" && return 0
-    while [[ "$anc" != "$rel" && "$anc" != verify && "$anc" != probes ]]; do
-        has_token "$anc" && return 0
-        rel="$anc" anc="${anc%/*}"
-    done
-    return 1
-}
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+find -P "$run" \( -name '*.dirigible' -o -name '*.app' -o -name .build \) -prune -o -type f \
+    \( -name '*.md' -o -name '*.tsv' -o -name '*.txt' -o -name '*.json' -o -name '*.csv' -o -name '*.log' -o -name '*.xml' \) -exec cat {} + > "$work/names"
+min_bytes=$((min_mb * 1048576))
+big=""
+if [[ "$min_bytes" -gt 0 ]]; then
+    big=$'\n'"$(find -P "$run" \( -type d \( -name '*.dirigible' -o -name '*.app' -o -name .build \) -prune \) -o -type f -size +$((min_bytes - 1))c -print)"$'\n'
+fi
 
 stamp="$(date +%F)"
 trash_dir="$trash_root/$stamp/${run##*/}"
 moved_n=0 moved_kb=0 del_n=0 del_kb=0
-handle() { # <path> <rel> <file|dir>
-    local path="$1" rel="$2" kind="$3" name="${2##*/}" ext kb dest base stem n
-    ext="$(tr '[:upper:]' '[:lower:]' <<<"${name##*.}")"
-    kb="$(du -sk "$path" | cut -f1)"
+cand_n=0 cand_action=() cand_rel=()
+handle() { # <path> <rel> <file|dir>: record a candidate; the name check comes after the walk
+    local path="$1" rel="$2" kind="$3" name="${2##*/}" action
     if [[ "$kind" == dir ]]; then
         case "$name" in *.app | .build) action=delete ;; *) action=move ;; esac
     else
         action=none
-        case "$ext" in
-            wav | caf | pcm | aif | aiff | m4a | mp3 | flac | mov | mp4 | m4v) action=move ;;
-            dmg) action=delete ;;
-            *) if [[ "$rel" == verify/* || "$rel" == probes/* || "$(wc -c < "$path")" -ge $((min_mb * 1048576)) ]]; then action=move; fi ;;
+        case "${name##*.}" in
+            [wW][aA][vV] | [cC][aA][fF] | [pP][cC][mM] | [aA][iI][fF] | [aA][iI][fF][fF] | [mM]4[aA] | [mM][pP]3 | [fF][lL][aA][cC] | [mM][oO][vV] | [mM][pP]4 | [mM]4[vV]) action=move ;;
+            [dD][mM][gG]) action=delete ;;
+            *) if [[ "$rel" == verify/* || "$rel" == probes/* || "$min_bytes" -eq 0 || "$big" == *$'\n'"$path"$'\n'* ]]; then action=move; fi ;;
         esac
     fi
     [[ "$action" != none ]] || return 0
-    if [[ "$action" != delete ]] && is_named "$rel" "$kind"; then return 0; fi
-    if [[ "$action" == move ]]; then
-        dest="$trash_dir/$rel"
-        mkdir -p "${dest%/*}"
-        if [[ -e "$dest" || -L "$dest" ]]; then
-            base="${dest##*/}" stem="$base" ext=""
-            if [[ "$base" == *.* && "$base" != .* ]]; then stem="${base%.*}" ext=".${base##*.}"; fi
-            n=2
-            while [[ -e "${dest%/*}/$stem-$n$ext" ]]; do n=$((n + 1)); done
-            dest="${dest%/*}/$stem-$n$ext"
-        fi
-        mv "$path" "$dest"
-        echo "moved: $rel -> $dest"
-        moved_n=$((moved_n + 1)) moved_kb=$((moved_kb + kb))
-    else
-        rm -rf "$path"
-        echo "deleted: $rel"
-        del_n=$((del_n + 1)) del_kb=$((del_kb + kb))
-    fi
+    cand_n=$((cand_n + 1))
+    cand_action[cand_n]="$action" cand_rel[cand_n]="$rel"
+    printf '%s\t%s\t%s\t%s\n' "$cand_n" "$action" "$kind" "$rel" >> "$work/cand"
 }
 visit() { # <dir> <depth>
     local entry rel name
@@ -208,6 +174,72 @@ visit() { # <dir> <depth>
     done
 }
 visit "$run" 0
+
+# The name check, in one awk pass. The token set holds each run of [A-Za-z0-9_./-] of the text and
+# each slash-aligned sub-path of the run, up to the depth of the deepest candidate. A query of only
+# those characters is named when the set holds it. Any other query gets a scan of the text.
+# The awk prints the number of each candidate that stays.
+stay=()
+if [[ "$cand_n" -gt 0 ]]; then
+    LC_ALL=C tr -cs 'A-Za-z0-9_./-' '\n' < "$work/names" | LC_ALL=C sort -u > "$work/tokens"
+    awk -F'\t' -v names="$work/names" '
+        NR == FNR { if ($1 ~ /^[0-9]+$/) { n++; cid[n] = $1; cact[n] = $2; ckind[n] = $3
+                        crel[n] = substr($0, length($1 $2 $3) + 4); d = split(crel[n], part, "/"); if (d > maxd) maxd = d }
+                    next }
+        { k = split($0, part, "/")
+          for (i = 1; i <= k; i++) { t = part[i]; if (t != "") set[t] = 1
+              for (j = i + 1; j <= k && j < i + maxd; j++) { t = t "/" part[j]; set[t] = 1 } } }
+        function scan(t,   l, off, i, p, pre, post) {
+            if (t in memo) return memo[t]
+            memo[t] = 0
+            while ((getline l < names) > 0) { off = 0
+                while ((i = index(substr(l, off + 1), t)) > 0) {
+                    p = off + i
+                    pre = (p > 1) ? substr(l, p - 1, 1) : ""
+                    post = substr(l, p + length(t), 1)
+                    if (pre !~ /[A-Za-z0-9_.-]/ && post !~ /[A-Za-z0-9_.-]/) { memo[t] = 1; break }
+                    off = p }
+                if (memo[t]) break }
+            close(names); return memo[t] }
+        function has(t) { if (t ~ /^[A-Za-z0-9_.\/-]+$/) return (t in set); return scan(t) }
+        function named(rel, kind,   anc, b) {
+            if (has(rel)) return 1
+            b = rel; sub(/.*\//, "", b)
+            if (kind == "file" && has(b)) return 1
+            anc = rel; sub(/\/[^\/]*$/, "", anc)
+            while (anc != rel && anc != "verify" && anc != "probes") {
+                if (has(anc)) return 1
+                rel = anc; sub(/\/[^\/]*$/, "", anc) }
+            return 0 }
+        END { for (c = 1; c <= n; c++) if (cact[c] != "delete" && named(crel[c], ckind[c])) print cid[c] }
+    ' "$work/cand" "$work/tokens" > "$work/stay"
+    while IFS= read -r id; do stay[id]=1; done < "$work/stay"
+fi
+
+for ((i = 1; i <= cand_n; i++)); do
+    action="${cand_action[i]}" rel="${cand_rel[i]}"
+    [[ "$action" == delete || -z "${stay[i]:-}" ]] || continue
+    path="$run/$rel"
+    kb="$(du -sk "$path" | cut -f1)"
+    if [[ "$action" == move ]]; then
+        dest="$trash_dir/$rel"
+        mkdir -p "${dest%/*}"
+        if [[ -e "$dest" || -L "$dest" ]]; then
+            base="${dest##*/}" stem="$base" ext=""
+            if [[ "$base" == *.* && "$base" != .* ]]; then stem="${base%.*}" ext=".${base##*.}"; fi
+            n=2
+            while [[ -e "${dest%/*}/$stem-$n$ext" ]]; do n=$((n + 1)); done
+            dest="${dest%/*}/$stem-$n$ext"
+        fi
+        mv "$path" "$dest"
+        echo "moved: $rel -> $dest"
+        moved_n=$((moved_n + 1)) moved_kb=$((moved_kb + kb))
+    else
+        rm -rf "$path"
+        echo "deleted: $rel"
+        del_n=$((del_n + 1)) del_kb=$((del_kb + kb))
+    fi
+done
 
 echo "trash folder: $trash_dir"
 echo "moved: $moved_n items, $moved_kb KiB"

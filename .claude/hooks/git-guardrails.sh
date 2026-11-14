@@ -1305,8 +1305,9 @@ fi
 # writes a record of each Agent, SendMessage, or delegate_task brief that names a lock step in
 # dirigible-lock-agents of the git common dir (or $DIRIGIBLE_LOCK_AGENTS), and removes it after 24 h.
 # A delegate_task record has no meta file. delegate-record.sh puts the taskId of the call in its key,
-# and removes it at the end text of the child (Delegated task <taskId> (<title>) [completed]: or
-# [failed]: in a prompt) or at a task_cancel of the taskId. The record is live while it has a taskId
+# and removes it at a call result in the state completed or failed (mode wait), at the end text of
+# the child (Delegated task <taskId> (<title>) [completed]: or [failed]: in a prompt), or at a
+# task_cancel of the taskId. The record is live while it has a taskId
 # and is under 90 min old, or has no taskId and is under 5 min old; a note names a record with no
 # taskId 5 to 90 min old (the call returned none, or delegate-record.sh is not active in the
 # session). Each other record names an

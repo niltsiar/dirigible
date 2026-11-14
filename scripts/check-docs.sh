@@ -405,7 +405,7 @@ done < <(cd "$root" && find . \( -path ./.git -o -path ./.build -o -path ./build
     -type f ! -path ./scripts/check-docs.sh ! -path ./scripts/check-docs.test.sh \
     -exec grep -I -i -l -E 'clean[ -]room' {} + 2>/dev/null | sort)
 
-# NOTICE names each file directly in Support/Resources (not a hidden file or a folder) and each
+# NOTICE names each file in Support/Resources at any depth (not a hidden file or a *.lproj folder) and each
 # Sources/C<name> folder that is not own code, as a whole name: x.bin does not match x.bin.old.
 own_c_folders=(CMainStack)
 named_in_notice() {
@@ -414,8 +414,8 @@ named_in_notice() {
     grep -qE "(^|[^A-Za-z0-9._-])${escaped}(\$|[^A-Za-z0-9_.-]|\\.(\$|[^A-Za-z0-9_-]))" "$root/NOTICE" 2>/dev/null
 }
 while IFS= read -r f; do
-    named_in_notice "$(basename "$f")" || err "NOTICE: no line names Support/Resources/$(basename "$f")"
-done < <(find "$root/Support/Resources" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | sort)
+    named_in_notice "$(basename "$f")" || err "NOTICE: no line names ${f#"$root"/}"
+done < <(find "$root/Support/Resources" -name '*.lproj' -prune -o -type f ! -name '.*' -print 2>/dev/null | sort)
 while IFS= read -r d; do
     name="$(basename "$d")"
     [[ " ${own_c_folders[*]} " == *" $name "* ]] && continue

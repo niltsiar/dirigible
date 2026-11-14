@@ -143,7 +143,7 @@ An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a s
 
 ## How the project works
 
-Agents and humans follow the same rules. `AGENTS.md` has the commands, the testing rules, and the git rules. `CODING_STANDARDS.md` has the design rules and the **Safety** rules that a review checks. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`.
+Agents and humans follow the same rules. `AGENTS.md` has the commands, the testing rules, and the git rules. `CODING_STANDARDS.md` has the design rules and the **Safety** rules that a review checks. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`. Only collaborators open issues and pull requests: see [Contributing](docs/CONTRIBUTING.md).
 ## How Dirigible was made
 
 We wrote the code of Dirigible for this project. The exceptions are the third-party parts in the table of this file, each with its license and notice.

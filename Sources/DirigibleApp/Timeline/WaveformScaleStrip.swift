@@ -21,7 +21,6 @@ final class WaveformScaleStrip: NSView {
     /// The lane height from which the ticks have labels.
     static let labelsFrom = 48.0
     private static let tick = 4.0
-    /// The label size when each label of the range fits; else the labels shrink to `labelFloor` at most.
     static let labelSize = 8.0
     static let labelFloor = 7.0
     static let labelHeight = 10.0

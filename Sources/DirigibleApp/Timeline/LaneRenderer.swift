@@ -52,6 +52,8 @@ final class LaneRenderer {
     /// The layer gains of each column of the clips with gain layers in the draw, which the waveform
     /// pass gets and the gain line reads again.
     var layerGains: [ClipID: ArraySlice<Double>] = [:]
+    /// The column heights of the range and the row count of the last column draw.
+    var heights: ColumnHeights?
     /// The layer gains of clips of earlier draws (`columnGains`), so a draw of the same layers, clip
     /// window, and zoom walks no layer. Only the clips that the last display event read or walked
     /// stay, each with its columns in the rect and at most one window width more on each side:
@@ -310,36 +312,35 @@ final class LaneRenderer {
     ) {
         let laneRows = region.window.laneRows
         let clamp = layerGains == nil ? 0 : Self.lineClamp(scale: region.window.scale)
+        let heights =
+            heights.flatMap { $0.range == waveform && $0.laneRows == laneRows ? $0 : nil }
+            ?? ColumnHeights(range: waveform, laneRows: laneRows)
+        self.heights = heights
         values.withUnsafeBufferPointer { values in
-            /// The rows of a magnitude, 20 log10(v / `UInt32.max`) dB. For a 16-bit value v x 65537 the
-            /// quotient is the same `Double` as v / 65535.
-            func height(_ value: UInt32, _ gain: Double) -> Int {
-                guard value > 0 else { return 0 }
-                let decibels = 20 * log10(Double(value) / Double(UInt32.max))
-                return Int((waveform.fraction(dB: decibels + gain) * Double(laneRows)).rounded())
-            }
-            var index = 0
-            while index < values.count {
-                let column = range.lowerBound + index
-                // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
-                let factor = fades?.factor(index)
-                var columnGain = factor.map { gain + 20 * log10($0) } ?? gain
-                if let layerGains { columnGain += layerGains[layerGains.startIndex + index] }
-                let peak = height(values[index].peak, columnGain)
-                // A cache file can hold an RMS over its peak; the span never inverts.
-                let rms = min(height(values[index].rms, columnGain), peak)
-                // A column span is a strided fill: one call, not one Swift step per pixel.
-                // The start of the spans: the row under the chip in a chip column.
-                let floor = chip.map { $0.columns.contains(column) ? $0.bottom : 0 } ?? 0
-                let (top, middle) = (max(bottom - peak + 1, floor), max(bottom - rms + 1, floor))
-                region.span(palette.peak, column: column, rows: top..<middle)
-                region.span(palette.rms, column: column, rows: middle..<bottom + 1)
-                if factor != nil, fades?.line == true {
-                    let row = Self.lineRow(
-                        columnGain, waveform: waveform, bottom: bottom, laneRows: laneRows, clamp: clamp)
-                    region.span(palette.label, column: column, rows: row..<row + 1)
+            heights.withRows { rows in
+                var index = 0
+                while index < values.count {
+                    let column = range.lowerBound + index
+                    // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
+                    let factor = fades?.factor(index)
+                    var columnGain = factor.map { gain + 20 * log10($0) } ?? gain
+                    if let layerGains { columnGain += layerGains[layerGains.startIndex + index] }
+                    let peak = rows(values[index].peak, columnGain)
+                    // A cache file can hold an RMS over its peak; the span never inverts.
+                    let rms = min(rows(values[index].rms, columnGain), peak)
+                    // A column span is a strided fill: one call, not one Swift step per pixel.
+                    // The start of the spans: the row under the chip in a chip column.
+                    let floor = chip.map { $0.columns.contains(column) ? $0.bottom : 0 } ?? 0
+                    let (top, middle) = (max(bottom - peak + 1, floor), max(bottom - rms + 1, floor))
+                    region.span(palette.peak, column: column, rows: top..<middle)
+                    region.span(palette.rms, column: column, rows: middle..<bottom + 1)
+                    if factor != nil, fades?.line == true {
+                        let row = Self.lineRow(
+                            columnGain, waveform: waveform, bottom: bottom, laneRows: laneRows, clamp: clamp)
+                        region.span(palette.label, column: column, rows: row..<row + 1)
+                    }
+                    index += 1
                 }
-                index += 1
             }
         }
     }

@@ -181,6 +181,9 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
     return level
 }
 
-/// A linear magnitude as a `PeakColumn` value: `UInt32.max` = 0 dBFS. The product is a `Double`,
-/// because a `Float` cannot hold 2^32 - 1.
-func quantize(_ value: Float) -> UInt32 { value >= 1 ? .max : UInt32((Double(value) * Double(UInt32.max)).rounded()) }
+/// A linear magnitude as a `PeakColumn` value: `UInt32.max` = 0 dBFS, and 0 for NaN, which a
+/// float WAV can hold. The product is a `Double`, because a `Float` cannot hold 2^32 - 1.
+func quantize(_ value: Float) -> UInt32 {
+    guard value > 0 else { return 0 }
+    return value >= 1 ? .max : UInt32((Double(value) * Double(UInt32.max)).rounded())
+}

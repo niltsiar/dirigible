@@ -49,7 +49,7 @@ func expectWithinBudget(
     /// place on the timeline. One split call: 12,000 `place` calls take minutes in debug. Each clip
     /// has a fade-in and a fade-out of 0.5 s (fades C25, decision 0035).
     static func fixture() throws -> (Session, [FileID: PeakState]) {
-        let peaks = randomPeaks(frames: frames)
+        let peaks = benchPeaks(frames: frames)
         var session = Session(sampleRate: 48_000)
         var states: [FileID: PeakState] = [:]
         let tracks = (1...6).map { TrackID("t\($0)") }

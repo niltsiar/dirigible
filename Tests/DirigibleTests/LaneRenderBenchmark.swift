@@ -24,7 +24,7 @@ struct LaneRenderBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func sixLanesOfTwoHoursDrawInTheBudget() throws {
         let frames = 345_600_000
-        let peaks = randomPeaks(frames: frames)
+        let peaks = benchPeaks(frames: frames)
         var session = Session(sampleRate: 48_000)
         var states: [FileID: PeakState] = [:]
         for n in 1...6 {
@@ -70,7 +70,7 @@ extension LaneRenderBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aDenseEnvelopeDrawsInTheBudget() throws {
         let frames = 345_600_000
-        let peaks = randomPeaks(frames: frames)
+        let peaks = benchPeaks(frames: frames)
         for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
             let spacing = zoom == "fit" ? frames / 400 : Int(16 * framesPerPoint)
             let points = (0..<400).map {
@@ -116,7 +116,7 @@ extension LaneRenderBenchmark {
         let framesPerPoint = 512.0
         let clip = Int(12 * framesPerPoint)
         let frames = clip * 400
-        let peaks = randomPeaks(frames: frames)
+        let peaks = benchPeaks(frames: frames)
         var session = Session(sampleRate: 48_000)
         var states: [FileID: PeakState] = [:]
         for n in 1...6 {
@@ -157,7 +157,7 @@ extension LaneRenderBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func manyLabels() throws {
         let framesPerPoint = 512.0
-        let peaks = randomPeaks(frames: 345_600_000)
+        let peaks = benchPeaks(frames: 345_600_000)
         var session = Session(sampleRate: 48_000)
         var states: [FileID: PeakState] = [:]
         for n in 1...6 {
@@ -240,7 +240,7 @@ extension LaneRenderBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aRiddenClipDrawsInTheBudget() throws {
         let frames = 345_600_000
-        let peaks = randomPeaks(frames: frames)
+        let peaks = benchPeaks(frames: frames)
         var random = SplitMix(seed: 40)
         let spacing = frames / 18_954
         let ride = try #require(

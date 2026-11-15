@@ -25,7 +25,7 @@ import Testing
         try session.place(
             Clip(id: "big2", file: "f3", start: 112_000_000, offset: 50_000_000, length: 12_000_000), on: "t2")
         try session.setCrossfades(["big": 4_800_000])
-        let peaks = PeakState.ready(randomPeaks(frames: MouseEventBenchmark.frames))
+        let peaks = PeakState.ready(benchPeaks(frames: MouseEventBenchmark.frames))
         return (session, Dictionary(uniqueKeysWithValues: (1...6).map { (FileID("f\($0)"), peaks) }))
     }
 

@@ -351,33 +351,6 @@ extension ClipInspection {
     return count
 }
 
-extension PeakColumn {
-    /// Magnitudes of 16 bits, 65535 = 0 dBFS. A value v becomes v x 65537, the same level:
-    /// 65535 x 65537 = `UInt32.max`.
-    init(peak16: UInt16, rms16: UInt16) { self.init(peak: UInt32(peak16) * 65537, rms: UInt32(rms16) * 65537) }
-}
-
-/// The peaks of a mono file of `frames` frames at 48 kHz: random peaks (the same on each run), and
-/// a random RMS at or under each peak, at the levels of 256, 4,096, and 65,536 frames per column.
-/// A peak is a random UInt32 shifted right by 0 to 31 bits, so each level from 0 dBFS down to the
-/// lowest step occurs, not only the top 96 dB of a uniform draw.
-func randomPeaks(frames: Int) -> Peaks {
-    var random = SplitMix(seed: 9)
-    let base = (0..<(frames / 256)).map { _ in
-        let peak = UInt32.random(in: 0...UInt32.max, using: &random) >> UInt32.random(in: 0...31, using: &random)
-        return PeakColumn(peak: peak, rms: UInt32.random(in: 0...peak, using: &random))
-    }
-    func upper(_ factor: Int) -> [PeakColumn] {
-        stride(from: 0, to: base.count, by: factor).map { start in
-            let bins = base[start..<min(start + factor, base.count)]
-            return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
-        }
-    }
-    return Peaks(
-        frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
-        sampleRate: 48_000, levels: [base, upper(16), upper(256)])
-}
-
 /// Removes folders one at a time on a serial utility queue, so parallel deinits do not add
 /// threads that compete for the disk. The process waits for the removals at exit, so no folder
 /// stays in the temporary directory.

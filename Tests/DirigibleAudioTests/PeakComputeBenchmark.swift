@@ -43,11 +43,12 @@ struct PeakComputeBenchmark {
         expectWithinBudget(elapsed, .seconds(3), "the compute took \(elapsed)")
     }
 
-    /// The memory of the peak precision: the bin arrays of the 2 h fixture of the lane benches (6
-    /// tracks of 345,600,000 frames, all levels, no file header) take at most 2.0 times the 4 bytes a
-    /// bin of version 1. Prints the cache folder size of both versions, with no limit.
+    /// The cache of the peak precision: the 2 h fixture of the lane benches (6 tracks of 345,600,000
+    /// frames, 1,439,649 bins of all levels a track) gives 6 files of 64 + 8 x 1,439,649 bytes, and
+    /// 6 files of version 1 take 64 + 4 x 1,439,649 bytes each. Prints the bin arrays in memory and
+    /// the cache folder size of both versions.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func theBinsOfTwoHoursTakeAtMostTwiceVersion1() throws {
+    func theCacheFilesOfTwoHoursTakeEightBytesABin() throws {
         let frames = 345_600_000
         let levels = Peaks.binFrames.map { bin in
             [PeakColumn](
@@ -57,27 +58,28 @@ struct PeakComputeBenchmark {
             frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
             sampleRate: 48_000, levels: levels)
         let bins = 6 * levels.map(\.count).reduce(0, +)
-        let (bytes, old) = (bins * MemoryLayout<PeakColumn>.stride, bins * MemoryLayout<(UInt16, UInt16)>.stride)
 
         let folder = try TemporaryFolder()
         let (current, earlier) = (folder.url.appending(path: "2"), folder.url.appending(path: "1"))
         try FileManager.default.createDirectory(at: earlier, withIntermediateDirectories: true)
         let version1 = PeakFileTests.version1(peaks)
         for track in 1...6 {
-            try PeakFile.write(peaks, path: "take1-\(track).wav", in: current)
+            let path = "take1-\(track).wav"
+            try PeakFile.write(peaks, path: path, in: current)
             try version1.write(
-                to: earlier.appending(path: PeakFile.name(path: "take1-\(track).wav", stamp: peaks.stamp)))
+                to: earlier.appending(path: PeakFileTests.version1Name(PeakFile.escape(path), peaks.stamp)))
         }
-        func size(_ folder: URL) throws -> Int {
+        func sizes(_ folder: URL) throws -> [Int] {
             try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey])
-                .map { try $0.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0 }.reduce(0, +)
+                .map { try $0.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0 }
         }
 
-        print("PeakComputeBenchmark bin arrays of 2 h, 6 tracks: \(bytes) bytes, version 1 \(old) bytes")
+        let (now, before) = (try sizes(current), try sizes(earlier))
+        print("PeakComputeBenchmark bin arrays of 2 h, 6 tracks: \(bins * MemoryLayout<PeakColumn>.stride) bytes")
         print(
-            "PeakComputeBenchmark cache folder of 2 h, 6 tracks: \(try size(current)) bytes, version 1 \(try size(earlier)) bytes"
+            "PeakComputeBenchmark cache folder of 2 h, 6 tracks: \(now.reduce(0, +)) bytes, version 1 \(before.reduce(0, +)) bytes"
         )
-        #expect(bins == 8_637_894)
-        #expect(Double(bytes) / Double(old) <= 2.0, "\(bytes) bytes against \(old)")
+        #expect(now == Array(repeating: 11_517_256, count: 6), "the version 2 files")
+        #expect(before == Array(repeating: 5_758_660, count: 6), "the version 1 files")
     }
 }

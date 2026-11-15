@@ -104,7 +104,8 @@ struct StudioPeaksTests {
     }
 
     /// A cache file of version 1 from an earlier app: the pass computes the peaks again from the
-    /// WAV and replaces the file, so the next Studio loads with no compute.
+    /// WAV and writes version 2 next to it, so the next Studio loads with no compute and the
+    /// file of the earlier app stays.
     @Test @MainActor func aVersion1CacheFileComputesAgain() async throws {
         let fixture = try await PeakPackage.make()
         var first: Studio? = try await fixture.studio()
@@ -112,7 +113,11 @@ struct StudioPeaksTests {
         await first?.settle()
         first = nil
         let name = try #require(fixture.cacheFiles().first)
-        try PeakFileTests.version1(computed).write(to: fixture.cache.appending(path: name))
+        try #require(name.hasSuffix(".v2.peaks"), "\(name)")
+        try FileManager.default.removeItem(at: fixture.cache.appending(path: name))
+        let oldName = String(name.dropLast(".v2.peaks".count)) + ".peaks"
+        let old = PeakFileTests.version1(computed)
+        try old.write(to: fixture.cache.appending(path: oldName))
 
         let blocks = StepCounter()
         var second: Studio? = try await fixture.studio { _ = blocks.next() }
@@ -121,7 +126,8 @@ struct StudioPeaksTests {
         #expect(blocks.calls == 3, "the version 1 file is a hit")
         await second?.settle()
         second = nil
-        #expect(fixture.cacheFiles() == [name])
+        #expect(fixture.cacheFiles().sorted() == [oldName, name])
+        #expect(try Data(contentsOf: fixture.cache.appending(path: oldName)) == old)
         let reads = StepCounter()
         let third = try await fixture.studio { _ = reads.next() }
         #expect(await waitForPeaks(third) == computed)

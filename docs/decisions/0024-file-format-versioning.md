@@ -75,7 +75,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 2 for a pre-roll take, else 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
 | `Backups/session-<time>.xml` | `version` attribute of the copy | The version of the copied `session.xml` | A revert refuses it (P3). A prune never deletes it (P4). A name that does not parse stays (P10). |
 | `Transcripts/<UUID>.xml` | `version` attribute | 1 | Only a newer `session.xml` names one, and that file is refused first (P3, P7). The file is never written, moved, or deleted by an older build (P4, P10). |
-| Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version | 2 | A miss (P5). |
+| Peak cache `*.peaks` | magic `DIRPEAKS` + UInt32 version, and `.v<version>.peaks` at the end of the name from version 2 on | 2 | A miss (P5). |
 | `agent-log.tsv` | first line `# Dirigible agent log, version <n>`: that text and a decimal integer | 1 | No line is appended (P4). A first line that does not parse also gets no line. A file of 0 bytes counts as new. |
 | `.lock`, `recovery-attempt` | none (frozen, P8) | - | - |
 | Package layout, CAF and WAV names | none (P10) | - | - |

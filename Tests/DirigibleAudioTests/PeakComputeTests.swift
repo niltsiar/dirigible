@@ -91,13 +91,13 @@ struct PeakComputeTests {
 
         #expect(peaks.levels.map(\.count) == [512, 32, 2])
         #expect(peaks.levels[0][0..<4].map(\.peak) == [268_435_456, 536_870_912, 805_306_368, 1_073_741_824])
-        #expect(peaks.levels[1][0] == PeakColumn(peak32: 1_073_741_824, rms32: 735_140_772))
+        #expect(peaks.levels[1][0] == PeakColumn(peak: 1_073_741_824, rms: 735_140_772))
         #expect(peaks.levels[1][1] == PeakColumn(peak: 0, rms: 0))
-        #expect(peaks.levels[1][27] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824))
+        #expect(peaks.levels[1][27] == PeakColumn(peak: 1_073_741_824, rms: 1_073_741_824))
         #expect(
             peaks.levels[2] == [
-                PeakColumn(peak32: 1_073_741_824, rms32: 183_785_193),
-                PeakColumn(peak32: 1_073_741_824, rms32: 600_239_927),
+                PeakColumn(peak: 1_073_741_824, rms: 183_785_193),
+                PeakColumn(peak: 1_073_741_824, rms: 600_239_927),
             ])
     }
 
@@ -110,14 +110,14 @@ struct PeakComputeTests {
         }
         let zero = PeakColumn(peak: 0, rms: 0)
 
-        func level(_ sixteenths: UInt32) -> PeakColumn { PeakColumn(peak32: sixteenths << 28, rms32: sixteenths << 28) }
+        func level(_ sixteenths: UInt32) -> PeakColumn { PeakColumn(peak: sixteenths << 28, rms: sixteenths << 28) }
         let quarter: UInt32 = 1_073_741_824
 
         #expect(fill(count: 5, step: 256) == [level(1), level(2), level(3), level(4), level(1)])
-        #expect(fill(count: 2, step: 4096) == [PeakColumn(peak32: quarter, rms32: 735_140_772), zero])
+        #expect(fill(count: 2, step: 4096) == [PeakColumn(peak: quarter, rms: 735_140_772), zero])
         #expect(
             fill(count: 3, step: 100_000) == [
-                PeakColumn(peak32: quarter, rms32: 600_239_927), PeakColumn(peak32: quarter, rms32: 600_239_927), zero,
+                PeakColumn(peak: quarter, rms: 600_239_927), PeakColumn(peak: quarter, rms: 600_239_927), zero,
             ])
     }
 
@@ -156,7 +156,7 @@ struct PeakComputeTests {
 
         let peaks = try await computePeaks(try AVAudioFile(forReading: url), stamp: Self.stamp) { .go }
 
-        let quarter = PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824)
+        let quarter = PeakColumn(peak: 1_073_741_824, rms: 1_073_741_824)
         #expect(peaks.levels[0].count == 4)
         #expect([peaks.levels[0][0], peaks.levels[0][2], peaks.levels[0][3]] == [quarter, quarter, quarter])
         #expect(peaks.levels[0][1].rms == 0)

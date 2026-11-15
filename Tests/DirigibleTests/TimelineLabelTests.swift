@@ -18,7 +18,7 @@ import Testing
         try session.addFile(AudioFile(id: "f1", path: path, layout: .mono, length: 51_200))
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.place(Clip(id: "A", file: "f1", start: 0, offset: 0, length: 25_600), on: "t1")
-        let bins = Array(repeating: PeakColumn(peak: 65535, rms: 60000), count: 200)
+        let bins = Array(repeating: PeakColumn(peak16: 65535, rms16: 60000), count: 200)
         return LaneRendererTests.inputs(session, peaks: bins)
     }
 

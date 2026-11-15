@@ -10,11 +10,11 @@ import Testing
 /// The lane pixels of decision 0017 (timeline-view criteria 9 and 23). Each test draws at 256
 /// frames per point and scale 1, so pixel column c is level-0 bin c. Lanes are 100 px high.
 struct LaneRendererTests {
-    static let zero = PeakColumn(peak: 0, rms: 0)
+    static let zero = PeakColumn(peak16: 0, rms16: 0)
 
     /// Peaks with the level-0 bins `bins` (256 frames each); the upper levels hold the maximum.
     static func peaks(_ bins: [PeakColumn]) -> Peaks {
-        let top = PeakColumn(peak32: bins.map(\.peak).max() ?? 0, rms32: bins.map(\.rms).max() ?? 0)
+        let top = PeakColumn(peak: bins.map(\.peak).max() ?? 0, rms: bins.map(\.rms).max() ?? 0)
         return Peaks(
             frames: Frames(bins.count * 256), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,
             sampleRate: 48_000, levels: [bins, [top], [top]])
@@ -58,7 +58,9 @@ struct LaneRendererTests {
     }
 
     @Test func aFullScaleColumnFillsTheLaneAndAHalfScaleColumnFillsItsDbHeight() throws {
-        let bins = [PeakColumn(peak: 65535, rms: 0), PeakColumn(peak: 32768, rms: 0), PeakColumn(peak: 7, rms: 0)]
+        let bins = [
+            PeakColumn(peak16: 65535, rms16: 0), PeakColumn(peak16: 32768, rms16: 0), PeakColumn(peak16: 7, rms16: 0),
+        ]
 
         let pixels = try Self.render(Self.inputs(try Self.session(), peaks: bins), width: 4)
 
@@ -75,7 +77,8 @@ struct LaneRendererTests {
     /// holds an RMS over its peak, as a damaged cache file can: the span stays whole.
     @Test func theRmsSpanIsDarkAndUnderThePeak() throws {
         var inputs = Self.inputs(
-            try Self.session(), peaks: [PeakColumn(peak: 65535, rms: 32768), PeakColumn(peak: 32768, rms: 65535)])
+            try Self.session(),
+            peaks: [PeakColumn(peak16: 65535, rms16: 32768), PeakColumn(peak16: 32768, rms16: 65535)])
         inputs.peaks["f2"] = .computing
 
         let pixels = try Self.render(inputs, width: 4)
@@ -91,7 +94,7 @@ struct LaneRendererTests {
     @Test func aClipGainOfMinus6MovesTheColumnDown() throws {
         let session = try Self.session(clipGain: -3, trackGain: -3.0206)
 
-        let pixels = try Self.render(Self.inputs(session, peaks: [PeakColumn(peak: 65535, rms: 0)]), width: 4)
+        let pixels = try Self.render(Self.inputs(session, peaks: [PeakColumn(peak16: 65535, rms16: 0)]), width: 4)
 
         let rows = Self.rows(pixels, column: 0, LanePalette.light.peak)
         #expect(rows.last == 99 && abs((rows.first ?? 0) - 10) <= 1, "\(rows)")
@@ -196,7 +199,7 @@ struct LaneRendererTests {
         try session.addTrack("t1", name: "T1", layout: .mono)
         try session.place(Clip(id: "a", file: "f1", start: 0, offset: 0, length: 384), on: "t1")
         try session.place(Clip(id: "b", file: "f2", start: 384, offset: 0, length: 516), on: "t1")
-        let full = PeakColumn(peak: 65535, rms: 0)
+        let full = PeakColumn(peak16: 65535, rms16: 0)
         let inputs = LaneInputs(
             session: session,
             peaks: [
@@ -218,7 +221,7 @@ struct LaneRendererTests {
     /// rows of lane 2 of a draw of all lanes: the waveform, the band of the selected t2, and the
     /// in line.
     @Test func aDrawOfOneLaneHasTheRowsOfThatLane() throws {
-        let bins = [PeakColumn(peak: 65535, rms: 32768), PeakColumn(peak: 32768, rms: 0), Self.zero]
+        let bins = [PeakColumn(peak16: 65535, rms16: 32768), PeakColumn(peak16: 32768, rms16: 0), Self.zero]
         let inputs = Self.inputs(
             try Self.session(), peaks: bins, marks: Marks(inPoint: 256, outPoint: 768, tracks: ["t2"]))
         let all = try Self.render(inputs, width: 6)
@@ -239,7 +242,7 @@ struct LaneRendererTests {
     @Test func aDrawWritesOnlyInsideItsRect() throws {
         var session = try Self.session(length: 4096)
         try session.setMarker(Marker(id: "m1", name: "M", position: Frames(256 * 5), kind: .marker))
-        let loud = PeakColumn(peak: 65535, rms: 32768)
+        let loud = PeakColumn(peak16: 65535, rms16: 32768)
         let inputs = Self.inputs(
             session, peaks: Array(repeating: loud, count: 16),
             marks: Marks(inPoint: Frames(256 * 2), outPoint: Frames(256 * 11), tracks: ["t1", "t2"]))
@@ -327,7 +330,7 @@ struct LaneRendererTests {
     /// Fades C23: each column has the dB height of the maximum fade factor over its frames, and full
     /// height past the fades. At fit zoom a 0.5 s fade under one column keeps the column full.
     @Test func aFadeShapesTheWaveform() throws {
-        let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
+        let full = Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: 400)
         let pixels = try Self.render(Self.inputs(Self.fadedSession(), peaks: full), width: 400)
         let palette = LanePalette.light
         let misses = (0..<400).filter { column in
@@ -339,7 +342,7 @@ struct LaneRendererTests {
 
         var fit = try Self.session(length: 480_000)
         try fit.setFades(["c1": #require(Fades(fadeIn: 24_000, fadeOut: 24_000))])
-        var inputs = Self.inputs(fit, peaks: Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 1875))
+        var inputs = Self.inputs(fit, peaks: Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: 1875))
         inputs.scale = TimelineScale(framesPerPoint: 96_000)
         let fitPixels = try Self.render(inputs, width: 5)
         let first = (0..<100).filter { [palette.peak, palette.label].contains(fitPixels.pixel(0, $0)) }.count
@@ -351,7 +354,7 @@ struct LaneRendererTests {
     /// Run 11b-1: in this box of 400 pt the gain line continues it with the factor 1 (row 0), and
     /// the fade handles take rows 1 to 6 of columns 97 to 102 and 347 to 352.
     @Test func aFadeLineOnlyInBoxesOf12Points() throws {
-        let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
+        let full = Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: 400)
         var inputs = Self.inputs(try Self.fadedSession(), peaks: full)
         let palette = LanePalette.light
         let pixels = try Self.render(inputs, width: 400)

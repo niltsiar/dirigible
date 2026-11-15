@@ -351,18 +351,24 @@ extension ClipInspection {
     return count
 }
 
+extension PeakColumn {
+    /// Magnitudes of 16 bits, 65535 = 0 dBFS. A value v becomes v x 65537, the same level:
+    /// 65535 x 65537 = `UInt32.max`.
+    init(peak16: UInt16, rms16: UInt16) { self.init(peak: UInt32(peak16) * 65537, rms: UInt32(rms16) * 65537) }
+}
+
 /// The peaks of a mono file of `frames` frames at 48 kHz: random peaks (the same on each run),
 /// RMS at half the peak, at the levels of 256, 4,096, and 65,536 frames per column.
 func randomPeaks(frames: Int) -> Peaks {
     var random = SplitMix(seed: 9)
     let base = (0..<(frames / 256)).map { _ in
         let peak = UInt16.random(in: 0...65535, using: &random)
-        return PeakColumn(peak: peak, rms: peak / 2)
+        return PeakColumn(peak16: peak, rms16: peak / 2)
     }
     func upper(_ factor: Int) -> [PeakColumn] {
         stride(from: 0, to: base.count, by: factor).map { start in
             let bins = base[start..<min(start + factor, base.count)]
-            return PeakColumn(peak32: bins.map(\.peak).max()!, rms32: bins.map(\.rms).max()!)
+            return PeakColumn(peak: bins.map(\.peak).max()!, rms: bins.map(\.rms).max()!)
         }
     }
     return Peaks(

@@ -31,7 +31,7 @@ extension LaneRendererTests {
 
     /// The rows that one column of `value` draws at each range at scale 2 (200 rows).
     static func drawn(_ value: UInt16, at range: WaveformRange) throws -> Int {
-        let bins = [PeakColumn(peak: value, rms: 0)]
+        let bins = [PeakColumn(peak16: value, rms16: 0)]
         let inputs = Self.inputs(try Self.session(), peaks: bins, range: range)
         return Self.peakRows(try Self.render(inputs, width: 4, scale: 2))
     }
@@ -52,7 +52,7 @@ extension LaneRendererTests {
     /// A column at -110 dBFS (13,582 of `UInt32.max`) draws 35 / 145 of the 200 rows at 145 dB: 48 rows,
     /// within one. At 96 dB it draws none: the signal is under the range.
     @Test func aQuietSignalDrawsAt145() throws {
-        let bins = [PeakColumn(peak32: 13_582, rms32: 0)]
+        let bins = [PeakColumn(peak: 13_582, rms: 0)]
         let inputs = Self.inputs(try Self.session(), peaks: bins, range: .db145)
         let rows = Self.peakRows(try Self.render(inputs, width: 4, scale: 2))
         #expect(abs(rows - 48) <= 1, "-110 dBFS at 145 dB drew \(rows) rows")
@@ -93,7 +93,7 @@ extension LaneRendererTests {
     /// The fade line of a column in the fade-in marks the top of the waveform of that column at each
     /// range. Column 10 is at 2816 / 25600 of the fade-in: a factor of 0.172, -15.3 dB.
     @Test func theFadeLineFollowsTheRange() throws {
-        let full = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400)
+        let full = Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: 400)
         let dB = 20 * log10(Self.factor(10 * 256))
         for range in WaveformRange.allCases {
             let inputs = Self.inputs(try Self.fadedSession(), peaks: full, range: range)

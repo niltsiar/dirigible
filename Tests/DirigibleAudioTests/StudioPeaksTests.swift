@@ -166,7 +166,7 @@ struct StudioPeaksTests {
         let second = try await fixture.studio { _ = blocks.next() }
         let peaks = try #require(await waitForPeaks(second))
 
-        #expect(peaks.levels[0][10] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824))
+        #expect(peaks.levels[0][10] == PeakColumn(peak: 1_073_741_824, rms: 1_073_741_824))
         #expect(blocks.calls == 3)
         #expect(fixture.cacheFiles().count == 2)
     }
@@ -243,7 +243,7 @@ struct StudioPeaksTests {
         try studio.redo()
 
         await until(limit: .seconds(30), "f2 has the new peaks") {
-            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824)
+            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 1_073_741_824, rms: 1_073_741_824)
         }
 
         // An undo of the add removes f2; an undo of the removal brings it back.
@@ -253,7 +253,7 @@ struct StudioPeaksTests {
         try studio.undo()
 
         await until(limit: .seconds(30), "f2 has the peaks of the last rewrite") {
-            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak32: 536_870_912, rms32: 536_870_912)
+            peaksOf(studio, "f2")?.levels[0][10] == PeakColumn(peak: 536_870_912, rms: 536_870_912)
         }
     }
 

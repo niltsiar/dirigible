@@ -21,7 +21,7 @@ extension LaneRendererTests {
         return session
     }
 
-    static func fullPeaks() -> [PeakColumn] { Array(repeating: PeakColumn(peak: 65535, rms: 0), count: 400) }
+    static func fullPeaks() -> [PeakColumn] { Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: 400) }
 
     /// The rows of `column` in lane 0 that hold the waveform or the gain line.
     static func drawn(_ pixels: OwnedPixels, column: Int) -> Int {
@@ -131,7 +131,7 @@ extension LaneRendererTests {
                     GainEnvelope.Point(frame: Frames(offset + $0.0), gain: Gain(dB: $0.1)!)
                 }))
         try session.setRides(["c1": ride])
-        let peaks = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: (offset + length) / 256)
+        let peaks = Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: (offset + length) / 256)
         let pixels = try Self.render(Self.inputs(session, peaks: peaks), width: 520)
 
         for (column, dB) in [(150, -6.0), (250, -2.0)] {
@@ -238,7 +238,7 @@ extension LaneRendererTests {
                     GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!)
                 }))
         try session.setRides(["c1": ride, "c2": ride])
-        return Self.inputs(session, peaks: Array(repeating: PeakColumn(peak: 65535, rms: 0), count: length / 256))
+        return Self.inputs(session, peaks: Array(repeating: PeakColumn(peak16: 65535, rms16: 0), count: length / 256))
     }
 
     /// A draw of unchanged clips reads the kept layer gains and walks no layer.

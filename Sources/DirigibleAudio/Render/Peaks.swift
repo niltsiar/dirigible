@@ -8,15 +8,9 @@ public struct PeakColumn: Hashable, Sendable {
     public var peak: UInt32
     public var rms: UInt32
 
-    public init(peak32 peak: UInt32, rms32 rms: UInt32) {
+    public init(peak: UInt32, rms: UInt32) {
         self.peak = peak
         self.rms = rms
-    }
-
-    /// Magnitudes of 16 bits, 65535 = 0 dBFS. A value v becomes v x 65537, the same level:
-    /// 65535 x 65537 = `UInt32.max`.
-    public init(peak: UInt16, rms: UInt16) {
-        self.init(peak32: UInt32(peak) * 65537, rms32: UInt32(rms) * 65537)
     }
 
     public static let zero = PeakColumn(peak: 0, rms: 0)
@@ -145,7 +139,7 @@ func computePeaks(
                     channel += 1
                 }
                 out[bins] = PeakColumn(
-                    peak32: quantize(peak), rms32: quantize((squares / Float(Int(length) * channels)).squareRoot()))
+                    peak: quantize(peak), rms: quantize((squares / Float(Int(length) * channels)).squareRoot()))
                 bins += 1
                 start += 256
             }
@@ -173,7 +167,7 @@ private func upperLevel(_ base: [PeakColumn], _ factor: Int) -> [PeakColumn] {
                     squares += Double(bins[bin].rms) * Double(bins[bin].rms)
                 }
                 out[index / factor] = PeakColumn(
-                    peak32: peak, rms32: UInt32((squares / Double(end - index)).squareRoot().rounded()))
+                    peak: peak, rms: UInt32((squares / Double(end - index)).squareRoot().rounded()))
                 index = end
             }
         }

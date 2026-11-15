@@ -175,8 +175,11 @@ extension StartLimitTests {
     }
 
     /// A Stop right after Record, while the first attach of `box` waits: the start returns at the
-    /// stop, `box` is given up, and the healthy `mic` finishes, so the take finalizes.
-    @Test func aStopRightAfterAHeldStartFinalizesTheHealthyWriters() async throws {
+    /// stop, `box` is given up, and the healthy `mic` finishes, so the take finalizes. Slow: the
+    /// 2 s wall bound also times the main-actor and pool steps of the stop, which wait behind the
+    /// CPU work of parallel tests.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aStopRightAfterAHeldStartFinalizesTheHealthyWriters() async throws {
         let hal = hal()
         hal.holdAttach("box")
         defer { hal.releaseAttach("box") }
@@ -190,6 +193,31 @@ extension StartLimitTests {
         try await started.value
         await mics.wait()
         #expect(took < .seconds(2), "the stop returned after \(took)")
+        #expect(error == nil)
+        #expect(studio.lastTake?.gaps["t2"] == .deviceLost)
+        #expect(!clipFrames(studio, "t1").isEmpty, "no clip of t1")
+        hal.releaseAttach("box")
+        await studio.settle()
+    }
+
+    /// A Stop right after Record, while the first attach of `box` waits, cuts the wait of the
+    /// start: the stop returns while the attach still waits, and the take finalizes with `box`
+    /// given up and a clip of `mic`. A release of `box` by the wait of `stop` is an issue. The
+    /// start limit is longer than that wait, so only the cut ends the start step before it.
+    @Test func aStopCutsTheHeldStartWaitAndFinalizesTheHealthyWriters() async throws {
+        let hal = hal()
+        hal.holdAttach("box")
+        defer { hal.releaseAttach("box") }
+        let studio = try await studio(hal, start: .seconds(120), stop: limit)
+        let mics = play(hal, "mic")
+        let started = Task { try await studio.startRecording(armed: ["t1", "t2"], playhead: 0) }
+        await until(limit: busy, "the take did not begin") { studio.transport == .recording(take: 1) }
+        await until(limit: busy, "the first attach of box did not wait") { hal.heldAttachCount("box") >= 1 }
+        await until(limit: busy, "mic wrote no audio") { (studio.writer("mic")?.wavBytes ?? 0) > 0 }
+
+        let (error, _) = await stop(studio, wait: busy) { hal.releaseAttach("box") }
+        try await started.value
+        await mics.wait()
         #expect(error == nil)
         #expect(studio.lastTake?.gaps["t2"] == .deviceLost)
         #expect(!clipFrames(studio, "t1").isEmpty, "no clip of t1")

@@ -99,8 +99,10 @@ struct StartLimitTests {
     }
 
     /// Stops the take and returns its error and the time from the call to the return. A stop that
-    /// does not return in 5 s is an issue; then `release` lets it end.
-    func stop(_ studio: Studio, release: () -> Void) async -> (error: StudioError?, took: Duration) {
+    /// does not return in `wait` (counted as `until` counts it) is an issue; then `release` lets it end.
+    func stop(
+        _ studio: Studio, wait: Duration = .seconds(5), release: () -> Void
+    ) async -> (error: StudioError?, took: Duration) {
         let done = Done()
         let watch = ContinuousClock.now
         let task = Task { @MainActor () -> (StudioError?, Duration) in
@@ -109,7 +111,7 @@ struct StartLimitTests {
             done.value = true
             return (error, ContinuousClock.now - watch)
         }
-        await until(limit: .seconds(5), "the stop waits for a held writer") { done.value }
+        await until(limit: wait, "the stop waits for a held writer") { done.value }
         if !done.value { release() }
         return await task.value
     }

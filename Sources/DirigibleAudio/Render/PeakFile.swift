@@ -77,8 +77,8 @@ public enum PeakFile {
                 (0..<Int(count)).map { _ in
                     defer { offset += binBytes }
                     return PeakColumn(
-                        peak32: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset, as: UInt32.self)),
-                        rms32: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 4, as: UInt32.self)))
+                        peak: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset, as: UInt32.self)),
+                        rms: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 4, as: UInt32.self)))
                 }
             }
             return Peaks(

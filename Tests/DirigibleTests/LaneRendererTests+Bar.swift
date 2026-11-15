@@ -12,8 +12,8 @@ import Testing
 /// 92 to 100 pt, rows 0 to 8 pt, so the tests read the columns between them.
 @MainActor struct LaneRendererBarTests {
     nonisolated static let palettes = [LanePalette.light, LanePalette.dark(accent: 0xFFFF_2D55)]
-    static let quiet = PeakColumn(peak: 0, rms: 0)
-    static let loud = PeakColumn(peak: 65535, rms: 0)
+    static let quiet = PeakColumn(peak16: 0, rms16: 0)
+    static let loud = PeakColumn(peak16: 65535, rms16: 0)
 
     /// `c1` of `frames` frames, with the fades and the envelope when given.
     static func session(

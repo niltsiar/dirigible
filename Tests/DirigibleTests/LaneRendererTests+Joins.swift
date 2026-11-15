@@ -11,7 +11,7 @@ import Testing
 /// the columns 99 and 100 at scale 1. Every peak is full scale, so the waveform runs the whole
 /// lane height and covers the box: only a pass after the waveform shows the join.
 struct LaneRendererJoinTests {
-    static let full = PeakColumn(peak: 65535, rms: 32768)
+    static let full = PeakColumn(peak16: 65535, rms16: 32768)
 
     /// Two tracks with A and B each. `lengths` are the frames of A and B, `gap` the frames
     /// between them.

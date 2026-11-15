@@ -24,7 +24,7 @@ struct LaneRendererSelectionTests {
     }
 
     static func render(_ selection: Selection, _ palette: LanePalette) throws -> OwnedPixels {
-        let bins = (0..<200).map { PeakColumn(peak: UInt16(200 * $0), rms: UInt16(100 * $0)) }
+        let bins = (0..<200).map { PeakColumn(peak16: UInt16(200 * $0), rms16: UInt16(100 * $0)) }
         var inputs = LaneRendererTests.inputs(try session(), peaks: bins)
         inputs.selection = selection
         let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 220, scale: 1)))

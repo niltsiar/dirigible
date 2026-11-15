@@ -51,7 +51,7 @@ struct PeakComputeBenchmark {
         let frames = 345_600_000
         let levels = Peaks.binFrames.map { bin in
             [PeakColumn](
-                repeating: PeakColumn(peak32: 2_147_483_648, rms32: 1_073_741_824), count: (frames + bin - 1) / bin)
+                repeating: PeakColumn(peak: 2_147_483_648, rms: 1_073_741_824), count: (frames + bin - 1) / bin)
         }
         let peaks = Peaks(
             frames: Frames(frames), stamp: FileStamp(size: 0, seconds: 0, nanoseconds: 0), channels: 1,

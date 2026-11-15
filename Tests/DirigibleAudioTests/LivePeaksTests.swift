@@ -26,7 +26,7 @@ struct LivePeaksTests {
         return host(from)..<host(to)
     }
 
-    func column(_ peak: UInt32, _ rms: UInt32) -> PeakColumn { PeakColumn(peak32: peak, rms32: rms) }
+    func column(_ peak: UInt32, _ rms: UInt32) -> PeakColumn { PeakColumn(peak: peak, rms: rms) }
 
     // MARK: C4
 

@@ -12,7 +12,7 @@ import Testing
 struct GainLineRendererTests {
     /// A DC signal at 0 dBFS: every level-0 bin at full scale.
     static func full(_ frames: Int) -> [PeakColumn] {
-        Array(repeating: PeakColumn(peak: 65535, rms: 65535), count: frames / 256)
+        Array(repeating: PeakColumn(peak16: 65535, rms16: 65535), count: frames / 256)
     }
 
     /// The pixels of a draw of 220 pt at scale 2 of t1 and t2, each with a clip of `points` pt of

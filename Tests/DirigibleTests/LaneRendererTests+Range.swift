@@ -60,6 +60,17 @@ extension LaneRendererTests {
         #expect(Self.peakRows(try Self.render(shallow, width: 4, scale: 2)) == 0, "-110 dBFS is under 96 dB")
     }
 
+    /// The random peaks of the renderer property tests reach the whole UInt32 range: peaks under
+    /// -96 dBFS (65537 of `UInt32.max`) and over -6 dBFS, peaks that are no multiple of 65537, and
+    /// each RMS at or under its peak.
+    @Test func theRandomPeaksCoverTheUInt32Range() {
+        let bins = randomPeaks(frames: 2_000_000).levels[0]
+        #expect(bins.contains { $0.peak > 0 && $0.peak < 65537 }, "no peak under -96 dBFS")
+        #expect(bins.contains { $0.peak > UInt32.max / 2 }, "no peak over -6 dBFS")
+        #expect(bins.contains { $0.peak % 65537 != 0 }, "each peak is a multiple of 65537")
+        #expect(bins.allSatisfy { $0.rms <= $0.peak })
+    }
+
     /// A column at -1.0 dBFS (58409) draws (R - 1) / R of the 200 rows: the range reads a level and
     /// never adds a gain, so the top of a loud signal stays under the lane top.
     @Test func theZoomNeverCutsTheTop() throws {

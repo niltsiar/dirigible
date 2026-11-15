@@ -357,13 +357,15 @@ extension PeakColumn {
     init(peak16: UInt16, rms16: UInt16) { self.init(peak: UInt32(peak16) * 65537, rms: UInt32(rms16) * 65537) }
 }
 
-/// The peaks of a mono file of `frames` frames at 48 kHz: random peaks (the same on each run),
-/// RMS at half the peak, at the levels of 256, 4,096, and 65,536 frames per column.
+/// The peaks of a mono file of `frames` frames at 48 kHz: random peaks (the same on each run), and
+/// a random RMS at or under each peak, at the levels of 256, 4,096, and 65,536 frames per column.
+/// A peak is a random UInt32 shifted right by 0 to 31 bits, so each level from 0 dBFS down to the
+/// lowest step occurs, not only the top 96 dB of a uniform draw.
 func randomPeaks(frames: Int) -> Peaks {
     var random = SplitMix(seed: 9)
     let base = (0..<(frames / 256)).map { _ in
-        let peak = UInt16.random(in: 0...65535, using: &random)
-        return PeakColumn(peak16: peak, rms16: peak / 2)
+        let peak = UInt32.random(in: 0...UInt32.max, using: &random) >> UInt32.random(in: 0...31, using: &random)
+        return PeakColumn(peak: peak, rms: UInt32.random(in: 0...peak, using: &random))
     }
     func upper(_ factor: Int) -> [PeakColumn] {
         stride(from: 0, to: base.count, by: factor).map { start in

@@ -134,6 +134,44 @@ struct PeakComputeTests {
         #expect(peaks.levels[0].count == (real + 255) / 256)
     }
 
+    /// An imported 32-bit float WAV can hold a NaN sample. 1024 frames of 0.25 with a NaN at
+    /// frame 300: the compute does not trap, the RMS of bin 1 is 0, and the other bins keep 0.25.
+    @Test func aNaNSampleInAFloatWAVDoesNotTrap() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "nan.wav")
+        var samples = [Float](repeating: 0.25, count: 1024)
+        samples[300] = .nan
+        do {
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true,
+            ]
+            let file = try AVAudioFile(
+                forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 1024))
+            buffer.frameLength = 1024
+            buffer.floatChannelData![0].update(from: samples, count: 1024)
+            try file.write(from: buffer)
+        }
+
+        let peaks = try await computePeaks(try AVAudioFile(forReading: url), stamp: Self.stamp) { .go }
+
+        let quarter = PeakColumn(peak32: 1_073_741_824, rms32: 1_073_741_824)
+        #expect(peaks.levels[0].count == 4)
+        #expect([peaks.levels[0][0], peaks.levels[0][2], peaks.levels[0][3]] == [quarter, quarter, quarter])
+        #expect(peaks.levels[0][1].rms == 0)
+    }
+
+    /// A value at or below 0, and NaN, is 0; a value at or above 1 is `UInt32.max`.
+    @Test(
+        arguments: [
+            (.nan, 0), (-.nan, 0), (-0.5, 0), (-.infinity, 0), (0, 0), (0.25, 1_073_741_824), (1, .max), (2, .max),
+            (.infinity, .max),
+        ] as [(Float, UInt32)])
+    func quantizeNeverTraps(value: Float, expected: UInt32) {
+        #expect(quantize(value) == expected)
+    }
+
     @Test func aStopEndsTheCompute() async throws {
         let package = try MixPackage()
         try package.addFile("a", channels: [[Float](repeating: 0.25, count: 48_000)])

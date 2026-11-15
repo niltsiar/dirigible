@@ -39,15 +39,22 @@ struct PeakFileTests {
         return data
     }
 
-    /// A cache file of version 1 on the disk is a miss, and the write of the peaks replaces it.
-    @Test func aVersion1FileIsAMiss() async throws {
+    /// The name of a cache file of version 1: the escaped pool path, the size, the seconds, and
+    /// the nanoseconds of the stamp, then `.peaks`.
+    static func version1Name(_ escapedPath: String, _ stamp: FileStamp) -> String {
+        "\(escapedPath)-\(stamp.size)-\(stamp.seconds)-\(stamp.nanoseconds).peaks"
+    }
+
+    /// Decision 0024 P5: a cache file of version 1 on the disk is a miss, and the write of
+    /// version 2 goes to another name, so the file of a version 1 build stays as it is.
+    @Test func aVersion1FileIsAMissAndStaysNextToVersion2() async throws {
         let folder = try TemporaryFolder()
         let cache = folder.url.appending(path: "Peaks")
         let peaks = try await Self.peaks()
         let old = Self.version1(peaks)
-        let name = PeakFile.name(path: "a.wav", stamp: Self.stamp)
+        let oldName = Self.version1Name("a.wav", Self.stamp)
         try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
-        try old.write(to: cache.appending(path: name))
+        try old.write(to: cache.appending(path: oldName))
 
         #expect(old.count == 64 + 4 * peaks.levels.map(\.count).reduce(0, +))
         #expect(Self.decode(old) == nil, "a version 1 file decodes")
@@ -55,7 +62,9 @@ struct PeakFileTests {
 
         try PeakFile.write(peaks, path: "a.wav", in: cache)
 
-        #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path) == [name])
+        let newName = "a.wav-1036804096-1790293732-540000123.v2.peaks"
+        #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path).sorted() == [oldName, newName])
+        #expect(try Data(contentsOf: cache.appending(path: oldName)) == old)
         #expect(PeakFile.read(path: "a.wav", stamp: Self.stamp, channels: 1, rate: 48_000, in: cache) == peaks)
     }
 
@@ -170,13 +179,13 @@ struct PeakFileTests {
 
         #expect(Set(names).count == paths.count)
         for (path, name) in zip(paths, names) {
-            #expect(name.hasSuffix("-1036804096-1790293732-540000123.peaks"))
+            #expect(name.hasSuffix("-1036804096-1790293732-540000123.v2.peaks"))
             #expect(!name.contains("/"))
             for other in paths where other != path {
                 #expect(!name.hasPrefix(PeakFile.escape(other) + "-"), "\(name) against \(other)")
             }
         }
-        #expect(names[0] == "a%2D1.wav-1036804096-1790293732-540000123.peaks")
+        #expect(names[0] == "a%2D1.wav-1036804096-1790293732-540000123.v2.peaks")
     }
 
     @Test func aWriteThenAReadGivesThePeaks() async throws {

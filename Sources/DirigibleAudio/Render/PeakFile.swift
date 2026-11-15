@@ -3,8 +3,9 @@ import Foundation
 
 /// The peak cache file, version 2 (decision 0017): a 64-byte little-endian header, then the bins
 /// of each level as a UInt32 peak and a UInt32 RMS. The cache file is a boundary: the reader
-/// refuses a file whose fields do not match the WAV, and a refusal is a miss. A file of version 1
-/// (UInt16 values) has the same name, so the pass computes the peaks again and replaces it.
+/// refuses a file whose fields do not match the WAV, and a refusal is a miss. The name holds the
+/// version (decision 0024 P5), so a build of version 1 (UInt16 values) does not read or write the
+/// file of version 2, and the pass computes the peaks again next to a file of version 1.
 public enum PeakFile {
     /// The cache folder of the command-line front end, the folder of the app of the real ID.
     public static let folder = folder(bundleID: "com.delineas.dirigible", caches: .cachesDirectory)
@@ -28,7 +29,7 @@ public enum PeakFile {
     static func escape(_ path: String) -> String { path.addingPercentEncoding(withAllowedCharacters: kept)! }
 
     static func name(path: String, stamp: FileStamp) -> String {
-        "\(escape(path))-\(stamp.size)-\(stamp.seconds)-\(stamp.nanoseconds).peaks"
+        "\(escape(path))-\(stamp.size)-\(stamp.seconds)-\(stamp.nanoseconds).v\(version).peaks"
     }
 
     static func encode(_ peaks: Peaks) -> Data {

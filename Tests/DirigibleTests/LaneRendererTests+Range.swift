@@ -71,6 +71,20 @@ extension LaneRendererTests {
         #expect(bins.allSatisfy { $0.rms <= $0.peak })
     }
 
+    /// The bench peaks are a uniform 16-bit draw with the RMS at half the peak, so the times of the
+    /// benches compare across commits. Each value is the 16-bit value times 65537.
+    @Test func theBenchPeaksKeepTheirInput() {
+        let peaks = benchPeaks(frames: 65_536)
+        let first = peaks.levels[0].prefix(4).map { [$0.peak, $0.rms] }
+        #expect(
+            first == [
+                [1_617_191_012, 808_595_506], [3_932_351_074, 1_966_175_537],
+                [2_310_441_398, 1_155_220_699], [1_616_928_864, 808_464_432],
+            ])
+        #expect(peaks.levels[1][0].peak == 4_047_368_509 && peaks.levels[1][0].rms == 2_023_651_486)
+        #expect(peaks.levels[2][0].peak == 4_286_250_874 && peaks.levels[2][0].rms == 2_143_125_437)
+    }
+
     /// A column at -1.0 dBFS (58409) draws (R - 1) / R of the 200 rows: the range reads a level and
     /// never adds a gain, so the top of a loud signal stays under the lane top.
     @Test func theZoomNeverCutsTheTop() throws {

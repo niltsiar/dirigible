@@ -133,7 +133,7 @@ import Testing
     /// A label is as tall as its text and the draw keeps it inside its lane, so the 0 dB label sits
     /// below the lane top. No two labels of a lane overlap as drawn, at each range and lane height.
     @Test func theLabelsDoNotOverlapAsDrawn() {
-        let text = NSAttributedString(string: "-96", attributes: [.font: WaveformScaleStrip.labelFont])
+        let text = NSAttributedString(string: "96", attributes: [.font: NSFont.systemFont(ofSize: 8)])
         #expect(WaveformScaleStrip.labelHeight >= text.size().height, "the label height is the text height")
         for range in WaveformRange.allCases {
             for height in LaneHeight.steps where height >= WaveformScaleStrip.labelsFrom {
@@ -146,18 +146,29 @@ import Testing
         }
     }
 
-    /// A label fits the room left of its tick at each range: "-145" is wider than the room at 8 pt, so
-    /// its font shrinks, and a short label keeps 8 pt.
-    @Test func everyLabelFitsTheStrip() {
+    /// A label is the dB under full scale with no minus sign. Each range draws its labels in one
+    /// font: 8 pt when each label fits the room left of its tick, else the largest size in steps of
+    /// 0.25 pt at which the widest label fits, and never under 7 pt.
+    @Test func eachRangeDrawsItsLabelsInOneFontOf7PointsOrMore() {
+        func texts(_ range: WaveformRange) -> [String] {
+            WaveformScaleStrip.ticks(range: range, laneHeight: 100).map { WaveformScaleStrip.labelText(dB: $0.dB) }
+        }
+        func width(_ text: String, _ size: Double) -> Double {
+            NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: size)]).size().width
+        }
+        #expect(texts(.db60) == ["0", "6", "12", "24", "60"])
+        #expect(texts(.db145) == ["0", "6", "12", "24", "145"])
+        #expect(WaveformScaleStrip.labelFont(range: .db60).pointSize == 8)
         for range in WaveformRange.allCases {
-            for tick in WaveformScaleStrip.ticks(range: range, laneHeight: 100) {
-                let name = String(Int(tick.dB))
-                let font = WaveformScaleStrip.font(for: name)
-                let width = NSAttributedString(string: name, attributes: [.font: font]).size().width
-                #expect(width <= WaveformScaleStrip.labelRoom, "\(name) at \(range.rawValue) dB is \(width) pt wide")
+            let size = WaveformScaleStrip.labelFont(range: range).pointSize
+            #expect(size >= 7 && size <= 8, "\(range.rawValue) dB: \(size) pt")
+            let widest = texts(range).map { width($0, size) }.max() ?? 0
+            #expect(widest <= WaveformScaleStrip.labelRoom, "\(range.rawValue) dB: \(widest) pt at \(size) pt")
+            if size < 8 {
+                let larger = texts(range).map { width($0, size + 0.25) }.max() ?? 0
+                #expect(larger > WaveformScaleStrip.labelRoom, "\(range.rawValue) dB: \(size + 0.25) pt fits")
             }
         }
-        #expect(WaveformScaleStrip.font(for: "-6") == WaveformScaleStrip.labelFont)
     }
 
     /// The strip draws at the first draw and at a change of the range, the lane height, or the lane

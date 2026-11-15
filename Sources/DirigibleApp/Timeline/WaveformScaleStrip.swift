@@ -21,7 +21,9 @@ final class WaveformScaleStrip: NSView {
     /// The lane height from which the ticks have labels.
     static let labelsFrom = 48.0
     private static let tick = 4.0
-    static let labelFont = NSFont.systemFont(ofSize: 8)
+    /// The label size when each label of the range fits; else the labels shrink to `labelFloor` at most.
+    static let labelSize = 8.0
+    static let labelFloor = 7.0
     static let labelHeight = 10.0
     /// The width of a label: the strip width less the edge pixel, the tick, and a 1 pt gap.
     static let labelRoom = width - 1 - tick - 1
@@ -87,13 +89,19 @@ final class WaveformScaleStrip: NSView {
         return shown
     }
 
-    /// The font of a label: `labelFont`, smaller in steps of 0.25 pt for a text that is wider than
-    /// `labelRoom` ("-145"). The glyph widths do not scale in line with the size, so it measures.
-    static func font(for text: String) -> NSFont {
-        var font = labelFont
-        while NSAttributedString(string: text, attributes: [.font: font]).size().width > labelRoom {
-            font = NSFont.systemFont(ofSize: font.pointSize - 0.25)
+    /// The label of a tick: the dB under full scale, with no minus sign, so "145" fits the strip.
+    static func labelText(dB: Double) -> String { String(Int(-dB)) }
+
+    /// The one font of the labels of `range`: `labelSize`, else the largest size in steps of 0.25 pt
+    /// at which the widest label fits `labelRoom`, and not under `labelFloor`. The glyph widths do
+    /// not scale in line with the size, so it measures.
+    static func labelFont(range: WaveformRange) -> NSFont {
+        let texts = ticks(range: range, laneHeight: 1).map { labelText(dB: $0.dB) }
+        func fits(_ font: NSFont) -> Bool {
+            texts.allSatisfy { NSAttributedString(string: $0, attributes: [.font: font]).size().width <= labelRoom }
         }
+        var font = NSFont.systemFont(ofSize: labelSize)
+        while font.pointSize > labelFloor, !fits(font) { font = NSFont.systemFont(ofSize: font.pointSize - 0.25) }
         return font
     }
 
@@ -110,10 +118,18 @@ final class WaveformScaleStrip: NSView {
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let color = contrast ? NSColor.labelColor : NSColor.secondaryLabelColor
         let ticks = Self.ticks(range: inputs.range, laneHeight: inputs.laneHeight)
-        let labels = Self.labelled(range: inputs.range, laneHeight: inputs.laneHeight)
         let first = max(0, Int(((top + dirtyRect.minY) / inputs.laneHeight).rounded(.down)))
         let last = min(inputs.lanes - 1, Int(((top + dirtyRect.maxY) / inputs.laneHeight).rounded(.down)))
         guard first <= last else { return }
+        let font = Self.labelFont(range: inputs.range)
+        // The labels and their place in a lane, measured one time for all lanes.
+        let labels = Self.labelled(range: inputs.range, laneHeight: inputs.laneHeight).map { label in
+            let text = NSAttributedString(
+                string: Self.labelText(dB: label.dB), attributes: [.font: font, .foregroundColor: color])
+            let size = text.size()
+            let center = Self.labelCenter(y: label.y, laneHeight: inputs.laneHeight)
+            return (text: text, x: bounds.maxX - 1 - Self.tick - 1 - size.width, y: center - size.height / 2)
+        }
         color.setStroke()
         let path = NSBezierPath()
         path.lineWidth = 1
@@ -125,14 +141,7 @@ final class WaveformScaleStrip: NSView {
                 path.move(to: NSPoint(x: bounds.maxX - 1 - Self.tick, y: y))
                 path.line(to: NSPoint(x: bounds.maxX - 1, y: y))
             }
-            for label in labels {
-                let name = String(Int(label.dB))
-                let text = NSAttributedString(
-                    string: name, attributes: [.font: Self.font(for: name), .foregroundColor: color])
-                let size = text.size()
-                let y = origin + Self.labelCenter(y: label.y, laneHeight: inputs.laneHeight) - size.height / 2
-                text.draw(at: NSPoint(x: bounds.maxX - 1 - Self.tick - 1 - size.width, y: y))
-            }
+            for label in labels { label.text.draw(at: NSPoint(x: label.x, y: origin + label.y)) }
         }
         path.stroke()
     }

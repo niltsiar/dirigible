@@ -2345,11 +2345,12 @@ if case_block agent-guard; then
 # The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
 # not fit the run layout, and its creation can set the hooks path of the shared git config. It also
 # refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path, and a
-# brief with a lock step while a release call holds the build lock, and a delegate_task to a provider
+# brief with a lock step while a long call holds the build lock, and a delegate_task to a provider
 # before its recorded rate-limit reset.
 agent_hook="$(dirname "$0")/agent-guard.sh"
-# The hooks pass and the push check run this file as a release call, so a case of the real repo
-# must name no lock step: the real --release-holder would see that holder. The pattern is lock_re of
+# The hooks pass and the push check run this file as a release call, and a bench can hold the lock,
+# so a case of the real repo must name no lock step: the real --long-holder would see that holder.
+# The lock-step cases below use a temp repo with a fake lock state. The pattern is lock_re of
 # agent-guard.sh, read from its line with the lists of scripts/lock-words.sh.
 lock_words_src="$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh"
 real_lock_re="$(bash -c ". '$lock_words_src'; $(sed -n '/^lock_re=/p' "$(dirname "$0")/agent-guard.sh"); printf '%s' \"\$lock_re\"")"
@@ -2581,11 +2582,13 @@ agent_hook="$ag_real_hook"
 # that no release-wait case reads.
 DIRIGIBLE_LOCK_AGENTS="$tmp/ag-records"
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
-# While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief
-# that names a lock step, unless a line of the brief says Build lock: none. The cases run a copy of
-# the hook in a temp repo, so the real lock state does not change them.
+# While a release call holds the build lock or waits first for it, or a bench, a mutation pass, a
+# flake loop, or a stress lane holds it, or a bench marker is live (with-lock.sh --long-holder),
+# agent-guard.sh refuses a brief that names a lock step, unless a line of the brief says Build lock:
+# none. The cases run a copy of the hook in a temp repo, so the real lock state does not change them.
 lock_dir_src="$(cd "$(dirname "$0")" && pwd)"
 lock_repo="$tmp/lock-repo" lock_dir="$tmp/lock-repo/.git/dirigible-build.lock" lock_first="$tmp/lock-repo/.git/dirigible-build-first"
+lock_marks="$tmp/lock-repo/.git/dirigible-bench-marks"
 mkdir -p "$lock_repo/.claude/hooks" "$lock_repo/scripts"
 git -C "$lock_repo" init -q
 cp "$lock_dir_src/agent-guard.sh" "$lock_dir_src/commit-files.awk" "$lock_repo/.claude/hooks/"
@@ -2599,12 +2602,12 @@ lock_leader=$!
 set +m
 wait "$lock_leader"
 lock_member="$(cat "$tmp/lock-member")"
-# lock_state <release|lane|dead-release|dead-release-child|dead-release-group|ordinary|bench|ticket|dead-ticket|free>:
+# lock_state <release|lane|dead-release|dead-release-child|dead-release-group|ordinary|bench|mutation|ticket|dead-ticket|marker|free>:
 # the live pid is that of this shell; the dead pid is that of an ended subshell.
 lock_state() {
-  rm -rf "$lock_dir" "$lock_first"
+  rm -rf "$lock_dir" "$lock_first" "$lock_marks"
   case "$1" in
-    release | lane | dead-release | dead-release-child | dead-release-group | ordinary | bench)
+    release | lane | dead-release | dead-release-child | dead-release-group | ordinary | bench | mutation)
       mkdir -p "$lock_dir"
       case "$1" in dead-release*) echo "$lock_dead" > "$lock_dir/pid" ;; *) echo "$$" > "$lock_dir/pid" ;; esac
       case "$1" in
@@ -2614,11 +2617,13 @@ lock_state() {
       case "$1" in
         ordinary) echo 'make build' > "$lock_dir/command" ;;
         bench) echo 'scripts/bench.sh' > "$lock_dir/command" ;;
+        mutation) echo '.claude/skills/deliver/scripts/mutation-pass.sh /t/wt' > "$lock_dir/command" ;;
         lane) echo 'scripts/test-stress.sh --runs 1 out' > "$lock_dir/command" ;;
         *) : > "$lock_dir/release"; echo 'make check-changed BASE=origin/main' > "$lock_dir/command" ;;
       esac ;;
     ticket) mkdir -p "$lock_first/$$" ;;
     dead-ticket) mkdir -p "$lock_first/$lock_dead" ;;
+    marker) mkdir -p "$lock_marks" && printf '\n1\n/t/bench\n' > "$lock_marks/$$" ;;
   esac
 }
 # expect_lock_brief <want> <lock state> <tool name> <field> <text>
@@ -2657,7 +2662,8 @@ lock_allows=($'Run `swift build`.\nBuild lock: none'
   "$lock_step"$'\nBuild lock: none' $'Build lock: none.\nNever call scripts/with-lock.sh.'
   'Run make lint and make format.' 'Read scripts/bench-pairs.test.sh and the makefile text.'
   'Read plan.md and review it.' 'Run `scripts/with-lock.sh --builders` to list the trees.'
-  'Run `scripts/with-lock.sh --release-holder` first.' 'Run make check-docs and make lint.' 'Run make check-fast.'
+  'Run `scripts/with-lock.sh --release-holder` first.' 'Run `scripts/with-lock.sh --long-holder` first.'
+  'Run make check-docs and make lint.' 'Run make check-fast.'
   'Read the Makefile target make-check-docs.' 'The tests build a remake test fixture.'
   'Run make -C . check-docs.' 'Run make -j4 lint.' 'Run make -C dir format.' 'Run make -s check-fast.' $'Run make\t-C\t.\tlint.'
   'Run make FILTER=x check-docs.' 'Run make -n.' 'Run make lint check-docs.' 'Run make format check-fast.')
@@ -2671,8 +2677,26 @@ for state in release ticket; do
   expect_lock_brief block "$state" mcp__t3-code__delegate_task task "$lock_step"
   for text in "${lock_allows[@]}"; do expect_lock_brief allow "$state" Agent prompt "$text"; done
 done
-# No release holder and no live ticket: the brief keeps its verdict. A bench holder has no marker.
-for state in dead-release ordinary bench dead-ticket free; do
+# A bench holder, a mutation-pass holder, and a live bench marker refuse a lock-step brief too, and
+# a Build lock: none line passes it.
+for state in bench mutation marker; do
+  expect_lock_brief block "$state" Agent prompt "$lock_step"
+  expect_lock_brief block "$state" SendMessage message "$lock_step"
+  expect_lock_brief block "$state" mcp__t3-code__delegate_task task "$lock_step"
+  expect_lock_brief allow "$state" Agent prompt "$lock_step"$'\nBuild lock: none'
+done
+expect_lock_brief block bench Agent prompt "$lock_step"
+grep -qF '(holder: scripts/bench.sh)' "$tmp/agent-err" && grep -qF 'add the line Build lock: none' "$tmp/agent-err" && grep -qF 'a bench' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message for a bench holder does not name the holder and the Build lock: none line: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+# A closing-agent brief (deliver Phase 7) beside a mutation pass that the lead started: refused, and
+# passed with a Build lock: none line.
+closing_brief='Run Phase 7 up to scripts/check-governance.sh, with scripts/with-lock.sh make build for the CLI.'
+expect_lock_brief block mutation Agent prompt "$closing_brief"
+grep -qF 'mutation-pass.sh' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message for a mutation-pass holder does not name it: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+expect_lock_brief allow mutation Agent prompt "$closing_brief"$'\nBuild lock: none'
+# No long holder and no live ticket: the brief keeps its verdict.
+for state in dead-release ordinary dead-ticket free; do
   expect_lock_brief allow "$state" Agent prompt "$lock_step"
   expect_lock_brief allow "$state" SendMessage message "$lock_step"
 done
@@ -2700,13 +2724,17 @@ for state in free release; do
   expect_lock_brief block "$state" Agent prompt 'Commit with git commit -F msg.txt at the end.'
   expect_lock_brief allow "$state" Agent prompt 'Commit with git commit -F .scratchpads/commit-msg.txt at the end.'
 done
-# A query that exits other than 0 or 1 (a failing or a missing with-lock.sh) lets the brief pass.
-for stub in 'exit 2' 'exit 127'; do
-  printf '#!/bin/bash\n%s\n' "$stub" > "$lock_repo/scripts/with-lock.sh"
-  expect_lock_brief allow release Agent prompt "$lock_step"
+# A query that exits other than 0 or 1 (a failing or a missing with-lock.sh) refuses a lock-step
+# brief, and the message names the status: a pass would turn the guard off. Build lock: none passes.
+for stub in 'exit 2' 'exit 127' missing; do
+  if [[ "$stub" == missing ]]; then rm -f "$lock_repo/scripts/with-lock.sh"; want='exited 127'
+  else printf '#!/bin/bash\n%s\n' "$stub" > "$lock_repo/scripts/with-lock.sh"; want="exited ${stub#exit }"; fi
+  expect_lock_brief block free Agent prompt "$lock_step"
+  grep -qF "scripts/with-lock.sh --long-holder $want" "$tmp/agent-err" && grep -qF 'add the line Build lock: none' "$tmp/agent-err" ||
+    { echo "FAIL: agent-guard, query $stub: the message does not name the status ($want) and Build lock: none: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+  expect_lock_brief allow free Agent prompt "$lock_step"$'\nBuild lock: none'
+  expect_lock_brief allow free Agent prompt 'Read plan.md and review it.'
 done
-rm -f "$lock_repo/scripts/with-lock.sh"
-expect_lock_brief allow release Agent prompt "$lock_step"
 cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_dir_src/../../scripts/lock-words.sh" "$lock_repo/scripts/"
 # The lists of the hook equal their sources: lock_targets the Makefile .PHONY line minus the four
 # make targets that take no lock (lock_free_targets), and lock_scripts the scripts that AGENTS.md says take the lock

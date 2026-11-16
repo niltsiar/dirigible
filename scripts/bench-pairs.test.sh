@@ -89,6 +89,26 @@ out="$("$pairs" --compare "$tmp/none" 2>&1)"
 code=$?
 [[ $code -eq 1 && "$out" == *'main-1: the bench failed'* ]] || fail "a failed bench: exit $code: $out"
 
+# A void run (bench.sh exit 76) ends a pair run. --compare reads the void line of load.txt before
+# it looks for the aa logs and the pairs, so a void at aa-1, aa-2, or main-1 prints only the void.
+void_set() { # void_set <run> <reason>: the logs before <run>, its void log, and load.txt
+  local d="$tmp/void-$1" r
+  mkdir "$d"
+  for r in aa-1 aa-2 main-1; do
+    [[ $r != "$1" ]] || break
+    log "$d/$r.log" 10 10
+    echo "$r 12:00:00 start 1.00 end 1.00" >> "$d/load.txt"
+  done
+  printf 'bench: commit %s tree clean filter X\nbench: void: %s\n' "$main" "$2" > "$d/$1.log"
+  printf '%s 12:00:00 start - end -\n%s: the bench is void: bench: void: %s\n' "$1" "$1" "$2" >> "$d/load.txt"
+  out="$("$pairs" --compare "$d" 2>&1)"
+  code=$?
+  [[ $code -eq 1 && "$out" == "NO VERDICT: $1 is void ($2)" ]] || fail "a void at $1: exit $code: $out"
+}
+void_set aa-1 'load 9.00 after 300 s, not under 8; no timed run'
+void_set aa-2 'a test of another tree runs after 300 s (pid 7: x); no timed run'
+void_set main-1 'load 8.50 after the timed run, not under 8'
+
 # A bench that fails only its budget asserts prints its samples and a report line of 1 test or
 # more: the main side of a fix of a budget miss. Its samples count, with a note, and the verdict
 # stays. A failed bench with no report line (above) still gives exit 1.

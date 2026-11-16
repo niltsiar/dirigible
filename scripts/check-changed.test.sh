@@ -754,6 +754,20 @@ got="$(CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" "$script" --wait-load test 2> "$
 [[ -z "$got" ]] || fail "the default cap: load lines on stdout: [$(tail -n 1 <<<"$got")]"
 grep -q 'load 9.50 after 300 s, not under 4.5: run the tests' "$tmp/wait.err" || fail "the default cap: no stop line at 300 s: $(tail -n 1 "$tmp/wait.err")"
 [[ "$(wc -l < "$tmp/sleep.log" | tr -d ' ')" == 30 ]] || fail "the default cap: $(wc -l < "$tmp/sleep.log") sleeps, want 30"
+# A bench at the cap has no timed run: exit 76, the stop text on stdout, and a stop line that says
+# so. A test and a check at the cap keep exit 0 (near cases).
+: > "$tmp/sleep.log"
+got="$(CHECK_LOAD_WAIT=20 CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" "$script" --wait-load bench 2> "$tmp/wait.err")"
+code=$?
+[[ $code -eq 76 && "$got" == 'load 9.50 after 20 s, not under 4.5' ]] || fail "a bench at the cap: exit $code, stdout [$got]"
+[[ "$(tail -n 1 "$tmp/wait.err")" == 'check-changed: load 9.50 after 20 s, not under 4.5: no timed run' ]] ||
+  fail "a bench at the cap: stop line: $(tail -n 1 "$tmp/wait.err")"
+for goal in test check; do
+  got="$(CHECK_LOAD_WAIT=20 CHECK_LOAD_MAX=4.5 PATH="$tmp/bin:$PATH" "$script" --wait-load "$goal" 2> "$tmp/wait.err")"
+  code=$?
+  [[ $code -eq 0 && -z "$got" && "$(tail -n 1 "$tmp/wait.err")" == *'not under 4.5: run the tests' ]] ||
+    fail "$goal at the cap: exit $code, stdout [$got], $(tail -n 1 "$tmp/wait.err")"
+done
 # Targets with no Swift test read no load.
 : > "$tmp/sysctl.log"
 got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast 2>&1)" || fail "--wait-load with docs targets exits $?"
@@ -793,6 +807,14 @@ printf '%s\n' "$other" > "$tmp/procs"
 CHECK_LOAD_WAIT=20 wait_case || fail "a test of another tree that stays: exit $?"
 [[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree that stays: sleeps [$(cat "$tmp/sleep.log")]"
 [[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s (pid ${other/ /: }): run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
+# A bench at the cap behind a test of another tree: exit 76 with its own stop text.
+: > "$tmp/sleep.log"
+got="$(cd "$tmp/r" && CHECK_LOAD_WAIT=20 PATH="$tmp/bin:$PATH" "$script" --wait-load bench 2> "$tmp/wait.err")"
+code=$?
+[[ $code -eq 76 && "$got" == "a test of another tree runs after 20 s (pid ${other/ /: })" ]] ||
+  fail "a bench behind a test of another tree: exit $code, stdout [$got]"
+[[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s (pid ${other/ /: }): no timed run" ]] ||
+  fail "a bench behind a test of another tree: stop line: $(tail -n 1 "$tmp/wait.err")"
 : > "$tmp/procs"
 
 # A bench (--wait-load bench) and a push check (BASE in the environment) also wait for a toolchain
@@ -807,16 +829,19 @@ git init -q "$tmp/r-other"
 git -C "$tmp/r" worktree add -q "$tmp/r/.claude/worktrees/x" 2>/dev/null
 top() { git -C "$1" rev-parse --show-toplevel 2>/dev/null || echo "$1"; }
 # tree_case <name> <wait|none> <tree> <wait-load argument>...: the fake process of procs and cwds
-# is there; CHECK_LOAD_WAIT=10 gives one wait of 10 s. A wait line names the pid and the tree.
+# is there; CHECK_LOAD_WAIT=10 gives one wait of 10 s. A wait line names the pid and the tree. At the
+# cap a bench exits 76 with no timed run, and a test runs the tests.
 tree_case() {
-  local name="$1" want="$2" tree="$3" lines
+  local name="$1" want="$2" tree="$3" lines code=0 status=0 end='run the tests'
   shift 3
+  [[ $want != wait || " $* " != *" bench "* ]] || code=76 end='no timed run'
   : > "$tmp/sleep.log"; echo 1.00 > "$tmp/load"
-  got="$(cd "$tmp/r" && CHECK_LOAD_WAIT=10 PATH="$tmp/bin:$PATH" "$script" --wait-load "$@" 2> "$tmp/wait.err")" || fail "$name: exit $?"
+  got="$(cd "$tmp/r" && CHECK_LOAD_WAIT=10 PATH="$tmp/bin:$PATH" "$script" --wait-load "$@" 2> "$tmp/wait.err")" || status=$?
+  [[ $status -eq $code ]] || fail "$name: exit $status, want $code"
   lines="$(grep -c 'wait 10 s' "$tmp/wait.err")"
   if [[ $want == wait ]]; then
-    [[ "$lines" == 1 ]] && grep -q "pid 4242" "$tmp/wait.err" && grep -qF "$tree" "$tmp/wait.err" && [[ "$(tail -n 1 "$tmp/wait.err")" == *"run the tests" ]] ||
-      fail "$name: no wait line with pid 4242 and $tree, then run the tests: $(cat "$tmp/wait.err")"
+    [[ "$lines" == 1 ]] && grep -q "pid 4242" "$tmp/wait.err" && grep -qF "$tree" "$tmp/wait.err" && [[ "$(tail -n 1 "$tmp/wait.err")" == *"$end" ]] ||
+      fail "$name: no wait line with pid 4242 and $tree, then $end: $(cat "$tmp/wait.err")"
   else
     [[ "$lines" == 0 && ! -s "$tmp/sleep.log" ]] || fail "$name: it waited: $(cat "$tmp/wait.err")"
   fi

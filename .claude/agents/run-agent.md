@@ -12,4 +12,5 @@ You do one part of a deliver run for the lead. `AGENTS.md` and the **deliver** s
 - Batch independent read-only calls as parallel calls in one message, up to about 150 KB per batch.
 - Wait in the foreground for a loop, a lock, a build, or a test: 10 min or less per call. A longer command returns to the lead. Wait on a PID with `kill -0`, or on a log line. Never wait on `pgrep -f` text that another waiter can hold.
 - On exit 75, run the same command once more; at a second exit 75, `scripts/with-lock.sh` prints the hand-back route: follow it. A timing test that fails while another worktree builds gets the triage of `flake-triage.md` (**tdd** skill) before any rerun.
+- At a bench void (the line `bench: void`, exit 76, or the make line `Error 76`), the timed run has no verdict: run the bench once more, and after a second void, return the log path to the lead.
 - Do no `git push` and no `gh` write unless the brief allows it.

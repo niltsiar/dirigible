@@ -3,7 +3,10 @@
 # case worse than main by more than 10 % or 1 ms, the larger). An A/A pair of main runs first: when
 # main alone moves more than the rule, the pairs cannot give a verdict. The pair count is fixed
 # before the runs, and every pair counts: a pick of the clean pairs after the results is not a
-# verdict (timeline-navigation Phase 7). Each run writes the load of the Mac next to its log.
+# verdict (timeline-navigation Phase 7). Each run writes `<run> <time> start <x> end <y>` to load.txt
+# from the two `bench: load` lines of its log. A void run (bench.sh exit 76: the load wait ended at
+# its cap, or the end load was high) writes `<run>: the bench is void: <its bench: void line>` there
+# and ends the set: no later bench runs, and the compare follows.
 # A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
@@ -22,8 +25,9 @@
 # its largest main value by more than the rule of that main value: then it is NOT VERIFIED. A case
 # with a value in only some logs of a side, or in no branch log, prints NO VERDICT, and so does a
 # time line in a suite that no form reads; each exits 1. These lines print before a failure stops
-# the compare. A set with no aa-2 log, or with no complete main and branch pair, prints NO VERDICT
-# and exits 1 before any other line. Exit 1 when a case is
+# the compare. A set with a void line in load.txt prints `NO VERDICT: <run> is void (<reason>)`
+# and exits 1 before any other line. Else a set with no aa-2 log, or with no complete main and
+# branch pair, prints NO VERDICT and exits 1 before any other line. Exit 1 when a case is
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
 # log with samples, a report line of 1 test or more, and 1 failed test or more (each `✘ Test <name>
 # recorded an issue` line, also with the arguments of a parameterized test) prints a note, and its
@@ -66,11 +70,23 @@ if [[ "${1:-}" != "--compare" && "${1:-}" != "--lines" ]]; then
   # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
   [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$root/scripts/with-lock.sh" "$0" "$@"
   mkdir -p "$out"; out="$(cd "$out" && pwd)"
-  run() { # run <tree> <log name>
+  void=""
+  run() { # run <tree> <log name>; after a void run, no later bench runs
+    [[ -z "$void" ]] || return 0
     [[ "$(git -C "$main" rev-parse HEAD) $(git -C "$root" rev-parse HEAD)" == "$heads" ]] ||
       { echo "bench-pairs: the HEAD of $main or $root moved during the run; stop before $2" >&2; exit 1; }
-    echo "$2 $(date +%T) $(uptime | sed 's/.*load/load/')" >> "$out/load.txt"
-    (cd "$1" && scripts/bench.sh "$filter") > "$out/$2.log" 2>&1 || echo "$2: the bench failed" >> "$out/load.txt"
+    local status=0 at loads first last
+    at="$(date +%T)"
+    (cd "$1" && scripts/bench.sh "$filter") > "$out/$2.log" 2>&1 || status=$?
+    loads="$(awk '/^bench: load / { printf " %s", $3 }' "$out/$2.log")"
+    read -r first last <<< "${loads:--}"
+    echo "$2 $at start $first end ${last:--}" >> "$out/load.txt"
+    if [[ $status -eq 76 ]]; then
+      echo "$2: the bench is void: $(grep -m 1 '^bench: void: ' "$out/$2.log")" >> "$out/load.txt"
+      void=1
+    elif [[ $status -ne 0 ]]; then
+      echo "$2: the bench failed" >> "$out/load.txt"
+    fi
   }
   run "$main" aa-1
   run "$main" aa-2
@@ -196,6 +212,13 @@ def read(path):
                 metric[f'{name} ({test})'] = metric[name]
     return cases
 def runner(path): return scan(path)[1:3]
+load = f'{folder}/load.txt'
+load_lines = [l.strip() for l in open(load)] if os.path.exists(load) else []
+# A void run ends the set, so its void line comes before the check for missing logs.
+void = [l.split(': the bench is void: ', 1) for l in load_lines if ': the bench is void: ' in l]
+if void:
+    for run, line in void: print(f'NO VERDICT: {run} is void ({line.removeprefix("bench: void: ")})')
+    sys.exit(1)
 if not all(os.path.exists(f'{folder}/aa-{n}.log') for n in (1, 2)):
     print('NO VERDICT: no complete A/A pair'); sys.exit(1)
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
@@ -207,9 +230,7 @@ for n in range(1, 1000):
 if not pairs:
     print('NO VERDICT: no complete main and branch pair'); sys.exit(1)
 # A failed bench or a side with no sample (a filter that matched no test) gives no verdict.
-load = f'{folder}/load.txt'
-failed = [l.strip() for l in open(load)] if os.path.exists(load) else []
-failed = [l for l in failed if l.endswith('the bench failed')]
+failed = [l for l in load_lines if l.endswith('the bench failed')]
 # A failed bench with samples, a report line, and budget issues only is a budget miss (header):
 # budget_miss gives its note, a NO VERDICT line, or None (the failure stays).
 def budget_miss(name):

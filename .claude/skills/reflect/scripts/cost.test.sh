@@ -528,7 +528,9 @@ printf '{}\n' > "$b/Package.resolved"
 printf '@main\nstruct App {}\n' > "$b/Sources/App/App.swift"
 printf '.build\n' > "$b/.gitignore"
 printf '#!/bin/bash\nexit 0\n' > "$bin/swift"
-chmod +x "$bin/swift"
+# A fake sysctl gives a low load and 8 cores, so the end load check of bench.sh passes on a busy Mac.
+printf '#!/bin/bash\n[[ "$*" == "-n vm.loadavg" ]] && echo "{ 1.00 1.00 1.00 }" || echo 8\n' > "$bin/sysctl"
+chmod +x "$bin/swift" "$bin/sysctl"
 # A stub check-changed.sh logs the load wait call of bench.sh and does not wait.
 printf '#!/bin/bash\necho "max=${CHECK_LOAD_MAX:-cores} $*" >> "%s"\n' "$tmp/wait.log" > "$b/scripts/check-changed.sh"
 chmod +x "$b/scripts/check-changed.sh"

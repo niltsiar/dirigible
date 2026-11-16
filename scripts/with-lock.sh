@@ -19,6 +19,12 @@
 # call stops at the limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below),
 # a call with the DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and
 # mutation-pass.sh.
+# Each exit 75 (the lock wait, the cap, the lock-free and run-only waits, and the --bench-mark waits)
+# appends a wait line with the sixth column exit75, so cost.sh counts its seconds. When the log has
+# an exit75 line of the same command and tree that started under 10 min before, the call also prints
+# "second exit 75 of this command in this tree since <time>" and the hand-back route of AGENTS.md:
+# an agent writes its remaining locked steps as one bash file and returns its path to the lead, and
+# the lead runs that file or its own command with WITH_LOCK_MAX_WAIT=0 in the background.
 # scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
 # set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,
 # and ends in exit 75 at it; a lock-free make check-changed call (below) then exits 75 as well.
@@ -518,15 +524,33 @@ wait_limit() {
     max=$((10#$max))
     if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
 }
-# pause: sleeps one retry, cut to the seconds that are left of the wait limit; at the limit it exits 75.
+# pause <command>...: sleeps one retry, cut to the seconds that are left of the wait limit; at the
+# limit it runs stop75.
 pause() {
     local left nap="$retry"
     if [[ $max -gt 0 ]]; then
         left=$((max - ($(date +%s) - start)))
-        [[ $left -gt 0 ]] || { echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2; exit 75; }
+        [[ $left -gt 0 ]] || stop75 "$@"
         nap="$(awk -v r="$retry" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
     fi
     sleep "$nap"
+}
+# stop75 <command>...: the exit 75 of the header. It reads the waits log for an exit75 line of the
+# same command and tree that started under 10 min before, appends its own exit75 line, prints the
+# rerun line, and after an earlier line also the hand-back route.
+stop75() {
+    local now since
+    now="$(date +%s)"
+    since="$(cmd="$*" tree="$tree" awk -F'\t' -v cutoff="$(date -r $((now - 600)) +%FT%T)" "$ep_awk"'
+        $6 == "exit75" && $3 == ENVIRON["cmd"] && $5 == ENVIRON["tree"] && ep($1) > ep(cutoff) { print $1; exit }' "$waits" 2>/dev/null)"
+    printf '%s\t%s\t%s\t%s\t%s\texit75\n' "$(date -r "$start" +%FT%T)" "$((now - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
+    echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2
+    if [[ -n "$since" ]]; then
+        echo "with-lock: second exit 75 of this command in this tree since $since; do not run it a third time" >&2
+        echo "with-lock: an agent writes its remaining locked steps as one bash file in the run folder and returns its path to the lead; the file starts with set -euo pipefail and a cd to the worktree, runs each locked step as scripts/with-lock.sh <command>, and has no DIRIGIBLE_LOCKED_SCRIPT line" >&2
+        echo "with-lock: the lead runs that file as WITH_LOCK_MAX_WAIT=0 bash <file>, and its own command as WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>, with run_in_background, a Bash timeout of 7200000, and a Monitor (AGENTS.md, Commands)" >&2
+    fi
+    exit 75
 }
 # say_wait: the one line that names why the call waits (the live marker, lock-free call, or ticket in
 # cause, else the holder of the lock). A new cause gets a new line; the first one is the held column
@@ -597,7 +621,7 @@ if [[ "$1" == --bench-mark ]]; then
     while :; do
         if long_holder || ahead; then
             say_wait; waited=1
-            pause
+            pause "$@"
             continue
         fi
         mark="$benches/$$"
@@ -612,12 +636,12 @@ if [[ "$1" == --bench-mark ]]; then
             fi
             foreign_mark || break 2
             say_wait; waited=1
-            pause
+            pause "$@"
         done
     done
     while free_busy; do
         say_wait; waited=1
-        pause
+        pause "$@"
     done
     "$here/check-changed.sh" --wait-load bench || {
         status=$?
@@ -646,7 +670,7 @@ if lock_free "$@"; then
         [[ -z "$lf" ]] || rm -f "$lf"
         lf=""
         if [[ -z "$waited" ]]; then wait_limit "$@"; waited=1; fi
-        while long_holder || ahead; do say_wait; pause; done
+        while long_holder || ahead; do say_wait; pause "$@"; done
     done
     [[ -z "$waited" ]] || wait_line "$@"
     run_lock_free "$@"
@@ -716,7 +740,7 @@ while :; do
         fi
     fi
     if [[ -n "$blocked" && -z "$capsaid" ]]; then echo "$cap_line" >&2; capsaid=1; fi
-    pause
+    pause "$@"
 done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 rm -f ${marker:+"$marker"}

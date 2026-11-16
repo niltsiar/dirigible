@@ -54,7 +54,7 @@ struct SegmentFinalize {
     func place(on session: Session) throws(FinalizeError) -> Result<Session, SegmentFault> {
         // Held open, so a read error with no errno can be checked on the same file.
         // A listed CAF that is gone is take-wide: the package moved during the finalize.
-        let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
+        let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
         guard descriptor >= 0 else {
             let code = errno
             // A CAF that decision 0071 removed: the WAV and the finalize record of the sidecar stay.

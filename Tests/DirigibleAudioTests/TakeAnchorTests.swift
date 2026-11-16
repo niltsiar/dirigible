@@ -316,4 +316,22 @@ struct TakeAnchorTests {
         #expect(try TakeAnchor.read(take: 2, in: package.url) == nil)
         #expect(try TakeAnchor.read(take: 3, in: package.url) == nil)
     }
+
+    /// C21: an anchor that is a FIFO is a read fault of its take, and its open does not wait for a
+    /// writer. The open of a session refuses such an anchor first, so the test reads the anchors.
+    @Test func aFIFOAnchorFailsAtOnce() async throws {
+        let package = try twoTrackPackage()
+        try makeFIFO(at: anchor(package))
+        let url = package.url
+
+        let value = await valueWithNoWriter(of: anchor(package)) { TakeAnchors.result(url) }
+        let read = try #require(value)
+
+        guard case .success(let anchors) = read, case .failure(.readFailed(let file, _)) = anchors[1] else {
+            Issue.record("no read fault for take 1: \(read)")
+            return
+        }
+        #expect(file == "Capture/take1.anchor")
+        #expect(anchors.count == 1)
+    }
 }

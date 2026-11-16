@@ -111,4 +111,24 @@ extension RawRemovalGateTests {
         #expect(result.gain == .zero)
         #expect(result.cafPasses == 1, "the CAF pass ran")
     }
+
+    /// C21: a stem WAV that is a FIFO is not audio, so it gives no gain, and its open does not
+    /// wait for a writer.
+    @Test func aFIFOStemWAVGivesNoGainAtOnce() async throws {
+        let package = try TakePackage()
+        try package.segment(samples: sine(seconds: 1, rate: 48_000).map { $0 * 4 })
+        try Self.writeWAV(sine(seconds: 1, rate: 48_000), in: package)
+        let wav = package.url.appending(path: "Clips/take1-1-1.wav")
+        try makeFIFO(at: wav)
+        let url = package.url
+
+        let value = await valueWithNoWriter(of: wav) {
+            Result { () throws(RawRemovalError) in
+                try rawGain(of: Self.segment, in: url, isCancelled: { false }).map { $0.gain }
+            }
+        }
+        let result = try #require(value)
+
+        #expect(result == .success(nil))
+    }
 }

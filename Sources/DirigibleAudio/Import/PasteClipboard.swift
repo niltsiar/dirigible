@@ -234,6 +234,8 @@ private func copyFiles(
         guard stat(url.path, &info) == 0 else {
             throw errno == ENOENT ? .sourceMissing(file: record.path) : .write(file: record.path, errno: errno)
         }
+        // A FIFO would hold the AVAudioFile read below until a writer came.
+        guard info.st_mode & S_IFMT == S_IFREG else { throw .sourceChanged(file: record.path) }
         sizes.append(Int64(info.st_size))
         // A clone needs no space and uses clonefile, which never falls back to a copy; a data copy
         // needs the file size; a conversion reads the whole file, so its frames count (0040).

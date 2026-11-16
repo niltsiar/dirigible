@@ -19,6 +19,26 @@ struct ImportFaultTests {
         #expect(package.clipsNames == [])
     }
 
+    /// C21: a source that is a FIFO is not audio, and its open does not wait for a writer.
+    @Test func aFIFOAudioFileIsRefusedAtOnce() async throws {
+        let package = try ImportPackage()
+        let source = package.source("Voice.wav")
+        try makeFIFO(at: source)
+
+        let value = await valueWithNoWriter(of: source) { () -> ImportError? in
+            do throws(ImportError) {
+                let opened = try openAudio(source)
+                close(opened.descriptor)
+                return nil
+            } catch {
+                return error
+            }
+        }
+        let error = try #require(value)
+
+        #expect(error == .notAudio(file: "Voice.wav"))
+    }
+
     /// Code gate 1 item 1: an online-only item is refused before its first read.
     @Test func anItemThatIsNotDownloadedIsRefused() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])

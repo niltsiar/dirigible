@@ -163,7 +163,8 @@ func identicalPoolFile(
     var (mine, theirs) = ([UInt8](repeating: 0, count: blockBytes), [UInt8](repeating: 0, count: blockBytes))
     let total = Double(size) * Double(candidates.count)
     for (index, file) in candidates.enumerated() {
-        let other = open(package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_CLOEXEC)
+        let other = open(
+            package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
         guard other >= 0 else { continue }
         defer { close(other) }
         guard fstat(other, &info) == 0, Int(info.st_size) == size else { continue }
@@ -200,11 +201,17 @@ public func removeMadeFiles(_ files: [URL]) {
 @concurrent nonisolated func removeMadeFilesOffMain(_ files: [URL]) async { removeMadeFiles(files) }
 
 /// Opens `source` for a conversion: a descriptor, held open so that a read error with no errno can
-/// be checked on the same file, and the `AVAudioFile`. The caller closes the descriptor.
+/// be checked on the same file, and the `AVAudioFile`. The caller closes the descriptor. An item
+/// that is not a regular file is not audio, and its open does not wait (`O_NONBLOCK`).
 func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: AVAudioFile) {
     let name = source.lastPathComponent
-    let descriptor = open(source.path, O_RDONLY | O_CLOEXEC)
+    let descriptor = open(source.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: name, errno: errno) }
+    var info = stat()
+    guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+        close(descriptor)
+        throw .notAudio(file: name)
+    }
     do {
         return (descriptor, try AVAudioFile(forReading: source))
     } catch {

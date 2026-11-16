@@ -176,7 +176,7 @@ package func soleCopyWAVs(in package: URL) -> Set<String> {
 /// True when the file at `url` opens and reads whole: the refusal `error` of AVAudioFile is then
 /// a format fault, not a disk fault.
 private func isNotAudio(_ url: URL, _ error: any Error) -> Bool {
-    let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
+    let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard descriptor >= 0 else { return false }
     defer { close(descriptor) }
     return ioErrno(of: error, file: descriptor) == nil
@@ -242,9 +242,10 @@ func readPackageFile(_ file: String, in package: URL) throws(FinalizeError) -> D
     }
 }
 
-/// The errno of `open(path, O_RDONLY)`, or nil when the file opens.
+/// The errno of `open(path, O_RDONLY | O_NONBLOCK)`, or nil when the item opens. A FIFO opens
+/// at once, with no wait for a writer. A folder opens too.
 func openErrno(_ path: String) -> Int32? {
-    let descriptor = open(path, O_RDONLY | O_CLOEXEC)
+    let descriptor = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard descriptor >= 0 else { return errno }
     close(descriptor)
     return nil

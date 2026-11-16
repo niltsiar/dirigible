@@ -58,4 +58,21 @@ struct MediaTests {
         #expect(try checkMedia(package.session, package: package.url, source: source) == [:], "the export skips t1")
         #expect(try checkMedia(package.session, package: package.url) == ["f1": .missing], "the play still sees it")
     }
+
+    /// C21: a pool file that is a FIFO is unreadable, and its open does not wait for a writer.
+    @Test func aFIFOPoolFileIsUnreadableAtOnce() async throws {
+        let package = try MixPackage()
+        try package.addFile("whole", channels: [ramp(frames: 6000)])
+        try package.session.addFile(AudioFile(id: "a", path: "a.wav", layout: .mono, length: 6000))
+        let fifo = package.url.appending(path: "Clips/a.wav")
+        try makeFIFO(at: fifo)
+        let (session, url) = (package.session, package.url)
+
+        let value = await valueWithNoWriter(of: fifo) {
+            Result { () throws(POSIXError) in try checkMedia(session, package: url) }
+        }
+        let faults = try #require(value)
+
+        #expect(faults == .success(["a": .unreadable]))
+    }
 }

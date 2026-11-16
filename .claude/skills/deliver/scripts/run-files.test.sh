@@ -9,7 +9,7 @@
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
 # Check that a row that claims a test result on the red tree or the old tree needs an existing file
 # of the logs/ folder of the run in its evidence.
-# Check that a phase 6 row needs a graded eval key for each evals.md row that the branch adds or re-keys.
+# Check that a row that enters phase 5, 6, or 7 needs a graded eval key for each evals.md row that the branch adds or re-keys.
 # Check that new-run.sh reads the wiki: it reports the later count, the size of the next list, the
 # upkeep items, and a due architecture audit, opens a run with one log row, refuses a third
 # non-feature run in a row with no --blocks-feature reason, and refuses to open a run with no wiki.
@@ -567,7 +567,7 @@ sed -i.bak 's/^- C1: the meter moves\./- C1: the meter moves at 24 fps./' "$tmp/
 "$log" "$tmp/g10-old" 4 'Slice S2 committed' why evidence done || fail "g10: a run with phase 4 rows and no copy exits $?"
 [[ ! -e "$tmp/g10-old/analysis-gate.md" ]] || fail 'g10: a run with phase 4 rows got an analysis-gate.md'
 
-# A phase 6 row of a run whose branch adds an evals.md key with no graded eval folder is refused
+# A row that enters phase 6 of a run whose branch adds an evals.md key with no graded eval folder is refused
 # (scripts/check-eval-keys.sh, against origin/main, with the worktree of the last - Branch: line),
 # and the --from file stays. A run folder with no run.md is not checked.
 ek="$tmp/ek"
@@ -598,6 +598,58 @@ mkdir "$ek/runs/r/eval"
 printf '## E4\n(a) new.\n\n' > "$ek/runs/r/eval/keys.md"
 printf 'p7\tE4\tpolicy\ta\t1\tPASS\t\n' > "$ek/runs/r/eval/scores.tsv"
 "$log" "$ek/runs/r" --from "$tmp/ekrow" || fail "ek: a phase 6 row with a graded key exits $?"
+
+# The key check runs only at a row that enters phase 5, 6, or 7: its phase differs from the phase
+# of the last row (the header row counts as none). The fake check-eval-keys.sh fails until a
+# `pass` file stands beside it. A gate-fix row after a phase 6 row is not an entry.
+fk="$tmp/fk"
+mkdir -p "$fk/.claude/skills/deliver/scripts" "$fk/scripts" "$fk/runs/r"
+cp "$log" "$fk/.claude/skills/deliver/scripts/log-decision.sh"
+printf '#!/bin/bash\n[[ -e "${0%%/*}/pass" ]] && exit 0\necho "fake: ungraded key E4"\nexit 1\n' > "$fk/scripts/check-eval-keys.sh"
+chmod +x "$fk/scripts/check-eval-keys.sh"
+fklog="$fk/.claude/skills/deliver/scripts/log-decision.sh"
+fkrun="$fk/runs/r"
+printf '# Run r\n\n- Branch: chore/k\n' > "$fkrun/run.md"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$fkrun/decisions.tsv"
+# fk_row <name> <phase> <ok|no>: log a row and check that it is accepted (ok) or refused with the check text (no).
+fk_row() {
+  local before err code
+  before="$(shasum -a 256 "$fkrun/decisions.tsv")"
+  err="$("$fklog" "$fkrun" "$2" "row $1" why evidence done 2>&1)"
+  code=$?
+  if [[ "$3" == ok ]]; then
+    [[ $code -eq 0 ]] || fail "fk $1: a phase $2 row is refused: exit $code: $err"
+  else
+    [[ $code -eq 2 && "$err" == *'fake: ungraded key E4'* && "$err" == *'phase 5, 6, or 7'* ]] || fail "fk $1: a phase $2 row is accepted or has no check text: exit $code: $err"
+    [[ "$(shasum -a 256 "$fkrun/decisions.tsv")" == "$before" ]] || fail "fk $1: the refused phase $2 row changed decisions.tsv"
+  fi
+}
+fk_row 'phase 3 after the header' 3 ok
+fk_row 'phase 4 after phase 3' 4 ok
+fk_row 'phase 4 after phase 4' 4 ok
+fk_row 'phase 5 entry from phase 4' 5 no
+touch "$fk/scripts/pass"
+fk_row 'phase 5 entry with a graded key' 5 ok
+rm "$fk/scripts/pass"
+fk_row 'phase 5 after phase 5' 5 ok
+fk_row 'phase 6 entry from phase 5' 6 no
+touch "$fk/scripts/pass"
+fk_row 'phase 6 entry with a graded key' 6 ok
+rm "$fk/scripts/pass"
+fk_row 'phase 6 gate fix after phase 6' 6 ok
+fk_row 'phase 6 second gate fix' 6 ok
+fk_row 'phase 7 entry from phase 6' 7 no
+touch "$fk/scripts/pass"
+fk_row 'phase 7 entry with a graded key' 7 ok
+rm "$fk/scripts/pass"
+fk_row 'phase 7 after phase 7' 7 ok
+fk_row 'phase 4 after phase 7' 4 ok
+fk_row 'phase 6 entry from phase 4' 6 no
+fkrun="$tmp/fk-head"
+mkdir -p "$fkrun"
+printf '# Run r\n' > "$fkrun/run.md"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$fkrun/decisions.tsv"
+fk_row 'phase 5 as the first row' 5 no
 
 # The backlog and the run log are the wiki of scripts/wiki.py. DIRIGIBLE_WIKI names a temp wiki, so
 # no case reads or writes the real one. The git config is off in this test, so the identity of the

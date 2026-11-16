@@ -91,7 +91,7 @@ Run the **interrogate** skill with target `diff` and the lenses and rounds of th
 
 Run no push check at the gate. Phase 7 runs the one push check, after the last gate fix.
 
-When a slice or a gate fix adds or changes an `evals.md` key, the lead runs `scripts/eval/run.sh` for its IDs in the background before the next phase 6 row: `log-decision.sh` refuses the row until the key has a grade. A run agent returns to the lead.
+When a slice or a gate fix adds or changes an `evals.md` key, the lead runs `scripts/eval/run.sh` for its IDs in the background before the next row that enters phase 5, 6, or 7: `log-decision.sh` refuses that row until the key has a grade. A run agent returns to the lead.
 
 - Fix each "Act on" item and each flake in its own commit: a behavior fix with its regression test, a rule fix with the Phase 2 grep. Check a visible fix as in Phase 4 step 5.
 - Add each skipped "Consider" item with status later (`scripts/wiki.py add later --from <file>`), with the reason.

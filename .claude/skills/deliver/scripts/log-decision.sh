@@ -27,10 +27,12 @@
 # review-plan-<n>.md with the highest number has a `## Fix check` heading, except a row whose decision
 # starts with `criterion change`: that row repairs the gap, and the check cannot count it before the
 # append. A later round file with no heading ends the check. A phase 6 row needs a passing scripts/check-plan.sh with
-# no variable, the check of the land: the review files have their fields. A criterion change row skips that check. A phase
-# 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
-# origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
-# graded eval folder. The first phase 4 row copies analysis.md to analysis-gate.md; check-plan.sh then
+# no variable, the check of the land: the review files have their fields. A criterion change row skips that check.
+# A row of a run folder with a run.md that enters phase 5, 6, or 7 (the last row of decisions.tsv
+# has another phase, and the header row counts as none) also needs a passing
+# scripts/check-eval-keys.sh against origin/main: each evals.md key that the branch of the last
+# `- Branch:` line adds or changes has a graded eval folder. A gate-fix row after a phase 6 row is
+# no entry, so it is not checked again. The first phase 4 row copies analysis.md to analysis-gate.md; check-plan.sh then
 # needs a criterion change row for each criterion line that differs from the copy. A phase 4 row
 # that is a criterion change row skips the plan check once the copy exists. The first phase 7 row of a run folder with a plan.md needs a passing
 # scripts/check-plan.sh (CHECK_PLAN_AT_PHASE7=1): the Fix check has a line for each Act on item of
@@ -245,10 +247,11 @@ if [[ "$1" == 7 && -f "${file%/*}/plan.md" ]] && ! awk -F'\t' '$2 == "7" { f = 1
         exit 2
     fi
 fi
-# A phase 6 row: each evals.md key of the branch has its grade before the gates (RFL-037).
-if [[ "$1" == 6 && -f "${file%/*}/run.md" ]]; then
+# A row that enters phase 5, 6, or 7 (the last row has another phase, and the header row counts as
+# none): each evals.md key of the branch has its grade before the gates (RFL-037).
+if [[ "$1" =~ ^[567]$ && -f "${file%/*}/run.md" && "$(tail -n 1 "$file" | cut -f2)" != "$1" ]]; then
     if ! out="$("${plan_check%/*}/check-eval-keys.sh" origin/main "${file%/*}" 2>&1)"; then
-        printf '%s\na phase 6 row needs a graded key for each new evals.md key\n' "$out" >&2
+        printf '%s\na row that enters phase 5, 6, or 7 needs a graded key for each new evals.md key\n' "$out" >&2
         exit 2
     fi
 fi

@@ -5,7 +5,7 @@ import Testing
 /// The commands refuse a package from another person that breaks a rule of the package format
 /// (decision 0003), with exit 2 and no output of its content.
 struct PackageRefusalCommandTests {
-    /// C3. The audit input `xxe.dirigible`: an external entity in `session.xml` names a canary
+    /// C3. An external entity in `session.xml` names a canary
     /// file. `episode show` exits 2 with the text of a damaged file, and prints no canary text.
     @Test func anExternalEntityPackageIsRefused() async throws {
         let package = try TemporaryPackage()
@@ -31,7 +31,7 @@ struct PackageRefusalCommandTests {
                     stderr: "Error: \(package.path)/session.xml is not a Dirigible session file.\n"))
     }
 
-    /// C9. The audit input `lock-redirect/`: the `.lock` of `Show.dirigible` is a link to the
+    /// C9. The `.lock` of `Show.dirigible` is a link to the
     /// `.lock` of `Other.dirigible`. An edit of Show exits 2 and changes neither session file.
     @Test func aLockLinkIsRefused() async throws {
         let package = try TemporaryPackage()
@@ -71,7 +71,7 @@ struct PackageRefusalCommandTests {
         #expect(try package.xml() == xml)
     }
 
-    /// C15. The audit input `prune-escape/`: the dry run of a prune refuses the package, so it
+    /// C15. `Clips` is a link out of the package: the dry run of a prune refuses the package, so it
     /// lists no file of the link target.
     @Test func aClipsLinkIsRefusedByPrune() async throws {
         let package = try Self.pruneEscape()
@@ -85,7 +85,7 @@ struct PackageRefusalCommandTests {
     /// The files of `victim/` beside the package of `pruneEscape()`, by name.
     static let victim = ["notes.txt": Data("victim notes".utf8), "old.wav": Data("RIFF".utf8)]
 
-    /// The audit input `prune-escape/`: `Clips` is a link to `../victim`, and the pool entry
+    /// `Clips` is a link to `../victim`, and the pool entry
     /// `notes.txt` has no clip.
     static func pruneEscape() throws -> TemporaryPackage {
         let package = try TemporaryPackage()

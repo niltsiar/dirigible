@@ -4,7 +4,7 @@ import Testing
 /// The MCP tools refuse a package from another person that breaks a rule of the package format
 /// (decision 0003), with an error result and no output of its content.
 struct MCPPackageRefusalTests {
-    /// C15. The audit input `prune-escape/`: `file_prune` with `dry_run` refuses the package, so it
+    /// C15. `Clips` is a link to a folder outside the package: `file_prune` with `dry_run` refuses the package, so it
     /// lists no file of the link target.
     @Test func filePruneRefusesAClipsLink() async throws {
         let package = try PackageRefusalCommandTests.pruneEscape()

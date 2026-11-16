@@ -41,7 +41,7 @@ struct PackageXMLTests {
         return url.absoluteString
     }
 
-    /// C1. The audit inputs: an external entity with an absolute path, one with a relative path,
+    /// C1. An external entity with an absolute path, one with a relative path,
     /// and a parameter entity that loads an external DTD.
     @Test func anExternalEntityIsRefused() throws {
         let canary = try canary()
@@ -86,7 +86,7 @@ struct PackageXMLTests {
         }
     }
 
-    /// C4. The audit input `small-laughs.xml` (5 levels, 300000 characters) and one internal
+    /// C4. Nested internal entities (5 levels, 300000 characters) and one internal
     /// entity are refused, by the reader and by the byte rules.
     @Test func anInternalEntityIsRefused() {
         let level = (1...4).map { level in

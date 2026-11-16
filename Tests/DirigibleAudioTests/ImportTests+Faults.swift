@@ -250,6 +250,46 @@ struct ImportFaultTests {
         #expect(FileManager.default.contents(atPath: wav.path) == other, "the other file keeps its bytes")
         #expect(package.clipsNames == ["Voice.wav"], "no temp stays")
     }
+
+    /// A package from another person names the temporary name of an import in its pool, and that
+    /// name is a link out of the package: the import refuses, writes no byte through the link, and
+    /// keeps the item at the name.
+    @Test func anImportNeverWritesThroughALinkAtItsTemporaryName() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("song.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [ramp(frames: 4_800)])
+        let victim = package.source("victim.txt")
+        try Data("victim".utf8).write(to: victim)
+        try package.session.addFile(AudioFile(id: "t", path: ".song.wav.tmp", layout: .mono, length: 4_800))
+        try FileManager.default.createDirectory(at: package.clip(""), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: package.clip(".song.wav.tmp"), withDestinationURL: victim)
+
+        #expect(throws: ImportError.write(file: "song.wav", .writeFailed(file: "Clips/.song.wav.tmp", status: EEXIST)))
+        {
+            try importAudio(source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url)
+        }
+        #expect(try Data(contentsOf: victim) == Data("victim".utf8), "the file outside the package keeps its bytes")
+        #expect(package.clipsNames == [".song.wav.tmp"])
+        #expect(
+            try FileManager.default.destinationOfSymbolicLink(atPath: package.clip(".song.wav.tmp").path) == victim.path
+        )
+    }
+
+    /// The WAV of a finalize, an import, or a render is never written through a link at its name:
+    /// the write fails, and the target keeps its bytes.
+    @Test func aClipWriterRefusesALinkAtItsName() throws {
+        let folder = try TemporaryFolder()
+        let victim = folder.url.appending(path: "victim.txt")
+        try Data("victim".utf8).write(to: victim)
+        let link = folder.url.appending(path: ".take1-1-1.wav.tmp")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: victim)
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+
+        #expect(throws: FinalizeError.writeFailed(file: "Clips/take1-1-1.wav", status: ELOOP)) {
+            _ = try ClipWriter(url: link, file: "Clips/take1-1-1.wav", format: format)
+        }
+        #expect(try Data(contentsOf: victim) == Data("victim".utf8))
+    }
 }
 
 /// A 16-bit PCM WAV of silence with `channels` channels at 48 kHz, written byte by byte, so a

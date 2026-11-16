@@ -86,7 +86,8 @@ public enum AgentLog {
     ) -> Result {
         let path = package.appending(path: fileName).path
         let first = versionText + "\(version)\n" + header + "\n" + entry.line
-        let fd = open(path, O_RDWR | O_APPEND | O_CLOEXEC)
+        // A link at the name fails (ELOOP), so an append never writes out of the package.
+        let fd = open(path, O_RDWR | O_APPEND | O_NOFOLLOW | O_CLOEXEC)
         guard fd >= 0 else { return errno == ENOENT ? create(first, at: path, writing) : .failed(errno) }
         defer { close(fd) }
         var bytes = [UInt8](repeating: 0, count: 128)

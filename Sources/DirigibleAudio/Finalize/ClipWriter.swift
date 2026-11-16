@@ -14,6 +14,15 @@ final class ClipWriter {
     /// the package-relative path for errors.
     init(url: URL, file name: String, format: AVAudioFormat) throws(FinalizeError) {
         self.name = name
+        // `ExtAudioFileCreateWithURL` follows a link at `url`, so a link fails here (ELOOP) and the
+        // write never leaves the package. A second pass of a conversion opens its own file again.
+        // Another open error comes again from the create below, with its status.
+        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o644)
+        if descriptor >= 0 {
+            Darwin.close(descriptor)
+        } else if errno == ELOOP {
+            throw .writeFailed(file: name, status: ELOOP)
+        }
         let channels = format.channelCount
         var fileFormat = AudioStreamBasicDescription(
             mSampleRate: format.sampleRate, mFormatID: kAudioFormatLinearPCM,

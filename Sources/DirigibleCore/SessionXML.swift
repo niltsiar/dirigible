@@ -3,7 +3,7 @@ import Foundation
 /// The byte rules of a package XML file (decision 0003): after an optional UTF-8 BOM, `<`; UTF-8 with no NUL
 /// and no `<!DOCTYPE`; a declaration `encoding` of `UTF-8` in any case. libxml2 also reads UTF-16, UTF-7, and
 /// EBCDIC, where a DTD has no `<!DOCTYPE` bytes.
-package func isPlainPackageXML(_ data: Data) -> Bool {
+func isPlainPackageXML(_ data: Data) -> Bool {
     var bytes = [UInt8](data)
     bytes.append(0)
     let body = bytes.starts(with: [0xEF, 0xBB, 0xBF]) ? 3 : 0

@@ -11,7 +11,8 @@
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
 # default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make, also with a test-app whose app step exits 75), scripts/bundle.sh
 # (it takes the lock itself after its path check, and keeps the wait limit and the cap), and --release-holder (a live
-# release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), and the hold limit
+# release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), --long-holder (the same, plus a
+# bench, mutation-pass, or flake-loop holder and a live bench marker), and the hold limit
 # (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit), and --bench-mark (a marker in
 # dirigible-bench-marks/ blocks each lock-free call, a lock-free call keeps a file in dirigible-lock-free/ while it runs and the
 # marked call waits for it, a file of a reused pid, two marked calls that start together, the load wait, and the refusal of a
@@ -1980,17 +1981,22 @@ wait "$rh_leader"
 rh_member="$(cat "$tmp/rh.member")"
 rh_state() { # <kind>: write the lock state of a case
   reset_builders
+  rm -rf "$marks"
   case "$1" in
-    release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test)
+    release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test | pairs | make-bench | mutation | flake | dead-bench)
       mkdir -p "$lock"
-      case "$1" in dead-release* | dead-lane) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
+      case "$1" in dead-release* | dead-lane | dead-bench) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
       case "$1" in
         dead-release-child) echo "$$" > "$lock/child" ;;
         dead-release-group) echo "$rh_leader" > "$lock/child" ;;
       esac
       case "$1" in
         ordinary) echo 'make build' > "$lock/command" ;;
-        bench) echo 'scripts/bench.sh' > "$lock/command" ;;
+        bench | dead-bench) echo 'scripts/bench.sh' > "$lock/command" ;;
+        pairs) echo 'scripts/bench-pairs.sh origin/main NavBench 5 /t/pairs' > "$lock/command" ;;
+        make-bench) echo 'make FILTER=NavBench bench' > "$lock/command" ;;
+        mutation) echo '.claude/skills/deliver/scripts/mutation-pass.sh /t/wt' > "$lock/command" ;;
+        flake) echo 'scripts/flake-monitor/loop.sh' > "$lock/command" ;;
         lane | dead-lane) echo 'scripts/test-stress.sh --runs 1 out' > "$lock/command" ;;
         filter) echo 'make test-filter FILTER=ATests' > "$lock/command" ;;
         lane-test) echo 'bash scripts/test-stress.test.sh' > "$lock/command" ;;
@@ -1998,6 +2004,9 @@ rh_state() { # <kind>: write the lock state of a case
       esac ;;
     ticket) mkdir -p "$first/$$" ;;
     dead-ticket) mkdir -p "$first/$rh_dead" ;;
+    marker | dead-marker)
+      mkdir -p "$marks"
+      if [[ "$1" == marker ]]; then printf '\n1\n/t/bench\n' > "$marks/$$"; else printf '\n1\n/t/bench\n' > "$marks/$rh_dead"; fi ;;
   esac
 }
 rh_check() { # <state> <want exit> <want stdout> [VAR=value...]
@@ -2031,7 +2040,41 @@ rh_check dead-ticket 1 ''
 rh_check release 0 "holder: $rh_cmd" DIRIGIBLE_BUILD_LOCK=$$
 rh_check ordinary 1 '' DIRIGIBLE_BUILD_LOCK=$$
 rh_check dead-release 1 '' DIRIGIBLE_BUILD_LOCK=$rh_dead
+
+# --long-holder (header of with-lock.sh), which agent-guard.sh reads: the --release-holder line
+# first, then the holder of a bench, a pairs run, make bench, a mutation pass, or a flake loop, or a
+# live bench marker. Each state exits 0 or 1 (never 127), with no lock, wait line, hold line, or
+# waiting marker.
+lh_check() { # <state> <want exit> <want stdout> [VAR=value...]
+  local state="$1" want="$2" wout="$3" out code
+  shift 3
+  rh_state "$state"
+  out="$(env WITH_LOCK_MAX_WAIT=2 "$@" "$repo/scripts/with-lock.sh" --long-holder 2> "$tmp/lh.err")"
+  code=$?
+  [[ $code -eq $want && "$out" == "$wout" ]] || fail "--long-holder, $state $*: exit $code, stdout [$out], want exit $want, stdout [$wout]"
+  [[ ! -s "$tmp/lh.err" ]] || fail "--long-holder, $state $*: stderr [$(cat "$tmp/lh.err")]"
+  [[ ! -e "$waits" && ! -e "$holds" && -z "$(ls "$waiting" 2>/dev/null)" ]] ||
+    fail "--long-holder, $state $*: a wait line, a hold line, or a waiting marker"
+}
+lh_check bench 0 'holder: scripts/bench.sh'
+lh_check pairs 0 'holder: scripts/bench-pairs.sh origin/main NavBench 5 /t/pairs'
+lh_check make-bench 0 'holder: make FILTER=NavBench bench'
+lh_check mutation 0 'holder: .claude/skills/deliver/scripts/mutation-pass.sh /t/wt'
+lh_check flake 0 'holder: scripts/flake-monitor/loop.sh'
+lh_check marker 0 "bench marker pid $$ (/t/bench)"
+lh_check release 0 "holder: $rh_cmd"
+lh_check lane 0 'holder: scripts/test-stress.sh --runs 1 out'
+lh_check ticket 0 "ticket: $$"
+lh_check ordinary 1 ''
+lh_check filter 1 ''
+lh_check free 1 ''
+lh_check dead-bench 1 ''
+lh_check dead-ticket 1 ''
+lh_check dead-marker 1 ''
+[[ ! -e "$marks/$rh_dead" ]] || fail '--long-holder: the bench marker of a dead pid stays'
+lh_check bench 0 'holder: scripts/bench.sh' DIRIGIBLE_BUILD_LOCK=$$
 reset_builders
+rm -rf "$marks"
 
 # A pid variable that outlives its child can name a stranger when the kernel reuses the pid. A
 # stranger is a process that is not a descendant of this shell: until_true and clear_hold (and so the

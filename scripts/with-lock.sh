@@ -40,7 +40,13 @@
 # lane (scripts/test-stress.sh) holds the lock with a live pid, child, or child group, or "ticket:
 # <pid>" and exits 0 for a live release ticket; else it prints nothing, exits 1, and removes the
 # ticket of a dead pid. A bench, a mutation pass, a flake loop, and an ordinary call give exit 1.
-# .claude/hooks/agent-guard.sh and the CPU-share signal of the TV launcher session read it.
+# The CPU-share signal of the TV launcher session reads it.
+# scripts/with-lock.sh --long-holder takes no lock and runs no command, also inside a locked process
+# tree. It prints the --release-holder line and exits 0 when that query exits 0. Else, while a live
+# holder runs a bench (bench.sh, bench-pairs.sh, make bench), a mutation pass, or a flake loop, it
+# prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
+# (<tree>)" and exits 0; else it prints nothing and exits 1. It removes a dead ticket or a dead marker.
+# .claude/hooks/agent-guard.sh reads it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
 # waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, a path that is not a
@@ -155,7 +161,7 @@
 # call until the wait limit. A lock-free call that cannot write its file (a sandbox, a full disk)
 # runs, and a marker cannot see it: the call prints one stderr line that names the file. A file or
 # a marker that is not live is ignored and removed. A call that takes the lock, --release-holder,
-# and --builders do not read the marker or the lock-free files.
+# and --builders do not read the marker or the lock-free files; --long-holder reads only the marker.
 # The guardrail hook blocks each command that names the lock, the markers, or the lock-free files
 # and is not a read.
 # scripts/with-lock.test.sh tests it.
@@ -267,6 +273,49 @@ holder_line() {
 }
 [[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
 first="${lock%/*}/dirigible-build-first"
+# foreign_mark: succeeds while a live bench marker other than DIRIGIBLE_BENCH_MARK exists (long-runs.md). It
+# sets cause to its pid and tree, for the wait line, and mark_before when a live marker is older than
+# this call (the call start time, then the pid; the marker holds the start time in line 2).
+foreign_mark() {
+    local m pid at mtree found=""
+    mark_before=""
+    for m in "$benches"/*; do
+        [[ -f "$m" ]] || continue
+        file_live "$m" || continue
+        pid="${m##*/}"
+        [[ "$pid" != "${DIRIGIBLE_BENCH_MARK:-}" ]] || continue
+        at="$(sed -n 2p "$m" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}" mtree="$(sed -n 3p "$m" 2>/dev/null)"
+        [[ -f "$m" ]] || continue
+        [[ -n "$mark_before" ]] || cause="bench marker pid $pid ($mtree)"
+        found=1
+        if [[ $at -lt $start || ($at -eq $start && $pid -lt $$) ]]; then mark_before=1; fi
+    done
+    [[ -n "$found" ]]
+}
+# lock_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
+# loop, or a stress lane.
+lock_holder() {
+    local m c cmd w words make=""
+    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
+    alive "$m" || alive "$c" || alive "-$c" || return 1
+    [[ ! -e "$lock/release" ]] || return 0
+    cmd="$(cat "$lock/command" 2>/dev/null)"
+    case "$cmd" in
+        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh* | *test-stress.sh*) return 0 ;;
+    esac
+    # The goal bench or dmg of make, also after a NAME=value word (make bench FILTER=X, make FILTER=X bench).
+    read -ra words <<<"$cmd"
+    for w in ${words[@]+"${words[@]}"}; do
+        if [[ "${w##*/}" == make ]]; then make=1; elif [[ -n "$make" && ($w == bench || $w == dmg) ]]; then return 0; fi
+    done
+    return 1
+}
+# long_holder: succeeds while a live marker (foreign_mark) or a live holder (lock_holder) makes a
+# lock-free call wait.
+long_holder() {
+    cause=""
+    foreign_mark || lock_holder
+}
 # release_holder: the --release-holder query (header).
 release_holder() {
     local m c t
@@ -283,6 +332,13 @@ release_holder() {
     return 1
 }
 [[ "$1" != --release-holder ]] || { release_holder; exit; }
+# The --long-holder query (header): the --release-holder line first, then the long holder.
+[[ "$1" != --long-holder ]] || {
+    release_holder && exit 0
+    long_holder || exit 1
+    if [[ -n "$cause" ]]; then echo "$cause"; else echo "holder: $(cat "$lock/command" 2>/dev/null)"; fi
+    exit 0
+}
 case "${1##*/}" in
     cost.sh | wiki.py)
         echo "with-lock: $1 builds nothing and needs no lock; run it without scripts/with-lock.sh (DLV-157: work that builds nothing may run beside a push check)" >&2
@@ -440,49 +496,6 @@ lock_free() {
             done
             ;;
     esac
-}
-# foreign_mark: succeeds while a live bench marker other than DIRIGIBLE_BENCH_MARK exists (long-runs.md). It
-# sets cause to its pid and tree, for the wait line, and mark_before when a live marker is older than
-# this call (the call start time, then the pid; the marker holds the start time in line 2).
-foreign_mark() {
-    local m pid at mtree found=""
-    mark_before=""
-    for m in "$benches"/*; do
-        [[ -f "$m" ]] || continue
-        file_live "$m" || continue
-        pid="${m##*/}"
-        [[ "$pid" != "${DIRIGIBLE_BENCH_MARK:-}" ]] || continue
-        at="$(sed -n 2p "$m" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}" mtree="$(sed -n 3p "$m" 2>/dev/null)"
-        [[ -f "$m" ]] || continue
-        [[ -n "$mark_before" ]] || cause="bench marker pid $pid ($mtree)"
-        found=1
-        if [[ $at -lt $start || ($at -eq $start && $pid -lt $$) ]]; then mark_before=1; fi
-    done
-    [[ -n "$found" ]]
-}
-# lock_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane.
-lock_holder() {
-    local m c cmd w words make=""
-    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
-    alive "$m" || alive "$c" || alive "-$c" || return 1
-    [[ ! -e "$lock/release" ]] || return 0
-    cmd="$(cat "$lock/command" 2>/dev/null)"
-    case "$cmd" in
-        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh* | *test-stress.sh*) return 0 ;;
-    esac
-    # The goal bench or dmg of make, also after a NAME=value word (make bench FILTER=X, make FILTER=X bench).
-    read -ra words <<<"$cmd"
-    for w in ${words[@]+"${words[@]}"}; do
-        if [[ "${w##*/}" == make ]]; then make=1; elif [[ -n "$make" && ($w == bench || $w == dmg) ]]; then return 0; fi
-    done
-    return 1
-}
-# long_holder: succeeds while a live marker (foreign_mark) or a live holder (lock_holder) makes a
-# lock-free call wait.
-long_holder() {
-    cause=""
-    foreign_mark || lock_holder
 }
 # free_busy: succeeds while a lock-free call lives (a file of a live pid in $freedir), and sets cause
 # to its pid and command. A file of a dead pid goes.

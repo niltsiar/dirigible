@@ -30,7 +30,8 @@
 #   with-lock.sh step, and the query is not asked. Misses: a bench that waits for the lock (a
 #   waiting marker holds only the tree), and a lead mutation pass, flake loop, or
 #   scripts/eval/agent-tasks.sh that starts beside a live lock-step agent; the release-wait rule of
-#   git-guardrails.sh reads no such step, and lock_holder of with-lock.sh lists no agent-tasks.sh.
+#   git-guardrails.sh reads a background bench of the lead but no such step, and lock_holder of
+#   with-lock.sh lists no agent-tasks.sh.
 # - A delegate_task whose target providerInstanceId or model equals the name of a line of
 #   dirigible-provider-limits in the git common dir is refused while now is before the reset of that
 #   line. A line is <name><TAB><reset UTC, YYYY-MM-DDTHH:MM>, and scripts/provider-limit.sh writes

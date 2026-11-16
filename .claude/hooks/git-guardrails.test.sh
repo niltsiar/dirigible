@@ -164,8 +164,9 @@ rw_meta() {
   else printf '{"agentType":"run-agent","description":"d","toolUseId":"%s"}' "$2" > "$f"; fi
   touch -t "$(rw_stamp $(($(date +%s) - $4)))" "$f"
 }
-# expect_release <want> <records dir> <command> [<cwd>] [<agent id>]: the hook verdict with that records
-# folder. Stdout goes to $tmp/release.out and the message to $tmp/release.err.
+# expect_release <want> <records dir> <command> [<cwd>] [<agent id>] [bg]: the hook verdict with that records
+# folder; bg sets run_in_background true and the timeout 7200000. Stdout goes to $tmp/release.out and the
+# message to $tmp/release.err.
 expect_release() {
   local want="$1" got
   plutil -create xml1 "$input"
@@ -173,6 +174,10 @@ expect_release() {
   [[ -z "${4:-}" ]] || plutil -insert cwd -string "$4" "$input"
   plutil -insert tool_input -dictionary "$input"
   plutil -insert tool_input.command -string "$3" "$input"
+  if [[ "${6:-}" == bg ]]; then
+    plutil -insert tool_input.run_in_background -bool true "$input"
+    plutil -insert tool_input.timeout -integer 7200000 "$input"
+  fi
   plutil -convert json "$input"
   DIRIGIBLE_LOCK_AGENTS="$2" "$hook" < "$input" > "$tmp/release.out" 2> "$tmp/release.err"
   [[ $? -eq 2 ]] && got=block || got=allow
@@ -2048,6 +2053,39 @@ for text in "a1: Agent \"Implement S1\", newest record at $(date -r "$(cut -f1 "
 done
 expect_release allow "$rw/empty" "RELEASE_PAST=toolu_zz $P"
 rm -f "$rw_sub/agent-a1.meta.json"
+
+# A bench that the lead runs in the background (no agent_id) waits the same way (item 1730): after a
+# with-lock.sh word or bare. The same call in the foreground, a --compare or --lines run, a make goal
+# other than bench, and a subagent bench pass.
+B='WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make bench FILTER=NavigationKeyBenchmark'
+bench_bare=('scripts/bench.sh NavigationKeyBenchmark' 'scripts/bench-pairs.sh /x/main NavigationKeyBenchmark 3 /x/run/pairs')
+for run in "$B" 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh NavigationKeyBenchmark' \
+  'scripts/with-lock.sh scripts/bench-pairs.sh /x/main NavigationKeyBenchmark 3 /x/run/pairs' "${bench_bare[@]}" \
+  'cd /x/wt && scripts/bench.sh --trace /x/t.trace NavigationKeyBenchmark > /x/run/logs/b.log 2>&1' \
+  'bash scripts/bench.sh NavigationKeyBenchmark'; do
+  expect_release block "$rw/live" "$run" '' '' bg
+  release_has 'or a background bench of the lead (bench.sh, bench-pairs.sh, make bench)'
+  release_has 'alive: Agent "S1 slice agent"'
+done
+for run in "$B" "${bench_bare[@]}"; do expect_release allow "$rw/live" "$run"; done
+for run in 'scripts/bench-pairs.sh --compare /x/run/pairs' 'scripts/bench-pairs.sh --lines /x/run/logs/b.log' \
+  'scripts/with-lock.sh make test-filter FILTER=NavigationKeyBenchmark' "rg -n 'scripts/bench.sh NavigationKeyBenchmark' notes.txt" \
+  "RELEASE_PAST=alive $B" 'RELEASE_PAST=alive scripts/bench.sh NavigationKeyBenchmark'; do
+  expect_release allow "$rw/live" "$run" '' '' bg
+done
+expect_release allow "$rw/empty" "$B" '' '' bg
+# A subagent bench passes in the foreground and in the background, beside its own live record and
+# beside the record of another agent.
+rw_rec "$rw/own" toolu_own 600 Agent toolu_own 'S3 slice agent'
+rw_meta own toolu_own none 598
+for dir in "$rw/own" "$rw/live"; do
+  for run in 'scripts/with-lock.sh make bench FILTER=NavigationKeyBenchmark' "${bench_bare[@]}"; do
+    expect_release allow "$dir" "$run" '' own
+    expect_release allow "$dir" "$run" '' own bg
+  done
+done
+expect_release block "$rw/own" "${bench_bare[0]}" '' '' bg
+rm -f "$rw_sub/agent-own.meta.json"
 
 # An Agent record 5 to 90 min old with no meta file gives a note: with no live agent the call runs and
 # the note reaches the model as additionalContext JSON on stdout (each control byte escaped); with a

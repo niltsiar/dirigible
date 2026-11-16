@@ -1348,7 +1348,7 @@ td_setup() {
   printf '# Run r\n\n- Status: done\n- Branch: chore/x\n' > "$run/run.md"
 }
 td() {
-  (cd "${td_dir:-$t/main}" && "$here/teardown-run.sh" "$@") > "$t/out" 2>&1
+  (cd "${td_dir:-$t/main}" && "${td_script:-$here/teardown-run.sh}" "$@") > "$t/out" 2>&1
   code=$?
 }
 mk() { mkdir -p "$(dirname "$1")" && dd if=/dev/zero of="$1" bs=1048576 count="${2:-6}" 2> /dev/null; }
@@ -1438,6 +1438,101 @@ git -C "$t/main" worktree remove "$t/wt" && git -C "$t/main" branch -q -D chore/
 mk "$run/trace.bin"
 td "$run"
 [[ $code -eq 2 && -f "$run/trace.bin" ]] && grep -qF 'chore/x' "$t/out" || fail "teardown, no branch ref: exit $code: $(cat "$t/out")"
+
+# A DMG step detaches the run worktree at the tagged commit, so the branch has no worktree and
+# git worktree list shows a detached one. The teardown removes it when run.md names its path as a
+# whole token and its HEAD is the end of a `range <a>..<b>` or the commit of a `tag <name> on <commit>`
+# that run.md records. It keeps a detached or an attached worktree that a live holder or waiter
+# (with-lock.sh --builders) or an open run names, prints `worktree kept: <path> (<reason>)`, and
+# goes on to the file step.
+td_detach_setup() { # td_detach_setup <name>: no worktree on chore/x; $base, $landed, and the detached $dmg at $landed
+  td_setup "$1"
+  git -C "$t/main" worktree remove "$t/wt"
+  base="$(git -C "$t/main" rev-parse HEAD)"
+  git -C "$t/main" commit -q --allow-empty -m landed
+  landed="$(git -C "$t/main" rev-parse HEAD)"
+  git -C "$t/main" push -q origin main
+  git -C "$t/main" worktree add -q --detach "$t/dmg" "$landed"
+  dmg="$(cd "$t/dmg" && pwd -P)"
+  mk "$run/trace.bin"
+}
+td_landed() { # td_landed <landed text>: run.md of a done run with that Landed line
+  printf '# Run r\n\n- Status: done\n- Branch: chore/x\n- Landed: %s\n' "$1" > "$run/run.md"
+}
+td_open_run() { # td_open_run <status line> <text>: a second run folder with that run.md
+  mkdir -p "$t/main/.scratchpads/runs/o"
+  printf '# Run o\n\n%s\n- Worktree: %s\n' "$1" "$2" > "$t/main/.scratchpads/runs/o/run.md"
+}
+td_kept() { # td_kept <name> <worktree path> <text in the reason>: the worktree stays and the file step ran
+  [[ $code -eq 0 ]] || fail "teardown, $1: exit $code: $(cat "$t/out")"
+  grep -F "worktree kept: $2 (" "$t/out" | grep -qF "$3" || fail "teardown, $1: no kept line with [$3]: $(cat "$t/out")"
+  [[ -d "$2" ]] && git -C "$t/main" worktree list | grep -qF "$2" || fail "teardown, $1: the worktree is gone"
+  [[ ! -e "$run/trace.bin" ]] || fail "teardown, $1: the file step did not run"
+  ! grep -q '^worktree removed:' "$t/out" || fail "teardown, $1: a removed line: $(cat "$t/out")"
+}
+
+td_detach_setup detached-range
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+td "$run"
+[[ $code -eq 0 ]] || fail "teardown, a detached worktree at the range end: exit $code: $(cat "$t/out")"
+grep -qxF "worktree removed: $dmg" "$t/out" || fail "teardown, a detached worktree at the range end: no removed line: $(cat "$t/out")"
+[[ ! -d "$dmg" ]] && ! git -C "$t/main" worktree list | grep -qF "$dmg" || fail 'teardown, a detached worktree at the range end: the worktree stays'
+[[ ! -e "$run/trace.bin" ]] || fail 'teardown, a detached worktree at the range end: the file step did not run'
+
+td_detach_setup detached-tag
+td_landed "PR 7, tag v1.2 on ${landed:0:8}, built in $dmg."
+td "$run"
+grep -qxF "worktree removed: $dmg" "$t/out" && [[ $code -eq 0 && ! -d "$dmg" ]] || fail "teardown, a detached worktree at the tag commit: exit $code: $(cat "$t/out")"
+
+td_detach_setup detached-other
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+git -C "$dmg" checkout -q --detach "$base"
+td "$run"
+td_kept 'a detached worktree at another commit' "$dmg" 'HEAD'
+
+td_detach_setup detached-near
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg-old."
+td "$run"
+[[ $code -eq 0 && -d "$dmg" && ! -e "$run/trace.bin" ]] && grep -qxF 'worktree removed: none (gone already)' "$t/out" ||
+  fail "teardown, a detached worktree that run.md does not name: exit $code: $(cat "$t/out")"
+! grep -q 'worktree kept:' "$t/out" || fail "teardown, a detached worktree that run.md does not name: a kept line: $(cat "$t/out")"
+
+td_detach_setup detached-open
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+td_open_run '- Status: open' "$dmg"
+td "$run"
+td_kept 'a done run and an open run name the same path' "$dmg" 'open run'
+td_detach_setup detached-open-waits
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+td_open_run '- Status: open (waits)' "$dmg."
+td "$run"
+td_kept 'an open run with a waits line, the path before a period' "$dmg" 'open run'
+
+td_detach_setup attached-open
+git -C "$t/main" worktree add -q "$t/wt" chore/x
+wtp="$(cd "$t/wt" && pwd -P)"
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}."
+td_open_run '- Status: open' "$wtp"
+td "$run"
+td_kept 'an attached worktree that an open run names' "$wtp" 'open run'
+
+# A live holder or waiter: the stub with-lock.sh next to a copy of the script lists the tree.
+td_detach_setup detached-live
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+cp "$here/teardown-run.sh" "$t/main/scripts/teardown-run.sh"
+printf '#!/bin/bash\necho "$WITH_LOCK_BUILDERS_MIN $*" >> "%s/builders.calls"\necho "%s"\n' "$t" "$dmg" > "$t/main/scripts/with-lock.sh"
+chmod +x "$t/main/scripts/with-lock.sh"
+td_script="$t/main/scripts/teardown-run.sh" td "$run"
+td_kept 'a detached worktree that a live holder has' "$dmg" 'builds'
+[[ "$(cat "$t/builders.calls")" == '0 --builders' ]] || fail "teardown, a live holder: calls [$(cat "$t/builders.calls")]"
+
+td_detach_setup detached-two
+git -C "$t/main" worktree add -q --detach "$t/dmg2" "$landed"
+dmg2="$(cd "$t/dmg2" && pwd -P)"
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMGs were built in $dmg and $dmg2."
+td "$run"
+[[ $code -eq 2 && -d "$dmg" && -d "$dmg2" && -f "$run/trace.bin" ]] && grep -qF "$dmg" "$t/out" && grep -qF "$dmg2" "$t/out" ||
+  fail "teardown, two named detached worktrees at the landed commit: exit $code: $(cat "$t/out")"
 
 # The file rules. Each branch has an input on each side of it.
 # Only build output (*.app, .build/, *.dmg) is deleted: any other candidate, an unnamed raw audio

@@ -4,7 +4,15 @@
 #        scripts/teardown-run.sh --sweep-trash
 # Exit 2: the run folder is not a direct child of .scratchpads/runs/ of the main checkout, its
 # run.md has no `- Status: done` line, the working directory is in the run worktree, the fetch of
-# origin/main fails, or the branch of the last `- Branch:` line has neither a worktree nor a ref.
+# origin/main fails, the branch of the last `- Branch:` line has neither a worktree nor a ref, or
+# run.md names two detached worktrees that are at a landed commit.
+# The run worktree is the one on that branch. With none, it is the detached worktree whose path
+# run.md holds as a whole token and whose HEAD is the end of a `range <a>..<b>` or the commit of a
+# `tag <name> on <commit>` that run.md records (a DMG step detaches the run worktree). A named
+# detached worktree at another commit stays. The worktree also stays, with the line
+# `worktree kept: <path> (<reason>)`, and the file step goes on, when `with-lock.sh --builders`
+# (WITH_LOCK_BUILDERS_MIN=0) lists it (a live holder or waiter) or the run.md of an open run (a line
+# that starts with `- Status: open`) names it.
 # Exit 1, before any removal: `git cherry origin/main <branch>` prints a `+` line, the worktree is
 # not clean, or a scratch path is there already in <run folder>/worktree-scratch/.
 # Steps, in order:
@@ -85,16 +93,73 @@ run="$(cd "$1" 2>/dev/null && pwd -P)" || die 2 "$1 is not a folder"
 branch="$(awk '/^- Branch:/ { b = $3 } END { print b }' "$run/run.md" | tr -d '`')"
 [[ -n "$branch" ]] || die 2 "$run/run.md has no '- Branch:' line"
 wt="$(git -C "$main" worktree list --porcelain | awk -v b="refs/heads/$branch" '/^worktree / { p = substr($0, 10) } $1 == "branch" && $2 == b { print p }')"
+check_wt() { # <worktree path>: it is not the main checkout, and the working directory is outside it
+    local cwd
+    [[ "$1" != "$main" ]] || die 2 "the worktree of $branch is the main checkout"
+    cwd="$(pwd -P)"
+    [[ "$cwd" != "$1" && "$cwd" != "$1"/* ]] || die 2 "the working directory is in the run worktree $1; run it from the main checkout"
+}
+names_path() { # <file> <path>: the file holds the path as a whole token (a period that ends a sentence is no part of it)
+    awk -v t="$2" '
+        { off = 0
+          while ((i = index(substr($0, off + 1), t)) > 0) {
+              p = off + i
+              pre = (p > 1) ? substr($0, p - 1, 1) : ""
+              post = substr($0, p + length(t), 1)
+              nxt = substr($0, p + length(t) + 1, 1)
+              if (pre !~ "[A-Za-z0-9_./-]" && post !~ "[A-Za-z0-9_/-]" && !(post == "." && nxt ~ "[A-Za-z0-9_-]")) { found = 1; exit }
+              off = p } }
+        END { exit !found }' "$1"
+}
 if [[ -n "$wt" ]]; then
     wt="$(cd "$wt" && pwd -P)"
-    [[ "$wt" != "$main" ]] || die 2 "the worktree of $branch is the main checkout"
-    cwd="$(pwd -P)"
-    [[ "$cwd" != "$wt" && "$cwd" != "$wt"/* ]] || die 2 "the working directory is in the run worktree $wt; run it from the main checkout"
+    check_wt "$wt"
 fi
 git -C "$main" fetch -q origin main || die 2 "git fetch origin main failed"
 git -C "$main" rev-parse --verify -q "refs/heads/$branch" > /dev/null || die 2 "no branch $branch; the worktree is gone and the ref is gone"
 plus="$(git -C "$main" cherry origin/main "$branch" | grep '^+' || true)"
 [[ -z "$plus" ]] || die 1 "the branch $branch has commits that origin/main lacks: $(wc -l <<<"$plus" | tr -d ' ') line(s) with +; land them first"
+kept=()
+if [[ -z "$wt" ]]; then
+    # A DMG step detaches the run worktree at the landed commit. It counts when run.md names its
+    # path and its HEAD is the end of a `range <a>..<b>` or the commit of a `tag <name> on <commit>`.
+    landed=" "
+    while IFS= read -r ref; do
+        sha="$(git -C "$main" rev-parse --verify -q "$ref^{commit}")" && landed+="$sha "
+    done < <(grep -oE 'range [0-9a-f]{7,40}\.\.[0-9a-f]{7,40}|tag [^ ]+ on [0-9a-f]{7,40}' "$run/run.md" | sed -E 's/^.*(\.\.| on )//')
+    match=()
+    while IFS=$'\t' read -r path head; do
+        [[ "$path" != "$main" ]] && names_path "$run/run.md" "$path" || continue
+        if [[ "$landed" == *" $head "* ]]; then
+            match+=("$path")
+        else
+            kept+=("worktree kept: $path (HEAD ${head:0:9} is no commit that run.md records as landed)")
+        fi
+    done < <(git -C "$main" worktree list --porcelain | awk '/^worktree / { p = substr($0, 10) } /^HEAD / { h = $2 } $1 == "detached" { print p "\t" h }')
+    [[ ${#match[@]} -le 1 ]] || die 2 "run.md names ${#match[@]} detached worktrees at a landed commit: ${match[*]}; remove the wrong one by hand"
+    if [[ ${#match[@]} -eq 1 ]]; then
+        wt="${match[0]}"
+        check_wt "$wt"
+    fi
+fi
+if [[ -n "$wt" ]]; then
+    # Keep a worktree that a live holder or waiter builds in, or that the run.md of an open run names.
+    live="$(WITH_LOCK_BUILDERS_MIN=0 "$(dirname "$0")/with-lock.sh" --builders)" || die 2 "with-lock.sh --builders failed"
+    reason=""
+    if grep -qxF -- "$wt" <<<"$live"; then
+        reason="a live holder or waiter builds in it"
+    else
+        for file in "$runs"/*/run.md; do
+            [[ "$file" != "$run/run.md" ]] && grep -q '^- Status: open' "$file" && names_path "$file" "$wt" || continue
+            reason="the open run $(basename "$(dirname "$file")") names it"
+            break
+        done
+    fi
+    if [[ -n "$reason" ]]; then
+        kept+=("worktree kept: $wt ($reason)")
+        wt=""
+    fi
+fi
 if [[ -n "$wt" ]]; then
     [[ -z "$(git -C "$wt" status --porcelain)" ]] || die 1 "the worktree $wt has changes (git status --porcelain); commit or copy them first"
     scratch="$wt/.scratchpads"
@@ -120,9 +185,10 @@ if [[ -n "$wt" ]]; then
     fi
     git -C "$main" worktree remove "$wt" || die 1 "git worktree remove $wt failed"
     echo "worktree removed: $wt"
-else
+elif [[ ${#kept[@]} -eq 0 ]]; then
     echo "worktree removed: none (gone already)"
 fi
+[[ ${#kept[@]} -eq 0 ]] || printf '%s\n' "${kept[@]}"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

@@ -65,33 +65,41 @@ struct PackageItemsTests {
 
     /// An entry of `Artwork/`, `Capture/`, or `Backups/` and its wrong kind, with the error of the open.
     struct WrongEntry: Sendable, CustomTestStringConvertible {
-        enum Kind: Sendable { case artworkLink, anchorLink, anchorFIFO, backupLink, artworkFolder, artworkMode000 }
+        enum Kind: Sendable {
+            case artworkLink, anchorLink, anchorFIFO, backupLink, artworkFolder
+            case mode000(String)
+        }
         let kind: Kind
         let error: SessionFileError
         var testDescription: String { "\(kind)" }
 
         static let artwork = "0F0E0D0C-0B0A-4908-8706-050403020100.jpg"
-        static let all = [
-            WrongEntry(kind: .artworkLink, error: .unsafeItem("Artwork/\(artwork)")),
-            WrongEntry(kind: .anchorLink, error: .unsafeItem("Capture/take1.anchor")),
-            WrongEntry(kind: .anchorFIFO, error: .unsafeItem("Capture/take1.anchor")),
-            WrongEntry(kind: .backupLink, error: .unsafeItem("Backups/session-20011009T081530.250Z.xml")),
-            WrongEntry(kind: .artworkFolder, error: .unsafeItem("Artwork/Inner")),
-            WrongEntry(kind: .artworkMode000, error: .readFailed(errno: EACCES)),
-        ]
+        static let unreadable = ["Artwork", "Capture", "Backups"].map {
+            WrongEntry(kind: .mode000($0), error: .unreadableItem($0, errno: EACCES))
+        }
+        static let all =
+            [
+                WrongEntry(kind: .artworkLink, error: .unsafeItem("Artwork/\(artwork)")),
+                WrongEntry(kind: .anchorLink, error: .unsafeItem("Capture/take1.anchor")),
+                WrongEntry(kind: .anchorFIFO, error: .unsafeItem("Capture/take1.anchor")),
+                WrongEntry(kind: .backupLink, error: .unsafeItem("Backups/session-20011009T081530.250Z.xml")),
+                WrongEntry(kind: .artworkFolder, error: .unsafeItem("Artwork/Inner")),
+            ] + unreadable
     }
 
     /// C14. `session.xml` names an artwork that is a link to a local file, so an
     /// export would put that file into the episode. A link in `Capture/` or `Backups/` makes a
-    /// recovery or a revert read a local file. A folder that does not list hides its entries.
+    /// recovery or a revert read a local file. A folder that does not list hides its entries, and
+    /// the error names that folder, not `session.xml`.
     @Test(arguments: WrongEntry.all)
     func eachEntryThatIsNotAFileIsRefused(_ entry: WrongEntry) throws {
         let artwork = package.appending(path: "Artwork")
+        let folders = ["Artwork", "Capture", "Backups"]
         defer {
-            chmod(artwork.path, 0o755)
+            for name in folders { chmod(package.appending(path: name).path, 0o755) }
             try? FileManager.default.removeItem(at: folder)
         }
-        for name in ["Artwork", "Capture", "Backups"] {
+        for name in folders {
             try FileManager.default.createDirectory(
                 at: package.appending(path: name), withIntermediateDirectories: false)
         }
@@ -117,7 +125,7 @@ struct PackageItemsTests {
         case .artworkFolder:
             try FileManager.default.createDirectory(
                 at: artwork.appending(path: "Inner"), withIntermediateDirectories: false)
-        case .artworkMode000: try #require(chmod(artwork.path, 0o000) == 0)
+        case .mode000(let name): try #require(chmod(package.appending(path: name).path, 0o000) == 0)
         }
 
         #expect(throws: entry.error) { try Session(contentsOf: package) }

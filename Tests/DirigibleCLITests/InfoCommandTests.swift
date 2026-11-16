@@ -362,7 +362,7 @@ struct SessionViewTests {
     }
 
     /// A `Capture/` that does not list stops the open: the item check of the open cannot see its
-    /// entries.
+    /// entries. The text names `Capture`, because `session.xml` reads.
     @Test func anUnreadableCaptureFolderStopsInfo() async throws {
         let package = try TakeMapCommandTests.twoTakes()
         let capture = package.url.appending(path: "Capture")
@@ -373,7 +373,7 @@ struct SessionViewTests {
             try await package.run("info", "PKG")
                 == CLIResult(
                     status: 2, stdout: "",
-                    stderr: "Error: cannot read \(package.path)/session.xml: Permission denied.\n"))
+                    stderr: "Error: cannot read \(package.path)/Capture: Permission denied.\n"))
     }
 
     /// No take file, so no sync key and no line, also with an anchor that does not read.

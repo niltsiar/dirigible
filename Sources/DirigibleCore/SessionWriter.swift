@@ -26,6 +26,9 @@ public enum SessionFileError: Error, Hashable, Sendable {
     /// `checkItems(of:)` and `PackageLock` check it. The package did not change, except that an open
     /// can make an empty `.lock`.
     case unsafeItem(String)
+    /// `checkItems(of:)` cannot read or list an item of the package, named by its path in the
+    /// package. The open stops, because an entry that it cannot see can break the item rule.
+    case unreadableItem(String, errno: Int32)
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.

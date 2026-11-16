@@ -8,11 +8,11 @@ package let captureFolderName = "Capture"
 /// regular files, the five folders are folders, and each entry of `Artwork/`, `Capture/`, and
 /// `Backups/` is a regular file. An entry of `Clips/` or `Transcripts/` can be a link, and its
 /// target is a regular file, or a folder in `Clips/`. A missing item and a dangling link pass;
-/// another `lstat` or listing errno throws `.readFailed(errno:)`. `checkPoolPaths` checks the pool
-/// paths in a subfolder of `Clips/` after the parse.
+/// another `lstat` or listing errno throws `.unreadableItem` with that item. `checkPoolPaths`
+/// checks the pool paths in a subfolder of `Clips/` after the parse.
 func checkItems(of package: URL) throws(SessionFileError) {
     for name in [".lock", "session.xml"] {
-        guard let info = try itemInfo(package.appending(path: name)) else { continue }
+        guard let info = try itemInfo(name, in: package) else { continue }
         // A hard-linked `.lock` can name the lock of another package. A volume that reports 0 links still opens.
         guard info.st_mode & S_IFMT == S_IFREG, name == "session.xml" || info.st_nlink <= 1 else {
             throw .unsafeItem(name)
@@ -22,21 +22,21 @@ func checkItems(of package: URL) throws(SessionFileError) {
         switch folderErrno(package.appending(path: name)) {
         case nil: continue
         case ENOTDIR: throw .unsafeItem(name)
-        case let code?: throw .readFailed(errno: code)
+        case let code?: throw .unreadableItem(name, errno: code)
         }
     }
     for folder in [artworkFolderName, captureFolderName, backupsFolderName, clipsFolderName, transcriptsFolderName] {
         let url = package.appending(path: folder)
         // The listing error of a missing folder has no POSIX code.
-        guard try itemInfo(url) != nil else { continue }
+        guard try itemInfo(folder, in: package) != nil else { continue }
         let names: [String]
         do {
             names = try FileManager.default.contentsOfDirectory(atPath: url.path)
         } catch {
-            throw .readFailed(errno: posixCode(of: error))
+            throw .unreadableItem(folder, errno: posixCode(of: error))
         }
         let descriptor = open(url.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
-        guard descriptor >= 0 else { throw .readFailed(errno: errno) }
+        guard descriptor >= 0 else { throw .unreadableItem(folder, errno: errno) }
         defer { close(descriptor) }
         let follows = folder == clipsFolderName || folder == transcriptsFolderName
         for name in names {
@@ -47,8 +47,9 @@ func checkItems(of package: URL) throws(SessionFileError) {
                 // A live take renames `.take<n>.anchor.tmp` during the listing, so a gone entry
                 // passes. Through a link, a missing target passes, and the read of the item reports
                 // another error.
-                if follows || errno == ENOENT { continue }
-                throw .readFailed(errno: errno)
+                let code = errno
+                if follows || code == ENOENT { continue }
+                throw .unreadableItem("\(folder)/\(name)", errno: code)
             }
             let kind = info.st_mode & S_IFMT
             if kind == S_IFREG || (kind == S_IFDIR && folder == clipsFolderName) { continue }
@@ -81,12 +82,12 @@ func folderErrno(_ url: URL) -> Int32? {
     return info.st_mode & S_IFMT == S_IFDIR ? nil : ENOTDIR
 }
 
-/// The `lstat` of `url`, or nil for a missing item.
-private func itemInfo(_ url: URL) throws(SessionFileError) -> stat? {
+/// The `lstat` of the item `name` of `package`, or nil for a missing item.
+private func itemInfo(_ name: String, in package: URL) throws(SessionFileError) -> stat? {
     var info = stat()
-    guard lstat(url.path, &info) == 0 else {
+    guard lstat(package.appending(path: name).path, &info) == 0 else {
         let code = errno
-        guard code == ENOENT else { throw .readFailed(errno: code) }
+        guard code == ENOENT else { throw .unreadableItem(name, errno: code) }
         return nil
     }
     return info

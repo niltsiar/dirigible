@@ -28,4 +28,18 @@ struct MCPPackageRefusalTests {
 
         #expect(result == (PackageRefusalCommandTests.unsafeItemText(package, "Clips/take1-1-1.wav"), true))
     }
+
+    /// A `Capture/` that does not list: `session_info` refuses the package and names `Capture`, not
+    /// `session.xml`, which reads.
+    @Test func sessionInfoNamesAnUnreadableFolder() async throws {
+        let package = try TakeMapCommandTests.twoTakes()
+        let capture = package.url.appending(path: "Capture")
+        try #require(chmod(capture.path, 0o000) == 0)
+        defer { chmod(capture.path, 0o755) }
+
+        let call = toolCall(1, "session_info", ["package": package.path])
+        let result = toolResult(answer(try await mcp([call]), id: 1))
+
+        #expect(result == ("cannot read \(package.path)/Capture: Permission denied.", true))
+    }
 }

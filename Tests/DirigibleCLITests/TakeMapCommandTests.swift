@@ -278,6 +278,6 @@ struct TakeMapCommandTests {
             try await package.run("take", "map", "PKG", "--take", "1", "100")
                 == CLIResult(
                     status: 2, stdout: "",
-                    stderr: "Error: cannot read \(package.path)/session.xml: Permission denied.\n"))
+                    stderr: "Error: cannot read \(package.path)/Capture: Permission denied.\n"))
     }
 }

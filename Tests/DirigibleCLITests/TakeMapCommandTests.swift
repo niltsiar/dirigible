@@ -266,8 +266,9 @@ struct TakeMapCommandTests {
                 ], "\(info)")
     }
 
-    /// A `Capture/` that does not read is named as a folder, not as a take anchor.
-    @Test func aCaptureFolderFaultNamesTheFolder() async throws {
+    /// A `Capture/` that does not list stops the open: the item check of the open cannot see its
+    /// entries.
+    @Test func anUnreadableCaptureFolderStopsTheOpen() async throws {
         let package = try Self.twoTakes()
         let capture = package.url.appending(path: "Capture")
         chmod(capture.path, 0o000)
@@ -277,6 +278,6 @@ struct TakeMapCommandTests {
             try await package.run("take", "map", "PKG", "--take", "1", "100")
                 == CLIResult(
                     status: 2, stdout: "",
-                    stderr: "Error: Cannot read the folder Capture (errno 13), so the take time is not known.\n"))
+                    stderr: "Error: cannot read \(package.path)/session.xml: Permission denied.\n"))
     }
 }

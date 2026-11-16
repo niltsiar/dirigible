@@ -47,15 +47,17 @@ public struct UnusedFiles: Hashable, Sendable {
     let owners: [CaptureID: Set<FileID>]
 
     /// Reads `Clips/`, `session.xml`, and `Backups/` of `package`. `keptFiles` are the pool paths
-    /// of the files that the app clipboard of the same package uses. Throws for an unreadable
-    /// `Clips/` or `session.xml`, and for a backup of a newer version or with a read errno other
-    /// than ENOENT: the scan cannot know its clips. A backup that is gone keeps nothing.
+    /// of the files that the app clipboard of the same package uses. Throws for a `Clips/` that is
+    /// not a folder (a link too) or does not read, for an unreadable `session.xml`, and for a backup
+    /// of a newer version or with a read errno other than ENOENT: the scan cannot know its clips. A
+    /// backup that is gone keeps nothing.
     /// `soleCopies` are the `Clips/` paths of the stem WAVs whose CAF is gone (decision 0071).
     public init(
         scanning session: Session, keptBy keepers: [Session], keptFiles: [String] = [], soleCopies: Set<String>,
         in package: URL
     ) throws(UnusedFilesError) {
         let clips = package.appending(path: clipsFolderName)
+        if let code = folderErrno(clips) { throw .clipsUnreadable(errno: code) }
         let names: [String]
         do {
             names = try FileManager.default.contentsOfDirectory(atPath: clips.path)
@@ -85,7 +87,7 @@ public struct UnusedFiles: Hashable, Sendable {
         let others = Holders((held + keepers).flatMap(\.usedPaths) + keptFiles, in: clips)
         let poolNames = Set(session.files.values.map { normalized($0.path) })
         let used = session.filesInUse
-        let realClips = clips.resolvingSymlinksInPath().path
+        let realClips = package.resolvingSymlinksInPath().appending(path: clipsFolderName).path
         let sole = Set(soleCopies.map(normalized))
 
         var candidates: [(Item.Kind, String)] = session.files.values

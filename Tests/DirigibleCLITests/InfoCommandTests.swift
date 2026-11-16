@@ -361,27 +361,32 @@ struct SessionViewTests {
         #expect(try await json(package, "--compact") == faults)
     }
 
-    /// A `Capture/` that does not read keeps every take out, and its line and entry name a folder.
-    @Test func aCaptureFolderFaultLineNamesTheFolder() async throws {
+    /// A `Capture/` that does not list stops the open: the item check of the open cannot see its
+    /// entries.
+    @Test func anUnreadableCaptureFolderStopsInfo() async throws {
         let package = try TakeMapCommandTests.twoTakes()
         let capture = package.url.appending(path: "Capture")
         chmod(capture.path, 0o000)
         defer { chmod(capture.path, 0o755) }
 
-        #expect(try await syncLines(package) == ["sync folder unreadable: Capture (errno 13)"])
         #expect(
-            try await json(package) == SyncView(takeSync: nil, takeSyncFaults: [.init(file: "Capture", errno: EACCES)]))
+            try await package.run("info", "PKG")
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: cannot read \(package.path)/session.xml: Permission denied.\n"))
     }
 
-    /// No take file, so no sync key and no line, also with an unreadable `Capture/`.
+    /// No take file, so no sync key and no line, also with an anchor that does not read.
     @Test func noTakeAudioGivesNoSyncLine() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
         let package = try TemporaryPackage(session)
         let capture = package.url.appending(path: "Capture")
         try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
-        chmod(capture.path, 0o000)
-        defer { chmod(capture.path, 0o755) }
+        let anchor = capture.appending(path: "take1.anchor")
+        try Data("anchor".utf8).write(to: anchor)
+        chmod(anchor.path, 0o000)
+        defer { chmod(anchor.path, 0o644) }
 
         #expect(try await syncLines(package) == [])
         #expect(try await json(package) == SyncView(takeSync: nil, takeSyncFaults: nil))

@@ -133,13 +133,15 @@ struct StudioBackupTests {
 
     /// C5: a backup fault shows no save error.
     @Test func aBackupFaultShowsNoSaveError() async throws {
-        try Data("not a folder".utf8).write(to: backupFolder)
+        // The open refuses a `Backups` that is not a folder, so the fault comes after the open.
         let studio = try await studio()
+        try Data("not a folder".utf8).write(to: backupFolder)
 
         try setName(studio, to: "B")
         await studio.serialized {}
 
         #expect(studio.saveError == nil, "a backup fault shows no save error")
+        try FileManager.default.removeItem(at: backupFolder)
         #expect(try Session(contentsOf: url).track("t1")?.name == "B")
         await studio.settle()
     }

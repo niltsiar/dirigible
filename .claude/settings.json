@@ -104,6 +104,15 @@
         ]
       },
       {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guardrails.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Agent|SendMessage|mcp__t3-code__delegate_task",
         "hooks": [
           {

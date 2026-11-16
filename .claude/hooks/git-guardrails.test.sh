@@ -231,7 +231,7 @@ printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"co
 # value as ^(<value>)$, so write it with no anchors: make drops a trailing $. A block prints its
 # label when it starts. A value that matches no label exits 1.
 labels=(guardrails guardrails-tag guardrails-rules test-rule release-wait post-commit pre-commit commit-msg agent-guard usage-hook
-  handback-guard agent-clock write-guard stop-guard pre-compact hook-cases)
+  handback-guard agent-clock write-guard holdout-keys stop-guard pre-compact hook-cases)
 cases_pattern="^(${HOOK_CASES:-.*})\$"
 cases_hit=0
 for label in "${labels[@]}"; do [[ "$label" =~ $cases_pattern ]] && cases_hit=1; done
@@ -3413,6 +3413,56 @@ hook_registered "$settings" write-guard.sh Write ||
   { echo "FAIL: .claude/settings.json does not register write-guard.sh for Write"; failures=$((failures + 1)); }
 
 fi # write-guard
+if case_block holdout-keys; then
+# git-guardrails.sh refuses a read of holdout-keys.md outside the listed forms: a Bash path word, a
+# Read file_path, or a Grep path or glob that names the file. A mention of the name passes.
+hk_dir="$tmp/hk"
+mkdir -p "$hk_dir"
+printf '## H90\nmade-up key points\n' > "$hk_dir/holdout-keys.md"
+hk_run='.scratchpads/runs/r'
+hk="$hk_run/holdout-keys.md"
+for run in "head -20 $hk | cut -c1-40" "cat $hk" "sed -n 1,9p $hk" "rg H24 $hk" "rg -A1 '^## ' $hk" \
+  "cd $hk_run && head holdout-keys.md" 'cat .scratchpads/runs/*/holdout-keys.md' "cat $hk|head" "(cat $hk)" \
+  "head < $hk" "mv $hk $hk_run/notes.txt" "cat $hk >> $hk_run/notes.txt" "rg -n '^## ' $hk && cat $hk"; do
+  expect_message 'reads holdout-keys.md' "$run"
+done
+expect_message 'a pattern that is not the bare name' "cat $hk"
+for run in "rg '^## ' $hk" "rg -n '^## ' $hk" "rg -n \"^## \" '$hk'" \
+  "scripts/eval/run.sh $hk_run/eval-p7 origin/main HEAD H90 p7 --holdout-keys $hk" \
+  "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/eval/run.sh $hk_run/eval-p7 origin/main HEAD H90 p7 --holdout-keys $hk" \
+  "cat $hk_run/new-key.txt >> $hk" "mv $hk_run/new-keys.txt $hk" "mv -f $hk_run/new-keys.txt $hk" \
+  "scripts/check-eval-keys.sh origin/main $hk_run"; do
+  expect allow "$run"
+done
+# A mention of the bare name passes from a folder that does not hold the file, and is refused from
+# a folder that holds it.
+for run in "rg -c 'refuses a read of \`holdout-keys.md\`' docs/workflow/evals.md" 'rg -n holdout-keys.md docs .claude' \
+  'rg -l holdout-keys scripts'; do
+  expect allow "$run" '' '' "$tmp"
+done
+expect block 'rg -n holdout-keys.md docs .claude' '' '' "$hk_dir"
+# hk_tool <want> <hook input>: the verdict of the hook for a Read or Grep input; a block names the file.
+hk_tool() {
+  local got
+  printf '%s' "$2" | "$hook" 2>"$tmp/hk.err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == allow ]] || grep -q 'reads holdout-keys.md' "$tmp/hk.err" || got="block ($(head -c 120 "$tmp/hk.err"))"
+  [[ "$got" == "$1" ]] || { echo "FAIL: holdout-keys: expected $1, got $got: $2"; failures=$((failures + 1)); }
+}
+hk_tool block '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/holdout-keys.md"}}'
+hk_tool allow '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/keys.md"}}'
+hk_tool allow '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/holdout-keys.md.txt"}}'
+hk_tool block '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r/holdout-keys.md"}}'
+hk_tool block '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r","glob":"holdout-keys.md"}}'
+hk_tool allow '{"tool_name":"Grep","tool_input":{"pattern":"holdout-keys.md","path":"docs/workflow"}}'
+hk_tool allow '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r"}}'
+for tool in Read Grep; do
+  hook_registered "$settings" git-guardrails.sh "$tool" ||
+    { echo "FAIL: .claude/settings.json does not register git-guardrails.sh for $tool"; failures=$((failures + 1)); }
+done
+hook_registered "$tmp/old-settings.json" git-guardrails.sh Read &&
+  { echo "FAIL: the registration check passed a settings file with no git-guardrails.sh entry for Read"; failures=$((failures + 1)); }
+fi # holdout-keys
 stop_hook="$(dirname "$0")/stop-guard.sh"
 # lead_session <name>: write stdin as the lead transcript, and name its folder in hb_dir
 lead_session() { hb_dir="$tmp/$1"; mkdir -p "$hb_dir"; cat > "$hb_dir/s.jsonl"; }

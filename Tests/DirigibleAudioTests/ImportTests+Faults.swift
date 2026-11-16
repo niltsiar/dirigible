@@ -290,6 +290,24 @@ struct ImportFaultTests {
         }
         #expect(try Data(contentsOf: victim) == Data("victim".utf8))
     }
+
+    /// The open of a FIFO with a reader does not wait, so the writer refuses each item at its name
+    /// that is not a regular file.
+    @Test func aClipWriterRefusesAFIFOWithAReaderAtItsName() throws {
+        let folder = try TemporaryFolder()
+        let fifo = folder.url.appending(path: ".take1-1-1.wav.tmp")
+        try makeFIFO(at: fifo)
+        let reader = open(fifo.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        try #require(reader >= 0)
+        defer { close(reader) }
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+
+        let error = #expect(throws: FinalizeError.self) {
+            _ = try ClipWriter(url: fifo, file: "Clips/take1-1-1.wav", format: format)
+        }
+
+        #expect(error == .writeFailed(file: "Clips/take1-1-1.wav", status: EFTYPE))
+    }
 }
 
 /// A 16-bit PCM WAV of silence with `channels` channels at 48 kHz, written byte by byte, so a

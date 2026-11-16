@@ -35,6 +35,14 @@ struct PoolItemKindTests {
         }
     }
 
+    /// Whether the folder at `path` opens for a listing. It still does after a `chmod` for root,
+    /// or on a volume that ignores permissions, and then the tests of such a folder prove nothing.
+    func lists(_ path: String) -> Bool {
+        let descriptor = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        if descriptor >= 0 { close(descriptor) }
+        return descriptor >= 0
+    }
+
     /// A named pool file, a named pool file in a subfolder, a stray entry of `Clips/`, and a stray
     /// entry of `Transcripts/`.
     @Test(arguments: ["Clips/a.wav", "Clips/sub/b.wav", "Clips/stray.wav", "Transcripts/stray.xml"])
@@ -61,6 +69,7 @@ struct PoolItemKindTests {
         let path = url.appending(path: name).path
         try #require(chmod(path, mode) == 0)
         defer { chmod(path, 0o755) }
+        try #require(!lists(path))
 
         let session = try Session(contentsOf: url)
 
@@ -83,6 +92,7 @@ struct PoolItemKindTests {
         let folder = fifo.deletingLastPathComponent().path
         try #require(chmod(folder, 0o300) == 0)
         defer { chmod(folder, 0o755) }
+        try #require(!lists(folder))
 
         let value = await read(waitingOn: fifo)
 

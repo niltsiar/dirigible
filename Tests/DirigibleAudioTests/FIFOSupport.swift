@@ -16,6 +16,36 @@ func makeFIFO(at url: URL) throws {
 func valueWithNoWriter<Value: Sendable>(
     of fifo: URL, limit: Duration = .seconds(10), _ call: @escaping @Sendable () -> Value
 ) async -> Value? {
+    await value(of: call, waitingFor: "writer", of: fifo, limit: limit) {
+        let writer = open(fifo.path, O_WRONLY | O_NONBLOCK | O_CLOEXEC)
+        if writer >= 0 { close(writer) }
+    }.value
+}
+
+/// `valueWithNoWriter` for a call that writes: an open for writing waits for a reader. After
+/// `limit` the test opens one reader and empties the FIFO at each poll until the call ends.
+@MainActor
+func valueWithNoReader<Value: Sendable>(
+    of fifo: URL, limit: Duration = .seconds(10), _ call: @escaping @Sendable () -> Value
+) async -> Value? {
+    var reader: Int32 = -1
+    let capacity = 65_536
+    var bytes = [UInt8](repeating: 0, count: capacity)
+    let result = await value(of: call, waitingFor: "reader", of: fifo, limit: limit) {
+        if reader < 0 { reader = open(fifo.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC) }
+        while reader >= 0 && read(reader, &bytes, capacity) > 0 {}
+    }
+    // A write of the call after the close of the last reader raises SIGPIPE, which stops the tests.
+    if reader >= 0 && result.ended { close(reader) }
+    return result.value
+}
+
+/// The value of `call`, nil when `release` ran first, and whether the call ended.
+@MainActor
+private func value<Value: Sendable>(
+    of call: @escaping @Sendable () -> Value, waitingFor peer: String, of fifo: URL, limit: Duration,
+    release: () -> Void
+) async -> (value: Value?, ended: Bool) {
     let state = OSAllocatedUnfairLock<(value: Value?, ended: Bool, released: Bool)>(
         initialState: (nil, false, false))
     Thread {
@@ -25,7 +55,7 @@ func valueWithNoWriter<Value: Sendable>(
             $0.ended = true
         }
     }.start()
-    await until(limit: limit, "the call waits for a writer of \(fifo.lastPathComponent)") {
+    await until(limit: limit, "the call waits for a \(peer) of \(fifo.lastPathComponent)") {
         state.withLock { $0.ended }
     }
     let waits = state.withLock { current -> Bool in
@@ -33,11 +63,10 @@ func valueWithNoWriter<Value: Sendable>(
         return current.released
     }
     if waits {
-        await until(limit: limit, "the call does not end after a writer opens \(fifo.lastPathComponent)") {
-            let writer = open(fifo.path, O_WRONLY | O_NONBLOCK | O_CLOEXEC)
-            if writer >= 0 { close(writer) }
+        await until(limit: limit, "the call does not end after a \(peer) opens \(fifo.lastPathComponent)") {
+            release()
             return state.withLock { $0.ended }
         }
     }
-    return state.withLock { $0.value }
+    return state.withLock { ($0.value, $0.ended) }
 }

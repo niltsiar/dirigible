@@ -109,6 +109,97 @@ void_set aa-1 'load 9.00 after 300 s, not under 8; no timed run'
 void_set aa-2 'a test of another tree runs after 300 s (pid 7: x); no timed run'
 void_set main-1 'load 8.50 after the timed run, not under 8'
 
+# A pair run refuses an out folder whose run folder (the nearest parent with a decisions.tsv, up to
+# .scratchpads/runs) has no phase 7 row after its last phase 4 or phase 6 row. The refusal comes
+# before the lock: a fake with-lock.sh logs each call, and the refused run leaves it empty.
+sp="$tmp/sp/.scratchpads/runs"
+printf '#!/bin/bash\necho "$*" >> "%s"\n' "$tmp/lock.log" > "$r/scripts/with-lock.sh"
+chmod +x "$r/scripts/with-lock.sh"
+tsv() { # tsv <dir> <phase>...: decisions.tsv with a header row and one row for each phase
+  local d="$1" n=0 p
+  shift
+  mkdir -p "$d"
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$d/decisions.tsv"
+  for p in "$@"; do
+    n=$((n + 1))
+    printf '2026-01-01T00:%02d\t%s\td\tw\te\tr\n' "$n" "$p" >> "$d/decisions.tsv"
+  done
+}
+pairs_in() { # pairs_in <out folder>: one pair run into $out and $code, with the lock log empty first
+  : > "$tmp/lock.log"
+  out="$("$pairs" "$r" X 1 "$1" 2>&1)"
+  code=$?
+}
+refuses() { # refuses <name> <out folder> <last phase 4 or 6> <its row number>
+  pairs_in "$2"
+  [[ $code -eq 2 && "$out" == *"no phase 7 row after its last phase 4 or phase 6 row (last: phase $3 at 2026-01-01T00:0$4)"* &&
+     "$out" == *'log a phase 7 row first, or use make bench for a gate perf item'* ]] || fail "$1: exit $code: $out"
+  [[ ! -s "$tmp/lock.log" && ! -e "$2" ]] || fail "$1: the lock was called or the folder was made: $(cat "$tmp/lock.log")"
+}
+passes() { # passes <name> <out folder>
+  pairs_in "$2"
+  [[ $code -eq 0 && "$out" != *'phase 7 row'* && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 1 ]] ||
+    fail "$1: exit $code: $out, lock log: $(cat "$tmp/lock.log")"
+}
+tsv "$sp/r64" 1 4 6
+refuses 'last phase 6, no phase 7' "$sp/r64/pairs-x" 6 3
+tsv "$sp/r47" 4 7 6
+refuses 'a phase 6 row after a phase 7 row' "$sp/r47/pairs-x" 6 3
+tsv "$sp/r4" 4
+refuses 'only a phase 4 row' "$sp/r4/pairs-x" 4 1
+refuses 'a probe folder below the run folder' "$sp/r4/probes/p1/pairs-x" 4 1
+tsv "$sp/n47" 1 4 7
+passes 'phases 4 7' "$sp/n47/pairs-x"
+tsv "$sp/n67" 1 6 7
+passes 'phases 6 7' "$sp/n67/pairs-x"
+tsv "$sp/n74" 4 7 4
+refuses 'near pair 7 4' "$sp/n74/pairs-x" 4 3
+tsv "$sp/n76" 4 7 6
+refuses 'near pair 7 6' "$sp/n76/pairs-x" 6 3
+# A folder with no run folder above it up to .scratchpads/runs passes, also with a refusing
+# decisions.tsv above that folder.
+tsv "$tmp/sp" 4
+passes 'an out folder under no run folder' "$sp/loose/pairs-x"
+# A relative out folder is made absolute first: the walk ends, and the run goes on.
+mkdir "$tmp/rel"
+: > "$tmp/lock.log"
+out="$(cd "$tmp/rel" && "$pairs" "$r" X 1 pairs-x 2>&1)"
+code=$?
+[[ $code -eq 0 && "$out" != *'phase 7 row'* && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 1 ]] ||
+  fail "a relative out folder outside a run: exit $code: $out"
+mkdir -p "$sp/r4"
+: > "$tmp/lock.log"
+out="$(cd "$sp/r4" && "$pairs" "$r" X 1 pairs-rel 2>&1)"
+code=$?
+[[ $code -eq 2 && "$out" == *'no phase 7 row'* && ! -s "$tmp/lock.log" ]] || fail "a relative out folder in a run folder: exit $code: $out"
+# --compare and --lines read no decisions.tsv.
+mkdir -p "$sp/r4/pairs-c"
+cp "$tmp"/v/*.log "$sp/r4/pairs-c/"
+out="$("$pairs" --compare "$sp/r4/pairs-c" 2>&1)"
+[[ "$out" == *'XBenchmark'* && "$out" != *'phase 7 row'* ]] || fail "--compare in a run folder with no phase 7 row: $out"
+out="$("$pairs" --lines "$sp/r4/pairs-c/aa-1.log" 2>&1)"
+code=$?
+[[ $code -eq 0 && -z "$out" ]] || fail "--lines in a run folder with no phase 7 row: exit $code: $out"
+# Real rows (ts and phase) of the decisions.tsv of run 2026-10-28-session-index-zoom: the rows to
+# 2026-11-14T07:29 end in phase 7 after the phase 6 rows (the pairs-l2 set started at 07:53 and ran);
+# the rows 604 to 618 (the phase 4 and 6 rows to 2026-11-15T02:29, the start of pairs-l2b-2) follow
+# rows 514 to 603, which are phase 7 rows only, and end in phase 6, so that set is refused.
+real() { # real <dir> <part>...: decisions.tsv from the "<ts> <phase>" lines of the parts
+  local d="$1"
+  shift
+  mkdir -p "$d"
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$d/decisions.tsv"
+  printf '%s\n' "$@" | while read -r ts ph; do printf '%s\t%s\td\tw\te\tr\n' "$ts" "$ph"; done >> "$d/decisions.tsv"
+}
+early=$'2026-11-14T00:27 4\n2026-11-14T00:49 4\n2026-11-14T01:45 4\n2026-11-14T02:21 4\n2026-11-14T03:19 4\n2026-11-14T04:20 4\n2026-11-14T04:20 4\n2026-11-14T04:20 4\n2026-11-14T04:36 4\n2026-11-14T05:02 4\n2026-11-14T05:09 5\n2026-11-14T06:11 6\n2026-11-14T06:11 6\n2026-11-14T06:11 6\n2026-11-14T06:11 6\n2026-11-14T06:11 6\n2026-11-14T07:20 7\n2026-11-14T07:20 7\n2026-11-14T07:20 8\n2026-11-14T07:28 7\n2026-11-14T07:29 7'
+late=$'2026-11-14T23:14 4\n2026-11-14T23:37 4\n2026-11-15T00:10 4\n2026-11-15T00:31 4\n2026-11-15T00:49 4\n2026-11-15T00:59 6\n2026-11-15T01:35 6\n2026-11-15T02:14 6\n2026-11-15T02:14 6\n2026-11-15T02:14 6\n2026-11-15T02:14 6\n2026-11-15T02:14 6\n2026-11-15T02:14 6\n2026-11-15T02:15 6\n2026-11-15T02:29 6'
+real "$sp/real-pass" "$early"
+passes 'real rows to 2026-11-14T07:29' "$sp/real-pass/pairs-l2"
+real "$sp/real-refuse" "$early" "$late"
+pairs_in "$sp/real-refuse/pairs-l2b-2"
+[[ $code -eq 2 && "$out" == *'(last: phase 6 at 2026-11-15T02:29)'* && ! -s "$tmp/lock.log" ]] || fail "real rows to 2026-11-15T02:29: exit $code: $out"
+rm -f "$r/scripts/with-lock.sh"
+
 # A bench that fails only its budget asserts prints its samples and a report line of 1 test or
 # more: the main side of a fix of a budget miss. Its samples count, with a note, and the verdict
 # stays. A failed bench with no report line (above) still gives exit 1.

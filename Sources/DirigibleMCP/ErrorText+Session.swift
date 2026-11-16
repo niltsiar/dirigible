@@ -122,8 +122,8 @@ extension SessionFileError {
             "\(package) moved to another volume or was deleted, so \(package)/session.xml did not change."
         case .exists: "\(package) exists."
         case .unsafeItem(let item):
-            "\(package)/\(item) is a link or a special file. Dirigible opens a package only when its files and folders "
-                + "are plain files and folders."
+            "\(package)/\(item) is a link, a special file, or an item of the wrong kind, so Dirigible does not open the "
+                + "package. Replace that item with a plain file or folder, or remove it."
         }
     }
 }

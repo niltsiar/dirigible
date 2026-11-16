@@ -98,7 +98,7 @@
 "error.file.internal" = "An internal error stopped the save. The last saved file stays.";
 "error.file.moved" = "The session moved to another disk or was deleted. Nothing was saved.";
 "error.file.exists" = "An item with this name exists. Select a different name.";
-"error.file.item" = "“%@” in this package is a link or a special file. Dirigible opens a package only when its files and folders are plain files and folders.";
+"error.file.item" = "“%@” in this package is a link, a special file, or an item of the wrong kind, so Dirigible does not open the package. Replace that item with a plain file or folder, or remove it.";
 "error.file.item.read" = "“%1$@” in this package cannot be read (error %2$lld).";
 "error.finalize.read" = "The file %1$@ of the take cannot be read (error %2$lld). The recorded audio stays in Capture/.";
 "error.finalize.unreadable" = "The disk cannot read the recorded audio in %1$@ (error %2$lld).";

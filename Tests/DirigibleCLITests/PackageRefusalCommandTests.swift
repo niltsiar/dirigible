@@ -134,12 +134,12 @@ struct PackageRefusalCommandTests {
         return result
     }
 
-    /// The refusal text of a `.lock` that is a link or a special file.
+    /// The refusal text of a `.lock` that is a link, a special file, or a file with 2 links.
     func unsafeLockText(_ package: TemporaryPackage) -> String { "Error: \(Self.unsafeItemText(package, ".lock"))\n" }
 
-    /// The refusal text of an item that is a link or a special file, with no prefix.
+    /// The refusal text of an item that is a link, a special file, or of the wrong kind, with no prefix.
     static func unsafeItemText(_ package: TemporaryPackage, _ item: String) -> String {
-        "\(package.path)/\(item) is a link or a special file. Dirigible opens a package only when its files and "
-            + "folders are plain files and folders."
+        "\(package.path)/\(item) is a link, a special file, or an item of the wrong kind, so Dirigible does not open "
+            + "the package. Replace that item with a plain file or folder, or remove it."
     }
 }

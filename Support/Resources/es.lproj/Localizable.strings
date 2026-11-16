@@ -98,7 +98,7 @@
 "error.file.internal" = "Un error interno detuvo el guardado. Se conserva el último archivo guardado.";
 "error.file.moved" = "La sesión se movió a otro disco o se eliminó. No se guardó nada.";
 "error.file.exists" = "Ya existe un elemento con este nombre. Elige otro nombre.";
-"error.file.item" = "«%@» de este paquete es un enlace o un archivo especial. Dirigible solo abre un paquete cuando sus archivos y carpetas son archivos y carpetas normales.";
+"error.file.item" = "«%@» de este paquete es un enlace, un archivo especial o un elemento de un tipo incorrecto, así que Dirigible no abre el paquete. Sustituye ese elemento por un archivo o una carpeta normal, o elimínalo.";
 "error.file.item.read" = "No se puede leer «%1$@» de este paquete (error %2$lld).";
 "error.finalize.read" = "No se puede leer el archivo %1$@ de la toma (error %2$lld). El audio grabado se conserva en Capture/.";
 "error.finalize.unreadable" = "El disco no puede leer el audio grabado en %1$@ (error %2$lld).";

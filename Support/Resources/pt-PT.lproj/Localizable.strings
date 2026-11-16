@@ -98,7 +98,7 @@
 "error.file.internal" = "Um erro interno interrompeu a operação de guardar. O último ficheiro guardado mantém-se.";
 "error.file.moved" = "A sessão foi movida para outro disco ou apagada. Nada foi guardado.";
 "error.file.exists" = "Já existe um item com este nome. Escolha outro nome.";
-"error.file.item" = "“%@” neste pacote é uma ligação ou um ficheiro especial. O Dirigible só abre um pacote quando os respetivos ficheiros e pastas são ficheiros e pastas normais.";
+"error.file.item" = "“%@” neste pacote é uma ligação, um ficheiro especial ou um item do tipo errado, pelo que o Dirigible não abre o pacote. Substitua esse item por um ficheiro ou uma pasta normal, ou remova-o.";
 "error.file.item.read" = "Não é possível ler “%1$@” neste pacote (erro %2$lld).";
 "error.finalize.read" = "Não é possível ler o ficheiro %1$@ do excerto (erro %2$lld). O áudio gravado permanece em Capture/.";
 "error.finalize.unreadable" = "O disco não consegue ler o áudio gravado em %1$@ (erro %2$lld).";

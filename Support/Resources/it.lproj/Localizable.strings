@@ -98,7 +98,7 @@
 "error.file.internal" = "Un errore interno ha interrotto il salvataggio. L’ultimo file salvato viene conservato.";
 "error.file.moved" = "La sessione è stata spostata su un altro disco o eliminata. Non è stato salvato nulla.";
 "error.file.exists" = "Esiste già un elemento con questo nome. Scegli un altro nome.";
-"error.file.item" = "“%@” in questo pacchetto è un link o un file speciale. Dirigible apre un pacchetto solo quando i suoi file e le sue cartelle sono file e cartelle normali.";
+"error.file.item" = "“%@” in questo pacchetto è un link, un file speciale o un elemento del tipo sbagliato, quindi Dirigible non apre il pacchetto. Sostituisci questo elemento con un file o una cartella normale, oppure rimuovilo.";
 "error.file.item.read" = "Impossibile leggere “%1$@” in questo pacchetto (errore %2$lld).";
 "error.finalize.read" = "Impossibile leggere il file %1$@ del take (errore %2$lld). L’audio registrato resta in Capture/.";
 "error.finalize.unreadable" = "Il disco non riesce a leggere l’audio registrato in %1$@ (errore %2$lld).";

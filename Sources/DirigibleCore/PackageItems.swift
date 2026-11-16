@@ -7,10 +7,10 @@ package let captureFolderName = "Capture"
 /// follows it out of the package or waits on a FIFO: `.lock` (at most 1 link) and `session.xml` are
 /// regular files, the five folders are folders, and each entry of `Artwork/`, `Capture/`, and
 /// `Backups/` is a regular file. An entry of `Clips/` or `Transcripts/` can be a link, and its
-/// target is a regular file, or a folder in `Clips/`. A missing item and a dangling link pass;
-/// another `lstat` or listing errno throws `.unreadableItem` with that item, or `.readFailed` when
-/// the package path itself fails. `checkPoolPaths` checks the pool paths in a subfolder of `Clips/`
-/// after the parse.
+/// target is a regular file, or a folder in `Clips/`. A missing item, a dangling link, and a
+/// listing error of `Clips/` or `Transcripts/` pass; another `lstat` or listing errno throws
+/// `.unreadableItem` with that item, or `.readFailed` when the package path itself fails.
+/// `checkPoolPaths` checks the named paths that this check did not see, after the parse.
 func checkItems(of package: URL) throws(SessionFileError) {
     for name in [".lock", "session.xml"] {
         let item: stat?
@@ -37,16 +37,21 @@ func checkItems(of package: URL) throws(SessionFileError) {
         let url = package.appending(path: folder)
         // The listing error of a missing folder has no POSIX code.
         guard try itemInfo(folder, in: package) != nil else { continue }
+        // A `Clips/` or `Transcripts/` folder that does not list still opens: `checkPoolPaths` checks its named paths.
+        let follows = folder == clipsFolderName || folder == transcriptsFolderName
         let names: [String]
         do {
             names = try FileManager.default.contentsOfDirectory(atPath: url.path)
         } catch {
+            if follows { continue }
             throw .unreadableItem(folder, errno: posixCode(of: error))
         }
         let descriptor = open(url.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
-        guard descriptor >= 0 else { throw .unreadableItem(folder, errno: errno) }
+        guard descriptor >= 0 else {
+            if follows { continue }
+            throw .unreadableItem(folder, errno: errno)
+        }
         defer { close(descriptor) }
-        let follows = folder == clipsFolderName || folder == transcriptsFolderName
         for name in names {
             // `fstatat` on the folder descriptor walks no path for each entry: a `Clips/` folder
             // can hold thousands of files.
@@ -66,13 +71,29 @@ func checkItems(of package: URL) throws(SessionFileError) {
     }
 }
 
-/// Throws `.unsafeItem` for a pool file of `session` in a subfolder of `Clips/` whose link target
-/// is not a regular file: `checkItems(of:)` checks only the entries of `Clips/` itself.
+/// Throws `.unsafeItem` for a path that `session` names and `checkItems(of:)` did not check, whose
+/// link target is not a regular file: a pool file in a subfolder of `Clips/`, and each pool file or
+/// transcript file of a `Clips/` or `Transcripts/` folder that does not list. With search access
+/// and no read access, the open of a named path still works.
 func checkPoolPaths(of session: Session, in package: URL) throws(SessionFileError) {
-    for file in session.files.values where file.path.contains("/") {
-        let path = "\(clipsFolderName)/\(file.path)"
+    let clipsListed = lists(package.appending(path: clipsFolderName))
+    var paths = session.files.values.filter { !clipsListed || $0.path.contains("/") }.map {
+        "\(clipsFolderName)/\($0.path)"
+    }
+    if !lists(package.appending(path: transcriptsFolderName)) {
+        paths += session.transcripts.values.map { "\(transcriptsFolderName)/\($0.file).xml" }
+    }
+    for path in paths {
         if let kind = targetKind(package.appending(path: path)), kind != S_IFREG { throw .unsafeItem(path) }
     }
+}
+
+/// True when the folder at `url` opens for a listing.
+private func lists(_ url: URL) -> Bool {
+    let descriptor = open(url.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+    guard descriptor >= 0 else { return false }
+    close(descriptor)
+    return true
 }
 
 /// The kind (`S_IFMT` bits) of the target of `url`, or nil when `stat` fails. A missing item and a

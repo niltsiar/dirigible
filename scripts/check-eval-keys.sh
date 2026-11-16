@@ -4,7 +4,7 @@
 # folder that scripts/eval/run.sh wrote) with two parts: a keys.md that holds the exact key text
 # under `## <ID>`, and a scores.tsv line of the ID in the same folder. The text counts, not a
 # commit hash, so a rebased branch passes. A holdout and a row of type agent are skipped.
-# log-decision.sh (each phase 6 row) and check-governance.sh (the land) run it.
+# log-decision.sh (each row that enters phase 5, 6, or 7) and check-governance.sh (the land) run it.
 # The lead grades a key: the refusal says so, and a run agent returns to the lead.
 # A holdout key line stands only in holdout-keys.md of the run folder: each other file of the run
 # folder (a review file, the analysis, the plan) names only the ID. Eval copies of the docs

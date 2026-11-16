@@ -322,6 +322,52 @@ WITH_LOCK_MAX_WAIT=3 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" touch "$tmp/
 code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "limit, holder of 1 s under 3 s: exit $code: $(cat "$tmp/wait.out")"
 clear_hold
+# Each exit 75 appends a wait line whose sixth column is exit75. A call whose command and tree have
+# an exit75 line that started under 10 min before also prints the hand-back route after the first
+# line. x75 <tree> <command...>: one call from <tree> behind the live holder, with a limit of 1 s.
+x75() {
+  local t="$1"
+  shift
+  out="$(cd "$t" && WITH_LOCK_MAX_WAIT=1 "$t/scripts/with-lock.sh" "$@" 2>&1)"
+  code=$?
+}
+again='still waiting after 1 s (WITH_LOCK_MAX_WAIT); run the same command again'
+route='remaining locked steps as one bash file in the run folder'
+rm -f "$waits" "$tmp/ran"
+hold
+echo 'make test' > "$lock/command"
+x75 "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && "$(sed -n 1p <<<"$out")" == *"held by pid $holder"* && "$out" == *"$again" && "$out" != *'second exit 75'* && "$out" != *"$route"* ]] ||
+    fail "first exit 75: exit $code, a route line or no rerun line: $out"
+started="" seconds=0 command="" held="" wtree="" kind=""
+IFS=$'\t' read -r started seconds command held wtree kind < "$waits"
+[[ "$(wc -l < "$waits" | tr -d ' ')" == 1 && "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "touch $tmp/ran" && "$held" == 'make test' && "$wtree" == "$repo_tree" && "$kind" == exit75 ]] ||
+    fail "first exit 75: the wait line [$(cat "$waits" 2>/dev/null)]"
+x75 "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && ! -e "$tmp/ran" && "$out" == *"$again"$'\n'"with-lock: second exit 75 of this command in this tree since $started"* ]] ||
+    fail "second exit 75: exit $code, no second-exit line after the rerun line: $out"
+[[ "$out" == *"$route"* && "$out" == *'set -euo pipefail and a cd to the worktree'* && "$out" == *'no DIRIGIBLE_LOCKED_SCRIPT line'* && "$out" == *'the lead runs that file as WITH_LOCK_MAX_WAIT=0 bash <file>, and its own command as WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>, with run_in_background'* ]] ||
+    fail "second exit 75: no hand-back route: $out"
+[[ "$(awk -F'\t' '$6 == "exit75"' "$waits" | wc -l | tr -d ' ')" == 2 && "$(cat "$lock/pid")" == "$holder" ]] ||
+    fail "second exit 75: the wait lines [$(cat "$waits" 2>/dev/null)] or the holder"
+route_err="$(cd "$repo" && WITH_LOCK_MAX_WAIT=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>/dev/null)"
+[[ -z "$route_err" ]] || fail "second exit 75: the route is on stdout: $route_err"
+# Near cases with no route: another command, the same command from another tree, a line 11 min old.
+x75 "$repo" touch "$tmp/ran2"
+[[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 of another command: exit $code, a route line: $out"
+x75 "$tmp/wt" touch "$tmp/ran"
+[[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 from another tree: exit $code, a route line: $out"
+for age in 660 540; do
+  rm -f "$waits"
+  printf '%s\t120\ttouch %s\tmake test\t%s\texit75\n' "$(date -r $(($(date +%s) - age)) +%FT%T)" "$tmp/ran" "$repo_tree" > "$waits"
+  x75 "$repo" touch "$tmp/ran"
+  case "$age" in
+    660) [[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 after a line 11 min old: exit $code, a route line: $out" ;;
+    540) [[ $code -eq 75 && "$out" == *'second exit 75'* ]] || fail "exit 75 after a line 9 min old: exit $code, no route line: $out" ;;
+  esac
+done
+clear_hold
+rm -f "$waits"
 # These calls wait past a limit of 2 s for a holder of 3 s.
 for kind in release envbase makeflags mark mutation zero; do
   hold_for 3
@@ -806,6 +852,8 @@ out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --b
 code=$?
 [[ $code -eq 75 && "$(grep -c M-start "$bmlog")" == 0 && "$(grep -c "lock-free call pid $inner (" <<<"$out")" == 1 ]] ||
     fail "marked call waits for a lock-free call: exit $code: $out"
+[[ "$(tail -n 1 "$waits" 2>/dev/null | awk -F'\t' '{ print $3 "|" $6 }')" == "bash -c echo M-start >> '$bmlog'|exit75" ]] ||
+    fail "marked call at the limit: no exit75 wait line: [$(tail -n 1 "$waits" 2>/dev/null)]"
 is 'marked call at the limit: marker' "$(ls "$marks" 2>/dev/null | paste -sd' ' -)" ""
 WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" --bench-mark echo x > /dev/null 2>&1 &
 waiter=$!
@@ -1145,14 +1193,15 @@ lf_finish 80
     fail "lock-free wait: the wait line: [$(cat "$waits" 2>/dev/null)]"
 # The wait line is no sign of a building tree: --builders lists no tree after it.
 [[ -z "$("$repo/scripts/with-lock.sh" --builders 2>&1)" ]] || fail "lock-free wait: --builders lists [$("$repo/scripts/with-lock.sh" --builders 2>&1)]"
-# (2) A holder that stays: exit 75 at the limit, no command, no log line, and the holder as it was.
+# (2) A holder that stays: exit 75 at the limit, no command, one exit75 wait line, no hold line,
+# and the holder as it was.
 lf_holder 'make dmg'
 lf_start env WITH_LOCK_MAX_WAIT=2
 lf_finish 80
 [[ $code -eq 75 && ! -e "$tmp/state" && "$out" == *'still waiting after 2 s (WITH_LOCK_MAX_WAIT); run the same command again'* && "$out" == *'no lock; it waits while'* ]] ||
     fail "lock-free limit: exit $code after $elapsed s: $out"
-[[ ! -e "$waits" && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" && "$(cat "$lock/command")" == 'make dmg' ]] ||
-    fail "lock-free limit: a log line or a change of the holder: $(cat "$waits" "$holds" 2>/dev/null)"
+[[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg exit75' && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" && "$(cat "$lock/command")" == 'make dmg' ]] ||
+    fail "lock-free limit: the wait line, a hold line, or a change of the holder: $(cat "$waits" "$holds" 2>/dev/null)"
 # (3) No limit: WITH_LOCK_MAX_WAIT=0 waits for a holder that ends after 3 s.
 lf_holder 'make dmg' 3
 lf_start env WITH_LOCK_MAX_WAIT=0
@@ -1261,11 +1310,13 @@ for value in "" 0; do
     ro_call "$value" .build/debug/dirigible info
     [[ $code -eq 75 && ! -e "$marker" && "$out" != *'lock-free targets'* ]] || fail "run-only, variable [$value]: exit $code (want 75), marker [$(cat "$marker" 2>/dev/null)]: $out"
 done
-# (C6) A long holder (a bench, a release call): the call waits with no lock, marker, or ticket, and exits 75 at the limit.
+# (C6) A long holder (a bench, a release call): the call waits with no lock, marker, or ticket, and exits 75 at the limit
+# with one exit75 wait line and no hold line.
+ro_x75() { [[ ! -e "$holds" && "$(awk -F'\t' '$6 == "exit75"' "$waits" 2>/dev/null)" == "$(cat "$waits")" && -s "$waits" && -z "$(ls -A "$waiting" 2>/dev/null)$(ls -A "$first" 2>/dev/null)" ]]; }
 for holder_command in 'scripts/bench.sh EditBenchmark' 'make dmg'; do
     lf_holder "$holder_command"
     ro_call 1 .build/debug/dirigible info
-    [[ $code -eq 75 && ! -e "$marker" && "$out" == *'no lock; it waits while'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_idle ||
+    [[ $code -eq 75 && ! -e "$marker" && "$out" == *'no lock; it waits while'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_x75 ||
         fail "run-only, holder [$holder_command]: exit $code (want 75), marker [$(cat "$marker" 2>/dev/null)]: $out"
 done
 # The holder ends during the wait: the command runs with no lock, and one wait line ends with lockfree.

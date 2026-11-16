@@ -119,9 +119,17 @@ struct SegmentFinalize {
         _ header: CaptureHeader, _ record: FinalizeRecord, checkpoints: [Checkpoint], on session: Session
     ) throws(FinalizeError) -> Result<Session, SegmentFault> {
         let url = package.appending(path: wav)
-        if let code = openErrno(url.path) {
+        let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        guard descriptor >= 0 else {
+            let code = errno
             throw code == ENOENT ? .readFailed(file: wav, errno: code) : unreadable(wav, code)
         }
+        var info = stat()
+        let regular = fstat(descriptor, &info) == 0 && info.st_mode & S_IFMT == S_IFREG
+        close(descriptor)
+        // `AVAudioFile` waits on a FIFO. The pool does not name this WAV, so a `Clips/` folder that
+        // does not list hides it from the read of the package.
+        guard regular else { return .failure(.badAudio) }
         let length: AVAudioFramePosition
         do {
             let file = try AVAudioFile(forReading: url)

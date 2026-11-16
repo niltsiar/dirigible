@@ -81,7 +81,7 @@ struct PackageItemsTests {
         ]
     }
 
-    /// C14. The premortem layout: `session.xml` names an artwork that is a link to a local file, so an
+    /// C14. `session.xml` names an artwork that is a link to a local file, so an
     /// export would put that file into the episode. A link in `Capture/` or `Backups/` makes a
     /// recovery or a revert read a local file. A folder that does not list hides its entries.
     @Test(arguments: WrongEntry.all)
@@ -123,7 +123,7 @@ struct PackageItemsTests {
         #expect(throws: entry.error) { try Session(contentsOf: package) }
     }
 
-    /// The audit input `prune-escape/`: `Clips` is a link to `../victim`, and the pool entry
+    /// `Clips` is a link to `../victim`, and the pool entry
     /// `notes.txt` has no clip. Returns the victim folder and the bytes of its files by name.
     func pruneEscape() throws -> (victim: URL, files: [String: Data]) {
         let victim = folder.appending(path: "victim")

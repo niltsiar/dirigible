@@ -454,6 +454,7 @@ cat > "$repo/scripts/check-changed.sh" << 'EOF'
 if [[ "${1:-}" == --wait-load && -n "${BM_LOG:-}" ]]; then # the load wait of a bench marker: logs, blocks while $BM_GATE exists
     echo "wait-load $*" >> "$BM_LOG"
     while [[ -e "${BM_GATE:-/nonexistent}" ]]; do sleep 0.1; done
+    [[ -z "${BM_LOAD_STOP:-}" ]] || echo "$BM_LOAD_STOP"
     exit "${BM_LOAD_EXIT:-0}"
 fi
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
@@ -840,6 +841,13 @@ rm -f "$tmp/gate"
 out="$(BM_LOAD_EXIT=3 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$(grep -c M-start "$bmlog")" == 0 && -z "$(bm_files)" ]] || fail "failing load wait: exit $code, files [$(bm_files)]: $out"
+# A bench void of the load wait (exit 76 with the stop text on stdout) passes through: exit 76, the
+# void line, no command, and no marker.
+: > "$bmlog"
+out="$(BM_LOAD_EXIT=76 BM_LOAD_STOP='load 9.00 after 300 s, not under 8' "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" 2>&1)"
+code=$?
+[[ $code -eq 76 && "$out" == *'bench: void: load 9.00 after 300 s, not under 8; the marked command did not run'* &&
+    "$(grep -c M-start "$bmlog")" == 0 && -z "$(bm_files)" ]] || fail "bench void of the load wait: exit $code, files [$(bm_files)]: $out"
 
 # The marked call waits for a lock-free call: one line names the call, the limit gives exit 75, no
 # marker is left, and the command does not run. A lock-free call of the Whisper form (a built

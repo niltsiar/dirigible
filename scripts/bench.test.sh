@@ -3,7 +3,8 @@
 # built under another root (a .build cloned from another checkout), and keeps them when the root
 # is the same. Check that the names join into one filter, that a run with no test exits 1, that a
 # bare bench.sh takes the build lock of its repo, and that the benches of one bench-pairs.sh run
-# share one hold. A fake swift and a stub check-changed.sh stand in for the build and the load wait.
+# share one hold. Check that a high load voids a run (exit 76) and ends a pairs set. A fake swift,
+# a fake sysctl, and a stub check-changed.sh stand in for the build, the load, and the load wait.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -16,7 +17,26 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 root="$tmp/root" cache="$tmp/root/.build/bench/.build"
 mkdir -p "$root/scripts" "$root/Sources/App" "$root/Tests/T" "$tmp/bin"
 cp "$here/bench.sh" "$here/bench-pairs.sh" "$here/with-lock.sh" "$here/lock-words.sh" "$root/scripts/"
-printf '#!/bin/bash\nexit 0\n' > "$root/scripts/check-changed.sh"
+# The stub load wait logs each call in wait.log. The call number FAKE_VOID_AT gives the bench void
+# of check-changed.sh: the stop text on stdout and exit 76.
+cat > "$root/scripts/check-changed.sh" <<'EOF'
+#!/bin/bash
+echo "$*" >> "$FAKE_DIR/wait.log"
+[[ "$(wc -l < "$FAKE_DIR/wait.log" | tr -d ' ')" != "${FAKE_VOID_AT:-0}" ]] ||
+    { echo 'load 9.00 after 300 s, not under 8'; exit 76; }
+exit 0
+EOF
+# The fake sysctl gives the 1-minute load FAKE_LOAD (default 1.00) and 8 cores.
+cat > "$tmp/bin/sysctl" <<'EOF'
+#!/bin/bash
+case "$*" in
+    '-n vm.loadavg') echo "{ ${FAKE_LOAD:-1.00} 1.00 1.00 }" ;;
+    '-n hw.ncpu') echo 8 ;;
+    *) exec /usr/sbin/sysctl "$@" ;;
+esac
+EOF
+chmod +x "$tmp/bin/sysctl"
+unset CHECK_LOAD_MAX
 # The fake swift logs its arguments in args.log, and the hold value that it gets and the pid file of
 # the lock of the repo in lock.log. With FAKE_NONE=1, its test run prints the two no-test strings
 # of test-filter.sh.
@@ -89,6 +109,27 @@ code=$?
     fail "an unread time line: exit $code: $(cat "$tmp/out")"
 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1 || fail "read time lines: bench.sh failed: $(cat "$tmp/out")"
 
+# A timed run whose end load is not under the max (CHECK_LOAD_MAX, else the core count) is void:
+# exit 76 and the void line. Near case: 7.99 keeps the status of the run.
+FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||
+    fail "end load 8.00: exit $code: $(cat "$tmp/out")"
+FAKE_LOAD=7.99 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 0 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "end load 7.99: exit $code: $(cat "$tmp/out")"
+FAKE_LOAD=8.00 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||
+    fail "end load 8.00 with the core count: exit $code: $(cat "$tmp/out")"
+# A void of the load wait (exit 76) runs no swift test and exits 76 with the stop text.
+: > "$tmp/wait.log"; : > "$tmp/args.log"
+FAKE_VOID_AT=1 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 76 && "$(cat "$tmp/out")" == *'bench: void: load 9.00 after 300 s, not under 8; no timed run'* ]] ||
+    fail "a void of the load wait: exit $code: $(cat "$tmp/out")"
+grep -q '^test ' "$tmp/args.log" && fail "a void of the load wait: swift test ran: $(cat "$tmp/args.log")"
+
 # A bare bench.sh takes the lock of its repo: each swift call gets the value in the pid file.
 : > "$tmp/lock.log"
 run "lock"
@@ -102,6 +143,30 @@ PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$root/.bui
 grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no hold of the lock: $(cat "$tmp/lock.log")"
 [[ "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 && "$(wc -l < "$tmp/lock.log" | tr -d ' ')" -eq 8 ]] ||
     fail "pairs: the benches did not share one hold: $(cat "$tmp/lock.log")"
+# Each run writes its start and end load from the two bench: load lines of its log.
+[[ "$(grep -cE '^(aa-1|aa-2|main-1|branch-1) [0-9:]{8} start 1.00 end 1.00$' "$root/.build/pairs/load.txt")" == 4 ]] ||
+    fail "pairs: the load lines: $(cat "$root/.build/pairs/load.txt")"
+
+# The first void run ends the set: no later bench runs, load.txt holds its void line, and the
+# compare names the void, not a missing log. void_pairs <run> <void at> <want stop text> [env...]
+void_pairs() {
+    local run="$1" at="$2" stop="$3" dir="$root/.build/pairs-void-$1-$2" want="" n=0 r
+    shift 3
+    for r in aa-1 aa-2 main-1; do want+=" $r.log" n=$((n + 1)); [[ $r != "$run" ]] || break; done
+    : > "$tmp/wait.log"; : > "$tmp/args.log"
+    out="$(env "$@" FAKE_VOID_AT="$at" PATH="$tmp/bin:$PATH" "$root/scripts/bench-pairs.sh" "$tmp/main" X 1 "$dir" 2>&1)"
+    code=$?
+    [[ $code -eq 1 && "$out" == *"NO VERDICT: $run is void ($stop)"* && "$out" != *'no complete'* ]] ||
+        fail "void at $run: exit $code: $out"
+    grep -qxF "$run: the bench is void: bench: void: $stop" "$dir/load.txt" 2>/dev/null || fail "void at $run: load.txt: $(cat "$dir/load.txt" 2>&1)"
+    [[ "$(cd "$dir" && ls *.log | paste -sd' ' -)" == "${want# }" ]] || fail "void at $run: logs [$(ls "$dir" | xargs)], want [${want# }]"
+    [[ "$(wc -l < "$tmp/wait.log" | tr -d ' ')" == "$n" ]] || fail "void at $run: load waits: $(cat "$tmp/wait.log")"
+}
+void_pairs aa-1 1 'load 9.00 after 300 s, not under 8; no timed run'
+void_pairs aa-2 2 'load 9.00 after 300 s, not under 8; no timed run'
+void_pairs main-1 3 'load 9.00 after 300 s, not under 8; no timed run'
+[[ "$(grep -c '^test ' "$tmp/args.log")" == 2 ]] || fail "void at main-1: swift test calls: $(cat "$tmp/args.log")"
+void_pairs aa-1 0 'load 8.00 after the timed run, not under 8' FAKE_LOAD=8.00 CHECK_LOAD_MAX=8
 
 # A pair run checks its provenance at the start, not only at --compare. A change in a bench input
 # of a tree refuses the run with exit 2 before a bench; an untracked doc is not a bench input, so

@@ -28,7 +28,7 @@
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths only (not the shared guard list)
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
-#          (for a bench and a push check: no build or test of another tree)
+#          (for a bench and a push check: no build or test of another tree); a bench at the cap exits 76
 #        scripts/check-changed.sh --overlap <base>   information only, exit 0: name other work that changes a
 #          Sources/ or Tests/ file of this branch: `overlap: <base>: <files>` for the commits of <base>
 #          since the merge base, `overlap: worktree <branch>: <files>` for each other worktree (its
@@ -137,7 +137,8 @@ targets_of() {
 # its tree is the tree of the cwd of its parent (make). A slice check keeps the first rule only, so
 # its lock wait, load wait, and tests fit in one 600 s Bash call. Read all each 10 s. After
 # CHECK_LOAD_WAIT seconds (default 300, so the wait and the tests of a slice fit in one 600 s Bash
-# call), run the tests anyway. The lines go to stderr.
+# call), run the tests anyway. The lines go to stderr. A bench at the cap gets no timed run (a
+# timing under load has no verdict): it prints the stop text on stdout and returns 76.
 # cwd_tree <pid>: the tree of the cwd of a process; nothing when the process or its folder is gone.
 cwd_tree() {
     local cwd
@@ -187,6 +188,11 @@ wait_load() {
             why="load $load, not under $max (CHECK_LOAD_MAX)" stop="load $load after $waited s, not under $max"
         fi
         if ((waited >= limit)); then
+            if [[ "$rest" == *" bench "* ]]; then
+                echo "check-changed: $stop: no timed run" >&2
+                echo "$stop"
+                return 76
+            fi
             echo "check-changed: $stop: run the tests" >&2
             return 0
         fi

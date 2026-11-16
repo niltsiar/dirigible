@@ -12,6 +12,9 @@
 # --filter '<name>|<name>'. A test run whose output has both no-test strings of test-filter.sh
 # ran no test: the script exits 1. After a timed run it also runs `bench-pairs.sh --lines` on its
 # own output and exits 1, naming each line, when a time line has no form that --compare reads.
+# A run is void, with a `bench: void: <reason>` line and exit 76, when the load wait ends at its cap
+# (check-changed.sh --wait-load bench exits 76: no test runs). A timed run is also void when the load
+# after it is not under CHECK_LOAD_MAX (default: the core count). Exit 75 stays the lock wait.
 # With --trace <file>, xctrace records a Time Profiler trace of the test run into <file> (a new
 # path), through scripts/test-helper.sh, and stops it after BENCH_TRACE_LIMIT (default 10m), so a
 # held dialog cannot hold the lock with no end. The trace adds sampling cost: it is not a timing
@@ -69,10 +72,17 @@ grep -rl '^@main$' Sources | xargs sed -i '' 's/^@main$//'
 swift build -c release -Xswiftc -enable-testing --build-tests
 # Another tree that builds or tests slows the timed run (DLV-157): wait for no build or test of
 # another tree and a load under the core count (the build above just raised the load, so a lower
-# maximum waits the full cap). The load lines show what the run had.
-"$root/scripts/check-changed.sh" --wait-load bench
-load() { echo "bench: load $(sysctl -n vm.loadavg | awk '{ print $2 }')"; }
-load
+# maximum waits the full cap). A wait that ends at its cap, or an end load not under that maximum,
+# makes the run void: no verdict, exit 76.
+wait=0
+stop="$("$root/scripts/check-changed.sh" --wait-load bench)" || wait=$?
+if [[ $wait -eq 76 ]]; then
+    echo "bench: void: $stop; no timed run" >&2
+    exit 76
+fi
+[[ $wait -eq 0 ]] || exit "$wait"
+load() { sysctl -n vm.loadavg | awk '{ print $2 }'; }
+echo "bench: load $(load)"
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 code=0
@@ -86,7 +96,8 @@ else
         --test-bundle-path "$bundle" --testing-library swift-testing --no-parallel --filter "$filter" 2>&1 |
         tee "$out" || true
 fi
-load
+end="$(load)"
+echo "bench: load $end"
 if grep -qF 'No matching test cases were run' "$out" && grep -qF 'Test run with 0 tests' "$out"; then
     echo "bench: no test matched the filter $filter" >&2
     exit 1
@@ -95,6 +106,11 @@ fi
 # that it cannot read gives NO VERDICT in Phase 7 (bench-pairs.sh --lines names each such line).
 if [[ -z "$trace" ]]; then
     "$root/scripts/bench-pairs.sh" --lines "$out" || exit 1
+    max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
+    if ! awk -v l="$end" -v m="$max" 'BEGIN { exit !(l < m) }'; then
+        echo "bench: void: load $end after the timed run, not under $max" >&2
+        exit 76
+    fi
     exit "$code"
 fi
 grep -qE 'Test run with [1-9]' "$out" ||

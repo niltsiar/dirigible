@@ -160,8 +160,10 @@
 # either start order. Two marked calls that start together keep a fixed order: the older one (call
 # start time, then pid) keeps its marker, and the other removes its marker and waits. The wait of
 # the marked call is under the wait limit above (exit 75, no marker left); the load wait adds up to
-# CHECK_LOAD_WAIT seconds. The command gets DIRIGIBLE_BENCH_MARK=<pid of the call>, so a lock-free
-# call inside it does not wait for its marker. A marked call that waits behind a younger marked
+# CHECK_LOAD_WAIT seconds. When the load wait ends at that cap (a load not under the max, or a test
+# of another tree), the timing has no verdict: the call prints `bench: void: <stop text>; the marked
+# command did not run` and exits 76. The command gets DIRIGIBLE_BENCH_MARK=<pid of the call>, so a
+# lock-free call inside it does not wait for its marker. A marked call that waits behind a younger marked
 # command keeps its marker, so a lock-free call inside that command waits for it; no script nests
 # marked calls. A marked call inside a lock-free call waits for that
 # call until the wait limit. A lock-free call that cannot write its file (a sandbox, a full disk)
@@ -643,11 +645,15 @@ if [[ "$1" == --bench-mark ]]; then
         say_wait; waited=1
         pause "$@"
     done
-    "$here/check-changed.sh" --wait-load bench || {
-        status=$?
+    status=0
+    stop="$("$here/check-changed.sh" --wait-load bench)" || status=$?
+    if [[ $status -eq 76 ]]; then
+        echo "bench: void: $stop; the marked command did not run" >&2
+        exit 76
+    elif [[ $status -ne 0 ]]; then
         echo "with-lock: scripts/check-changed.sh --wait-load bench exited $status; the marked command did not run" >&2
         exit 2
-    }
+    fi
     [[ -z "$waited" ]] || wait_line "$@"
     echo "with-lock: bench marker (no lock): a lock-free call waits while this command runs" >&2
     run_lock_free "$@"

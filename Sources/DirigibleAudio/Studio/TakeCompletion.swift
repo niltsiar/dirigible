@@ -84,9 +84,11 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         unlink(marker.path)  // A stale marker of a recovery that ended.
         return opened(session)
     }
-    // An earlier recovery died: skip finalize, so a crash in it cannot repeat on every open.
-    if FileManager.default.fileExists(atPath: marker.path) { return opened(session) }
-    let descriptor = open(marker.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
+    // An earlier recovery died: skip finalize, so a crash in it cannot repeat on every open. A link
+    // at the name, also a dangling one, is a marker too, and the open never follows it.
+    var info = stat()
+    if lstat(marker.path, &info) == 0 { return opened(session) }
+    let descriptor = open(marker.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
     guard descriptor >= 0 else {
         return opened(session, .file(.writeFailed(step: marker.lastPathComponent, errno: errno)))
     }

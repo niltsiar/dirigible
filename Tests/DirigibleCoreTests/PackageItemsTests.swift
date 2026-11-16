@@ -268,4 +268,25 @@ struct PackageItemsTests {
         #expect(report.failed.map(\.fault) == [.replaced] && report.moved.isEmpty && trashed.isEmpty)
         #expect(try Data(contentsOf: victim.appending(path: "spare.wav")) == Data("victim wav".utf8))
     }
+
+    /// A backup whose pool names a FIFO in a subfolder of `Clips/`: the revert refuses the backup
+    /// as the open refuses such a session, so no later read of the pool file waits for a writer.
+    @Test func aRevertRefusesAFIFOPoolFileInASubfolder() throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var old = Session(sampleRate: 48_000)
+        try old.addFile(AudioFile(id: "c", path: "sub/c.wav", layout: .mono, length: 6000))
+        let sub = package.appending(path: "Clips/sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        try #require(mkfifo(sub.appending(path: "c.wav").path, 0o644) == 0)
+        let backup = Backup(saved: Date(timeIntervalSince1970: 2_000_000_000))
+        let backups = package.appending(path: backupsFolderName)
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        try old.checkedData().write(to: backups.appending(path: backup.fileName))
+        let lock = try PackageLock(package)
+
+        #expect(throws: RevertReadError.backup(.unsafeItem("Clips/sub/c.wav"))) {
+            try backup.readForRevert(under: lock)
+        }
+        withExtendedLifetime(lock) {}
+    }
 }

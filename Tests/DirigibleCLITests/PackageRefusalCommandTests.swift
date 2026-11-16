@@ -71,6 +71,22 @@ struct PackageRefusalCommandTests {
         #expect(try package.xml() == xml)
     }
 
+    /// A placed take WAV that is a FIFO: `info` refuses the package at once, and does not wait for a
+    /// writer in the read of its raw capture.
+    @Test func aFIFOPoolFileStopsInfoAtOnce() async throws {
+        let package = try await InfoCommandTests.rawPackage(bows: [1.07e-3])
+        let wav = package.url.appending(path: "Clips/take1-1-1.wav").path
+        try #require(unlink(wav) == 0 && mkfifo(wav, 0o644) == 0)
+
+        let result = try await dirigible(
+            shell: #"exec "$0" "$@""#, dirigibleBinary.path, "info", package.path, limit: .seconds(10))
+
+        #expect(
+            result
+                == CLIResult(
+                    status: 2, stdout: "", stderr: "Error: \(Self.unsafeItemText(package, "Clips/take1-1-1.wav"))\n"))
+    }
+
     /// C15. `Clips` is a link out of the package: the dry run of a prune refuses the package, so it
     /// lists no file of the link target.
     @Test func aClipsLinkIsRefusedByPrune() async throws {

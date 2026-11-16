@@ -20,4 +20,27 @@ struct PackageItemMessageTests {
             #expect(String(format: format, "Capture", 13) == text, "\(language)")
         }
     }
+
+    /// An item that the open refuses: a link, a special file, or an item of the wrong kind, with
+    /// what the user can do.
+    @Test func anUnsafeItemSaysWhatToDo() throws {
+        let error = StudioError.file(.unsafeItem("Clips"))
+        #expect(L10n.message(for: error) == L10n.errorFileItem.rawValue)
+        for (language, text) in [
+            (
+                "en",
+                "\u{201C}Clips\u{201D} in this package is a link, a special file, or an item of the wrong kind, so "
+                    + "Dirigible does not open the package. Replace that item with a plain file or folder, or remove it."
+            ),
+            (
+                "es",
+                "\u{AB}Clips\u{BB} de este paquete es un enlace, un archivo especial o un elemento de un tipo incorrecto, "
+                    + "así que Dirigible no abre el paquete. Sustituye ese elemento por un archivo o una carpeta "
+                    + "normal, o elimínalo."
+            ),
+        ] {
+            let format = try #require(try stringsTable(language)[L10n.errorFileItem.rawValue])
+            #expect(String(format: format, "Clips") == text, "\(language)")
+        }
+    }
 }

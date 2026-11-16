@@ -98,7 +98,7 @@
 "error.file.internal" = "Ein interner Fehler hat das Sichern gestoppt. Die zuletzt gesicherte Datei bleibt erhalten.";
 "error.file.moved" = "Die Session wurde auf eine andere Festplatte bewegt oder gelöscht. Nichts wurde gesichert.";
 "error.file.exists" = "Ein Objekt mit diesem Namen existiert bereits. Wähle einen anderen Namen.";
-"error.file.item" = "„%@“ in diesem Paket ist ein Link oder eine Spezialdatei. Dirigible öffnet ein Paket nur, wenn seine Dateien und Ordner normale Dateien und Ordner sind.";
+"error.file.item" = "„%@“ in diesem Paket ist ein Link, eine Spezialdatei oder ein Objekt der falschen Art, daher öffnet Dirigible das Paket nicht. Ersetze dieses Objekt durch eine normale Datei oder einen normalen Ordner, oder entferne es.";
 "error.file.item.read" = "„%1$@“ in diesem Paket kann nicht gelesen werden (Fehler %2$lld).";
 "error.finalize.read" = "Die Datei %1$@ des Takes kann nicht gelesen werden (Fehler %2$lld). Das aufgenommene Audio bleibt in Capture/.";
 "error.finalize.unreadable" = "Die Festplatte kann das aufgenommene Audio in %1$@ nicht lesen (Fehler %2$lld).";

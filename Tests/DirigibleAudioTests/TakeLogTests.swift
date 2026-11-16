@@ -290,7 +290,8 @@ struct TakeLogTests {
         if let played { studio = played.0 } else { studio = try await self.studio(TestHAL([mic])) }
         let (log, logs) = (log, logs)
         let seen = OSAllocatedUnfairLock<[String]?>(initialState: nil)
-        let read: @Sendable () -> Void = { seen.withLock { $0 = Self.lines(log, in: logs) } }
+        // Only the first call is the start step: the disk watch of the take calls `freeBytes` again.
+        let read: @Sendable () -> Void = { seen.withLock { $0 = $0 ?? Self.lines(log, in: logs) } }
         let (begin, end): (String, String)
         switch step {
         case .playStop:

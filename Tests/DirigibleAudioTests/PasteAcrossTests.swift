@@ -205,6 +205,36 @@ struct PasteAcrossTests {
         #expect(try names(q) == ["take1-mic.wav"], "no .tmp stays")
     }
 
+    /// C21: a source file that is a FIFO refuses the paste, with and without a rate change, and no
+    /// open or read of it waits for a writer.
+    @Test func aFIFOSourcePoolFileIsRefusedAtOnce() async throws {
+        let clipboard = try clipboard
+        let fifo = p.url.appending(path: "\(clipsFolderName)/take2-mic.wav")
+        try makeFIFO(at: fifo)
+        let r = try MixPackage(sampleRate: 44_100)
+        for track: TrackID in ["u1", "u2"] { try r.session.addTrack(track, name: track.rawValue, layout: .mono) }
+
+        for (target, label) in [(q, "48 kHz"), (r, "44.1 kHz")] {
+            let before = try names(target)
+            let (session, url) = (target.session, target.url)
+
+            let value = await valueWithNoWriter(of: fifo) { () -> PasteError? in
+                do throws(PasteError) {
+                    _ = try pasteClipboard(
+                        clipboard, from: clipboard.package, into: session, in: url, identity: nil,
+                        mode: .over(at: 480_000), on: .tracks(["u1", "u2"]), freeBytes: { .max })
+                    return nil
+                } catch {
+                    return error
+                }
+            }
+            let error = try #require(value, "\(label)")
+
+            #expect(error == .sourceChanged(file: "take2-mic.wav"), "\(label)")
+            #expect(try names(target) == before, "\(label): no file is copied")
+        }
+    }
+
     /// C18 at the library: no selected track makes one track per lane with its name and layout.
     @Test func newTracksTakeTheSourceNamesAndLayouts() throws {
         let (session, clips, tracks) = try paste(try clipboard, on: .unselected)

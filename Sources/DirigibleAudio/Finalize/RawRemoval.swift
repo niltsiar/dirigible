@@ -289,7 +289,7 @@ func rawGain(
         throw RawRemovalError(error)
     }
     guard let sidecar = try? sidecarData.flatMap(Sidecar.decode) else { return nil }
-    let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
+    let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: caf, errno: errno) }
     defer { close(descriptor) }
     let input: AVAudioFile
@@ -321,9 +321,11 @@ private func peakCode(
     of file: String, in package: URL, isCancelled: () -> Bool, beforeBlock: (Int) -> Void
 ) throws(RawRemovalError) -> (code: Int, rate: Double)? {
     let url = package.appending(path: file)
-    let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
+    let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: file, errno: errno) }
     defer { close(descriptor) }
+    var info = stat()
+    guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return nil }
     do {
         let input = try AVAudioFile(forReading: url)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: 65_536) else {

@@ -114,6 +114,7 @@ extension SessionFileError {
             "\(file) has a \(element) element with a bad \(attribute) value."
         case .invalidSession(let error): "\(file) breaks a session rule: \(error.message)"
         case .readFailed(let code): "cannot read \(file): \(String(cString: strerror(code)))."
+        case .unreadableItem(let item, let code): "cannot read \(package)/\(item): \(String(cString: strerror(code)))."
         case .writeFailed(let step, let code): "cannot write \(file) (\(step)): \(String(cString: strerror(code)))."
         case .wouldNotReadBack: "the new session would not read back, so \(file) did not change. This is a bug."
         case .locked: "\(package) is open in Dirigible."

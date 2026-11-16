@@ -18,7 +18,7 @@ extension Session {
     /// `newest` is the newest version that the reader accepts. A test gives a lower one to act as
     /// an older build.
     init(xml data: Data, newest: Int = sessionVersion) throws(SessionFileError) {
-        guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
+        guard let document = packageXML(data), let root = document.rootElement(),
             root.localName == "session", root.uri == sessionNamespace
         else { throw .malformedXML }
 

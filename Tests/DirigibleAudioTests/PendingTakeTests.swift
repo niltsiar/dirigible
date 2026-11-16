@@ -166,7 +166,8 @@ struct PendingTakeTests {
     }
 
     /// A package from another person can hold `recovery-attempt` as a dangling link. The open counts
-    /// the link as a marker: it skips the recovery and makes no file at the link target.
+    /// the link as a marker: it skips the recovery with no take error and makes no file at the link
+    /// target.
     @Test func aMarkerLinkMakesNoFileOutsideThePackage() async throws {
         let target = package.folder.url.appending(path: "outside.plist")
         try FileManager.default.createSymbolicLink(at: marker, withDestinationURL: target)
@@ -175,6 +176,7 @@ struct PendingTakeTests {
 
         #expect(!FileManager.default.fileExists(atPath: target.path), "no file at the link target")
         #expect(studio.pendingTake?.take == 1, "a marker skips the recovery")
+        #expect(studio.takeError == nil, "a marker link sets no take error")
         #expect(try FileManager.default.destinationOfSymbolicLink(atPath: marker.path) == target.path)
     }
 }

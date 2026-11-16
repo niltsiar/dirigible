@@ -6,7 +6,7 @@ import Testing
 extension PackageLockTests {
     /// The kinds of `.lock` that are not one regular file.
     enum LockKind: CaseIterable {
-        case linkToAFile, linkToAMissingPath, hardLink, folder
+        case linkToAFile, linkToAMissingPath, hardLink, folder, fifo
     }
 
     /// C10. A link can name the lock of another package, and a hard link makes `F_GETPATH` name it,
@@ -28,6 +28,8 @@ extension PackageLockTests {
             try #require(link(target.path, lock.path) == 0)
         case .folder:
             try FileManager.default.createDirectory(at: lock, withIntermediateDirectories: false)
+        case .fifo:
+            try #require(mkfifo(lock.path, 0o644) == 0)
         }
 
         #expect(throws: SessionFileError.unsafeItem(".lock")) { try PackageLock(package) }

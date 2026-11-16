@@ -129,4 +129,21 @@ struct AgentLogTests {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path) }
         #expect(AgentLog.append(entry(), to: folder) == .failed(EACCES))
     }
+
+    /// A package from another person can hold `agent-log.tsv` as a link to the agent log of
+    /// another package: the append refuses it, and the other log keeps its bytes.
+    @Test func anAppendNeverWritesThroughALink() throws {
+        let other = folder.appending(path: "Other.dirigible")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        #expect(AgentLog.append(entry(), to: other) == .written)
+        let otherLog = other.appending(path: AgentLog.fileName)
+        let bytes = try Data(contentsOf: otherLog)
+        let package = folder.appending(path: "Show.dirigible")
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: package.appending(path: AgentLog.fileName), withDestinationURL: otherLog)
+
+        #expect(AgentLog.append(entry(), to: package) == .failed(ELOOP))
+        #expect(try Data(contentsOf: otherLog) == bytes)
+    }
 }

@@ -12,7 +12,8 @@ enum NewClipFault: Error, Hashable {
     case space(needed: Int64, free: Int64)
     /// The `mkdir` of `Clips/` gave this errno.
     case folder(errno: Int32)
-    /// The move to `file` (`<stem>.wav`) gave this errno: EEXIST when an item is at the name.
+    /// The move to `file` (`<stem>.wav`) gave this errno: EEXIST when an item is at the name. Also an
+    /// item at the temporary name `file` of a stem (EEXIST), or the `lstat` errno of that name.
     case move(file: String, errno: Int32)
     /// The flush of the `Clips/` folder gave this errno.
     case flush(errno: Int32)
@@ -64,11 +65,18 @@ struct NewClipFiles: ~Copyable {
     }
 
     /// The temp URL of a stem that the caller planned. A stem of this batch, in any case, throws
-    /// `.taken` and changes nothing.
+    /// `.taken` and changes nothing. An item at the temp name throws `.move` and changes nothing: a
+    /// pool file of that name or a link there of a package from another person, which the write
+    /// would follow and `discard()` would delete.
     mutating func add(stem: String) throws(NewClipFault) -> URL {
-        guard stems.insert(stem.lowercased()).inserted else { throw .taken(stem: stem) }
+        guard !stems.contains(stem.lowercased()) else { throw .taken(stem: stem) }
+        let temporary = clips.appending(path: temporaryWAV(of: stem))
+        var info = stat()
+        let code = lstat(temporary.path, &info) == 0 ? EEXIST : errno
+        guard code == ENOENT else { throw .move(file: temporaryWAV(of: stem), errno: code) }
+        stems.insert(stem.lowercased())
         order.append(stem)
-        return clips.appending(path: temporaryWAV(of: stem))
+        return temporary
     }
 
     /// Moves each temp to `<stem>.wav` in add order, then flushes `Clips/` once. A throw stops at

@@ -174,18 +174,23 @@ struct StereoSplitTests {
         #expect(try fixture.hashes() == before, "no new file, no temp file, and the source keeps its bytes")
     }
 
-    /// C6: a fault of the right WAV unlinks the left temp file.
+    /// C6: a fault of the right WAV unlinks the left temp file. The folder at the right temp name
+    /// comes after the split takes its names: an item there before refuses the split at once.
     @Test func writeFaultLeavesNoFile() throws {
         let fixture = try SplitFixture(seconds: 30, clips: [("c1", 960_000, 240_000)])
         let blocked = fixture.package.url.appending(path: "\(clipsFolderName)/.f1 R.wav.tmp")
-        try FileManager.default.createDirectory(at: blocked, withIntermediateDirectories: false)
         let before = try fixture.listing()
         var leftTempSeen = false
         var fault: SplitError?
 
         do throws(SplitError) {
             _ = try fixture.split(
-                ["c1"], progress: { _ in leftTempSeen = leftTempSeen || fixture.has(".f1 L.wav.tmp") })
+                ["c1"],
+                progress: { _ in
+                    guard !leftTempSeen, fixture.has(".f1 L.wav.tmp") else { return }
+                    leftTempSeen = true
+                    try? FileManager.default.createDirectory(at: blocked, withIntermediateDirectories: false)
+                })
         } catch {
             fault = error
         }
@@ -195,6 +200,7 @@ struct StereoSplitTests {
             return
         }
         #expect(file == "\(clipsFolderName)/f1 R.wav" && leftTempSeen)
+        try FileManager.default.removeItem(at: blocked)
         #expect(try fixture.listing() == before, "the left temp file is gone")
     }
 

@@ -87,6 +87,36 @@ struct PackageRefusalCommandTests {
                     status: 2, stdout: "", stderr: "Error: \(Self.unsafeItemText(package, "Clips/take1-1-1.wav"))\n"))
     }
 
+    /// A package folder with no access fails the first item check at the package path, not at
+    /// `.lock`: the text is the read error of `session.xml`, as for a read with no item check.
+    @Test func aPackageWithNoAccessGivesTheSessionReadError() async throws {
+        let package = try TemporaryPackage(Session(sampleRate: 48_000))
+        try #require(chmod(package.path, 0o000) == 0)
+        defer { chmod(package.path, 0o755) }
+
+        let result = try await package.run("info", "PKG")
+
+        #expect(
+            result
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: cannot read \(package.path)/session.xml: Permission denied.\n"))
+    }
+
+    /// A plain file at the package path gives the read error of `session.xml`, not of `.lock`.
+    @Test func aFileAtThePackagePathGivesTheSessionReadError() async throws {
+        let package = try TemporaryPackage()
+        try Data("plain".utf8).write(to: package.url)
+
+        let result = try await package.run("info", "PKG")
+
+        #expect(
+            result
+                == CLIResult(
+                    status: 2, stdout: "", stderr: "Error: cannot read \(package.path)/session.xml: Not a directory.\n")
+        )
+    }
+
     /// C15. `Clips` is a link out of the package: the dry run of a prune refuses the package, so it
     /// lists no file of the link target.
     @Test func aClipsLinkIsRefusedByPrune() async throws {

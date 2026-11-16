@@ -8,11 +8,19 @@ package let captureFolderName = "Capture"
 /// regular files, the five folders are folders, and each entry of `Artwork/`, `Capture/`, and
 /// `Backups/` is a regular file. An entry of `Clips/` or `Transcripts/` can be a link, and its
 /// target is a regular file, or a folder in `Clips/`. A missing item and a dangling link pass;
-/// another `lstat` or listing errno throws `.unreadableItem` with that item. `checkPoolPaths`
-/// checks the pool paths in a subfolder of `Clips/` after the parse.
+/// another `lstat` or listing errno throws `.unreadableItem` with that item, or `.readFailed` when
+/// the package path itself fails. `checkPoolPaths` checks the pool paths in a subfolder of `Clips/`
+/// after the parse.
 func checkItems(of package: URL) throws(SessionFileError) {
     for name in [".lock", "session.xml"] {
-        guard let info = try itemInfo(name, in: package) else { continue }
+        let item: stat?
+        do { item = try itemInfo(name, in: package) } catch {
+            // An `lstat` error of the first item comes from the package path (no search access, or
+            // a file), so it gets the read error of `session.xml`, as a read with no item check.
+            guard name == ".lock", case .unreadableItem(_, let code) = error else { throw error }
+            throw .readFailed(errno: code)
+        }
+        guard let info = item else { continue }
         // A hard-linked `.lock` can name the lock of another package. A volume that reports 0 links still opens.
         guard info.st_mode & S_IFMT == S_IFREG, name == "session.xml" || info.st_nlink <= 1 else {
             throw .unsafeItem(name)

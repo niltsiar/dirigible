@@ -142,6 +142,24 @@ struct FinalizeFaultTests {
         #expect(try package.read().recording?.take == 1)
     }
 
+    /// A `Clips/` folder with no read access hides a FIFO at the temporary WAV name from the read
+    /// of the package and from the removal of temporary files. The write open of finalize does
+    /// not wait for a reader: it fails at once.
+    @Test func aFIFOAtTheTemporaryWAVNameFailsTheWriteAtOnce() async throws {
+        let clips = package.url.appending(path: "Clips")
+        let fifo = clips.appending(path: ".take1-1-1.wav.tmp")
+        try makeFIFO(at: fifo)
+        try #require(chmod(clips.path, 0o300) == 0)
+        defer { chmod(clips.path, 0o755) }
+        let (session, url) = (try package.read(), package.url)
+
+        let value = await valueWithNoReader(of: fifo) {
+            Result { () throws(FinalizeError) in try finalizeTake(of: session, in: url) }
+        }
+
+        #expect(value == .failure(.writeFailed(file: "Clips/take1-1-1.wav", status: ENXIO)))
+    }
+
     @Test func anErrnoInTheMiddleOfACAFReadThrows() throws {
         let fault = ReadFault(stem: "take1-1-1", block: 1) { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EIO)) }
 

@@ -14,14 +14,19 @@ final class ClipWriter {
     /// the package-relative path for errors.
     init(url: URL, file name: String, format: AVAudioFormat) throws(FinalizeError) {
         self.name = name
-        // `ExtAudioFileCreateWithURL` follows a link at `url`, so a link fails here (ELOOP) and the
-        // write never leaves the package. A second pass of a conversion opens its own file again.
-        // Another open error comes again from the create below, with its status.
-        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o644)
+        // `ExtAudioFileCreateWithURL` follows a link at `url` and writes to a FIFO, so a link fails
+        // here (ELOOP) and the write never leaves the package. A FIFO with no reader fails at once
+        // (ENXIO), and any other item that is not a regular file fails with EFTYPE. A second pass
+        // of a conversion opens its own file again. Another open error comes again from the create
+        // below, with its status.
+        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, 0o644)
         if descriptor >= 0 {
+            var info = stat()
+            let regular = fstat(descriptor, &info) == 0 && info.st_mode & S_IFMT == S_IFREG
             Darwin.close(descriptor)
-        } else if errno == ELOOP {
-            throw .writeFailed(file: name, status: ELOOP)
+            guard regular else { throw .writeFailed(file: name, status: EFTYPE) }
+        } else if errno == ELOOP || errno == ENXIO {
+            throw .writeFailed(file: name, status: errno)
         }
         let channels = format.channelCount
         var fileFormat = AudioStreamBasicDescription(

@@ -22,6 +22,9 @@ public enum SessionFileError: Error, Hashable, Sendable {
     case packageMoved
     /// `Session.create` found a file or a folder at the path. Nothing changed.
     case exists
+    /// An item of the package, named by its path in the package, is a link or is not of its kind, as
+    /// `PackageLock` checks it. The package did not change, except that an open can make an empty `.lock`.
+    case unsafeItem(String)
 }
 
 /// The POSIX code under a Foundation file error, or EIO when there is none.

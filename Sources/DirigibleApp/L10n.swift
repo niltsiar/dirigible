@@ -530,6 +530,7 @@ enum L10n: String, CaseIterable {
     case errorFileInternal = "error.file.internal"
     case errorFileMoved = "error.file.moved"
     case errorFileExists = "error.file.exists"
+    case errorFileItem = "error.file.item"
     case errorFinalizeRead = "error.finalize.read"
     case errorFinalizeUnreadable = "error.finalize.unreadable"
     case errorFinalizeWrite = "error.finalize.write"

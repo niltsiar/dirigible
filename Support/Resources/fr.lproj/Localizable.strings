@@ -98,6 +98,7 @@
 "error.file.internal" = "Une erreur interne a arrêté la sauvegarde. Le dernier fichier sauvegardé reste en place.";
 "error.file.moved" = "La session a été déplacée vers un autre disque ou supprimée. Rien n’a été sauvegardé.";
 "error.file.exists" = "Un élément portant ce nom existe déjà. Choisissez un autre nom.";
+"error.file.item" = "« %@ » dans ce paquet est un lien ou un fichier spécial. Dirigible n’ouvre un paquet que si ses fichiers et ses dossiers sont des fichiers et des dossiers ordinaires.";
 "error.finalize.read" = "Le fichier %1$@ de la prise ne peut pas être lu (erreur %2$lld). L’audio enregistré reste dans Capture/.";
 "error.finalize.unreadable" = "Le disque ne peut pas lire l’audio enregistré dans %1$@ (erreur %2$lld).";
 "error.finalize.write" = "Le clip %1$@ ne peut pas être écrit (erreur %2$lld).";

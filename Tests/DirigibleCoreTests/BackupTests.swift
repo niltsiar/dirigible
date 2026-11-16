@@ -242,9 +242,10 @@ struct BackupTests {
         #expect(throws: Never.self, "a backup fault does not fail the save") {
             try Self.save(Self.state(1), in: package)
         }
+        // The open refuses a `Backups` that is not a folder.
+        try FileManager.default.removeItem(at: folder)
         #expect(try Session(contentsOf: package) == Self.state(1))
 
-        try FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
         try #require(chmod(folder.path, 0o555) == 0)
         defer { chmod(folder.path, 0o755) }

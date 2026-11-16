@@ -133,13 +133,12 @@ struct MCPTakeSyncNoteTests {
         #expect(!result.isError && !result.text.contains("Take sync"), "\(result.text)")
     }
 
-    /// `episode_set` and `marker_set` move no clip, so they read no anchor: the anchor is a FIFO,
-    /// whose open blocks with no writer, so a read would hang the call.
+    /// `episode_set` and `marker_set` move no clip, so they read no anchor: a read of the anchor
+    /// would change its access time.
     @Test func anEpisodeOrMarkerCallReadsNoAnchor() async throws {
         let package = try Self.oneTake()
         let anchor = package.url.appending(path: "Capture/take1.anchor")
-        try FileManager.default.removeItem(at: anchor)
-        #expect(mkfifo(anchor.path, 0o644) == 0)
+        try Self.setOldAccessTime(anchor)
 
         let answers = try await mcp([
             toolCall(1, "episode_set", ["package": package.path, "title": "Pilot"]),
@@ -148,5 +147,22 @@ struct MCPTakeSyncNoteTests {
 
         #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
         #expect(toolResult(answer(answers, id: 2)) == ("m", false))
+        #expect(try Self.accessTime(anchor) == Self.oldAccessTime)
+    }
+
+    /// 2020-01-01, before the change time of any fixture file, so a read moves it to now: the volume
+    /// of the temporary folder updates the access time of a file whose access time is older.
+    static let oldAccessTime = 1_577_836_800
+
+    static func setOldAccessTime(_ url: URL) throws {
+        var times = [timespec(tv_sec: oldAccessTime, tv_nsec: 0), timespec(tv_sec: 0, tv_nsec: Int(UTIME_OMIT))]
+        try #require(utimensat(AT_FDCWD, url.path, &times, 0) == 0)
+        try #require(try accessTime(url) == oldAccessTime)
+    }
+
+    static func accessTime(_ url: URL) throws -> Int {
+        var info = stat()
+        try #require(lstat(url.path, &info) == 0)
+        return info.st_atimespec.tv_sec
     }
 }

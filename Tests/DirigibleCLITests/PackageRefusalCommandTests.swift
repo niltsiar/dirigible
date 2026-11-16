@@ -71,9 +71,59 @@ struct PackageRefusalCommandTests {
         #expect(try package.xml() == xml)
     }
 
+    /// C15. The audit input `prune-escape/`: the dry run of a prune refuses the package, so it
+    /// lists no file of the link target.
+    @Test func aClipsLinkIsRefusedByPrune() async throws {
+        let package = try Self.pruneEscape()
+
+        let result = try await package.run("file", "prune", "--dry-run", "PKG")
+
+        #expect(result == CLIResult(status: 2, stdout: "", stderr: "Error: \(Self.unsafeItemText(package, "Clips"))\n"))
+        #expect(try Self.victimFiles(package) == Self.victim)
+    }
+
+    /// The files of `victim/` beside the package of `pruneEscape()`, by name.
+    static let victim = ["notes.txt": Data("victim notes".utf8), "old.wav": Data("RIFF".utf8)]
+
+    /// The audit input `prune-escape/`: `Clips` is a link to `../victim`, and the pool entry
+    /// `notes.txt` has no clip.
+    static func pruneEscape() throws -> TemporaryPackage {
+        let package = try TemporaryPackage()
+        let folder = package.folder.appending(path: "victim")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        for (name, data) in victim { try data.write(to: folder.appending(path: name)) }
+        try FileManager.default.createDirectory(at: package.url, withIntermediateDirectories: false)
+        try Data(
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <session xmlns="https://github.com/niltsiar/dirigible/session" version="12" sampleRate="48000">
+              <files>
+                <file id="f1" path="notes.txt" channels="1" length="1"/>
+              </files>
+            </session>
+
+            """.utf8
+        ).write(to: package.sessionXML)
+        try FileManager.default.createSymbolicLink(
+            atPath: package.url.appending(path: "Clips").path, withDestinationPath: "../victim")
+        return package
+    }
+
+    static func victimFiles(_ package: TemporaryPackage) throws -> [String: Data] {
+        let folder = package.folder.appending(path: "victim")
+        var result: [String: Data] = [:]
+        for name in try FileManager.default.contentsOfDirectory(atPath: folder.path) {
+            result[name] = try Data(contentsOf: folder.appending(path: name))
+        }
+        return result
+    }
+
     /// The refusal text of a `.lock` that is a link or a special file.
-    func unsafeLockText(_ package: TemporaryPackage) -> String {
-        "Error: \(package.path)/.lock is a link or a special file. Dirigible opens a package only when its files and "
-            + "folders are plain files and folders.\n"
+    func unsafeLockText(_ package: TemporaryPackage) -> String { "Error: \(Self.unsafeItemText(package, ".lock"))\n" }
+
+    /// The refusal text of an item that is a link or a special file, with no prefix.
+    static func unsafeItemText(_ package: TemporaryPackage, _ item: String) -> String {
+        "\(package.path)/\(item) is a link or a special file. Dirigible opens a package only when its files and "
+            + "folders are plain files and folders."
     }
 }

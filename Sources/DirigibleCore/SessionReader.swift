@@ -1,10 +1,12 @@
 import Foundation
 
 extension Session {
-    /// Reads `session.xml` from the package, then the words of each transcript from
-    /// `Transcripts/` (decision 0055). The reader parses the XML into domain values, then builds
-    /// the session through the same edits that the app uses, so each rule has one check.
+    /// Checks the items of the package (`checkItems(of:)`), then reads `session.xml`, then the words
+    /// of each transcript from `Transcripts/` (decision 0055). The reader parses the XML into domain
+    /// values, then builds the session through the same edits that the app uses, so each rule has
+    /// one check.
     public init(contentsOf package: URL) throws(SessionFileError) {
+        try checkItems(of: package)
         let data: Data
         do {
             data = try Data(contentsOf: package.appending(path: "session.xml"))

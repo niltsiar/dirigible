@@ -2,11 +2,12 @@ import Foundation
 
 extension UnusedFiles {
     /// Each regular file `<canonical UUID>.xml` in `Transcripts/` of `package`, as an item. A
-    /// missing folder gives none; another read error throws, so an error never reads as no file.
+    /// missing folder gives none; a link or another read error throws, so an error never reads as
+    /// no file.
     static func transcriptItems(in package: URL) throws(UnusedFilesError) -> [Item] {
         let folder = package.appending(path: transcriptsFolderName)
         var folderInfo = stat()
-        guard stat(folder.path, &folderInfo) == 0 else {
+        guard lstat(folder.path, &folderInfo) == 0 else {
             guard errno == ENOENT else { throw .transcriptsUnreadable(errno: errno) }
             return []
         }

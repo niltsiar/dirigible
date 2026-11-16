@@ -1,9 +1,6 @@
 import DirigibleCore
 import Foundation
 
-/// The folder of the raw segments in a package (decision 0012).
-package let captureFolderName = "Capture"
-
 /// The name of one segment of a take: `take<take>-<arm>-<segment>` (decision 0012). `arm` is the
 /// 1-based index of the track in `Recording.armedTracks`; `segment` counts from 1 for each
 /// device. Each part has 1 to 9 digits and no leading zero, so a name has one spelling.

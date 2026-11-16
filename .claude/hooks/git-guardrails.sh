@@ -32,6 +32,22 @@ matches() {
 input="$(mktemp)"
 trap 'rm -f "$input"' EXIT
 cat > "$input"
+# holdout-keys.md of a run folder holds the key points of the holdout evals, and an agent that reads
+# a key burns the holdout (docs/workflow/evals.md). settings.json runs this hook for Read and Grep
+# too: a Read of a file with that base name, or a Grep whose path or glob names holdout-keys, is
+# refused, and each other Read or Grep passes with no other check.
+hk_reason="reads holdout-keys.md, the key points of the holdout evals (an agent that reads a key burns the holdout)"
+hk_route="Read the headings with rg -n '^## ' <path>. To search for the name, use a pattern that is not the bare name (holdout-keys, holdout-keys[.]md), or search a folder with no holdout-keys.md."
+case "$(plutil -extract tool_name raw -o - "$input" 2>/dev/null)" in
+  Read)
+    COMMAND="Read $(plutil -extract tool_input.file_path raw -o - "$input" 2>/dev/null)"
+    [[ "${COMMAND##*/}" == holdout-keys.md ]] && block "$hk_reason" "$hk_route"
+    exit 0 ;;
+  Grep)
+    COMMAND="Grep $(plutil -extract tool_input.path raw -o - "$input" 2>/dev/null) $(plutil -extract tool_input.glob raw -o - "$input" 2>/dev/null)"
+    [[ "$COMMAND" == *holdout-keys* ]] && block "$hk_reason" "$hk_route"
+    exit 0 ;;
+esac
 if ! COMMAND="$(plutil -extract tool_input.command raw -o - "$input" 2>/dev/null)"; then
   COMMAND="(unreadable hook input)"
   block "cannot be checked"
@@ -263,6 +279,52 @@ if [[ "$chained_data" =~ make\ check(.*)git\ commit ]]; then
 fi
 
 word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
+
+# A Bash call with a path word that names holdout-keys.md is refused, unless the whole command is one
+# listed form. The words come from the joined text with each ', ", and \ removed, split at the class
+# of the `word` of cut_bodies (space, ; & | < > ( ) and a backtick). A path word has a / and ends in
+# /holdout-keys.md, or it is holdout-keys.md and the hook cwd holds that file or a word is cd.
+# Listed forms, each a whole one-line command: rg [-n] '^## ' <path> (headings only);
+# [WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh] scripts/eval/run.sh ... --holdout-keys <path>; and the
+# key-fix writes cat <file> >> <path> and mv [-f] <file> <path>, with no holdout-keys in <file>.
+# Misses (no path word): a name that a variable or $( ) builds; a bare name after pushd, after a cd
+# of an earlier call, or in a python3 -c body; a name that find -exec or xargs gets from another
+# command; a recursive search or a glob that does not name the file; and the copy of each key in
+# eval*/keys.md of a run folder. A bare-name pattern from a folder that holds the file is refused.
+hk_listed_form() {
+  local bt='`' form rest
+  local arg="([^[:space:];&|<>()${bt}'\"\\\\]+|\"[^\"()${bt}\\\\]*\"|'[^']*')"
+  local heads="^rg( -n)? ('\\^## ?'|\"\\^## ?\"|\\^##) $arg\$"
+  local run="^(WITH_LOCK_MAX_WAIT=0 scripts/with-lock\\.sh )?scripts/eval/run\\.sh( $arg)*\$" pair=" --holdout-keys $arg"
+  local append="^cat ($arg) >> ?$arg\$" move="^mv( -f)? ($arg) $arg\$"
+  form="$(tr -s '\t ' '  ' <<< "$COMMAND")"
+  form="${form# }"
+  form="${form% }"
+  [[ "$form" == *$'\n'* ]] && return 1
+  [[ "$form" =~ $heads ]] && return 0
+  if [[ "$form" =~ $run ]]; then
+    rest="$form"
+    while [[ "$rest" =~ $pair ]]; do rest="${rest/"${BASH_REMATCH[0]}"/}"; done
+    [[ "$rest" != *holdout-keys* ]]
+    return
+  fi
+  [[ "$form" =~ $append && "${BASH_REMATCH[1]}" != *holdout-keys* ]] && return 0
+  [[ "$form" =~ $move && "${BASH_REMATCH[2]}" != *holdout-keys* ]]
+}
+hk_text="${joined//[\'\"\\]/}"
+if [[ "$hk_text" == *holdout-keys.md* ]]; then
+  hk_sep='[;&|<>()`]'
+  IFS=$' \t\n' read -d '' -ra hk_words <<< "${hk_text//$hk_sep/ }"
+  hk_cwd="$(plutil -extract cwd raw -o - "$input" 2>/dev/null)"
+  hk_bare=0
+  [[ -n "$hk_cwd" && -e "$hk_cwd/holdout-keys.md" ]] && hk_bare=1
+  for hk_w in "${hk_words[@]}"; do [[ "$hk_w" == cd ]] && hk_bare=1; done
+  for hk_w in "${hk_words[@]}"; do
+    if [[ "$hk_w" == */holdout-keys.md || ( "$hk_w" == holdout-keys.md && $hk_bare -eq 1 ) ]] && ! hk_listed_form; then
+      block "$hk_reason outside the listed forms: rg -n '^## ' <path>, scripts/eval/run.sh ... --holdout-keys <path>, cat <file> >> <path>, and mv <file> <path>" "$hk_route"
+    fi
+  done
+fi
 
 # Only the check-changed recipe of the Makefile writes the pass stamp that land.sh reuses, so a
 # direct write cannot skip the land check. A command that names the stamp file is blocked too.

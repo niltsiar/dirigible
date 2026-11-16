@@ -48,7 +48,7 @@ Two Phase 4 fix cycles changed the docs and ran the failed scenarios again, thre
 
 ## Scenarios
 
-The key points of the holdouts H1-H14 stay in the run folder until the eval passes (H14: `.scratchpads/runs/2026-10-01-verify-copy/eval/`), because a fix that reads them burns the holdouts. A holdout key line stands only in `holdout-keys.md` of the run folder, and each other file of the run folder (a review file, `analysis.md`, `plan.md`) names only the ID: scripts/check-eval-keys.sh refuses a copy. `L<n>` in the `Source` column is line n of `learnings-cutover.md` in `raw/` of the wiki. An ID such as `VER-028` is a row of `docs/workflow/rules.tsv`.
+The key points of the holdouts H1-H14 stay in the run folder until the eval passes (H14: `.scratchpads/runs/2026-10-01-verify-copy/eval/`), because a fix that reads them burns the holdouts. A holdout key line stands only in `holdout-keys.md` of the run folder, and each other file of the run folder (a review file, `analysis.md`, `plan.md`) names only the ID: scripts/check-eval-keys.sh refuses a copy. `.claude/hooks/git-guardrails.sh` refuses a read of `holdout-keys.md` outside the forms in its comment. `L<n>` in the `Source` column is line n of `learnings-cutover.md` in `raw/` of the wiki. An ID such as `VER-028` is a row of `docs/workflow/rules.tsv`.
 
 | ID | Type | Source | Question | Key points | Files | Old | New |
 |---|---|---|---|---|---|---|---|

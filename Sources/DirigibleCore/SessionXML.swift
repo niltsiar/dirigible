@@ -1,5 +1,47 @@
 import Foundation
 
+/// The byte rules of a package XML file (decision 0003): after an optional UTF-8 BOM, `<`; UTF-8 with no NUL
+/// and no `<!DOCTYPE`; a declaration `encoding` of `UTF-8` in any case. libxml2 also reads UTF-16, UTF-7, and
+/// EBCDIC, where a DTD has no `<!DOCTYPE` bytes.
+package func isPlainPackageXML(_ data: Data) -> Bool {
+    var bytes = [UInt8](data)
+    bytes.append(0)
+    let body = bytes.starts(with: [0xEF, 0xBB, 0xBF]) ? 3 : 0
+    let isPlainUTF8 = bytes.withUnsafeBufferPointer { buffer in
+        let start = buffer.baseAddress!
+        return memchr(start, 0, data.count) == nil && memmem(start, data.count, "<!DOCTYPE", 9) == nil
+            && start.withMemoryRebound(to: CChar.self, capacity: buffer.count) { String(validatingCString: $0) != nil }
+    }
+    return bytes.dropFirst(body).first == UInt8(ascii: "<") && isPlainUTF8 && declaresOnlyUTF8(bytes.dropFirst(body))
+}
+
+/// False for a declaration with an `encoding` whose value is not `UTF-8` in any case or does not parse.
+private func declaresOnlyUTF8(_ text: ArraySlice<UInt8>) -> Bool {
+    guard text.starts(with: Array("<?xml".utf8)) else { return true }
+    guard let end = text.firstRange(of: Array("?>".utf8)) else { return false }
+    let isSpace = { (byte: UInt8) in byte == 0x20 || byte == 0x09 || byte == 0x0A || byte == 0x0D }
+    var rest = text[..<end.lowerBound]
+    while let name = rest.firstRange(of: Array("encoding".utf8)) {
+        let equals = rest[name.upperBound...].drop(while: isSpace)
+        let value = equals.dropFirst().drop(while: isSpace)
+        guard equals.first == UInt8(ascii: "="), let quote = value.first, quote == 0x22 || quote == 0x27,
+            let close = value.dropFirst().firstIndex(of: quote),
+            String(decoding: value.dropFirst()[..<close], as: UTF8.self).lowercased() == "utf-8"
+        else { return false }
+        rest = value[close...].dropFirst()
+    }
+    return true
+}
+
+/// The parse of a package XML file (`session.xml`, a backup, a transcript file), or nil when it breaks
+/// `isPlainPackageXML` or has a DTD.
+func packageXML(_ data: Data) -> XMLDocument? {
+    guard isPlainPackageXML(data), let document = try? XMLDocument(data: data, options: .nodeLoadExternalEntitiesNever),
+        document.dtd == nil
+    else { return nil }
+    return document
+}
+
 extension Session {
     func xmlDocument() -> XMLDocument {
         let root = element("session", ("version", String(fileVersion)), ("sampleRate", String(sampleRate)))

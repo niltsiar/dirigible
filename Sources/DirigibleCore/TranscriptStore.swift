@@ -48,7 +48,7 @@ enum TranscriptStore {
     /// `Anchors` must not overflow), two `<words>` of one file, and no `<words>` throw here;
     /// `Session.checkWords` checks the rest.
     static func decode(_ data: Data) throws(SessionFileError) -> [FileID: Anchors] {
-        guard let document = try? XMLDocument(data: data), let root = document.rootElement(),
+        guard let document = packageXML(data), let root = document.rootElement(),
             root.localName == "transcript", root.uri == transcriptNamespace
         else { throw .malformedXML }
         guard let version = root.attribute(forName: "version")?.stringValue.flatMap(Int.init), version >= 1 else {

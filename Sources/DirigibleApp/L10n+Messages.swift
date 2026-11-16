@@ -308,6 +308,7 @@ extension L10n {
         case .locked: return errorLocked.text
         case .packageMoved: return errorFileMoved.text
         case .exists: return errorFileExists.text
+        case .unsafeItem(let item): return errorFileItem.format(item)
         }
     }
 }

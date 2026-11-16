@@ -930,6 +930,8 @@ If the window of a session shows "The session file is damaged." ("El archivo de 
 
 If Dirigible stopped during a take, the backup has no copy of that take: keep the package and the `session.xml` that you moved to the Desktop.
 
+If the window of a session shows the name of an item, for example `.lock`, and "in this package is a link or a special file. Dirigible opens a package only when its files and folders are plain files and folders." ("de este paquete es un enlace o un archivo especial. Dirigible solo abre un paquete cuando sus archivos y carpetas son archivos y carpetas normales."), the package has a link or a special file in place of a plain file or folder. Dirigible does not open or change such a package, so that files outside the package stay safe. Ask the person who sent the session for a copy with the real folders and files. If you made the link, put the real folder or file in its place.
+
 For another error, do not change the package. Remove the cause, for example close the other window, then click **Try Again**.
 
 ### Report a problem

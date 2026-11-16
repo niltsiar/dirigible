@@ -14,8 +14,10 @@ public final class PackageLock: Sendable {
     /// process of the user can write).
     public let identity: PackageID?
 
-    /// Throws `.locked` when another holder has the lock, and `.readFailed(ENOENT)` when the
-    /// package does not exist. A volume without flock (ENOTSUP) gives an unlocked value
+    /// Throws `.locked` when another holder has the lock, `.readFailed(ENOENT)` when the package
+    /// does not exist, and `.unsafeItem(".lock")` when `.lock` is a link, is not a regular file, or
+    /// has more than 1 link: a link or a hard link can name the lock of another package, and `flock`
+    /// of a FIFO gives ENOTSUP. A volume without flock (ENOTSUP) gives an unlocked value
     /// (ponytail: SMB packages keep the 0011 race; fix it when a user needs it). So does a
     /// package without a lock file on a read-only volume (EROFS) or in a folder without write
     /// access (EACCES, EPERM): no process of the user can write the package. With a lock file,
@@ -25,9 +27,11 @@ public final class PackageLock: Sendable {
     package init(_ package: URL) throws(SessionFileError) {
         url = package
         // Read-only, so an existing lock file opens in a package folder without write access.
-        let descriptor = open(package.appending(path: ".lock").path, O_RDONLY | O_CREAT | O_CLOEXEC, 0o644)
+        let descriptor = open(
+            package.appending(path: ".lock").path, O_RDONLY | O_CREAT | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, 0o644)
         guard descriptor >= 0 else {
             let code = errno
+            if code == ELOOP { throw .unsafeItem(".lock") }
             // A lock file without read access in a folder with write access still throws.
             let noWriteAccess = (code == EACCES || code == EPERM) && access(package.path, W_OK) != 0
             if code == EROFS || noWriteAccess {
@@ -37,19 +41,28 @@ public final class PackageLock: Sendable {
             }
             throw code == ENOENT ? .readFailed(errno: ENOENT) : .writeFailed(step: "lock", errno: code)
         }
+        var info = stat()
+        guard fstat(descriptor, &info) == 0 else {
+            let code = errno
+            close(descriptor)
+            throw .readFailed(errno: code)
+        }
+        // A volume that reports 0 links still opens.
+        guard info.st_mode & S_IFMT == S_IFREG, info.st_nlink <= 1 else {
+            close(descriptor)
+            throw .unsafeItem(".lock")
+        }
+        identity = PackageID(info)
         guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
             let code = errno
             close(descriptor)
             if code == ENOTSUP {
                 self.descriptor = -1
-                identity = PackageID(lockFileOf: package)
                 return
             }
             throw code == EWOULDBLOCK ? .locked : .writeFailed(step: "flock", errno: code)
         }
         self.descriptor = descriptor
-        var info = stat()
-        identity = fstat(descriptor, &info) == 0 ? PackageID(info) : PackageID(lockFileOf: package)
     }
 
     /// Unlocks before the close. flock belongs to the open file, and a child process between

@@ -98,6 +98,7 @@
 "error.file.internal" = "Een interne fout heeft het bewaren gestopt. Het laatst bewaarde bestand blijft behouden.";
 "error.file.moved" = "De sessie is naar een andere schijf verplaatst of verwijderd. Er is niets bewaard.";
 "error.file.exists" = "Er bestaat al een onderdeel met deze naam. Kies een andere naam.";
+"error.file.item" = "'%@' in dit pakket is een link of een speciaal bestand. Dirigible opent een pakket alleen als de bestanden en mappen ervan gewone bestanden en mappen zijn.";
 "error.finalize.read" = "Het bestand %1$@ van de take kan niet worden gelezen (fout %2$lld). De opgenomen audio blijft in Capture/.";
 "error.finalize.unreadable" = "De schijf kan de opgenomen audio in %1$@ niet lezen (fout %2$lld).";
 "error.finalize.write" = "De clip %1$@ kan niet worden geschreven (fout %2$lld).";

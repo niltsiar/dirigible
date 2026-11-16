@@ -98,6 +98,7 @@
 "error.file.internal" = "Um erro interno interrompeu o salvamento. O último arquivo salvo foi mantido.";
 "error.file.moved" = "A sessão foi movida para outro disco ou apagada. Nada foi salvo.";
 "error.file.exists" = "Já existe um item com este nome. Escolha outro nome.";
+"error.file.item" = "“%@” neste pacote é um link ou um arquivo especial. O Dirigible só abre um pacote quando os arquivos e as pastas dele são arquivos e pastas comuns.";
 "error.finalize.read" = "Não é possível ler o arquivo %1$@ da tomada (erro %2$lld). O áudio gravado permanece em Capture/.";
 "error.finalize.unreadable" = "O disco não consegue ler o áudio gravado em %1$@ (erro %2$lld).";
 "error.finalize.write" = "Não é possível escrever o clipe %1$@ no disco (erro %2$lld).";

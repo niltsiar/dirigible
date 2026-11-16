@@ -8,6 +8,9 @@
 # its cap, or the end load was high) writes `<run>: the bench is void: <its bench: void line>` there
 # and ends the set: no later bench runs, and the compare follows.
 # A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
+# A pair run exits 2 before the lock when the run folder of its out folder (the nearest parent with
+# a decisions.tsv, up to .scratchpads/runs) has no phase 7 row after its last phase 4 or phase 6
+# row: the pairs are the Phase 7 verdict. --compare and --lines read no decisions.tsv.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
 #        scripts/bench-pairs.sh --lines <log>
@@ -51,6 +54,25 @@ if [[ "${1:-}" != "--compare" && "${1:-}" != "--lines" ]]; then
   main="${1:?usage: bench-pairs.sh <main worktree> <filter> <pairs> <out folder>}"
   filter="${2:?filter}"; count="${3:?pairs}"; out="${4:?out folder}"
   [[ ! -e "$out" ]] || { echo "bench-pairs: $out exists; give a new folder" >&2; exit 2; }
+  # The pairs are the Phase 7 bench verdict. The nearest folder above the out folder with a
+  # decisions.tsv (not above .scratchpads/runs) is the run: it needs a phase 7 row after its last
+  # phase 4 or phase 6 row. A folder with no run above it passes. The path is absolute first, so the
+  # walk ends at / for a relative out folder.
+  top="$out"; rest=""
+  while [[ ! -d "$top" ]]; do rest="/$(basename "$top")$rest"; top="$(dirname "$top")"; done
+  walk="$(cd "$top" && pwd -P)"
+  walk="${walk%/}$rest"
+  while walk="$(dirname "$walk")"; [[ ! -f "$walk/decisions.tsv" ]]; do
+    [[ "$walk" != */.scratchpads/runs && "$walk" != / ]] || { walk=""; break; }
+  done
+  if [[ -n "$walk" ]]; then
+    last="$(awk -F'\t' 'NR > 1 { if ($2 == 4 || $2 == 6) { phase = $2; at = $1; seven = 0 } else if ($2 == 7) seven = 1 }
+      END { print (seven ? "pass" : "refuse") " phase " (phase ? phase : "none") " at " (at ? at : "none") }' "$walk/decisions.tsv")"
+    if [[ "$last" == refuse* ]]; then
+      echo "bench-pairs: $walk/decisions.tsv has no phase 7 row after its last phase 4 or phase 6 row (last:${last#refuse}); log a phase 7 row first, or use make bench for a gate perf item" >&2
+      exit 2
+    fi
+  fi
   # A log in a git tree that git does not ignore makes that tree dirty, so its benches void.
   parent="$(dirname "$out")"
   while [[ ! -d "$parent" ]]; do parent="$(dirname "$parent")"; done

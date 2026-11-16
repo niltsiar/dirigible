@@ -148,6 +148,7 @@ struct MCPTakeSyncNoteTests {
         #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
         #expect(toolResult(answer(answers, id: 2)) == ("m", false))
         #expect(try Self.accessTime(anchor) == Self.oldAccessTime)
+        try Self.requireAReadMovesTheAccessTime(anchor)
     }
 
     /// 2020-01-01, before the change time of any fixture file, so a read moves it to now: the volume
@@ -158,6 +159,16 @@ struct MCPTakeSyncNoteTests {
         var times = [timespec(tv_sec: oldAccessTime, tv_nsec: 0), timespec(tv_sec: 0, tv_nsec: Int(UTIME_OMIT))]
         try #require(utimensat(AT_FDCWD, url.path, &times, 0) == 0)
         try #require(try accessTime(url) == oldAccessTime)
+    }
+
+    /// The positive control of the access-time detector: a read of `url` moves its access time from
+    /// `oldAccessTime`. On a volume that keeps no access time, this fails, so a "reads no anchor"
+    /// check cannot pass there.
+    static func requireAReadMovesTheAccessTime(_ url: URL) throws {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        _ = try handle.readToEnd()
+        try #require(try accessTime(url) != oldAccessTime, "the volume of \(url.path) keeps no access time")
     }
 
     static func accessTime(_ url: URL) throws -> Int {

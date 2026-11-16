@@ -14,6 +14,7 @@ struct PackageEditTakeSyncTests {
 
         #expect(cli.status == 0, "\(cli)")
         #expect(try MCPTakeSyncNoteTests.accessTime(anchor) == MCPTakeSyncNoteTests.oldAccessTime)
+        try MCPTakeSyncNoteTests.requireAReadMovesTheAccessTime(anchor)
         chmod(anchor.path, 0o000)
         defer { chmod(anchor.path, 0o644) }
         let answers = try await mcp([MCPTakeSyncNoteTests.insert(1, package.path, at: 0, track: [])])

@@ -98,8 +98,9 @@ extension StudioPreRollTests {
     @Test func writeFailureAfterLateStartIsReported() async throws {
         let studio = try await studio()
         try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
-        try FileManager.default.createDirectory(
-            at: package.url.appending(path: "Capture/take1-1-1.sidecar"), withIntermediateDirectories: true)
+        // A file with no write access: `input` reads the package, which refuses a folder in `Capture/`.
+        let sidecar = package.url.appending(path: "Capture/take1-1-1.sidecar").path
+        try #require(FileManager.default.createFile(atPath: sidecar, contents: nil, attributes: [.posixPermissions: 0]))
         await input(from: 232_000_000, seconds: 0.5)
         try await studio.stopRecording()
 

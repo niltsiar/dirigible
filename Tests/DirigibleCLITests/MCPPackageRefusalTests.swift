@@ -15,4 +15,17 @@ struct MCPPackageRefusalTests {
         #expect(result == (PackageRefusalCommandTests.unsafeItemText(package, "Clips"), true))
         #expect(try PackageRefusalCommandTests.victimFiles(package) == PackageRefusalCommandTests.victim)
     }
+
+    /// A placed take WAV that is a FIFO: `session_info` refuses the package at once, and does not
+    /// wait for a writer in the read of its raw capture. A hang ends at the limit of `mcp`.
+    @Test func sessionInfoRefusesAFIFOPoolFile() async throws {
+        let package = try await InfoCommandTests.rawPackage(bows: [1.07e-3])
+        let wav = package.url.appending(path: "Clips/take1-1-1.wav").path
+        try #require(unlink(wav) == 0 && mkfifo(wav, 0o644) == 0)
+
+        let call = toolCall(1, "session_info", ["package": package.path])
+        let result = toolResult(answer(try await mcp([call]), id: 1))
+
+        #expect(result == (PackageRefusalCommandTests.unsafeItemText(package, "Clips/take1-1-1.wav"), true))
+    }
 }

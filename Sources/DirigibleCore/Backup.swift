@@ -72,6 +72,7 @@ public struct Backup: Hashable, Comparable, Sendable {
                 throw .readFailed(errno: posixCode(of: error))
             }
             target = try Session(xml: data)
+            try checkPoolPaths(of: target, in: package)
             target.loadTranscripts(from: package)
         } catch {
             throw .backup(error)

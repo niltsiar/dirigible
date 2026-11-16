@@ -1,8 +1,9 @@
 import Foundation
 
 extension Session {
-    /// Checks the items of the package (`checkItems(of:)`), then reads `session.xml`, then the words
-    /// of each transcript from `Transcripts/` (decision 0055). The reader parses the XML into domain
+    /// Checks the items of the package (`checkItems(of:)`), then reads `session.xml` and checks its
+    /// pool paths (`checkPoolPaths`), then the words of each transcript from `Transcripts/`
+    /// (decision 0055). The reader parses the XML into domain
     /// values, then builds the session through the same edits that the app uses, so each rule has
     /// one check.
     public init(contentsOf package: URL) throws(SessionFileError) {
@@ -14,6 +15,7 @@ extension Session {
             throw .readFailed(errno: posixCode(of: error))
         }
         try self.init(xml: data)
+        try checkPoolPaths(of: self, in: package)
         loadTranscripts(from: package)
     }
 

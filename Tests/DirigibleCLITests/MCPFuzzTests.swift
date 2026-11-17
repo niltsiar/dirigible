@@ -6,9 +6,9 @@ import Testing
 /// one tool go to one `dirigible mcp` child with a `ping` after each call, so a crash or a hang
 /// names its call. A wrong JSON type is a tool error that names its key (family S); a stress value
 /// of the right type does not stop the server (family V); an error keeps each byte of the package.
-/// A call with no answer is sent again, alone, to a new child, and only a call with no answer there
-/// too is an issue (a hang or a crash). Each issue names the seed, the case, the family, and the
-/// tool.
+/// A child that ends before its last answer is an issue, with the calls sent to it. After a crash
+/// or a timeout, each call with no answer is sent again, alone, to a new child, and a call with no
+/// answer there is an issue too. Each issue names the seed, the case, the family, and the tool.
 struct MCPFuzzTests {
     static let seeds: [UInt64] = [20_261_117]
     static let aloneLimit: Duration = .seconds(30)
@@ -279,11 +279,12 @@ struct MCPFuzzTests {
     /// answer again, alone. It gives the problems and prints one line when the child ends badly.
     static func check(tool: String, _ calls: [Call], run: FuzzRun) async -> [String] {
         func label(_ call: Call) -> String { "seed \(run.seed) \(call.text) tool \(tool): \(call.line.prefix(160))" }
+        let sent = calls.map { "\n  \($0.text): \($0.line.prefix(160))" }.joined()
         var problems: [String] = []
         do {
             let lines = calls.flatMap { [$0.line, request($0.id + 1, "ping")] }
             let outcome = try await mcpChild(lines, limit: childLimit(tool))
-            problems += outcome.frameProblems.map { "seed \(run.seed) tool \(tool): \($0)" }
+            problems += outcome.frameProblems.map { "seed \(run.seed) tool \(tool): \($0); the calls sent:\(sent)" }
             func answered(_ call: Call, _ outcome: MCPOutcome) -> Bool {
                 (call.isUnparseable || outcome.answer(id: call.id) != nil) && outcome.answer(id: call.id + 1) != nil
             }
@@ -292,6 +293,11 @@ struct MCPFuzzTests {
                 print(
                     "tool \(tool): child ended \(outcome.end) timed out \(outcome.timedOut), \(unanswered.count) ids with no answer"
                 )
+            }
+            if outcome.endedBadly || (!outcome.timedOut && !unanswered.isEmpty) {
+                let when = unanswered.first.map { "before the answer of \($0.text)" } ?? "after its answers"
+                problems.append(
+                    "seed \(run.seed) tool \(tool): the child ended \(outcome.end) \(when); the calls sent:\(sent)")
             }
             for call in calls where answered(call, outcome) {
                 problems += verify(call, outcome, run: run).map { "\(label(call)): \($0)" }
@@ -306,11 +312,9 @@ struct MCPFuzzTests {
                 }
                 problems += verify(call, alone, run: run).map { "\(label(call)): \($0)" }
             }
-            if outcome.endedBadly && unanswered.isEmpty {
-                problems.append("seed \(run.seed) tool \(tool): the child ended \(outcome.end)")
-            }
         } catch {
-            problems.append("seed \(run.seed) tool \(tool): the test failed to run the child: \(error)")
+            problems.append(
+                "seed \(run.seed) tool \(tool): the test failed to run the child: \(error); the calls sent:\(sent)")
         }
         return problems
     }

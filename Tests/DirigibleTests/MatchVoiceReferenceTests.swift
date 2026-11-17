@@ -70,6 +70,48 @@ extension MatchVoiceWindowTests {
         await model.close()
     }
 
+    /// A render in place keeps the clip ID and gives the clip a new file: the span names the old file,
+    /// so the reference ends.
+    @Test func aRenderInPlaceEndsTheReference() async throws {
+        let (model, studio) = try await open(seconds: 30)
+        try chooseRange(model, studio)
+        #expect(model.canMatchVoice(tracks: ["t2"]))
+
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            let runs = try session.clipRuns(of: ["c1"]).map {
+                RenderedRun(run: $0, stem: "\($0.file) NR", treatment: Treatment(.noise(.standard)), addedGain: .zero)
+            }
+            _ = try session.repoint(runs)
+        }
+
+        #expect(studio.session.clip("c1")?.clip.file != "f1", "the clip reads the rendered file")
+        #expect(model.activeVoiceReference == nil && !model.canMatchVoice(tracks: ["t2"]), "a new file")
+        await model.close()
+    }
+
+    /// A trim of the clip start past the start of the span removes frames of the span and ends the
+    /// reference. A trim before it keeps the file frames of the span.
+    @Test func aTrimOfTheClipStartPastTheSpanEndsTheReference() async throws {
+        let (model, studio) = try await open(seconds: 30)
+        try chooseRange(model, studio)
+        let frames = try #require(model.voiceReference?.span?.frames)
+        #expect(frames == Frames(2 * 48_000)..<Frames(26 * 48_000))
+
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.trim("c1", to: Frames(5 * 48_000)..<Frames(34 * 48_000))
+        }
+        let session = studio.session
+        #expect(model.activeVoiceReference?.span?.frames == frames, "a trim before the span")
+        #expect(model.activeVoiceReference?.range(in: session) == Frames(6 * 48_000)..<Frames(30 * 48_000))
+        try studio.undo()
+
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.trim("c1", to: Frames(8 * 48_000)..<Frames(34 * 48_000))
+        }
+        #expect(model.activeVoiceReference == nil && !model.canMatchVoice(tracks: ["t2"]), "a trim past the span start")
+        await model.close()
+    }
+
     /// Match Voice is off when the only target is the track of the reference clip. Next to another
     /// track it is on, and the match leaves the reference track as it was.
     @Test func theReferenceTrackIsNoTarget() async throws {

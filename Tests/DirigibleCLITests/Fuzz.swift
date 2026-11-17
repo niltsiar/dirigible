@@ -121,6 +121,12 @@ struct FuzzRun: Sendable {
         return folder
     }
 
+    /// Replaces the package at `package` with a new copy of the fixture, for a case that runs again.
+    func renew(_ package: URL) throws {
+        try FileManager.default.removeItem(at: package)
+        try FileManager.default.copyItem(at: fixture, to: package)
+    }
+
     func text(_ fuzzCase: FuzzCase, index: Int) -> String {
         let line = fuzzCase.arguments.map { $0.count > 80 ? String($0.prefix(80)) + "...(\($0.count))" : $0 }
         return

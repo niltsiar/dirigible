@@ -45,15 +45,19 @@ func packageXML(_ data: Data) -> XMLDocument? {
 /// The deepest element nesting of a package XML file, the root counted as 1. The writer nests 6 deep.
 private let packageXMLDepthLimit = 64
 
-/// False on an element depth over `packageXMLDepthLimit`, or on a stop with libxml2 `XML_ERR_USER_STOP`
-/// (111), for example on a name of 60,000 bytes. The pass reads no byte after either stop, and
-/// `XMLDocument` overflows the stack on deep nesting. Another parser error falls to `XMLDocument`.
+/// False on an element depth over `packageXMLDepthLimit`, or on any other stop of the parser, for example
+/// libxml2 `XML_ERR_USER_STOP` (111) on a name of 60,000 bytes.
 private func isShallowPackageXML(_ data: Data) -> Bool {
     let parser = XMLParser(data: data)
     let depth = DepthCount()
     parser.delegate = depth
-    guard !parser.parse(), let error = parser.parserError as NSError? else { return true }
-    return error.code != XMLParser.ErrorCode.delegateAbortedParseError.rawValue && error.code != 111
+    return isShallowParse(parsed: parser.parse(), stopCode: (parser.parserError as NSError?)?.code)
+}
+
+/// True only for a parse to the end with no error. The pass reads no byte after a stop, and `XMLDocument`
+/// overflows the stack on deep nesting after it, so a stop with any code refuses the file.
+func isShallowParse(parsed: Bool, stopCode: Int?) -> Bool {
+    parsed && stopCode == nil
 }
 
 private final class DepthCount: NSObject, XMLParserDelegate {

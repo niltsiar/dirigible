@@ -3,11 +3,17 @@ import DirigibleCore
 import DirigibleTimeline
 import Foundation
 
-/// The reference of a Match Voice, as the window keeps it: the clip, the range of the learn in
-/// timeline frames (nil: the whole clip), and the clip name at the time of the choice.
+/// The reference of a Match Voice, as the window keeps it: the clip, the file frames of the learn
+/// (nil: the whole clip), and the clip name at the time of the choice. File frames keep the
+/// selected audio when an edit moves or slips the clip.
 struct VoiceReference: Equatable {
+    struct Span: Equatable {
+        let file: FileID
+        let frames: Range<Frames>
+    }
+
     let clip: ClipID
-    let range: Range<Frames>?
+    let span: Span?
     let name: String
 
     /// The reference that `selection` gives: a clip set of one clip, or a range on one track that
@@ -18,18 +24,31 @@ struct VoiceReference: Equatable {
         case .clips:
             let clips = selection.selectedClips(in: session)
             guard clips.count == 1, let clip = clips.first?.clip else { return nil }
-            self.init(clip: clip.id, range: nil, name: session.name(of: clip))
+            self.init(clip: clip.id, span: nil, name: session.name(of: clip))
         case .range(let marks):
             guard let held = marks.selection(in: session), held.tracks.count == 1,
                 let clip = session.track(held.tracks[0])?.clips.first(where: {
                     $0.start <= held.range.lowerBound && held.range.upperBound <= $0.end
                 })
             else { return nil }
-            self.init(clip: clip.id, range: held.range, name: session.name(of: clip))
+            let first = clip.offset + (held.range.lowerBound - clip.start)
+            let end = clip.offset + (held.range.upperBound - clip.start)
+            self.init(clip: clip.id, span: Span(file: clip.file, frames: first..<end), name: session.name(of: clip))
         }
     }
 
-    init(clip: ClipID, range: Range<Frames>?, name: String) { (self.clip, self.range, self.name) = (clip, range, name) }
+    init(clip: ClipID, span: Span?, name: String) { (self.clip, self.span, self.name) = (clip, span, name) }
+
+    /// The timeline frames of the learn in `session`: the clip range for the whole clip. Nil when
+    /// the clip is gone, or no longer holds each frame of the span (a trim, a cut, a new file).
+    func range(in session: Session) -> Range<Frames>? {
+        guard let clip = session.clip(clip)?.clip else { return nil }
+        guard let span else { return clip.range }
+        guard clip.file == span.file, clip.offset <= span.frames.lowerBound,
+            span.frames.upperBound <= clip.offset + clip.length
+        else { return nil }
+        return clip.start + (span.frames.lowerBound - clip.offset)..<clip.start + (span.frames.upperBound - clip.offset)
+    }
 }
 
 /// What a Match Voice gave, for its banner: the tracks, and the largest boost and cut of their
@@ -64,9 +83,11 @@ extension L10n {
 
 /// Track > Match Voice and the same submenu of the track header menu (decision 0074).
 extension SessionWindow {
-    /// The reference of the last Use as Voice Reference, while its clip is still in the session.
+    /// The reference of the last Use as Voice Reference, while its clip still holds the chosen audio.
     var activeVoiceReference: VoiceReference? {
-        guard let voiceReference, studio?.session.clip(voiceReference.clip) != nil else { return nil }
+        guard let voiceReference, let session = studio?.session, voiceReference.range(in: session) != nil else {
+            return nil
+        }
         return voiceReference
     }
 
@@ -96,9 +117,9 @@ extension SessionWindow {
     /// Matches `tracks` to the reference as one undo step, with a banner for the result or the
     /// refusal. The banner Cancel changes nothing, and VoiceOver says the cancel text.
     func matchVoice(tracks: [TrackID]) async {
-        guard canMatchVoice(tracks: tracks), let studio = idleStudio, let reference = activeVoiceReference else {
-            return
-        }
+        guard canMatchVoice(tracks: tracks), let studio = idleStudio, let reference = voiceReference,
+            let range = reference.range(in: studio.session)
+        else { return }
         voiceMatchReport = nil
         commitDrafts()
         matchingTracks = Set(tracks)
@@ -106,7 +127,7 @@ extension SessionWindow {
         defer { (matchingTracks, matchProgress) = ([], nil) }
         do throws(StudioError) {
             let matches = try await studio.matchVoice(
-                reference: reference.clip, range: reference.range, tracks: Set(tracks), agent: nil
+                reference: reference.clip, range: range, tracks: Set(tracks), agent: nil
             ) { [weak self] fraction in self?.matchProgress = fraction }
             let extremes = matches.values.map { $0.extremes(at: $0.amount) }
             matchPresses += 1

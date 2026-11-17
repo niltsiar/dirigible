@@ -65,9 +65,9 @@ func dirigible(
     try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments, slots: slots, limit: limit)
 }
 
-/// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
-/// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite. A
-/// child that a signal ends records an issue, because its status alone looks like an exit code.
+/// Runs `executable` through `launch`. A run over `limit` records an issue, so a hang cannot stop
+/// the suite. A child that a signal ends records an issue, because its status alone looks like an
+/// exit code.
 private func run(
     _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil,
     directory: URL? = nil, slots: Slots = .shared, limit: Duration = .seconds(30)
@@ -82,9 +82,37 @@ private func run(
 
     let process = childProcess(executable, arguments, in: folder, socket: socket, logs: logs)
     if let directory { process.currentDirectoryURL = directory }
-    process.standardOutput = try FileHandle(forWritingTo: output)
-    process.standardError = try FileHandle(forWritingTo: errors)
-    if let input { process.standardInput = try FileHandle(forReadingFrom: input) }
+    let end = try await launch(process, input: input, output: output, errors: errors, slots: slots, limit: limit)
+    let command = "\(executable.path) \(arguments.joined(separator: " "))"
+    if end.timedOut {
+        Issue.record("\(command) ran for more than \(limit.components.seconds) s")
+    } else if end.signaled {
+        Issue.record("\(command) ended by signal \(end.status)")
+    }
+    return CLIResult(
+        status: end.status,
+        stdout: String(decoding: try Data(contentsOf: output), as: UTF8.self),
+        stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self), signaled: end.signaled)
+}
+
+/// The end of a child of `launch`: the exit status or the signal number, and whether the limit
+/// stopped it.
+struct ChildEnd {
+    var status: Int32
+    var signaled: Bool
+    var timedOut: Bool
+}
+
+private let launcher = DispatchQueue(label: "dirigible-tests.child-launch", attributes: .concurrent)
+
+/// Takes a slot of `slots`, starts `process` with `input` on stdin and stdout and stderr in the
+/// files `output` and `errors` (nil: the stderr of the test process), and waits for its end. At
+/// `limit` the child gets SIGTERM. The open, the spawn, and the close of the streams can block in
+/// the kernel for seconds while other children start, so they run on dispatch threads, never on a
+/// thread of the concurrency pool: a blocked pool delays each `await` of the test process.
+func launch(
+    _ process: Process, input: URL? = nil, output: URL, errors: URL?, slots: Slots = .shared, limit: Duration
+) async throws -> ChildEnd {
     // Take the slot before the limit task: the limit must not stop a child that has not started.
     await slots.started()
     let child = Child(process)
@@ -93,38 +121,55 @@ private func run(
         try await Task.sleep(for: limit)
         stopped.withLock { $0 = true }
         child.terminate()
-        Issue.record(
-            "\(executable.path) \(arguments.joined(separator: " ")) ran for more than \(limit.components.seconds) s")
     }
     defer { watch.cancel() }
-    // The handler is set before `run()`, inside the continuation, so a child that exits at once
-    // still resumes it. Only the handler resumes it, or the error of `run()`.
+    // The handler is set before the spawn, so a child that exits at once still resumes the
+    // continuation. Only the handler resumes it, or the error of the spawn.
     let (status, signaled): (Int32, Bool) = try await withCheckedThrowingContinuation { continuation in
         process.terminationHandler = { process in
+            child.closeStreams()
             slots.ended()
             continuation.resume(returning: (process.terminationStatus, process.terminationReason == .uncaughtSignal))
         }
-        do {
-            try process.run()
-        } catch {
-            slots.ended()
-            continuation.resume(throwing: error)
+        launcher.async {
+            do {
+                try child.run(input: input, output: output, errors: errors)
+                if stopped.withLock({ $0 }) { child.terminate() }
+            } catch {
+                child.closeStreams()
+                slots.ended()
+                continuation.resume(throwing: error)
+            }
         }
     }
-    if signaled, !stopped.withLock({ $0 }) {
-        Issue.record("\(executable.path) \(arguments.joined(separator: " ")) ended by signal \(status)")
-    }
-    return CLIResult(
-        status: status,
-        stdout: String(decoding: try Data(contentsOf: output), as: UTF8.self),
-        stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self), signaled: signaled)
+    return ChildEnd(status: status, signaled: signaled, timedOut: stopped.withLock { $0 })
 }
 
-/// A child process for the limit task. `Process` is not `Sendable`; the task only stops it.
+/// A child process of `launch`. `Process` is not `Sendable`: a dispatch thread starts it, the limit
+/// task stops it, and the termination handler closes its streams.
 final class Child: @unchecked Sendable {
     private let process: Process
+    private let streams = OSAllocatedUnfairLock<[FileHandle]>(initialState: [])
     init(_ process: Process) { self.process = process }
-    func terminate() { process.terminate() }
+
+    func run(input: URL?, output: URL, errors: URL?) throws {
+        func opened(_ handle: FileHandle) -> FileHandle {
+            streams.withLock { $0.append(handle) }
+            return handle
+        }
+        process.standardOutput = opened(try FileHandle(forWritingTo: output))
+        if let errors { process.standardError = opened(try FileHandle(forWritingTo: errors)) }
+        if let input { process.standardInput = opened(try FileHandle(forReadingFrom: input)) }
+        try process.run()
+    }
+
+    /// `terminate()` raises on a child that did not start, so `launch` checks the limit again after
+    /// the spawn.
+    func terminate() { if process.isRunning { process.terminate() } }
+
+    func closeStreams() {
+        for handle in streams.withLock({ $0 }) { try? handle.close() }
+    }
 }
 
 /// At most `bound` running children. `shared` has the width of the concurrency pool, so the CLI

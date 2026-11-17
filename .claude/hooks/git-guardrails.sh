@@ -289,9 +289,10 @@ word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
 # /holdout-keys.md, or it is holdout-keys.md and the hook cwd holds that file or a word is cd.
 # Listed forms, each a whole one-line command: rg [-n] '^## ' <path> (headings only); the eval call
 # [cd <dir> &&] [NAME=<value> &&|;]... [NAME=<value>]... [[<dir>/]scripts/with-lock.sh]
-# [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [> <log>] [2>&1], with NAME one of R, RUNS,
-# ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, each other word free of holdout-keys, and
-# <log> a path that ends in .log with no * ? [ { (no glob or ${ } can expand it to the file); and
+# [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [<op> <log>]... [2>&1]..., with NAME one of
+# R, RUNS, ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, each other word free of holdout-keys,
+# <op> one of >, >>, 1>, 1>>, 2>, and 2>>, and <log> a path that ends in .log with no * ? [ { (no
+# glob or ${ } can expand it to the file); and
 # the key-fix writes cat <file> >> <path> and mv [-f] <file> <path>, with no holdout-keys in <file>.
 # The holdout-keys compares ignore case.
 # Misses (no path word): a name that a variable or $( ) builds; a bare name after pushd, after a cd
@@ -334,7 +335,7 @@ if [[ "$hk_text" == *holdout-keys.md* ]]; then
   for hk_w in "${hk_words[@]}"; do [[ "$hk_w" == cd ]] && hk_bare=1; done
   for hk_w in "${hk_words[@]}"; do
     if [[ "$hk_w" == */holdout-keys.md || ( "$hk_w" == holdout-keys.md && $hk_bare -eq 1 ) ]] && ! hk_listed_form; then
-      block "$hk_reason outside the listed forms: rg -n '^## ' <path>; [cd <dir> &&] [NAME=<value> &&|;]... [NAME=<value>]... [[<dir>/]scripts/with-lock.sh] [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [> <file>.log] [2>&1], with NAME one of R, RUNS, ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, and a literal .log path; cat <file> >> <path>; and mv [-f] <file> <path>" "$hk_route"
+      block "$hk_reason outside the listed forms: rg -n '^## ' <path>; [cd <dir> &&] [NAME=<value> &&|;]... [NAME=<value>]... [[<dir>/]scripts/with-lock.sh] [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [<op> <file>.log]... [2>&1]..., with NAME one of R, RUNS, ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, <op> one of >, >>, 1>, 1>>, 2>, and 2>>, and <file>.log a literal path with no * ? [ {; cat <file> >> <path>; and mv [-f] <file> <path>" "$hk_route"
     fi
   done
 fi

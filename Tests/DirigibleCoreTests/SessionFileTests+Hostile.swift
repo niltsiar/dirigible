@@ -3,8 +3,9 @@ import Testing
 
 @testable import DirigibleCore
 
-/// A package XML file from another person (decision 0003): the reader refuses deep nesting and
-/// each file on which the parser pass stops, and it keeps opening each valid prolog.
+/// A package XML file from another person (decision 0003): the reader refuses deep nesting, each
+/// file on which the parser pass stops, and an origin past its source, and it keeps opening each
+/// valid prolog.
 extension SessionFileTests {
     static let declaration = #"<?xml version="1.0" encoding="UTF-8"?>"#
     static let sessionRoot =
@@ -88,6 +89,23 @@ extension SessionFileTests {
         let data = Data(text.replacing("MARK", with: String(repeating: "n", count: 11_000_000)).utf8)
 
         #expect(throws: SessionFileError.malformedXML) { try Session(xml: data) }
+    }
+
+    /// C6, X10 to X12: the origin of "a NR" (300,000 frames) in "z" (1,000,000 frames) with the
+    /// offset `Int.max`, 700,000 (the last range inside the source), and 700,001.
+    @Test func anOriginOffsetPastTheSourceIsRefused() throws {
+        let session = try renderedBeforeSource()
+        let text = String(decoding: try session.checkedData(), as: UTF8.self)
+        try #require(text.contains(#"offset="200000""#))
+        func read(_ offset: String) throws(SessionFileError) -> Session {
+            try Session(xml: Data(text.replacing(#"offset="200000""#, with: #"offset="\#(offset)""#).utf8))
+        }
+
+        #expect(throws: SessionFileError.invalidSession(.invalidOrigin("a NR")), "X10") {
+            try read("9223372036854775807")
+        }
+        #expect(try read("700000").files["a NR"]?.origin?.offset == 700_000, "X11")
+        #expect(throws: SessionFileError.invalidSession(.invalidOrigin("a NR")), "X12") { try read("700001") }
     }
 
     /// C4, X23: 11 MB of episode notes and an 11 MB `<words>` text node open, equal.

@@ -2,8 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// A damaged `session.xml` from another person ends a command with exit 2 and the text of a
-/// damaged file, never with a signal. Each case runs in a `dirigible` child, so a crash names
+/// A damaged `session.xml` from another person ends a command with exit 2 and one `Error:` line,
+/// never with a signal. Each case runs in a `dirigible` child, so a crash names
 /// its test and does not stop the shard.
 struct HostileSessionCommandTests {
     static let root =
@@ -26,6 +26,24 @@ struct HostileSessionCommandTests {
             result
                 == CLIResult(
                     status: 2, stdout: "", stderr: "Error: \(path)/session.xml is not a Dirigible session file.\n"))
+    }
+
+    /// Boundary fuzz C6, X10: an origin offset of `Int.max`, so the offset plus the file length
+    /// overflows.
+    @Test func originOffsetOverflowExitsTwo() async throws {
+        let files =
+            #"<files><file id="a NR" path="a NR.wav" channels="1" length="300000">"#
+            + #"<origin source="z" offset="9223372036854775807" gain="0"><hum hz="50"/></origin></file>"#
+            + #"<file id="z" path="z.wav" channels="1" length="1000000"/></files>"#
+        let root = Self.root.replacing(#"version="12""#, with: #"version="14""#)
+        let (result, path) = try await Self.info(
+            #"<?xml version="1.0" encoding="UTF-8"?>"# + "\n" + root + files + "</session>\n")
+
+        let rule = #"file "a NR" has an origin that names no matching source range."#
+        #expect(
+            result
+                == CLIResult(
+                    status: 2, stdout: "", stderr: "Error: \(path)/session.xml breaks a session rule: \(rule)\n"))
     }
 
     /// Boundary fuzz C4, X22: an element name of 60,000 bytes stops the parser pass before the

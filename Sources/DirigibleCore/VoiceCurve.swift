@@ -17,7 +17,7 @@ public struct BandSpectrum: Hashable, Sendable {
             [powers, noise].allSatisfy {
                 $0.count == ThirdOctave.bandCount && $0.allSatisfy { $0.isFinite && $0 >= 0 }
             },
-            "a band spectrum has 25 finite powers of 0 or more")
+            "a band spectrum has \(ThirdOctave.bandCount) finite powers of 0 or more")
         self.powers = powers
         self.noise = noise
         self.voiceFrames = voiceFrames

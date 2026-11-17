@@ -344,11 +344,13 @@ struct MCPFuzzTests {
             print("\(test) seed \(seed) family \(family): \(count) cases in \(perTool.count) tools")
         }
         var problems: [String] = []
-        await withTaskGroup(of: [String].self) { group in
-            for (tool, calls) in perTool where !calls.isEmpty {
-                group.addTask { await check(tool: tool, calls, run: run) }
+        await Slots.$waitsLast.withValue(true) {
+            await withTaskGroup(of: [String].self) { group in
+                for (tool, calls) in perTool where !calls.isEmpty {
+                    group.addTask { await check(tool: tool, calls, run: run) }
+                }
+                for await found in group { problems += found }
             }
-            for await found in group { problems += found }
         }
         for problem in problems { Issue.record(Comment(rawValue: problem)) }
     }

@@ -129,15 +129,19 @@ final class Child: @unchecked Sendable {
 
 /// At most `bound` running children. `shared` has the width of the concurrency pool, so the CLI
 /// children and their test fixtures cannot load the machine past it. A child waits for a free
-/// slot with no thread: `ended()` gives its slot to the first waiter. With `DIRIGIBLE_FLAKE_MONITOR`
-/// set, each new peak prints `CLI-CHILDREN peak <n>` for `scripts/flake-monitor/loop.sh`.
+/// slot with no thread: `ended()` gives its slot to the first waiter (see `waitsLast`). With
+/// `DIRIGIBLE_FLAKE_MONITOR` set, each new peak prints `CLI-CHILDREN peak <n>` for `scripts/flake-monitor/loop.sh`.
 final class Slots: Sendable {
     private struct State {
         var running = 0
         var peak = 0
         var waiting: [CheckedContinuation<Int?, Never>] = []
+        var waitingLast: [CheckedContinuation<Int?, Never>] = []
     }
     static let shared = Slots(bound: ProcessInfo.processInfo.activeProcessorCount)
+    /// A child started in a task where this is true gets a slot only when no other child waits. The
+    /// fuzz tests set it, so a short test never waits behind their hundreds of children.
+    @TaskLocal static var waitsLast = false
     private static let printsPeaks = ProcessInfo.processInfo.environment["DIRIGIBLE_FLAKE_MONITOR"] != nil
 
     let bound: Int
@@ -148,14 +152,15 @@ final class Slots: Sendable {
     /// The highest count of running children.
     var peak: Int { state.withLock { $0.peak } }
     /// The count of children that wait for a free slot.
-    var waiting: Int { state.withLock { $0.waiting.count } }
+    var waiting: Int { state.withLock { $0.waiting.count + $0.waitingLast.count } }
 
     /// Waits for a free slot and takes it.
     func started() async {
+        let last = Self.waitsLast
         let newPeak: Int? = await withCheckedContinuation { continuation in
             let slot = state.withLock { [bound] state -> (free: Bool, newPeak: Int?) in
                 guard state.running < bound else {
-                    state.waiting.append(continuation)
+                    if last { state.waitingLast.append(continuation) } else { state.waiting.append(continuation) }
                     return (false, nil)
                 }
                 state.running += 1
@@ -172,11 +177,10 @@ final class Slots: Sendable {
     /// the count of running children stays the same.
     func ended() {
         let next = state.withLock { state -> CheckedContinuation<Int?, Never>? in
-            guard !state.waiting.isEmpty else {
-                state.running -= 1
-                return nil
-            }
-            return state.waiting.removeFirst()
+            if !state.waiting.isEmpty { return state.waiting.removeFirst() }
+            if !state.waitingLast.isEmpty { return state.waitingLast.removeFirst() }
+            state.running -= 1
+            return nil
         }
         next?.resume(returning: nil)
     }

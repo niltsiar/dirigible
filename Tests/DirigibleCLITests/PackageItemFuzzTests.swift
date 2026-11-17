@@ -188,21 +188,24 @@ struct PackageItemFuzzTests {
         return problems.map { "\(label): \($0)" }
     }
 
-    /// Runs `cases` in a seeded order, at most `width` in flight, and records each problem.
+    /// Runs `cases` in a seeded order, at most 16 in flight, each child with `Slots.waitsLast`, and
+    /// records each problem.
     static func runAll(_ cases: [ItemCase], run: FuzzRun) async {
         var problems: [String] = []
-        await withTaskGroup(of: [String].self) { group in
-            var next = 0
-            func add() {
-                guard next < cases.count else { return }
-                let (index, item) = (next, cases[next])
-                next += 1
-                group.addTask { await execute(item, index: index, run: run) }
-            }
-            for _ in 0..<16 { add() }
-            for await found in group {
-                problems += found
-                add()
+        await Slots.$waitsLast.withValue(true) {
+            await withTaskGroup(of: [String].self) { group in
+                var next = 0
+                func add() {
+                    guard next < cases.count else { return }
+                    let (index, item) = (next, cases[next])
+                    next += 1
+                    group.addTask { await execute(item, index: index, run: run) }
+                }
+                for _ in 0..<16 { add() }
+                for await found in group {
+                    problems += found
+                    add()
+                }
             }
         }
         for problem in problems { Issue.record(Comment(rawValue: problem)) }

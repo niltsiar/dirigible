@@ -183,22 +183,24 @@ struct FuzzRun: Sendable {
         }
     }
 
-    /// Runs `cases` with at most `width` in flight and records each problem as an issue.
-    /// It gives the count of cases and the count of exits of each status, for the tally.
+    /// Runs `cases` with at most `width` in flight, each child with `Slots.waitsLast`, and gives
+    /// the problems.
     func run(_ cases: [FuzzCase], width: Int = 32) async -> [String] {
         var problems: [String] = []
-        await withTaskGroup(of: [String].self) { group in
-            var next = 0
-            func add() {
-                guard next < cases.count else { return }
-                let (index, fuzzCase) = (next, cases[next])
-                next += 1
-                group.addTask { await execute(fuzzCase, index: index) }
-            }
-            for _ in 0..<width { add() }
-            for await found in group {
-                problems += found
-                add()
+        await Slots.$waitsLast.withValue(true) {
+            await withTaskGroup(of: [String].self) { group in
+                var next = 0
+                func add() {
+                    guard next < cases.count else { return }
+                    let (index, fuzzCase) = (next, cases[next])
+                    next += 1
+                    group.addTask { await execute(fuzzCase, index: index) }
+                }
+                for _ in 0..<width { add() }
+                for await found in group {
+                    problems += found
+                    add()
+                }
             }
         }
         return problems

@@ -3522,11 +3522,12 @@ for run in "cd /x/wt && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-key
   "cat $hk_run/Holdout-Keys.md"; do
   expect_message 'reads holdout-keys.md' "$run"
 done
-# A log redirect whose target bash can expand to the file: a glob, or a variable in braces. The
-# target must be a literal path that ends in .log.
+# A log redirect whose target bash can expand to the file: a glob, or a variable (braced or
+# not). The target must be a literal path that ends in .log.
 for run in "R=/x/runs/r && scripts/eval/run.sh \$R/eval a b H90 t --holdout-keys \$R/holdout-keys.md > \$R/holdout-key*.md 2>&1" \
   "scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys /x/runs/r/holdout-keys.md > /x/runs/r/holdout-key?.md" \
-  "R=/x/runs/r/holdout-key && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > \${R}s.md"; do
+  "R=/x/runs/r/holdout-key && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > \${R}s.md" \
+  "R=/x/runs/r && scripts/eval/run.sh \$R/eval a b H90 t --holdout-keys \$R/holdout-keys.md > \$R/holdout-key\$S.md"; do
   expect_message 'reads holdout-keys.md' "$run"
 done
 # The block text names each redirect operator that the eval form takes, and each one passes.

@@ -5,7 +5,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// The output of `filter` for a unit impulse: the kernel taps, as the stage applies them.
-private func impulseResponse(_ filter: MatchFilter, _ kernel: MatchFilter.Kernel) -> [Float] {
+func impulseResponse(_ filter: MatchFilter, _ kernel: MatchFilter.Kernel) -> [Float] {
     let context = filter.contextFrames
     var input = [Float](repeating: 0, count: filter.taps + 2 * context)
     input[2 * context] = 1

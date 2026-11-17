@@ -323,7 +323,7 @@ code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "limit, holder of 1 s under 3 s: exit $code: $(cat "$tmp/wait.out")"
 clear_hold
 # Each exit 75 appends a wait line whose sixth column is exit75. A call whose command and tree have
-# an exit75 line that started under 10 min before also prints the hand-back route after the first
+# an exit75 line that ended under 10 min before also prints the hand-back route after the first
 # line. x75 <tree> <command...>: one call from <tree> behind the live holder, with a limit of 1 s.
 x75() {
   local t="$1"
@@ -352,20 +352,28 @@ x75 "$repo" touch "$tmp/ran"
     fail "second exit 75: the wait lines [$(cat "$waits" 2>/dev/null)] or the holder"
 route_err="$(cd "$repo" && WITH_LOCK_MAX_WAIT=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>/dev/null)"
 [[ -z "$route_err" ]] || fail "second exit 75: the route is on stdout: $route_err"
-# Near cases with no route: another command, the same command from another tree, a line 11 min old.
+# Near cases with no route: another command, the same command from another tree, a line that ended
+# 11 min before. The age is that of the end of the earlier call (start plus wait), so a limit of
+# 300 s still finds the first exit 75 (start 610 s before, end 310 s before).
 x75 "$repo" touch "$tmp/ran2"
 [[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 of another command: exit $code, a route line: $out"
 x75 "$tmp/wt" touch "$tmp/ran"
 [[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 from another tree: exit $code, a route line: $out"
-for age in 660 540; do
+for age in 780:120 660:120 610:300; do
   rm -f "$waits"
-  printf '%s\t120\ttouch %s\tmake test\t%s\texit75\n' "$(date -r $(($(date +%s) - age)) +%FT%T)" "$tmp/ran" "$repo_tree" > "$waits"
+  printf '%s\t%s\ttouch %s\tmake test\t%s\texit75\n' "$(date -r $(($(date +%s) - ${age%:*})) +%FT%T)" "${age#*:}" "$tmp/ran" "$repo_tree" > "$waits"
   x75 "$repo" touch "$tmp/ran"
   case "$age" in
-    660) [[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 after a line 11 min old: exit $code, a route line: $out" ;;
-    540) [[ $code -eq 75 && "$out" == *'second exit 75'* ]] || fail "exit 75 after a line 9 min old: exit $code, no route line: $out" ;;
+    780:120) [[ $code -eq 75 && "$out" != *'second exit 75'* ]] || fail "exit 75 after a line that ended 11 min before: exit $code, a route line: $out" ;;
+    *) [[ $code -eq 75 && "$out" == *'second exit 75'* ]] || fail "exit 75 after a line $age (start:wait) that ended under 10 min before: exit $code, no route line: $out" ;;
   esac
 done
+# With no waits log to write, the call cannot count its exit 75, so it prints the route each time.
+rm -f "$waits"
+mkdir "$waits"
+x75 "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && "$out" == *'cannot be written'* && "$out" == *"$route"* ]] || fail "exit 75 with no waits log: exit $code, no route: $out"
+rmdir "$waits"
 clear_hold
 rm -f "$waits"
 # These calls wait past a limit of 2 s for a holder of 3 s.

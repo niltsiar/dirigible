@@ -21,10 +21,11 @@
 # mutation-pass.sh.
 # Each exit 75 (the lock wait, the cap, the lock-free and run-only waits, and the --bench-mark waits)
 # appends a wait line with the sixth column exit75, so cost.sh counts its seconds. When the log has
-# an exit75 line of the same command and tree that started under 10 min before, the call also prints
-# "second exit 75 of this command in this tree since <time>" and the hand-back route of AGENTS.md:
-# an agent writes its remaining locked steps as one bash file and returns its path to the lead, and
-# the lead runs that file or its own command with WITH_LOCK_MAX_WAIT=0 in the background.
+# an exit75 line of the same command and tree that ended (start plus wait) under 10 min before, the
+# call also prints "second exit 75 of this command in this tree since <time>" and the hand-back
+# route of AGENTS.md: an agent writes its remaining locked steps as one bash file and returns its
+# path to the lead, and the lead runs that file or its own command with WITH_LOCK_MAX_WAIT=0 in the
+# background. When the append fails, the call prints that the log cannot be written, and the route.
 # scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
 # set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,
 # and ends in exit 75 at it; a lock-free make check-changed call (below) then exits 75 as well.
@@ -538,17 +539,21 @@ pause() {
     sleep "$nap"
 }
 # stop75 <command>...: the exit 75 of the header. It reads the waits log for an exit75 line of the
-# same command and tree that started under 10 min before, appends its own exit75 line, prints the
-# rerun line, and after an earlier line also the hand-back route.
+# same command and tree that ended under 10 min before, appends its own exit75 line, prints the
+# rerun line, and after an earlier line, or when the append fails, also the hand-back route.
 stop75() {
-    local now since
+    local now since logged=1
     now="$(date +%s)"
     since="$(cmd="$*" tree="$tree" awk -F'\t' -v cutoff="$(date -r $((now - 600)) +%FT%T)" "$ep_awk"'
-        $6 == "exit75" && $3 == ENVIRON["cmd"] && $5 == ENVIRON["tree"] && ep($1) > ep(cutoff) { print $1; exit }' "$waits" 2>/dev/null)"
-    printf '%s\t%s\t%s\t%s\t%s\texit75\n' "$(date -r "$start" +%FT%T)" "$((now - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
+        $6 == "exit75" && $3 == ENVIRON["cmd"] && $5 == ENVIRON["tree"] && ep($1) + $2 > ep(cutoff) { print $1; exit }' "$waits" 2>/dev/null)"
+    { printf '%s\t%s\t%s\t%s\t%s\texit75\n' "$(date -r "$start" +%FT%T)" "$((now - start))" "$*" "$held" "$tree" >> "$waits"; } 2>/dev/null || logged=""
     echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2
-    if [[ -n "$since" ]]; then
+    if [[ -z "$logged" ]]; then
+        echo "with-lock: the waits log $waits cannot be written, so this call cannot count its exit 75; after a second exit 75 of this command, take the route below" >&2
+    elif [[ -n "$since" ]]; then
         echo "with-lock: second exit 75 of this command in this tree since $since; do not run it a third time" >&2
+    fi
+    if [[ -z "$logged" || -n "$since" ]]; then
         echo "with-lock: an agent writes its remaining locked steps as one bash file in the run folder and returns its path to the lead; the file starts with set -euo pipefail and a cd to the worktree, runs each locked step as scripts/with-lock.sh <command>, and has no DIRIGIBLE_LOCKED_SCRIPT line" >&2
         echo "with-lock: the lead runs that file as WITH_LOCK_MAX_WAIT=0 bash <file>, and its own command as WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>, with run_in_background, a Bash timeout of 7200000, and a Monitor (AGENTS.md, Commands)" >&2
     fi

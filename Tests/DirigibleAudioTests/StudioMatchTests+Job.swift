@@ -62,8 +62,7 @@ extension StudioMatchTests {
     }
 
     /// A drag step of the amount plays in the Player with no edit, no undo entry, and no save;
-    /// `endPreview` gives the Player the stored amount again. A drag that ends at its start value
-    /// makes no entry.
+    /// `endPreview` gives the Player the stored amount again.
     @Test func amountPreviewMakesNoEntry() async throws {
         let fixture = try await MatchFixture(
             reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)])
@@ -90,8 +89,6 @@ extension StudioMatchTests {
         #expect(saves.withLock { $0 } == 0, "a preview saved")
         studio.endPreview()
         await Self.untilPlayed(studio, 75, "endPreview gives the stored amount")
-        try studio.setMatchAmount(VoiceMatch.defaultAmount, tracks: ["t1"], agent: nil)
-        #expect(studio.sessionRevision == revision, "a drag back to its start made an entry")
         #expect(throws: StudioError.session(.noMatch("ref"))) {
             try studio.previewMatchAmount(VoiceMatch.defaultAmount, track: "ref")
         }

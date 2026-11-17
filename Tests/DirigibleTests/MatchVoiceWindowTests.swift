@@ -313,25 +313,34 @@ import Testing
             slider.amount(atX: -30) == 1 && slider.amount(atX: 500) == 100, "a drag outside the slider stops at an end")
     }
 
-    /// C11 and C17: Bypass and Remove are one undo entry each, over the tracks that have a match.
-    /// The bypass of a mix of matched and plain tracks changes only the matched ones.
+    /// C11 and C17: Bypass on, Bypass off, and Remove are one undo entry each, over the tracks that
+    /// have a match. The bypass of a mix of matched and plain tracks changes only the matched ones,
+    /// and a change of plain tracks only makes no entry.
     @Test func bypassAndRemoveAreOneEntryEach() async throws {
         let (model, studio) = try await open()
         try give(try match(), to: "t2", studio)
         let matched = studio.session
+        var revision = studio.sessionRevision
 
         model.setMatchBypassed(true, tracks: ["t1", "t2"])
         #expect(studio.session.track("t2")?.match?.isBypassed == true && model.alert == nil)
+        #expect(studio.sessionRevision == revision + 1)
         try studio.undo()
         #expect(studio.session == matched, "one undo")
         try studio.redo()
+        revision = studio.sessionRevision
         model.setMatchBypassed(false, tracks: ["t2"])
-        #expect(studio.session.track("t2")?.match?.isBypassed == false)
+        #expect(studio.session.track("t2")?.match?.isBypassed == false && studio.sessionRevision == revision + 1)
 
+        revision = studio.sessionRevision
         model.removeMatch(tracks: ["t2"])
-        #expect(studio.session.track("t2")?.match == nil)
+        #expect(studio.session.track("t2")?.match == nil && studio.sessionRevision == revision + 1)
         try studio.undo()
-        #expect(studio.session.track("t2")?.match != nil, "undo brings the curve back")
+        #expect(studio.session == matched, "undo brings the match back")
+        revision = studio.sessionRevision
+        model.setMatchBypassed(true, tracks: ["t1"])
+        model.removeMatch(tracks: ["t1"])
+        #expect(studio.sessionRevision == revision && model.alert == nil, "no entry for a track with no match")
         await model.close()
     }
 }

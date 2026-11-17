@@ -44,7 +44,7 @@ enum TranscriptStore {
 
     /// The words of a transcript file. Another root or namespace, a version that is not 1, a line
     /// that does not split at its first three spaces into a number of 1 or more, two integers, and
-    /// a text, an end before the start, a frame outside `Frames.isInRange` (the midpoint of
+    /// a text of characters that `isStorableInSession` takes, an end before the start, a frame outside `Frames.isInRange` (the midpoint of
     /// `Anchors` must not overflow), two `<words>` of one file, and no `<words>` throw here;
     /// `Session.checkWords` checks the rest.
     static func decode(_ data: Data) throws(SessionFileError) -> [FileID: Anchors] {
@@ -66,7 +66,7 @@ enum TranscriptStore {
             for line in (element.stringValue ?? "").split(separator: "\n", omittingEmptySubsequences: false) {
                 let fields = line.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: false)
                 guard fields.count == 4, let number = Int(fields[0]), number >= 1, let start = Int(fields[1]),
-                    let end = Int(fields[2])
+                    let end = Int(fields[2]), fields[3].unicodeScalars.allSatisfy(\.isStorableInSession)
                 else { throw .invalidValue(element: "words", attribute: "line") }
                 guard start <= end, Frames(start).isInRange, Frames(end).isInRange else {
                     throw .invalidSession(.wordOutsideFile(file))

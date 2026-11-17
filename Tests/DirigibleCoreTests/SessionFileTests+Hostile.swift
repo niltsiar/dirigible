@@ -108,6 +108,20 @@ extension SessionFileTests {
         #expect(throws: SessionFileError.invalidSession(.invalidOrigin("a NR")), "X12") { try read("700001") }
     }
 
+    /// C7, fuzz seed 20261104 case 112 (M10): a word text with a CR, as `&#13;`, is refused, because
+    /// the writer cannot write it back. A word with other text decodes equal.
+    @Test func aWordWithAControlCharacterIsRefused() throws {
+        let words: [FileID: Anchors] = ["h": Anchors([Anchor(number: 1, range: 0..<10, text: "Café 🎙️")])]
+        let text = String(decoding: TranscriptStore.encode(words), as: UTF8.self)
+        try #require(text.contains("1 0 10 Café 🎙️"))
+        #expect(try TranscriptStore.decode(Data(text.utf8)) == words)
+
+        let carriageReturn = Data(text.replacing("Café 🎙️", with: "a&#13;b").utf8)
+        #expect(throws: SessionFileError.invalidValue(element: "words", attribute: "line")) {
+            try TranscriptStore.decode(carriageReturn)
+        }
+    }
+
     /// C4, X23: 11 MB of episode notes and an 11 MB `<words>` text node open, equal.
     @Test func elevenMegabyteTextNodesOpen() throws {
         var session = Session(sampleRate: 48_000)

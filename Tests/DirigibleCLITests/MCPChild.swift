@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 /// The end of one `dirigible mcp` child: the parsed answer lines, the lines that break the frame
 /// rule of `mcpLines`, the exit status or the signal number, and whether the limit stopped it.
@@ -32,32 +31,8 @@ func mcpChild(_ lines: [String], limit: Duration) async throws -> MCPOutcome {
     try Data(lines.map { $0 + "\n" }.joined().utf8).write(to: input)
     FileManager.default.createFile(atPath: output.path, contents: nil)
     let process = childProcess(dirigibleBinary, ["mcp"], in: folder)
-    process.standardInput = try FileHandle(forReadingFrom: input)
-    process.standardOutput = try FileHandle(forWritingTo: output)
-    await Slots.shared.started()
-    let child = Child(process)
-    let stopped = OSAllocatedUnfairLock(initialState: false)
-    let watch = Task {
-        try await Task.sleep(for: limit)
-        stopped.withLock { $0 = true }
-        // `terminate()` raises on a process that did not launch yet, so `run()` below checks the flag too.
-        if process.isRunning { child.terminate() }
-    }
-    defer { watch.cancel() }
-    let (status, signaled): (Int32, Bool) = try await withCheckedThrowingContinuation { continuation in
-        process.terminationHandler = { process in
-            Slots.shared.ended()
-            continuation.resume(returning: (process.terminationStatus, process.terminationReason == .uncaughtSignal))
-        }
-        do {
-            try process.run()
-            if stopped.withLock({ $0 }) { child.terminate() }
-        } catch {
-            Slots.shared.ended()
-            continuation.resume(throwing: error)
-        }
-    }
-    var outcome = MCPOutcome(status: status, signaled: signaled, timedOut: stopped.withLock { $0 })
+    let end = try await launch(process, input: input, output: output, errors: nil, limit: limit)
+    var outcome = MCPOutcome(status: end.status, signaled: end.signaled, timedOut: end.timedOut)
     let text = String(decoding: try Data(contentsOf: output), as: UTF8.self)
     if !text.isEmpty, !text.hasSuffix("\n") { outcome.frameProblems.append("the last stdout line has no line feed") }
     for line in text.split(separator: "\n") {

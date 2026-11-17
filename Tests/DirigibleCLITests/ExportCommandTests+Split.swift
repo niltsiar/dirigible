@@ -2,6 +2,7 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 /// `dirigible export --split` (decision 0067, criteria C9, C12, and C13). The package of
 /// `ExportCommandTests` with the chapters Intro at frame 0, Interview at 8000, and Outro at 15 000,
@@ -171,15 +172,13 @@ extension ExportCommandTests {
                 waitpid(pid, &status, 0)
             }
         }
-        func inPartThree() -> Bool {
-            let items = (try? FileManager.default.contentsOfDirectory(atPath: package.folder.path)) ?? []
+        let folder = package.folder
+        let sent = try await send(SIGINT, to: pid, watching: folder, limit: .seconds(60)) {
+            let items = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
             return items.contains { $0.hasPrefix(".Ep-03") } && items.contains { $0.hasPrefix("Ep-02-") }
         }
-        let end = ContinuousClock.now + .seconds(60)
-        while !inPartThree(), ContinuousClock.now < end { try await Task.sleep(for: .milliseconds(1)) }
-        try #require(inPartThree(), "part 3 did not start in 60 s")
+        try #require(sent, "part 3 did not start in 60 s")
 
-        kill(pid, SIGINT)
         let stop = ContinuousClock.now + .seconds(30)
         var finished = waitpid(pid, &status, WNOHANG)
         while finished == 0, ContinuousClock.now < stop {
@@ -283,4 +282,30 @@ extension ExportCommandTests {
         #expect(result == CLIResult(status: 0, stdout: "", stderr: ""), "\(result)")
         #expect(try names() == ["Ep.mp3", "Show.dirigible"])
     }
+}
+
+/// Sends `signal` to `pid` when `ready` turns true, and returns true; returns false after `limit`.
+/// A watch of the entries of `folder` checks `ready` on a dispatch queue at each change, so the
+/// signal comes in its window also when other tests hold each thread of the concurrency pool.
+func send(
+    _ signal: Int32, to pid: pid_t, watching folder: URL, limit: Duration, when ready: @escaping @Sendable () -> Bool
+) async throws -> Bool {
+    let descriptor = open(folder.path, O_EVTONLY)
+    try #require(descriptor >= 0, "cannot watch \(folder.path)")
+    let sent = OSAllocatedUnfairLock(initialState: false)
+    let queue = DispatchQueue(label: "signal-watch")
+    let check: @Sendable () -> Void = {
+        guard !sent.withLock({ $0 }), ready() else { return }
+        kill(pid, signal)
+        sent.withLock { $0 = true }
+    }
+    let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: .write, queue: queue)
+    source.setEventHandler(handler: check)
+    source.setCancelHandler { close(descriptor) }
+    source.activate()
+    queue.async(execute: check)
+    defer { source.cancel() }
+    let end = ContinuousClock.now + limit
+    while !sent.withLock({ $0 }), ContinuousClock.now < end { try await Task.sleep(for: .milliseconds(10)) }
+    return sent.withLock { $0 }
 }

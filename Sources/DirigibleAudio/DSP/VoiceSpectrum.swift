@@ -101,27 +101,47 @@ final class BandAnalyzer {
         }
         if let fault = opened.fault { throw .fault(part.file, fault) }
         guard let audio = opened.file,
-            var meter = LoudnessMeter(sampleRate: sampleRate, layout: entry.layout, keepsSteps: true),
             let buffer = AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: 65_536),
             let data = buffer.floatChannelData
         else { return PartRead() }
-        let channels = Int(audio.processingFormat.channelCount)
         var factor = Float(pow(10, part.gain.dB / 20))
-        var pending = [[Float]](repeating: [], count: channels)
-        var result = PartRead()
         let (start, end) = (part.frames.lowerBound.count, part.frames.upperBound.count)
         var position = start
         audio.framePosition = AVAudioFramePosition(position)
-        while position < end {
+        let frames = try read(buffer, layout: entry.layout) { buffer throws(MatchReadError) in
+            guard position < end else { return false }
             if isCancelled() { throw .cancelled }
             do { try audio.read(into: buffer, frameCount: AVAudioFrameCount(min(65_536, end - position))) } catch {
                 throw .fault(part.file, .unreadable)
             }
             let count = Int(buffer.frameLength)
             guard count > 0 else { throw .fault(part.file, .unreadable) }
-            for channel in 0..<channels {
+            for channel in 0..<Int(buffer.format.channelCount) {
                 vDSP_vsmul(data[channel], 1, &factor, data[channel], 1, vDSP_Length(count))
-                pending[channel].append(contentsOf: UnsafeBufferPointer(start: data[channel], count: count))
+            }
+            position += count
+            progress(position - start)
+            return true
+        }
+        guard let frames else { throw .fault(part.file, .unreadable) }
+        return frames
+    }
+
+    /// The meter steps and the frames of the audio that `fill` puts in `buffer`, one block after
+    /// the other, until it returns false: the file read above, or a mix render. Nil when a sample is
+    /// not finite.
+    func read<Failure: Error>(
+        _ buffer: AVAudioPCMBuffer, layout: ChannelLayout, fill: (AVAudioPCMBuffer) throws(Failure) -> Bool
+    ) throws(Failure) -> PartRead? {
+        guard var meter = LoudnessMeter(sampleRate: sampleRate, layout: layout, keepsSteps: true),
+            let data = buffer.floatChannelData
+        else { return PartRead() }
+        var pending = [[Float]](repeating: [], count: Int(buffer.format.channelCount))
+        var result = PartRead()
+        while try fill(buffer) {
+            for channel in pending.indices {
+                pending[channel].append(
+                    contentsOf: UnsafeBufferPointer(start: data[channel], count: Int(buffer.frameLength)))
             }
             meter.feed(buffer)
             var offset = 0
@@ -134,10 +154,8 @@ final class BandAnalyzer {
                 offset += Self.hop
             }
             for channel in pending.indices { pending[channel].removeFirst(offset) }
-            position += count
-            progress(position - start)
         }
-        if meter.nonFinite { throw .fault(part.file, .unreadable) }
+        if meter.nonFinite { return nil }
         result.steps = meter.stepMeanSquares ?? []
         return result
     }

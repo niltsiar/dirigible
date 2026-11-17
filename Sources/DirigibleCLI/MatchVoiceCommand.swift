@@ -23,10 +23,10 @@ extension TrackCommand {
                 match". Exit 64 when no track is named, --from comes without --to or without --reference, \
                 --from is at or after --to, --amount is not from 1 to 100, --bypass is not on or off, --bypass \
                 comes with --reference, or --remove comes with another option. Exit 1 when a clip or a track \
-                is unknown, the range is not inside the reference clip, a track has no match to change, a side \
-                has under 10 s of voice, or a source WAV is missing, short, or unreadable. Exit 2 when the \
-                package cannot be read or written, is locked, or has a take that is not finalized. Control-C \
-                leaves the package as it was and exits 130.
+                is unknown, the range is not inside the reference clip, a track has no match to change, no \
+                target track is left, a side has under 10 s of voice, or a source WAV is missing, short, or \
+                unreadable. Exit 2 when the package cannot be read or written, is locked, or has a take that \
+                is not finalized. Control-C leaves the package as it was and exits 130.
                 """)
 
         @OptionGroup var package: PackageArgument

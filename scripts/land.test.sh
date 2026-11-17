@@ -1507,6 +1507,20 @@ td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
 td_open_run '- Status: open (waits)' "$dmg."
 td "$run"
 td_kept 'an open run with a waits line, the path before a period' "$dmg" 'open run'
+td_detach_setup detached-open-slash
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+td_open_run '- Status: open' "$dmg/"
+td "$run"
+td_kept 'an open run names the path with a trailing slash' "$dmg" 'open run'
+td_detach_setup detached-open-home
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
+td_open_run '- Status: open' "~/${dmg##*/}"
+HOME="${dmg%/*}" td "$run"
+td_kept 'an open run names the path from ~' "$dmg" 'open run'
+td_detach_setup detached-slash
+td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg/."
+td "$run"
+grep -qxF "worktree removed: $dmg" "$t/out" && [[ $code -eq 0 && ! -d "$dmg" ]] || fail "teardown, run.md names its detached worktree with a trailing slash: exit $code: $(cat "$t/out")"
 
 td_detach_setup attached-open
 git -C "$t/main" worktree add -q "$t/wt" chore/x

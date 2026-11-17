@@ -177,7 +177,9 @@ actor Player {
         }
         feed = Feed(
             anchor: start, shuttle: shuttle, end: end, speed: feedSpeed,
-            mix: MixReader(package: url, session: session, open: open))
+            mix: MixReader(
+                package: url, session: session, open: open,
+                span: Int(Double(chunk) * Shuttle.Rate.four.rawValue) + 2))
         refill()
         if let take {
             feed?.take = startTake(take, node: graph.node, from: start)
@@ -189,9 +191,9 @@ actor Player {
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
-    /// The session of the next chunks. The running feed goes on. A change of the heard set or of a
-    /// track gain of the tracks in both sessions crossfades the next chunk; any other change steps
-    /// (decision 0039). Does nothing when `revision` is not newer than the last revision.
+    /// The session of the next chunks. The running feed goes on. A change of the heard set, of a
+    /// track gain, or of the voice match of a heard track in both sessions crossfades the next
+    /// chunk; any other change steps (decisions 0039 and 0074). Does nothing when `revision` is not newer than the last revision.
     func update(_ session: Session, revision: Int) {
         guard revision > self.revision else { return }
         self.revision = revision

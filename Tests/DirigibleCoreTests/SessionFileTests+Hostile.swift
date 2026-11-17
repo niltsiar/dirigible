@@ -49,6 +49,17 @@ extension SessionFileTests {
         #expect(throws: SessionFileError.malformedXML, "depth 65") { try Session(xml: Self.nested(depth: 65)) }
     }
 
+    /// C4: the depth pass passes a file only after a parse to its end with no error. A stop refuses
+    /// with each code: the depth abort (512), `XML_ERR_USER_STOP` (111), and a code that macOS 15 never gave.
+    @Test func eachStopOfTheDepthPassRefuses() {
+        #expect(isShallowParse(parsed: true, stopCode: nil), "a parse to the end")
+        for code in [512, 111, -1, 1, 4, 5, 110] {
+            #expect(!isShallowParse(parsed: false, stopCode: code), "a stop with code \(code)")
+        }
+        #expect(!isShallowParse(parsed: false, stopCode: nil), "a stop with no error")
+        #expect(!isShallowParse(parsed: true, stopCode: 111), "an error after a parse to the end")
+    }
+
     /// C1, X6: a comment and a processing instruction after the declaration open.
     @Test func aPrologCommentAndInstructionOpen() throws {
         let session = try Self.hostileFixture()

@@ -29,8 +29,8 @@ public struct SplitPart: Hashable, Sendable {
 extension Session {
     /// Splits the stereo clips of `pairs` (decision 0053). The caller writes the mono files and gives
     /// their stems. For each source track with a clip in `pairs`, two mono tracks go under it, named
-    /// "<name> <names.left>" and "<name> <names.right>". They copy its gain, mute, solo, and role, and
-    /// have no route. Each source clip becomes a left clip and a right clip with the same start,
+    /// "<name> <names.left>" and "<name> <names.right>". They copy its gain, mute, solo, role, and voice
+    /// match, and have no route. Each source clip becomes a left clip and a right clip with the same start,
     /// length, gain, and fades. The offset is the old offset minus the start of its run, and the
     /// envelope keeps its gain at each source frame (decision 0060). A crossfade stays when its
     /// partner is split too. The clip IDs are "<id> L" and "<id> R", then " 2", " 3" when taken.
@@ -89,8 +89,8 @@ extension Session {
         for source in sources {
             var sides = [(Side.left, names.left), (.right, names.right)].map { side, name in
                 var track = Track(id: TrackID(), name: "\(source.name) \(name)", layout: .mono)
-                (track.gain, track.isMuted, track.isSoloed, track.isFollowTrack, track.role) =
-                    (source.gain, source.isMuted, source.isSoloed, source.isFollowTrack, source.role)
+                (track.gain, track.isMuted, track.isSoloed, track.isFollowTrack, track.role, track.match) =
+                    (source.gain, source.isMuted, source.isSoloed, source.isFollowTrack, source.role, source.match)
                 return (side: side, track: track, clips: [Clip]())
             }
             try Self.checkText(sides[0].track.name, sides[1].track.name)

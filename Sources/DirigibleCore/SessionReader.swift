@@ -81,6 +81,7 @@ extension Session {
                 try setSoloed(track.isSoloed, tracks: [track.id])
                 try setFollowTrack(track.isFollowTrack, tracks: [track.id])
                 try setRole(track.role, tracks: [track.id])
+                if let match = track.match { try setMatch([track.id: match]) }
             }
             // setMarker replaces a marker with the same ID, so a file with two would lose one.
             var markerIDs: Set<MarkerID> = []
@@ -108,6 +109,7 @@ private struct ParsedTrack {
     let isSoloed: Bool
     let isFollowTrack: Bool
     let role: Track.Role?
+    let match: VoiceMatch?
 
     init(_ node: XMLElement, version: Int, rides: inout RideLists) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
@@ -130,6 +132,9 @@ private struct ParsedTrack {
         route = try node.sessionElements("route").first.map { route throws(SessionFileError) in
             try Route(route, version: version)
         }
+        let matches = node.sessionElements("match")
+        guard matches.count <= 1 else { throw .invalidValue(element: "match", attribute: "count") }
+        match = try matches.first.map { match throws(SessionFileError) in try VoiceMatch(match, version: version) }
         var clips: [Clip] = []
         for clip in node.sessionElements("clip") {
             clips.append(
@@ -362,8 +367,9 @@ extension XMLElement {
     }
 
     /// A flag attribute from version `first` on: `muted` and `soloed` from 5 (decision 0039), `follow`
-    /// from `followSessionVersion` (decision 0073). The value is `true` or `false`; a missing one is false.
-    fileprivate func flag(_ attribute: String, since first: Int, version: Int) throws(SessionFileError) -> Bool {
+    /// from `followSessionVersion` (decision 0073), and `bypassed` of `<match>` from `matchSessionVersion`
+    /// (decision 0074). The value is `true` or `false`; a missing one is false.
+    func flag(_ attribute: String, since first: Int, version: Int) throws(SessionFileError) -> Bool {
         guard let value = optionalString(attribute) else { return false }
         guard version >= first, let flag = Bool(value) else { throw invalid(attribute) }
         return flag

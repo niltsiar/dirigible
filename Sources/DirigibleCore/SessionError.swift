@@ -116,4 +116,7 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A roll names a clip with no clip that touches its end, so it has no join to move. It
     /// changes nothing.
     case noJoin(ClipID)
+    /// An amount or a bypass change names a track with no voice match (decision 0074). It changes
+    /// nothing.
+    case noMatch(TrackID)
 }

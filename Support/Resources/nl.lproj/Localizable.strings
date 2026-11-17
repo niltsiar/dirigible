@@ -71,6 +71,7 @@
 "error.session.track.count" = "De kopie heeft %lld sporen. Selecteer evenveel sporen om de kopie te plakken.";
 "error.fill.too.many.clips" = "Het vullen maakt %1$lld clips en de limiet is %2$lld. Selecteer een korter bereik of kopieer een langer stuk audio.";
 "error.session.other" = "De sessie heeft de wijziging geweigerd.";
+"error.session.match.none" = "Dit spoor heeft geen stemafstemming.";
 "error.duck.no.speech" = "De verlaging vond geen spraak boven %.1f dBFS, dus er is geen gainpunt gewijzigd.";
 "error.duck.no.speech.track" = "Selecteer een spraakspoor of geef een spoor de rol Dialoog.";
 "error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";

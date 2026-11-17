@@ -94,6 +94,7 @@ extension SessionError {
                 + "or a longer clipboard."
         case .emptyExcerpt: "the excerpt has no frames: give a range or clips with audio."
         case .noJoin(let id): "no clip touches the end of clip \"\(id)\", so it has no join to roll."
+        case .noMatch(let id): "track \"\(id)\" has no voice match."
         }
     }
 }

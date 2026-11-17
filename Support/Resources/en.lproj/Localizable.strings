@@ -71,6 +71,7 @@
 "error.session.track.count" = "The copy has %lld tracks. Select as many tracks to paste it.";
 "error.fill.too.many.clips" = "The fill makes %1$lld clips, and the limit is %2$lld. Select a shorter range or copy a longer piece of audio.";
 "error.session.other" = "The session refused the change.";
+"error.session.match.none" = "This track has no voice match.";
 "error.duck.no.speech" = "The duck found no speech over %.1f dBFS, so it changed no gain point.";
 "error.duck.no.speech.track" = "Select a speech track, or give a track the Dialogue role.";
 "error.duck.no.ducked.track" = "Select a track to duck, or give a track the Music role.";

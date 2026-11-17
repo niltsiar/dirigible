@@ -130,8 +130,8 @@ struct SessionVersionTests {
     }
 
     /// From 12 on, `fileVersion` is the largest version of the present features. A
-    /// repair origin (14), a pre-roll take, a follow track, and a ride point, alone and in pairs,
-    /// write the larger constant and read back equal.
+    /// repair origin (14), a pre-roll take, a follow track, a ride point, and a voice match, alone
+    /// and together, write the larger constant and read back equal.
     @Test func fileVersionIsTheMaxOfThePresentFeatures() throws {
         let repaired = try files.renderedBeforeSource(try files.allRepairs())
         var ridden = repaired
@@ -143,9 +143,11 @@ struct SessionVersionTests {
         try followed.setFollowTrack(true, tracks: ["f"])
         var riddenFollowed = ridden
         try riddenFollowed.setFollowTrack(true, tracks: ["r"])
+        var matched = riddenFollowed
+        try matched.setMatch(["r": VoiceMatchTests.match(VoiceMatchTests.flat)])
         let cases: [(Session, Int)] = [
             (repaired, 14), (ridden, rideSessionVersion), (followed, followSessionVersion),
-            (riddenFollowed, rideSessionVersion),
+            (riddenFollowed, rideSessionVersion), (matched, matchSessionVersion),
             (try withTake(repaired, preRoll: true), preRollSessionVersion),
             (try withTake(followed, preRoll: true), followSessionVersion),
             (try withTake(ridden, preRoll: true), rideSessionVersion),
@@ -155,6 +157,7 @@ struct SessionVersionTests {
             #expect(try text(session).contains(#"version="\#(version)""#))
             #expect(try Session(xml: try session.checkedData()) == session)
         }
-        #expect(rideSessionVersion > followSessionVersion && sessionVersion == rideSessionVersion)
+        #expect(rideSessionVersion > followSessionVersion && matchSessionVersion > rideSessionVersion)
+        #expect(sessionVersion == matchSessionVersion)
     }
 }

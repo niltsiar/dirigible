@@ -142,7 +142,7 @@ extension TimelineLiveTests {
         // and it is 6 pt wider than its text.
         let session = laneInputs(lanes.model, lanes.studio, selection: lanes.model.timeline.selection).session
         let clips = session.tracks[0].clips.map {
-            TimelineDocumentView.labelText(ClipInspection.name(of: $0, in: session), gain: $0.gain, locale: .current)
+            TimelineDocumentView.labelText(session.name(of: $0), gain: $0.gain, locale: .current)
         }
         let texts = clips + [L10n.takeRecording.format(1), L10n.takeFinishing.format(1)]
         let chipEnd = texts.map { 16 + ClipLabel.width(of: $0) }.max() ?? 0

@@ -37,14 +37,8 @@ public struct ClipInspection: Equatable, Sendable {
             fadeOut = fadeOut.merged(with: clip.fades.fadeOut)
         }
         clips = touched.map(\.id)
-        name = touched.count == 1 ? Self.name(of: first, in: session) : nil
+        name = touched.count == 1 ? session.name(of: first) : nil
         (self.gain, self.fadeIn, self.fadeOut) = (gain, fadeIn, fadeOut)
-    }
-
-    /// The name of a clip: the path of its file without ".wav" (the clip label of the lanes).
-    public static func name(of clip: Clip, in session: Session) -> String {
-        let path = session.files[clip.file]?.path ?? clip.file.rawValue
-        return path.hasSuffix(".wav") ? String(path.dropLast(4)) : path
     }
 
     /// A typed gain: an optional sign (+, -, or U+2212), digits, and an optional "." or "," with

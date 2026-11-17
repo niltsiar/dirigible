@@ -503,6 +503,7 @@ enum L10n: String, CaseIterable {
     case errorSessionTrackCount = "error.session.track.count"
     case errorFillTooManyClips = "error.fill.too.many.clips"
     case errorSessionOther = "error.session.other"
+    case errorSessionMatchNone = "error.session.match.none"
     case errorDuckNoSpeech = "error.duck.no.speech"
     case errorDuckNoSpeechTrack = "error.duck.no.speech.track"
     case errorDuckNoDuckedTrack = "error.duck.no.ducked.track"

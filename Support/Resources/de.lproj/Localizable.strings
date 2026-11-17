@@ -86,7 +86,7 @@
 "error.match.short" = "Dirigible kann die Stimme nicht angleichen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
 "error.match.unreadable" = "Dirigible kann die Stimme nicht angleichen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
 "match.canceled" = "Stimme angleichen abgebrochen. Keine Spur wurde geändert.";
-"match.refused.reference" = "Der Referenzclip hat %1$d s Stimme. Stimme angleichen braucht %2$d s. Wähle einen längeren Clip.";
+"match.refused.reference" = "Der Referenzclip hat %1$d s Stimme. Stimme angleichen braucht %2$d s. Wähle einen längeren Clip oder einen längeren Bereich.";
 "match.refused.track" = "Die Spur „%1$@“ hat %2$d s Stimme. Stimme angleichen braucht %3$d s.";
 "error.studio.match.no.target" = "Stimme angleichen überspringt Musik- und Effektspuren und die Spur des Referenzclips, daher bleibt keine Spur übrig.";
 "error.studio.match.range" = "Die Zeitauswahl muss im Referenzclip liegen.";

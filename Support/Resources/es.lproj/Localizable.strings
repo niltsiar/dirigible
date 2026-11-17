@@ -86,7 +86,7 @@
 "error.match.short" = "Dirigible no puede igualar la voz. El archivo de audio «%@» es más corto de lo que dice la sesión. Restaure el archivo e inténtelo de nuevo.";
 "error.match.unreadable" = "Dirigible no puede igualar la voz. El archivo de audio «%@» no se pudo leer. Compruebe el disco y vuelva a intentarlo.";
 "match.canceled" = "Igualar voz cancelado. Ninguna pista cambió.";
-"match.refused.reference" = "El clip de referencia tiene %1$d s de voz. Igualar voz necesita %2$d s. Elige un clip más largo.";
+"match.refused.reference" = "El clip de referencia tiene %1$d s de voz. Igualar voz necesita %2$d s. Elige un clip más largo o un intervalo más largo.";
 "match.refused.track" = "La pista «%1$@» tiene %2$d s de voz. Igualar voz necesita %3$d s.";
 "error.studio.match.no.target" = "Igualar voz omite las pistas de música y de efectos y la pista del clip de referencia, así que no queda ninguna pista.";
 "error.studio.match.range" = "La selección de tiempo debe estar dentro del clip de referencia.";

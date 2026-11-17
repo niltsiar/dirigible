@@ -208,10 +208,12 @@ import Testing
         }
         #expect(
             text(.matchRefusedReference, en, 6, 10)
-                == "The reference clip has 6 s of voice. Match Voice needs 10 s. Choose a longer clip.")
+                == "The reference clip has 6 s of voice. Match Voice needs 10 s. "
+                + "Choose a longer clip or a longer range.")
         #expect(
             text(.matchRefusedReference, es, 6, 10)
-                == "El clip de referencia tiene 6 s de voz. Igualar voz necesita 10 s. Elige un clip m\u{E1}s largo.")
+                == "El clip de referencia tiene 6 s de voz. Igualar voz necesita 10 s. "
+                + "Elige un clip m\u{E1}s largo o un intervalo m\u{E1}s largo.")
         #expect(
             text(.matchRefusedTrack, en, "Guest", 6, 10)
                 == "The track \u{201C}Guest\u{201D} has 6 s of voice. Match Voice needs 10 s.")

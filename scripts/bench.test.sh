@@ -52,6 +52,7 @@ if [[ "$1" == test && -n "$FAKE_NONE" ]]; then
 else
     [[ -z "${FAKE_UNREAD:-}" ]] || printf '◇ Suite XBenchmark started.\nXBenchmark wobble %s seconds\n' "$FAKE_UNREAD"
     echo "XBenchmark a: p50 0.001 seconds, p95 0.001 seconds"
+    [[ "$1" != test || -z "${FAKE_FAIL:-}" ]] || { echo "Test run with 1 test failed"; exit 1; }
     echo "Test run with 1 test passed"
 fi
 EOF
@@ -118,6 +119,10 @@ code=$?
 FAKE_LOAD=7.99 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
 [[ $code -eq 0 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "end load 7.99: exit $code: $(cat "$tmp/out")"
+# A failed timed run keeps its status at a high end load: only a passed run can be void.
+FAKE_FAIL=1 FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 1 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "failed run at end load 8.00: exit $code: $(cat "$tmp/out")"
 FAKE_LOAD=8.00 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
 [[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||

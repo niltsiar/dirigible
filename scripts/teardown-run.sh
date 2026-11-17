@@ -12,7 +12,8 @@
 # detached worktree at another commit stays. The worktree also stays, with the line
 # `worktree kept: <path> (<reason>)`, and the file step goes on, when `with-lock.sh --builders`
 # (WITH_LOCK_BUILDERS_MIN=0) lists it (a live holder or waiter) or the run.md of an open run (a line
-# that starts with `- Status: open`) names it.
+# that starts with `- Status: open`) names it. A whole token can end in `/`, and `~/` in it stands
+# for $HOME; a relative path (`../wt`) does not match.
 # Exit 1, before any removal: `git cherry origin/main <branch>` prints a `+` line, the worktree is
 # not clean, or a scratch path is there already in <run folder>/worktree-scratch/.
 # Steps, in order:
@@ -99,16 +100,23 @@ check_wt() { # <worktree path>: it is not the main checkout, and the working dir
     cwd="$(pwd -P)"
     [[ "$cwd" != "$1" && "$cwd" != "$1"/* ]] || die 2 "the working directory is in the run worktree $1; run it from the main checkout"
 }
-names_path() { # <file> <path>: the file holds the path as a whole token (a period that ends a sentence is no part of it)
-    awk -v t="$2" '
-        { off = 0
-          while ((i = index(substr($0, off + 1), t)) > 0) {
-              p = off + i
-              pre = (p > 1) ? substr($0, p - 1, 1) : ""
-              post = substr($0, p + length(t), 1)
-              nxt = substr($0, p + length(t) + 1, 1)
-              if (pre !~ "[A-Za-z0-9_./-]" && post !~ "[A-Za-z0-9_/-]" && !(post == "." && nxt ~ "[A-Za-z0-9_-]")) { found = 1; exit }
-              off = p } }
+names_path() { # <file> <path>: the file holds the path, or its ~/ form, as a whole token (a trailing / and a period that ends a sentence are no part of it)
+    local home=""
+    [[ -n "${HOME:-}" && "$2" == "$HOME"/* ]] && home="~${2#"$HOME"}"
+    awk -v t="$2" -v h="$home" '
+        function has(s, t,   off, i, p, q, pre, post, nxt) {
+            off = 0
+            while ((i = index(substr(s, off + 1), t)) > 0) {
+                p = off + i
+                pre = (p > 1) ? substr(s, p - 1, 1) : ""
+                q = p + length(t)
+                if (substr(s, q, 1) == "/") q++
+                post = substr(s, q, 1)
+                nxt = substr(s, q + 1, 1)
+                if (pre !~ "[A-Za-z0-9_./-]" && post !~ "[A-Za-z0-9_/-]" && !(post == "." && nxt ~ "[A-Za-z0-9_-]")) return 1
+                off = p }
+            return 0 }
+        has($0, t) || (h != "" && has($0, h)) { found = 1; exit }
         END { exit !found }' "$1"
 }
 if [[ -n "$wt" ]]; then

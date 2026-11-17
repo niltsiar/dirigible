@@ -1442,7 +1442,7 @@ td "$run"
 # A DMG step detaches the run worktree at the tagged commit, so the branch has no worktree and
 # git worktree list shows a detached one. The teardown removes it when run.md names its path as a
 # whole token and its HEAD is the end of a `range <a>..<b>` or the commit of a `tag <name> on <commit>`
-# that run.md records. It keeps a detached or an attached worktree that a live holder or waiter
+# that run.md records and an ancestor of origin/main. It keeps a detached or an attached worktree that a live holder or waiter
 # (with-lock.sh --builders) or an open run names, prints `worktree kept: <path> (<reason>)`, and
 # goes on to the file step.
 td_detach_setup() { # td_detach_setup <name>: no worktree on chore/x; $base, $landed, and the detached $dmg at $landed
@@ -1489,6 +1489,13 @@ td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg."
 git -C "$dmg" checkout -q --detach "$base"
 td "$run"
 td_kept 'a detached worktree at another commit' "$dmg" 'HEAD'
+
+td_detach_setup detached-unlanded
+git -C "$dmg" commit -q --allow-empty -m unlanded
+unlanded="$(git -C "$dmg" rev-parse HEAD)"
+td_landed "PR 7, range ${base:0:9}..${unlanded:0:9}; the DMG was built in $dmg."
+td "$run"
+td_kept 'run.md records a commit that is not on origin/main' "$dmg" 'not on origin/main'
 
 td_detach_setup detached-near
 td_landed "PR 7, range ${base:0:9}..${landed:0:9}; the DMG was built in $dmg-old."

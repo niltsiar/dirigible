@@ -2,18 +2,18 @@
 
 Date: 2026-11-16
 
-Scope: how other apps match the tone of one voice to a reference voice, and the DSP and Apple framework facts for a match filter. Two research passes, of 2026-10-14 and 2026-11-16, are merged here. No build or probe ran for this file. "Inference:" marks a claim with no owner source. Numbers in brackets point to `## Sources`. Decision 0074 holds the design that this research supports.
+Scope: how other apps match the tone of one voice to a reference voice, and the DSP and Apple framework facts for a match filter. F37 is the requirement "Voice Profiler: learned EQ per voice" of Dirigible, a macOS podcast recorder and editor (`docs/requirements/features.md`). The doc merges two research passes, of 2026-10-14 and 2026-11-16: the sources, not the pass, back each claim. No build or probe ran for this file. "Inference:" marks a claim that no source from the owner of the product or the author of the text states. Numbers in brackets point to `## Sources`. Decision 0074 (`docs/decisions/0074-voice-match.md`) holds the design that this research supports.
 
-How the quotes were read: the fetch tool returns short quotes from each page, so a quote can differ from its page by a few words. Apple Support pages for the current Logic Pro return only menu text. The Logic facts come from older Apple pages with the same text [16] [17], and from search snippets [18]. Adobe Help pages return HTTP 403, so the Adobe facts come from search snippets. Each such case is marked.
+How the quotes were read: the fetch tool returns short quotes from each page, so a quote can differ from its page by a few words. Some Apple Support pages for the current Logic Pro return only menu text, so the learn and phase-mode facts come from older Apple pages with the same text [16] [17], and from search snippets [18]. The quotes of [19] and [20] come from current Logic Pro pages that returned text. Adobe Help pages (`helpx.adobe.com`, [40] to [42]) return HTTP 403, so those Adobe facts come from search snippets. Each such case is marked.
 
 ## 1. Hindenburg PRO Voice Profiler
 
 - **Name.** The PRO 2 pages use "Voice Profile" and "Voice Profiler", not "Auto EQ": "Voice Profiler automatically adds equalisation based on samples of great radio voices." [1]
-- **What.** "By taking a 'Snap shot' of an optimal sounding narration, the voice profiler will set an unique EQ" [38] p. 48. The Journalist 1.21 guide lists "Auto EQ" and "Compression" [38]. Transom says the profile can "automatically make EQ and compression settings" [5]. The vendor page says equalisation only [1]. Inference: EQ is the profile, and compression is a separate effect of the track.
+- **What.** "By taking a 'Snap shot' of an optimal sounding narration, the voice profiler will set an unique EQ" [38] p. 48. The Journalist 1.21 guide lists "Auto EQ" and "Compression" [38]. Transom says the profile can "automatically make EQ and compression settings" [5]. The vendor page says equalisation only [1]. Inference: EQ is the profile, and compression is a separate effect of the track. A tester session file stores a `Comp` value inside the Voice Profiler plugin (decision 0074, Context), so compression may be part of the profile: no vendor source confirms it.
 - **Manual.** No PRO 2 manual page covers the feature. The support page lists no manual [2]. The guide page has three video entries with no text: "Tracks - Voice Profile - Learn Profile" ("Create a Profile from the current Tracks audio"), "Apply Generic Profile", and "Apply Personal Profile" [3].
 - **Product.** "Voice Profile Individual: Apply Voice Profile. Learn Voice Profile." is "Yes" for PRO, Narrator, and Narrator Studio [4].
 - **Learn source.** "The Voice Profiler will analyze the entire track, so only have the voice sample on the track" [38] p. 49. Transom: "Make sure to only have one voice on the track." [5] No source names a selection or a clip as the learn source, a minimum length, or a silence gate.
-- **Storage.** "Save your Voice profile in Hindenburg / Profiles" [38] p. 49. Inference: a file library, not a track property.
+- **Storage.** "Save your Voice profile in Hindenburg / Profiles" [38] p. 49. The saved profiles are files [38]. The applied profile is a plugin in the `<Plugins>` of a `<Track>` in a tester session file (decision 0074, Context).
 - **Apply and scope.** Per track, from the small triangle beside the effects button: Apply Profile, select, OK [38] p. 50 [5] [39]. Effects "are applied to the entire track" [38] p. 45. Every Voice Profile shortcut is under "Tracks" [7]. Release note 2550: "Split by Speaker" can "be used to apply Voice Profile, Compression, Noise Reduction and Auto Levels to individual tracks." [8] Inference: the user splits a clip to a new track to get a clip scope.
 - **Live and off.** Transom (2017): "you can just turn it off!" [5]. "Edit freely. Revisit decisions." [6] Inference: a live, non-destructive effect of the track.
 - **Controls.** No amount, strength, or intensity control in any source [1] [3] [4] [7] [38]. The user can drag "the blue line [that] indicates what frequencies are being boosted or cut" [5].
@@ -22,24 +22,24 @@ How the quotes were read: the fetch tool returns short quotes from each page, so
 
 ## 2. iZotope: Dialogue Match, RX EQ Match, Ozone Match EQ
 
-- **Dialogue Match** (documentation 1.2.0). "automatically matches the EQ, reverb, and ambience" [9], with the modules EQ (Amount), Reverb (Wet, Dry), and Ambience (Trim) [10]. It is a Pro Tools AudioSuite plug-in: the user previews and changes settings "in real-time while previewing", then clicks Render [10]. Learn: "Select a dialogue clip of any length and learn the Reference clip", at best "at least 3 seconds long" [10]. No latency is documented. It is a separate product: release note 8.6.3 (24 September 2025) "Removes Dialogue Match 1.3.0 from the PPS installer." [11]
+- **Dialogue Match** (documentation 1.2.0). "automatically matches the EQ, reverb, and ambience" [9], with the modules EQ (Amount), Reverb (Wet, Dry), and Ambience (Trim) [10]. It is a Pro Tools AudioSuite plug-in: the user previews and changes settings "in real-time while previewing", then clicks Render [10]. Learn: "Select a dialogue clip of any length and learn the Reference clip", at best "at least 3 seconds long" [10]. No latency is documented. It is a separate product: release note 8.6.3 (24 September 2025) "Removes Dialogue Match 1.3.0 from the PPS installer." [11] (PPS is the RX Post Production Suite.)
 - **RX EQ Match** (RX Advanced). Select, Learn, select another range, Process [13]. "Instantly capture a spectral profile with the offline Learn feature, then apply it to your target audio by selecting Render." (search snippet of [12]). A learned spectrum saves as a preset. One control, Amount: "100% match could sound unnatural ... 10-40% do enough" [13].
-- **Ozone Match EQ.** "a digital linear-phase EQ with the ability to use over 8,000 bands" [14] [44]. Reference and Apply To snapshots are captured during playback [14]. Controls: Amount ("the amount of processing (intensity)"), Smoothing, and lower and upper range bounds, flat outside [14]. "We suggest working with the Matched Curve amount under 50%" [45]. Ozone 11 lists the controls of Ozone 9 and no phase mode for Match EQ. The Phase control of the Ozone 11 Equalizer (0 % linear, 100 % minimum) does not cover Match EQ [15]. Not documented: FFT size, gate, largest boost or cut, output gain, latency. Inference: Match EQ runs live in the host.
+- **Ozone Match EQ.** "a digital linear-phase EQ with the ability to use over 8,000 bands" [14] [44]. Reference and Apply To snapshots are captured during playback [14]. Controls: Amount ("the amount of processing (intensity)"), Smoothing, and lower and upper range bounds, flat outside [14]. "We suggest working with the Matched Curve amount under 50%" [45]. The Ozone 11 page [14] lists the same controls as the Ozone 9 page [44], and no phase mode for Match EQ. The Phase control of the Ozone 11 Equalizer (0 % linear, 100 % minimum) does not cover Match EQ [15]. Not documented: FFT size, gate, largest boost or cut, output gain, latency. Inference: Match EQ runs live in the host.
 
 ## 3. Logic Pro Match EQ and GarageBand
 
 - **Method.** "The average frequency spectrum of the source file (the template) and of the current material ... is analyzed. These two spectra are then matched, creating a filter curve" [19]. It does not match dynamics [19].
 - **Learn source.** Playback, a file, or a channel strip, not a region. "You can drag an audio file to the Current or Reference Learn buttons ... A progress bar appears while Match EQ is analyzing the file." (search snippet of [18]). Logic 9.1.6: "Choose the channel strip that you want to match from the Sidechain menu" [17].
 - **Apply.** "By default, the Apply slider is set to 100% when you learn the frequency curve" [17]. Over 100 % strengthens the curve, under 100 % weakens it, and negative values invert it [16].
-- **Other controls** [19]: Smoothing ("using a constant bandwidth set in semitone steps"; it does not change manual edits [16]), Gain offset, Ease-In and Ease-Out (0 dB outside two handles), Limit Boost and Limit Cut (no published default), Channel Link, Analyzer, and manual curve edits.
+- **Other controls** [19]: Smoothing ("using a constant bandwidth set in semitone steps"; it does not change manual edits [16]), Gain offset (a gain added to the whole curve), Ease-In and Ease-Out (two handles on the curve: the curve is 0 dB outside them), Limit Boost and Limit Cut (caps on the boost and the cut; no published default), Channel Link (one curve for both channels), Analyzer (a spectrum display), and manual curve edits.
 - **Phase modes.** Linear: "Prevents processing from altering the signal phase, but latency is higher." Minimal: "Alters the signal phase (slightly), but latency is reduced." Minimal, Zero Latency: "Adds no latency, but has a higher CPU overhead than the other options." [16] No page gives the latency or the FIR size.
 - **Live.** A plug-in in an Audio FX slot: "Click an Audio Effect slot, then choose a plug-in from the pop-up menu." [20] Inference: it runs live.
 - **GarageBand for Mac.** The guide describes only the Smart Controls EQ [21]. A search of the guide found no Match EQ. Inference: GarageBand has no match EQ.
 
 ## 4. Adobe: Audition, Premiere Pro, Podcast
 
-- **Audition.** No spectral EQ match: the Filter and EQ effects (FFT Filter, Graphic, Notch, Parametric, Scientific) have none [42]. Users route to iZotope Ozone [43]. Match Loudness matches BS.1770 loudness only [41]. Essential Sound "Auto-Match" adds a non-destructive gain to each dialogue clip, with a badge [40].
-- **Premiere Pro, Enhance Speech.** The slider "allows you to mix your raw audio with the enhanced audio", and it runs "locally on your machine" [23]. The scale of 1 to 10, default 7, comes only from user posts.
+- **Audition** (search snippets of [40] to [42]). No spectral EQ match: the Filter and EQ effects (FFT Filter, Graphic, Notch, Parametric, Scientific) have none [42]. Users route to iZotope Ozone [43]. Match Loudness matches BS.1770 loudness only [41]. Essential Sound "Auto-Match" adds a non-destructive gain to each dialogue clip, with a badge [40].
+- **Premiere Pro, Enhance Speech.** The slider "allows you to mix your raw audio with the enhanced audio", and it runs "locally on your machine" [23]. A scale of 1 to 10 with default 7 appears only in user posts that this doc does not link, so it is not confirmed.
 - **Adobe Podcast, Enhance Speech.** "you can adjust the intensity to your desired level"; "Keeping Enhance Speech at 100% can make the recording sound unnaturally perfect." [22] No reference voice.
 - Inference: no Adobe app matches the EQ of a voice to a reference voice.
 
@@ -69,28 +69,29 @@ How the quotes were read: the fetch tool returns short quotes from each page, so
 
 ## 9. soundcraft and Audacity
 
-- soundcraft is "MIT OR Apache-2.0" and has no EQ match [46]. `crates/dsp/src/spectrum.rs` takes one Hann FFT frame with no average; `crates/dsp/src/biquad.rs` has RBJ biquads; `crates/dsp/src/plugins/eq.rs` has 7-band and 1-band EQ [46].
-- Audacity (GPL, read for the approach only) has no native match; forum users import a spectrum difference as a curve [48]. Filter Curve EQ samples the curve on a 16,384-point grid, runs an inverse FFT, applies a Blackman window to `FilterLength` taps (default 8,191), and filters by FFT overlap-add [47].
+- soundcraft is an open-source Rust audio project [46] with the licence "MIT OR Apache-2.0" and no EQ match. Its spectrum and EQ code is a reference for the DSP code of Dirigible. `crates/dsp/src/spectrum.rs` takes one Hann FFT frame with no average; `crates/dsp/src/biquad.rs` has RBJ biquads; `crates/dsp/src/plugins/eq.rs` has 7-band and 1-band EQ [46].
+- Audacity (GPL: its code is read for the approach, and no code is copied) has no native match; forum users import a spectrum difference as a curve [48]. Filter Curve EQ samples the curve on a 16,384-point grid, runs an inverse FFT, applies a Blackman window to `FilterLength` taps (default 8,191), and filters by FFT overlap-add [47]. Decision 0074 D2 uses 16,385 taps, because a probe showed that 8,193 taps miss its response bound at 80 Hz.
 
 ## 10. The DSP approach
 
-- **Long-term spectrum.** Welch's method averages windowed periodograms [49], with about 50 % overlap for Hann [50]. Byrne measured the long-term speech spectrum of 12 languages in one-third-octave bands [51]. No vendor documents a gate. BS.1770 has one: 400 ms blocks, 75 % overlap, -70 LUFS absolute, -10 LU relative [59]. Inference: an FFT of 8,192 points at 48 kHz gives bins of 5.9 Hz, and the 63 Hz one-third-octave band is about 14.6 Hz wide.
+- **Terms.** A periodogram is the power spectrum of one windowed frame of audio. A one-third-octave band is a band whose width is one third of an octave. Frequency sampling sets the wanted gain at each frequency point and uses an inverse FFT to get the taps of the filter. A linear-phase filter has symmetric taps: it delays all frequencies by the same time, and it rings before a sharp sound (pre-ring). A minimum-phase filter has no delay and changes the phase. Folding the cepstrum (the transform of the log spectrum) makes one. L is the length of the signal, M the length of the filter, and N the size of the FFT.
+- **Long-term spectrum.** Welch's method averages windowed periodograms [49], with about 50 % overlap for Hann [50]. Byrne measured the long-term speech spectrum of 12 languages in one-third-octave bands [51]. No page that was read documents a gate for learning a voice; several vendor pages did not load (see `## Not checked`). A gate leaves out the parts that are quiet, so pauses and noise do not count as voice. ITU-R BS.1770, the loudness standard, has one: it counts only blocks of 400 ms with 75 % overlap that are over -70 LUFS (loudness units against full scale) and over a level 10 LU (loudness units, a relative step) under the average of the blocks that remain [59]. Decision 0074 D5 uses this gate. Inference: an FFT of 8,192 points at 48 kHz gives bins of 5.9 Hz, and the 63 Hz one-third-octave band is about 14.6 Hz wide, so the frame of decision 0074 D5 resolves the lowest band.
 - **Smoothing.** Fractional-octave smoothing [52]. Inference: power sums in 25 one-third-octave bands at the nominal centers (63 Hz to 16 kHz) [51] do the same job.
-- **Curve.** No vendor publishes a default clamp [19]. Ozone [14] and Logic [19] make the curve flat outside a range. Logic has a gain offset [19]; Ozone and RX document no output gain.
+- **Curve.** The Logic page [19] publishes no default for Limit Boost and Limit Cut; the Ozone and RX pages [14] [13] name no clamp, and not every vendor page loaded (see `## Not checked`). Ozone [14] and Logic [19] make the curve flat outside a range. Logic has a gain offset [19]; the Ozone and RX pages [14] [13] name no output gain.
 - **Filter forms.**
 
 | Form | Accuracy | Cost | Used by |
 |---|---|---|---|
-| `AVAudioUnitEQ` bands | Bands interact; under 1 dB of error needs an interaction fit [58] | Low; runs live | Inference: Hindenburg [5] |
-| Linear-phase FIR by frequency sampling and a window | It "deviates ... between the samples" [53] | FFT convolution wins from length 128 [55]; pad N to L + M - 1 or more [57]; delay (M - 1) / 2; audible pre-ring on clicks [56] | Ozone [14], Logic Linear [16], Audacity [47] |
-| Minimum-phase FIR | The same magnitude; fold the cepstrum [54] | As the linear-phase FIR, with no delay | Logic Minimal [16] |
+| Bank of band filters, such as `AVAudioUnitEQ` (the multi-band EQ unit of Apple [66]) | Bands interact; under 1 dB of error needs an interaction fit [58] | Runs as an engine unit [66]; its CPU cost is not confirmed by a source | Inference: Hindenburg, whose profile in a tester session has four bands (decision 0074, Context) [5] |
+| Linear-phase FIR by frequency sampling and a window | It "deviates ... between the samples" [53] | FFT convolution wins from length 128 [55]; pad the FFT size N to L + M - 1 or more [57]; delay (M - 1) / 2; audible pre-ring on clicks [56] | Audacity [47] (frequency sampling and a window). Ozone [14] and Logic Linear [16] are linear-phase, and their method is not confirmed |
+| Minimum-phase FIR | The same magnitude; fold the cepstrum [54] | As the linear-phase FIR, with no delay | Logic Minimal [16] changes the phase and has less latency; its method is not confirmed |
 
 ## 11. Apple frameworks
 
-- `vDSP.FFT`, `vDSP.DFT`, `vDSP.Biquad` [60] [61] [64]; `vDSP_DFT_zrop_CreateSetup` [62]; `vDSP.DCT` and a DCT EQ sample [65]; `vDSP_conv` [63] (Inference: a direct sum, O(N x M)).
-- `AVAudioUnitEQ(numberOfBands:)`: `bandwidth` 0.05 to 5.0 octaves, `gain` and `globalGain` -96 to +24 dB [66] [67]. `kAUNBandEQProperty_MaxNumberOfBands` (2201) is a run-time query [67].
+- `vDSP.FFT`, `vDSP.DFT`, `vDSP.Biquad` [60] [61] [64]; `vDSP_DFT_zrop_CreateSetup` [62]; `vDSP.DCT` and a DCT EQ sample [65]; `vDSP_conv` [63] (Inference: a direct sum, with a cost of signal length times filter length).
+- `AVAudioUnitEQ(numberOfBands:)`: `bandwidth` 0.05 to 5.0 octaves, `gain` and `globalGain` -96 to +24 dB [66] [67]. The property `kAUNBandEQProperty_MaxNumberOfBands` (property ID 2201) gives the largest number of bands as a run-time query of the unit [67]; no band count is quoted here.
 - `kAudioUnitSubType_GraphicEQ`: "A 10 or 31 band Graphic EQ". `AUComponent.h` has no FIR or convolution unit [67].
-- The repo has the BS.1770 gates in `LoudnessMeter` and the true-peak meter in `TruePeak` [68].
+- The Dirigible repo already has the BS.1770 gates in `LoudnessMeter` and the true-peak meter in `TruePeak` [68]. The voice learn of decision 0074 D5 reuses the gates, so it learns only gated voice.
 
 ## Best option
 
@@ -103,20 +104,21 @@ How the quotes were read: the fetch tool returns short quotes from each page, so
 | RX EQ Match | Offline | Amount | Selection | Not applicable | EQ only |
 | Dialogue Match | Preview, then render | Amount for each module | Clip, 3 s or more | Not documented | EQ, reverb, ambience |
 | Auphonic Voice AutoEQ | Offline | None | None (automatic for each speaker) | Not applicable | EQ, de-ess, plosives |
-| Adobe, Descript | No match feature | Intensity of denoise only | Not applicable | Not applicable | Not applicable |
+| Adobe, Descript | No match feature | One intensity slider for the speech enhancer (Adobe [22]) or Studio Sound (Descript [24]) | Not applicable | Not applicable | Not applicable |
 
-- **Best controls: Logic Pro Match EQ.** A live plug-in with Apply, Smoothing, Ease and Limit controls, a zero-latency phase mode, and three learn paths. Ozone Match EQ has equal controls, but no documented latency and no zero-latency mode.
-- **Best podcast flow: Hindenburg PRO Voice Profiler.** One learn step on a track, one apply step on another track, and an off switch. It has no amount control, learns from a whole track only, and applies to a whole track only.
-- **To match or beat the best option** (Inference): a live stage that the user can turn off; an amount control (iZotope advises under 50 % [13] [45], Logic starts at 100 % [17]); a learn source that can be a clip or a selection; and a stated latency.
-- **Dialogue Match** also matches reverb and ambience, but it is an offline render in Pro Tools only.
+- **Best** here means the app that covers the most of the four columns of the table that matter for a match stage: live, amount, learn source, and latency. The Dirigible rubric is in decision 0074 (Rubric).
+- **Best controls: Logic Pro Match EQ.** A plug-in with Apply, Smoothing, Ease and Limit controls, a zero-latency phase mode, and three learn paths. Ozone Match EQ documents Amount, Smoothing, and two range bounds, but no Ease or Limit control, no documented latency, and no zero-latency mode.
+- **Best podcast flow: Hindenburg PRO Voice Profiler.** This is a judgment, not a measure: it has one learn step on a track, one apply step on another track, and an off switch. Final Cut Pro Match Audio also needs only a few steps [32]. No source documents an amount control. The profile learns from the entire track [38], and effects apply to the entire track [38]. A split to a new track gives a clip scope (inference).
+- **To match or beat the best option** (Inference): a live stage that the user can turn off; an amount control (iZotope advises under 50 % [13] [45], Logic starts at 100 % [17]); a learn source that can be a clip or a selection; and a stated latency. Dirigible takes these four: decision 0074 gives a live stage with a bypass, an amount from 1 to 100 with the default 75 (D3), a reference clip or a range of it (D5), and no latency (D2). It does not copy the Smoothing, Ease, Limit, and range-bound controls. It needs 10 s of gated voice on each side (D5), where Dialogue Match advises 3 s [10].
+- **Dialogue Match** also matches reverb and ambience, but it is an AudioSuite plug-in of Pro Tools: the user previews it, then renders [10].
 
 ## Not checked
 
 - Hindenburg PRO 2: no manual text, and the three video pages have no text. The compression part, the amount control, and the clip scope are unconfirmed. The date of build 2726 is from a search snippet.
 - iZotope RX 11 docs return HTTP 403, and several izotope.com pages return HTTP 429. The RX 11 EQ Match text is from a search snippet.
-- Logic Pro: the current guide pages return only menu text. The latency of each phase mode is not published.
+- Logic Pro: some current guide pages return only menu text. The latency of each phase mode is not published.
 - GarageBand for Mac: no full plug-in list was read. "No Match EQ" is an absence of results.
-- Adobe Help returns HTTP 403. The Premiere Enhance Speech slider scale is from user posts. Adobe Podcast cloud processing is not stated.
+- Adobe Help (`helpx.adobe.com`, [40] to [42]) returns HTTP 403, so section 4 quotes search snippets for those pages. The Premiere Enhance Speech slider scale is from user posts that this doc does not link. Adobe Podcast cloud processing is not stated.
 - Descript "cloud render" is an inference from "requires an internet connection". Auphonic "offline" is an inference.
 - Final Cut Pro Match Audio: live or rendered, and a fixed or adjustable curve, are not stated. The Match EQ text for Final Cut Pro is a tool paraphrase.
 - IEC 61260 and the body of the Byrne paper.

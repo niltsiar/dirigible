@@ -142,7 +142,9 @@ struct PackageItemFuzzTests {
             if try PackageSnapshot(of: elsewhere) != outside { problems.append("Elsewhere changed") }
 
             let errors = result.stderr.split(separator: "\n").filter { $0.hasPrefix("Error:") }
-            if result.status != item.cell.exit {
+            if result.signaled {
+                problems.append("ended by signal \(result.status): stderr \(result.stderr.prefix(300))")
+            } else if result.status != item.cell.exit {
                 problems.append("exit \(result.status), not \(item.cell.exit): stderr \(result.stderr.prefix(300))")
             } else if item.cell.exit == 2 {
                 if errors.count != 1 { problems.append("\(errors.count) Error: lines: \(result.stderr.prefix(300))") }

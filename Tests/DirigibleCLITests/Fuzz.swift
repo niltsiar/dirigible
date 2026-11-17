@@ -129,7 +129,7 @@ struct FuzzRun: Sendable {
 
     /// Runs one case and gives its problems. A nonzero exit has an `Error:` line and keeps the
     /// package; exit 0 has none and leaves a package that reads. The exit is in the allowed set,
-    /// so a signal (a status of 4, 5, 6, 9, 11, or 15) is a problem.
+    /// and a signal is a problem whatever its number.
     func execute(_ fuzzCase: FuzzCase, index: Int) async -> [String] {
         let label = text(fuzzCase, index: index)
         do {
@@ -144,7 +144,9 @@ struct FuzzRun: Sendable {
             let result = try await dirigible(arguments, input: stdin, directory: folder.appending(path: "work"))
             let after = try PackageSnapshot(of: package)
             var problems: [String] = []
-            if !fuzzCase.allowed.contains(result.status) {
+            if result.signaled {
+                problems.append("ended by signal \(result.status): stderr \(result.stderr.prefix(300))")
+            } else if !fuzzCase.allowed.contains(result.status) {
                 problems.append(
                     "exit \(result.status), not one of \(fuzzCase.allowed.sorted()): stderr \(result.stderr.prefix(300))"
                 )

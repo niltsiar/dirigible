@@ -55,11 +55,16 @@ else
     if [[ "$1" == test && -n "${FAKE_FAIL:-}" ]]; then
         budget='✘ Test t() recorded an issue at X.swift:1:1: Expectation failed: (value → 0.01 seconds) <= (budget → 0.008 seconds)'
         case "$FAKE_FAIL" in
-            budget) echo "$budget" ;;
+            budget | signal* | status2) echo "$budget" ;;
             mixed) echo "$budget"; echo '✘ Test t() recorded an issue at X.swift:2:1: Expectation failed: (count → 3) == 4' ;;
             crash) echo "$budget"; exit 139 ;;
+            xctest) echo '/x/Tests/T/XTests.swift:12: error: -[TTests.XTests testA] : XCTAssertTrue failed'; echo "$budget" ;;
         esac
         echo "Test run with 1 test failed"
+        case "$FAKE_FAIL" in
+            signal*) echo 'error: Exited with unexpected signal code 11'; exit "${FAKE_FAIL#signal}" ;;
+            status2) exit 2 ;;
+        esac
         exit 1
     fi
     echo "Test run with 1 test passed"
@@ -130,12 +135,13 @@ code=$?
 [[ $code -eq 0 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "end load 7.99: exit $code: $(cat "$tmp/out")"
 # A failed timed run whose only failed issues are budget misses is void at a high end load, as a
 # passed run is: the load can cause the miss. A run with no budget issue, with another failed
-# expectation, or with no report line (a crash), and a budget miss at a low end load, keep the status.
+# expectation (also an XCTest failure), with no report line, with a crash line beside the report
+# (exit 139 or 1), or with a status other than 1, and a budget miss at a low end load, keep the status.
 FAKE_FAIL=budget FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
 [[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||
     fail "budget miss at end load 8.00: exit $code: $(cat "$tmp/out")"
-for kept in 1:8.00:1 mixed:8.00:1 crash:8.00:139 budget:7.99:1; do
+for kept in 1:8.00:1 mixed:8.00:1 crash:8.00:139 budget:7.99:1 signal139:8.00:139 signal1:8.00:1 xctest:8.00:1 status2:8.00:2; do
     IFS=: read -r how at want <<< "$kept"
     FAKE_FAIL=$how FAKE_LOAD=$at CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
     code=$?

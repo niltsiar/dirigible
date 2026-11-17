@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.ride.short" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
 "error.ride.unreadable" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
+"error.match.read" = "Dirigible kann die Stimme nicht angleichen. Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
+"error.match.missing" = "Dirigible kann die Stimme nicht angleichen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.match.short" = "Dirigible kann die Stimme nicht angleichen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
+"error.match.unreadable" = "Dirigible kann die Stimme nicht angleichen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
+"match.canceled" = "Stimme angleichen abgebrochen. Keine Spur wurde geändert.";
+"match.refused.reference" = "Der Referenzclip hat %1$d s Stimme. Stimme angleichen braucht %2$d s. Wähle einen längeren Clip.";
+"match.refused.track" = "Die Spur „%1$@“ hat %2$d s Stimme. Stimme angleichen braucht %3$d s.";
+"error.studio.match.no.target" = "Stimme angleichen überspringt Musik- und Effektspuren, daher bleibt keine Spur übrig.";
+"error.studio.match.range" = "Die Zeitauswahl muss im Referenzclip liegen.";
 "error.silences.read" = "Eine Audiodatei wurde nicht gelesen (Fehler %lld). Die Suche hat keine Stille gefunden.";
 "error.silences.stale" = "Die Spuren haben sich nach der Suche geändert. Suche erneut, um die Stille anzuwenden.";
 "error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt: %@. Ihre Clips würden als Stille gelesen, daher zeigt die Suche keine Stille. Stelle die Dateien wieder her und suche erneut.";
@@ -357,6 +366,7 @@
 "take.placing" = "%@ wird platziert …";
 "take.leveling" = "Clips werden eingepegelt …";
 "take.riding" = "Pegel wird über die Zeit angepasst";
+"take.matching" = "Stimme wird angeglichen";
 "take.ducking" = "Musik wird unter der Sprache abgesenkt …";
 "take.finding.silences" = "Stille wird gesucht …";
 "take.pending" = "Take %lld ist nicht abgeschlossen.";

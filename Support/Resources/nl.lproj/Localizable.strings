@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible kan het niveau van de clips niet in de tijd aanpassen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.ride.short" = "Dirigible kan het niveau van de clips niet in de tijd aanpassen. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
 "error.ride.unreadable" = "Dirigible kan het niveau van de clips niet in de tijd aanpassen. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";
+"error.match.read" = "Dirigible kan de stem niet afstemmen. Een audiobestand kon niet worden gelezen (fout %lld). Geen clip is gewijzigd.";
+"error.match.missing" = "Dirigible kan de stem niet afstemmen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.match.short" = "Dirigible kan de stem niet afstemmen. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
+"error.match.unreadable" = "Dirigible kan de stem niet afstemmen. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";
+"match.canceled" = "Stem afstemmen geannuleerd. Geen spoor is gewijzigd.";
+"match.refused.reference" = "De referentieclip heeft %1$d s stem. Stem afstemmen heeft %2$d s nodig. Kies een langere clip.";
+"match.refused.track" = "Het spoor “%1$@” heeft %2$d s stem. Stem afstemmen heeft %3$d s nodig.";
+"error.studio.match.no.target" = "Stem afstemmen slaat muziek- en effectensporen over, dus er blijft geen spoor over.";
+"error.studio.match.range" = "De tijdselectie moet binnen de referentieclip liggen.";
 "error.silences.read" = "Een audiobestand is niet gelezen (fout %lld). De zoekactie heeft geen stilte gevonden.";
 "error.silences.stale" = "De sporen zijn na de zoekactie gewijzigd. Zoek opnieuw om de stiltes toe te passen.";
 "error.silences.faults" = "Deze bestanden ontbreken of zijn beschadigd: %@. Hun clips zouden als stilte worden gelezen, dus de zoekactie toont geen stilte. Zet de bestanden terug en zoek opnieuw.";
@@ -357,6 +366,7 @@
 "take.placing" = "%@ plaatsen…";
 "take.leveling" = "Clipniveaus instellen…";
 "take.riding" = "Niveau in de tijd aanpassen";
+"take.matching" = "Stem wordt afgestemd";
 "take.ducking" = "Muziek onder de spraak verlagen…";
 "take.finding.silences" = "Stiltes zoeken…";
 "take.pending" = "Take %lld is niet afgerond.";

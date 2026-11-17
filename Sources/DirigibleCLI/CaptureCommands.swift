@@ -172,14 +172,15 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .appSourcesUnavailable,
         .session,
         .segment,
-        .rippleBlocked, .silencesStale, .outputTermUnavailable, .preRollStopped:
+        .rippleBlocked, .silencesStale, .outputTermUnavailable, .preRollStopped, .tooLittleVoice, .noTargetTrack,
+        .rangeOutsideReference:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .audioImport, .importYielded, .paste,
         .pasteYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,
         .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
         .duckRead, .rideCancelled, .rideRead, .rideFault, .silencesCancelled, .silencesRead, .silencesFaults,
-        .writerDidNotStop:
+        .writerDidNotStop, .matchCancelled, .matchRead, .matchFault:
         packageError
     }
 }

@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible ne peut pas niveler les clips dans le temps. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.ride.short" = "Dirigible ne peut pas niveler les clips dans le temps. Le fichier audio « %@ » est plus court que ne l’indique la session. Restaurez le fichier et réessayez.";
 "error.ride.unreadable" = "Dirigible ne peut pas niveler les clips dans le temps. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";
+"error.match.read" = "Dirigible ne peut pas faire correspondre la voix. Un fichier audio n’a pas pu être lu (erreur %lld). Aucun clip modifié.";
+"error.match.missing" = "Dirigible ne peut pas faire correspondre la voix. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
+"error.match.short" = "Dirigible ne peut pas faire correspondre la voix. Le fichier audio « %@ » est plus court que ne l’indique la session. Restaurez le fichier et réessayez.";
+"error.match.unreadable" = "Dirigible ne peut pas faire correspondre la voix. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";
+"match.canceled" = "Faire correspondre la voix annulé. Aucune piste modifiée.";
+"match.refused.reference" = "Le clip de référence contient %1$d s de voix. Faire correspondre la voix nécessite %2$d s. Choisissez un clip plus long.";
+"match.refused.track" = "La piste « %1$@ » contient %2$d s de voix. Faire correspondre la voix nécessite %3$d s.";
+"error.studio.match.no.target" = "Faire correspondre la voix ignore les pistes de musique et d’effets : aucune piste ne reste.";
+"error.studio.match.range" = "La sélection temporelle doit se trouver dans le clip de référence.";
 "error.silences.read" = "Un fichier audio n’a pas pu être lu (erreur %lld). La recherche n’a trouvé aucun silence.";
 "error.silences.stale" = "Les pistes ont changé après la recherche. Relancez la recherche pour appliquer les silences.";
 "error.silences.faults" = "Ces fichiers sont manquants ou endommagés : %@. Leurs clips seraient lus comme du silence, donc la recherche n’affiche aucun silence. Restaurez les fichiers et relancez la recherche.";
@@ -357,6 +366,7 @@
 "take.placing" = "Placement de %@…";
 "take.leveling" = "Nivellement des clips…";
 "take.riding" = "Nivellement dans le temps";
+"take.matching" = "Mise en correspondance de la voix";
 "take.ducking" = "Atténuation de la musique sous la voix…";
 "take.finding.silences" = "Recherche des silences…";
 "take.pending" = "La prise %lld n’est pas terminée.";

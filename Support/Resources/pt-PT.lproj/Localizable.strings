@@ -81,6 +81,15 @@
 "error.ride.missing" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
 "error.ride.short" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
 "error.ride.unreadable" = "O Dirigible não pode nivelar os clipes ao longo do tempo. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
+"error.match.read" = "O Dirigible não pode corresponder a voz. Não foi possível ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
+"error.match.missing" = "O Dirigible não pode corresponder a voz. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
+"error.match.short" = "O Dirigible não pode corresponder a voz. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
+"error.match.unreadable" = "O Dirigible não pode corresponder a voz. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
+"match.canceled" = "Corresponder voz cancelado. Nenhuma faixa mudou.";
+"match.refused.reference" = "O clipe de referência tem %1$d s de voz. Corresponder voz precisa de %2$d s. Escolha um clipe mais longo.";
+"match.refused.track" = "A faixa “%1$@” tem %2$d s de voz. Corresponder voz precisa de %3$d s.";
+"error.studio.match.no.target" = "Corresponder voz ignora as faixas de música e de efeitos, por isso não sobra nenhuma faixa.";
+"error.studio.match.range" = "A seleção de tempo tem de ficar dentro do clipe de referência.";
 "error.silences.read" = "Não foi possível ler um ficheiro de áudio (erro %lld). A procura não encontrou silêncios.";
 "error.silences.stale" = "As faixas mudaram depois da procura. Procure de novo para aplicar os silêncios.";
 "error.silences.faults" = "Estes ficheiros estão em falta ou danificados: %@. Os clips deles seriam lidos como silêncio, por isso a procura não mostra silêncios. Restaure os ficheiros e procure de novo.";
@@ -357,6 +366,7 @@
 "take.placing" = "A posicionar %@…";
 "take.leveling" = "A nivelar os clipes…";
 "take.riding" = "A nivelar ao longo do tempo";
+"take.matching" = "A corresponder a voz";
 "take.ducking" = "A atenuar a música sob a voz…";
 "take.finding.silences" = "A procurar silêncios…";
 "take.pending" = "O excerto %lld não foi finalizado.";

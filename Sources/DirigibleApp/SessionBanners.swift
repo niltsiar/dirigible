@@ -150,6 +150,10 @@ struct TakeBanner: View {
             BannerRow(kind: .info, text: L10n.takeRiding.text) {
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
+        case .matching:
+            BannerRow(kind: .info, text: L10n.takeMatching.text) {
+                Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
+            }
         case .ducking:
             let text = L10n.takeDucking.text
             BannerRow(kind: .info, text: text) {

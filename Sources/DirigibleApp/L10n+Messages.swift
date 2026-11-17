@@ -67,6 +67,21 @@ extension L10n {
             case .short: return errorRideShort.format(path)
             case .unreadable: return errorRideUnreadable.format(path)
             }
+        case .tooLittleVoice(.reference, let seconds):
+            return matchRefusedReference.format(seconds, Studio.matchVoiceSeconds)
+        case .tooLittleVoice(.track(let track), let seconds):
+            return matchRefusedTrack.format(name(track), seconds, Studio.matchVoiceSeconds)
+        case .noTargetTrack: return errorStudioMatchNoTarget.text
+        case .rangeOutsideReference: return errorStudioMatchRange.text
+        case .matchCancelled: return matchCanceled.text
+        case .matchRead(let code): return errorMatchRead.format(Int(code))
+        case .matchFault(let file, let fault):
+            let path = session?.files[file]?.path ?? file.rawValue
+            switch fault {
+            case .missing: return errorMatchMissing.format(path)
+            case .short: return errorMatchShort.format(path)
+            case .unreadable: return errorMatchUnreadable.format(path)
+            }
         // The window shows no alert for a stop or a cancel: the banner and the announcement say it.
         case .transcriptionYielded: return transcribeStopped.text
         case .transcriptionCancelled: return transcribeCanceled.text

@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible non può livellare le clip nel tempo. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.ride.short" = "Dirigible non può livellare le clip nel tempo. Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
 "error.ride.unreadable" = "Dirigible non può livellare le clip nel tempo. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";
+"error.match.read" = "Dirigible non può abbinare la voce. Impossibile leggere un file audio (errore %lld). Nessun clip è cambiato.";
+"error.match.missing" = "Dirigible non può abbinare la voce. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
+"error.match.short" = "Dirigible non può abbinare la voce. Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
+"error.match.unreadable" = "Dirigible non può abbinare la voce. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";
+"match.canceled" = "Abbina voce annullato. Nessuna traccia è cambiata.";
+"match.refused.reference" = "Il clip di riferimento ha %1$d s di voce. Abbina voce richiede %2$d s. Scegli un clip più lungo.";
+"match.refused.track" = "La traccia “%1$@” ha %2$d s di voce. Abbina voce richiede %3$d s.";
+"error.studio.match.no.target" = "Abbina voce salta le tracce di musica e di effetti, quindi non resta nessuna traccia.";
+"error.studio.match.range" = "La selezione temporale deve stare dentro il clip di riferimento.";
 "error.silences.read" = "Non è stato possibile leggere un file audio (errore %lld). La ricerca non ha trovato silenzi.";
 "error.silences.stale" = "Le tracce sono cambiate dopo la ricerca. Cerca di nuovo per applicare i silenzi.";
 "error.silences.faults" = "Questi file mancano o sono danneggiati: %@. Le loro clip verrebbero lette come silenzio, quindi la ricerca non mostra silenzi. Ripristina i file e cerca di nuovo.";
@@ -357,6 +366,7 @@
 "take.placing" = "Posizionamento di %@…";
 "take.leveling" = "Livellamento dei clip…";
 "take.riding" = "Livellamento nel tempo";
+"take.matching" = "Abbinamento della voce";
 "take.ducking" = "Abbassamento della musica sotto la voce…";
 "take.finding.silences" = "Ricerca dei silenzi…";
 "take.pending" = "Il take %lld non è terminato.";

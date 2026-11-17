@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible cannot level the clips over time. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
 "error.ride.short" = "Dirigible cannot level the clips over time. The audio file “%@” is shorter than the session says. Restore the file and try again.";
 "error.ride.unreadable" = "Dirigible cannot level the clips over time. The audio file “%@” did not read. Check the disk and try again.";
+"error.match.read" = "Dirigible cannot match the voice. An audio file did not read (error %lld). No clip changed.";
+"error.match.missing" = "Dirigible cannot match the voice. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.match.short" = "Dirigible cannot match the voice. The audio file “%@” is shorter than the session says. Restore the file and try again.";
+"error.match.unreadable" = "Dirigible cannot match the voice. The audio file “%@” did not read. Check the disk and try again.";
+"match.canceled" = "Match Voice canceled. No track changed.";
+"match.refused.reference" = "The reference clip has %1$d s of voice. Match Voice needs %2$d s. Choose a longer clip.";
+"match.refused.track" = "The track “%1$@” has %2$d s of voice. Match Voice needs %3$d s.";
+"error.studio.match.no.target" = "Match Voice leaves out music and effects tracks, so no track is left to match.";
+"error.studio.match.range" = "The time selection must lie inside the reference clip.";
 "error.silences.read" = "An audio file did not read (error %lld). The scan found no silence.";
 "error.silences.stale" = "The tracks changed after the scan. Scan again to apply the silences.";
 "error.silences.faults" = "These files are missing or damaged: %@. Their clips would read as silence, so the scan shows no silence. Restore the files and scan again.";
@@ -357,6 +366,7 @@
 "take.placing" = "Placing %@…";
 "take.leveling" = "Leveling clips…";
 "take.riding" = "Leveling over time";
+"take.matching" = "Matching voice";
 "take.ducking" = "Ducking the music under the speech…";
 "take.finding.silences" = "Finding silences…";
 "take.pending" = "Take %lld is not finished.";

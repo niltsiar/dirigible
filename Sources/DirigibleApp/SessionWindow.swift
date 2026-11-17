@@ -144,6 +144,15 @@ import SwiftUI
     var rideReport: RideReportShown?
     /// The number of Level Over Time runs of this window, for the key of its banner.
     @ObservationIgnored var ridePresses = 0
+    /// The reference of the next Match Voice (decision 0074). It stays until another is chosen.
+    var voiceReference: VoiceReference?
+    /// The tracks that a Match Voice reads now, and the fraction of its read, for the header marks
+    /// and the banner bar. Nil progress: no match of this window runs.
+    var matchingTracks: Set<TrackID> = []
+    var matchProgress: Double?
+    /// The banner of the last Match Voice, at its session revision.
+    var voiceMatchReport: VoiceMatchReportShown?
+    @ObservationIgnored var matchPresses = 0
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
     /// The values of the Go to Take Time sheet while it shows (decision 0061).

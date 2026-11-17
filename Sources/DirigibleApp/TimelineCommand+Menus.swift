@@ -133,7 +133,7 @@ extension TimelineCommand {
     static let keylessTitles: [TimelineCommand: L10n] = [
         .removeLevelOverTime: .menuToolsRemoveLevelOverTime, .reduceNoise: .menuToolsReduceNoise,
         .repairSound: .menuToolsRepairSound, .transcribe: .menuToolsTranscribe,
-        .closeGaps: .menuEditCloseGaps,
+        .closeGaps: .menuEditCloseGaps, .useAsVoiceReference: .menuTrackMatchReference,
     ]
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the

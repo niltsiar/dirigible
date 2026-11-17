@@ -134,6 +134,11 @@ struct DirigibleApp: App {
                     } else {
                         Button(L10n.menuTrackFollowRipples.key) {}.disabled(true)
                     }
+                    if let key = app.key, key.canEdit {
+                        Menu(L10n.menuTrackMatch.key) { MatchItems(model: key, headerRow: nil) }
+                    } else {
+                        Button(L10n.menuTrackMatch.key) {}.disabled(true)
+                    }
                     Toggle(
                         L10n.menuTrackMonitor.key,
                         isOn: Binding(get: { app.key?.listensSelection == true }, set: { _ in app.key?.toggleListen() })

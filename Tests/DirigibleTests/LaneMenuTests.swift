@@ -50,6 +50,18 @@ import Testing
         #expect(enabled)
     }
 
+    /// C17: Use as Voice Reference shows when the selection gives a reference, and not otherwise.
+    @Test func theReferenceItemFollowsTheSelection() {
+        func commands(_ reference: Bool) -> [TimelineCommand] {
+            LaneMenu.groups(
+                selection: true, clips: true, stereo: false, denoise: true, restore: false, clipboard: false,
+                split: false, canEdit: true, canRipple: true, closeGaps: false, reference: reference
+            ).joined().map(\.command)
+        }
+        #expect(commands(true).contains(.useAsVoiceReference))
+        #expect(!commands(false).contains(.useAsVoiceReference))
+    }
+
     /// Control: an item with a key equivalent, or an Undo item.
     @Test func theMenuHasNoKeys() async throws {
         let (model, _, _, view) = try await lanes()

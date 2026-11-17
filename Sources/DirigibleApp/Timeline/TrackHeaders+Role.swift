@@ -93,6 +93,7 @@ struct HeaderMenu: View {
         Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track) }
             .help(Text(L10n.trackRoleHelp.key))
         FollowItem(model: model, headerRow: track)
+        Menu(L10n.menuTrackMatch.key) { MatchItems(model: model, headerRow: track) }
         Divider()
         Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track) }.disabled(!model.canTranscribe)
     }

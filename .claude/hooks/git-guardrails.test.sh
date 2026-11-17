@@ -3522,6 +3522,13 @@ for run in "cd /x/wt && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-key
   "cat $hk_run/Holdout-Keys.md"; do
   expect_message 'reads holdout-keys.md' "$run"
 done
+# A log redirect whose target bash can expand to the file: a glob, or a variable in braces. The
+# target must be a literal path that ends in .log.
+for run in "R=/x/runs/r && scripts/eval/run.sh \$R/eval a b H90 t --holdout-keys \$R/holdout-keys.md > \$R/holdout-key*.md 2>&1" \
+  "scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys /x/runs/r/holdout-keys.md > /x/runs/r/holdout-key?.md" \
+  "R=/x/runs/r/holdout-key && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > \${R}s.md"; do
+  expect_message 'reads holdout-keys.md' "$run"
+done
 # A mention of the bare name passes from a folder that does not hold the file, and is refused from
 # a folder that holds it.
 for run in "rg -c 'refuses a read of \`holdout-keys.md\`' docs/workflow/evals.md" 'rg -n holdout-keys.md docs .claude' \

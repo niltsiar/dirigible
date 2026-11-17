@@ -290,20 +290,24 @@ word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
 # Listed forms, each a whole one-line command: rg [-n] '^## ' <path> (headings only); the eval call
 # [cd <dir> &&] [NAME=<value> &&|;]... [NAME=<value>]... [[<dir>/]scripts/with-lock.sh]
 # [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [> <log>] [2>&1], with NAME one of R, RUNS,
-# ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, and each other word free of holdout-keys; and
+# ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, each other word free of holdout-keys, and
+# <log> a path that ends in .log with no * ? [ { (no glob or ${ } can expand it to the file); and
 # the key-fix writes cat <file> >> <path> and mv [-f] <file> <path>, with no holdout-keys in <file>.
 # The holdout-keys compares ignore case.
 # Misses (no path word): a name that a variable or $( ) builds; a bare name after pushd, after a cd
 # of an earlier call, or in a python3 -c body; a name that find -exec or xargs gets from another
 # command; a recursive search or a glob that does not name the file; and the copy of each key in
 # eval*/keys.md of a run folder. A bare-name pattern from a folder that holds the file is refused.
+# Miss of the eval form: any script whose path ends in scripts/eval/run.sh passes, so a script that
+# an agent writes at such a path can print the file.
 hk_listed_form() {
   local bt='`' form rest
   local arg="([^[:space:];&|<>()${bt}'\"\\\\]+|\"[^\"()${bt}\\\\]*\"|'[^']*')"
   local heads="^rg( -n)? ('\\^## ?'|\"\\^## ?\"|\\^##) $arg\$"
   local name="(R|RUNS|ANSWER_MODEL|GRADER_MODEL|WITH_LOCK_MAX_WAIT)=$arg"
   local lead="((cd $arg|$name( $name)*) ?(&&|;) )*($name )*(($arg/)?scripts/with-lock\\.sh )?"
-  local run="^$lead($arg/)?scripts/eval/run\\.sh( $arg)*( [12]?>>? ?$arg| 2>&1)*\$" pair=" --holdout-keys $arg"
+  local log="([^[:space:];&|<>()${bt}'\"\\\\*?[{]+\\.log|\"[^\"()${bt}\\\\*?[{]+\\.log\"|'[^'*?[{]+\\.log')"
+  local run="^$lead($arg/)?scripts/eval/run\\.sh( $arg)*( [12]?>>? ?$log| 2>&1)*\$" pair=" --holdout-keys $arg"
   local append="^cat ($arg) >> ?$arg\$" move="^mv( -f)? ($arg) $arg\$"
   form="$(tr -s '\t ' '  ' <<< "$COMMAND")"
   form="${form# }"
@@ -330,7 +334,7 @@ if [[ "$hk_text" == *holdout-keys.md* ]]; then
   for hk_w in "${hk_words[@]}"; do [[ "$hk_w" == cd ]] && hk_bare=1; done
   for hk_w in "${hk_words[@]}"; do
     if [[ "$hk_w" == */holdout-keys.md || ( "$hk_w" == holdout-keys.md && $hk_bare -eq 1 ) ]] && ! hk_listed_form; then
-      block "$hk_reason outside the listed forms: rg -n '^## ' <path>, [cd <dir> &&] [R=<run> &&] [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [> <log> 2>&1], cat <file> >> <path>, and mv <file> <path>" "$hk_route"
+      block "$hk_reason outside the listed forms: rg -n '^## ' <path>; [cd <dir> &&] [NAME=<value> &&|;]... [NAME=<value>]... [[<dir>/]scripts/with-lock.sh] [<dir>/]scripts/eval/run.sh ... --holdout-keys <path> [> <file>.log] [2>&1], with NAME one of R, RUNS, ANSWER_MODEL, GRADER_MODEL, and WITH_LOCK_MAX_WAIT, and a literal .log path; cat <file> >> <path>; and mv [-f] <file> <path>" "$hk_route"
     fi
   done
 fi

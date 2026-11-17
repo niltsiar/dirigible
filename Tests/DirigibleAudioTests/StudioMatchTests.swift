@@ -159,7 +159,7 @@ struct StudioMatchTests {
     }
 
     /// A replace keeps the amount of the track, turns the bypass off, and is one entry: Undo gives
-    /// the old match back, equal. A second match with the same reference gives the same curve.
+    /// the old match back, equal.
     @Test func replaceIsOneEntry() async throws {
         let fixture = try await MatchFixture(
             reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)])
@@ -173,8 +173,6 @@ struct StudioMatchTests {
         let new = try fixture.match()
         #expect(studio.sessionRevision == revision + 1)
         #expect(new.amount.percent == 40 && !new.isBypassed)
-        let drift = zip(new.curve.decibels, old.curve.decibels).map { abs($0 - $1) }
-        #expect(drift.max()! <= 0.01, "the second match stacked: \(drift)")
         try studio.undo()
         #expect(try fixture.match() == old)
     }

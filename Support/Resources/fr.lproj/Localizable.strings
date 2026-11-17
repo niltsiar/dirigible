@@ -88,7 +88,7 @@
 "match.canceled" = "Faire correspondre la voix annulé. Aucune piste modifiée.";
 "match.refused.reference" = "Le clip de référence contient %1$d s de voix. Faire correspondre la voix nécessite %2$d s. Choisissez un clip plus long.";
 "match.refused.track" = "La piste « %1$@ » contient %2$d s de voix. Faire correspondre la voix nécessite %3$d s.";
-"error.studio.match.no.target" = "Faire correspondre la voix ignore les pistes de musique et d’effets : aucune piste ne reste.";
+"error.studio.match.no.target" = "Faire correspondre la voix ignore les pistes de musique et d’effets et la piste du clip de référence : aucune piste ne reste.";
 "error.studio.match.range" = "La sélection temporelle doit se trouver dans le clip de référence.";
 "menu.track.match" = "Faire correspondre la voix";
 "menu.track.match.reference" = "Utiliser comme référence de voix";

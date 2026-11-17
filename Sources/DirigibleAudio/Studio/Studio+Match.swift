@@ -12,11 +12,11 @@ extension Studio {
     public nonisolated static let matchVoiceSeconds = 10
 
     /// Match Voice (decision 0074 D5): reads the reference clip `reference` (only `range`, in
-    /// timeline frames, when given) and the clips of each track of `tracks` other than the
-    /// reference, as the file and the clip gain, through `runReadJob` on `.matching`. Then it sets
-    /// the match of each target track as one undo entry, with the name of the reference clip. A
-    /// music or effects track is left out. A new match takes `amount`, else the default; a replace
-    /// takes `amount`, else the amount of the track, and its bypass is off. It returns the new
+    /// timeline frames, when given) and the clips of each target track of `tracks`, as the file and
+    /// the clip gain, through `runReadJob` on `.matching`. Then it sets the match of each target
+    /// track as one undo entry, with the name of the reference clip. A music or effects track and
+    /// the track of the reference clip are left out. A new match takes `amount`, else the default;
+    /// a replace takes `amount`, else the amount of the track, and its bypass is off. It returns the new
     /// matches. An unknown clip or track throws before a read; no target throws `.noTargetTrack`;
     /// a range that is empty or not inside the clip throws `.rangeOutsideReference`; under 10 s of
     /// voice throws `.tooLittleVoice` for the first short side; a cancel `.matchCancelled`. Each
@@ -94,24 +94,20 @@ package struct MatchPlan: Sendable {
     let targets: [(TrackID, [VoicePart])]
 
     /// The checks of `Studio.matchVoice`, in its order after the busy check: the clip, the range
-    /// (empty, or not inside the clip), the tracks, and a target left. A reference clip is left
-    /// out of its own track.
+    /// (empty, or not inside the clip), the tracks, and a target left. The track of the reference
+    /// clip is no target.
     package init(
         reference: ClipID, range: Range<Frames>?, tracks: Set<TrackID>, in session: Session
     ) throws(StudioError) {
-        guard let clip = session.clip(reference)?.clip else { throw .session(.unknownClip(reference)) }
+        guard case (let clip, let home)? = session.clip(reference) else { throw .session(.unknownClip(reference)) }
         let span = range ?? clip.range
         guard !span.isEmpty, span.lowerBound >= clip.start, span.upperBound <= clip.end else {
             throw .rangeOutsideReference(clip: clip.range)
         }
         if let unknown = tracks.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
-        targets = session.tracks.filter { tracks.contains($0.id) && $0.role != .music && $0.role != .effects }.map {
-            track in
-            (
-                track.id,
-                track.clips.filter { $0.id != reference }.map { VoicePart($0, $0.offset..<$0.offset + $0.length) }
-            )
-        }
+        targets = session.tracks.filter {
+            tracks.contains($0.id) && $0.id != home && $0.role != .music && $0.role != .effects
+        }.map { track in (track.id, track.clips.map { VoicePart($0, $0.offset..<$0.offset + $0.length) }) }
         guard !targets.isEmpty else { throw .noTargetTrack }
         source = VoicePart(
             clip, clip.offset + (span.lowerBound - clip.start)..<clip.offset + (span.upperBound - clip.start))

@@ -64,6 +64,22 @@ struct LiveMatchVoiceTests {
         await studio.settle()
     }
 
+    /// In the studio, the track of the reference clip is left out with its own line.
+    @Test func leavesOutTheReferenceTrack() async throws {
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+
+        let outcome = await send(
+            folder.socket, "track_match_voice", ["package": package.path, "reference": "R", "tracks": ["t3", "t1"]])
+
+        let match = try #require(studio.session.track("t1")?.match)
+        let text = "t3: left out, the track of the reference\nt1: " + match.text
+        #expect(outcome == .reply(.result(text: text, isError: false)), "\(outcome)")
+        #expect(studio.session.track("t3")?.match == nil)
+        await studio.settle()
+    }
+
     /// The amount and the bypass in one call are one undo step, and a remove is one more. A track
     /// with no match refuses with the session text.
     @Test func editsRunInTheStudio() async throws {

@@ -104,8 +104,8 @@ public enum StudioError: Error, Hashable, Sendable {
     /// Match Voice found less than 10 s of gated voice on `side`: `seconds` is the voice found,
     /// in whole seconds rounded down, so it is never 10 (decision 0074). No track changed.
     case tooLittleVoice(side: MatchSide, seconds: Int)
-    /// Match Voice leaves out music and effects tracks, and no target track was left. No track
-    /// changed.
+    /// Match Voice leaves out music and effects tracks and the track of the reference clip, and no
+    /// target track was left. No track changed.
     case noTargetTrack
     /// The range of a Match Voice is empty or not inside the reference clip, whose timeline frames
     /// are `clip`. No track changed.

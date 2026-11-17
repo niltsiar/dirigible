@@ -69,4 +69,24 @@ extension MatchVoiceWindowTests {
         #expect(model.activeVoiceReference != nil, "a slip that keeps the frames")
         await model.close()
     }
+
+    /// Match Voice is off when the only target is the track of the reference clip. Next to another
+    /// track it is on, and the match leaves the reference track as it was.
+    @Test func theReferenceTrackIsNoTarget() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
+        model.useAsVoiceReference()
+        #expect(!model.canMatchVoice(tracks: ["t1"]), "the reference track alone")
+        #expect(model.canMatchVoice(tracks: ["t1", "t2"]))
+
+        await model.matchVoice(tracks: ["t1", "t2"])
+
+        #expect(studio.session.track("t1")?.match == nil && studio.session.track("t2")?.match != nil)
+        if case .voiceMatched(let result, _) = model.voiceMatchReport?.banner {
+            #expect(result.tracks == 1, "the banner counts the matched track only")
+        } else {
+            Issue.record("no result banner: \(String(describing: model.voiceMatchReport))")
+        }
+        await model.close()
+    }
 }

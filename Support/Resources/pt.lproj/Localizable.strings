@@ -88,7 +88,7 @@
 "match.canceled" = "Corresponder Voz cancelado. Nenhuma pista mudou.";
 "match.refused.reference" = "O clipe de referência tem %1$d s de voz. Corresponder Voz precisa de %2$d s. Escolha um clipe mais longo.";
 "match.refused.track" = "A pista “%1$@” tem %2$d s de voz. Corresponder Voz precisa de %3$d s.";
-"error.studio.match.no.target" = "Corresponder Voz pula as pistas de música e de efeitos, então não sobra nenhuma pista.";
+"error.studio.match.no.target" = "Corresponder Voz pula as pistas de música e de efeitos e a pista do clipe de referência, então não sobra nenhuma pista.";
 "error.studio.match.range" = "A seleção de tempo deve ficar dentro do clipe de referência.";
 "menu.track.match" = "Corresponder Voz";
 "menu.track.match.reference" = "Usar como Referência de Voz";

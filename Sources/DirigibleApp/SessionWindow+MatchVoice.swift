@@ -96,9 +96,13 @@ extension SessionWindow {
             && idleStudio.flatMap { VoiceReference(timeline.selection, in: $0.session) } != nil
     }
 
-    /// Match Voice to the reference needs a reference, a track, and a window that takes edits.
+    /// Match Voice to the reference needs a reference, a track other than the track of the
+    /// reference clip, and a window that takes edits.
     func canMatchVoice(tracks: [TrackID]) -> Bool {
-        importJob == nil && !dialogShowing && idleStudio != nil && activeVoiceReference != nil && !tracks.isEmpty
+        guard importJob == nil, !dialogShowing, let studio = idleStudio, let reference = activeVoiceReference,
+            let home = studio.session.clip(reference.clip)?.track
+        else { return false }
+        return tracks.contains { $0 != home }
     }
 
     /// Bypass and Remove need an idle studio and a track with a match.

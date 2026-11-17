@@ -88,7 +88,7 @@
 "match.canceled" = "Stimme angleichen abgebrochen. Keine Spur wurde geändert.";
 "match.refused.reference" = "Der Referenzclip hat %1$d s Stimme. Stimme angleichen braucht %2$d s. Wähle einen längeren Clip.";
 "match.refused.track" = "Die Spur „%1$@“ hat %2$d s Stimme. Stimme angleichen braucht %3$d s.";
-"error.studio.match.no.target" = "Stimme angleichen überspringt Musik- und Effektspuren, daher bleibt keine Spur übrig.";
+"error.studio.match.no.target" = "Stimme angleichen überspringt Musik- und Effektspuren und die Spur des Referenzclips, daher bleibt keine Spur übrig.";
 "error.studio.match.range" = "Die Zeitauswahl muss im Referenzclip liegen.";
 "menu.track.match" = "Stimme angleichen";
 "menu.track.match.reference" = "Als Stimmreferenz verwenden";

@@ -315,7 +315,9 @@ struct MatchVoiceCommandTests {
             none
                 == CLIResult(
                     status: 1, stdout: "",
-                    stderr: "Error: Match Voice leaves out music and effects tracks, so no track is left to match.\n"),
+                    stderr:
+                        "Error: Match Voice leaves out music and effects tracks and the track of the reference clip, "
+                        + "so no track is left to match.\n"),
             "\(none)")
     }
 

@@ -8,8 +8,9 @@
 # run.md names two detached worktrees that are at a landed commit.
 # The run worktree is the one on that branch. With none, it is the detached worktree whose path
 # run.md holds as a whole token and whose HEAD is the end of a `range <a>..<b>` or the commit of a
-# `tag <name> on <commit>` that run.md records (a DMG step detaches the run worktree). A named
-# detached worktree at another commit stays. The worktree also stays, with the line
+# `tag <name> on <commit>` that run.md records (a DMG step detaches the run worktree), and an
+# ancestor of origin/main. A named detached worktree at another commit, or at a recorded commit
+# that is not on origin/main, stays. The worktree also stays, with the line
 # `worktree kept: <path> (<reason>)`, and the file step goes on, when `with-lock.sh --builders`
 # (WITH_LOCK_BUILDERS_MIN=0) lists it (a live holder or waiter) or the run.md of an open run (a line
 # that starts with `- Status: open`) names it. A whole token can end in `/`, and `~/` in it stands
@@ -136,8 +137,10 @@ if [[ -z "$wt" ]]; then
     match=()
     while IFS=$'\t' read -r path head; do
         [[ "$path" != "$main" ]] && names_path "$run/run.md" "$path" || continue
-        if [[ "$landed" == *" $head "* ]]; then
+        if [[ "$landed" == *" $head "* ]] && git -C "$main" merge-base --is-ancestor "$head" origin/main; then
             match+=("$path")
+        elif [[ "$landed" == *" $head "* ]]; then
+            kept+=("worktree kept: $path (HEAD ${head:0:9} is not on origin/main)")
         else
             kept+=("worktree kept: $path (HEAD ${head:0:9} is no commit that run.md records as landed)")
         fi

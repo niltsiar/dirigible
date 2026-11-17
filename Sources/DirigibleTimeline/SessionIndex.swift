@@ -270,7 +270,7 @@ public struct SessionIndex: Equatable, Sendable {
 
 extension SessionIndex.Row {
     fileprivate init(clip: Clip, of track: Track, at order: Int, in session: Session) {
-        let name = ClipInspection.name(of: clip, in: session)
+        let name = session.name(of: clip)
         self.init(
             item: .clip(clip.id, track: track.name), name: name, position: clip.start, duration: clip.length,
             searchText: SessionIndex.folded(name + "\n" + track.name), track: order)

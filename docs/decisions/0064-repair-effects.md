@@ -4,6 +4,7 @@
 - Date: 2026-10-27
 - Accepted: 2026-10-29, after plan gates 1 and 2 of run `2026-10-27-repair-set`.
 - Amends: 0054 (the chain has stages before and after the engine; a de-clip keeps the product of its pass scales as a level loss), 0057 (the level rule for a kind with no level; the unchanged rule for the repair kinds; three origin elements)
+- Amended: 2026-11-17, run `2026-10-14-voice-match` (see 0074 D7). D2: the chain order holds for the rendered kinds. The voice match stage runs live after the top rendered level, so a rendered de-ess comes before the match.
 
 ## Context
 

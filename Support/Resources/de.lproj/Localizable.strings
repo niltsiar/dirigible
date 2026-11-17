@@ -71,6 +71,7 @@
 "error.session.track.count" = "Die Kopie hat %lld Spuren. Wähle genauso viele Spuren aus, um sie einzusetzen.";
 "error.fill.too.many.clips" = "Das Füllen erzeugt %1$lld Clips, das Limit ist %2$lld. Wähle einen kürzeren Bereich aus oder kopiere ein längeres Audiostück.";
 "error.session.other" = "Die Session hat die Änderung abgelehnt.";
+"error.session.match.none" = "Diese Spur hat keine Stimmangleichung.";
 "error.duck.no.speech" = "Das Absenken fand keine Sprache über %.1f dBFS und hat keinen Pegelpunkt geändert.";
 "error.duck.no.speech.track" = "Wähle eine Sprachspur aus oder gib einer Spur die Rolle „Dialog“.";
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";

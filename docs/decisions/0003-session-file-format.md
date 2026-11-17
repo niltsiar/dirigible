@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-11-17, run `2026-11-04-boundary-fuzz`. The reader refuses a package XML file with an element depth over 64, or a file on which the parser pass stops. A file with an attribute value over the parser limit no longer opens (see Rules).
+- Amended: 2026-11-17, run `2026-10-14-voice-match` (see 0074 D4). From version 18, a track can hold one `<match amount reference curve target>` element, with `bypassed="true"` on a bypassed match. A track with no match writes no element.
 - Amended: 2026-11-16, run `2026-10-28-package-boundary`. The reader refuses a package XML file with a DTD or another encoding, and a package item that is a link or not of its kind (see Rules).
 - Amended: 2026-11-07, run `2026-10-28-timeline-edits`. From version 16, a track can hold `follow="true"`. A track that does not follow writes no attribute (see 0073).
 - Amended: 2026-11-03, run `2026-10-28-pre-roll`. A clip of a finalize at the recorded time starts at the playhead of `<recording>` or later: that playhead is the floor of 0004 **Timing**.

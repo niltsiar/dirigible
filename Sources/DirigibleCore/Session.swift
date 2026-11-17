@@ -227,7 +227,8 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
-    /// version of the present features: `rideSessionVersion` with a ride point, `followSessionVersion`
+    /// version of the present features: `matchSessionVersion` with a voice match (decision 0074),
+    /// `rideSessionVersion` with a ride point, `followSessionVersion`
     /// with a follow track (decision 0073), `preRollSessionVersion` with a pre-roll `<recording>`, 14
     /// with a repair effect in a file origin (decision 0064), 13 with a hum removal in a file origin
     /// (decision 0054), 12 with a file origin (0057); else 11 with a track role, else 10 with a gain
@@ -238,6 +239,7 @@ public struct Session: Hashable, Sendable {
     /// else 1.
     public var fileVersion: Int {
         let features = [
+            tracks.contains { $0.match != nil } ? matchSessionVersion : nil,
             tracks.contains { $0.clips.contains { !$0.ride.isEmpty } } ? rideSessionVersion : nil,
             tracks.contains(where: \.isFollowTrack) ? followSessionVersion : nil,
             recording?.isPreRoll == true ? preRollSessionVersion : nil,

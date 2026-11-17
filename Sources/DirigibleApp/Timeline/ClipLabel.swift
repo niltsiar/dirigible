@@ -109,7 +109,7 @@ struct ClipLabel {
                         return [left, right].filter { $0.width > 0 }
                     } ?? [box]
                 guard !shown.isEmpty else { continue }
-                let name = ClipInspection.name(of: clip, in: inputs.session)
+                let name = inputs.session.name(of: clip)
                 let text = TimelineDocumentView.labelText(name, gain: clip.gain, locale: .current)
                 // The chip lies between the fade handles and leaves the envelope discs free.
                 let index = track.clips.index(holding: clip.start)

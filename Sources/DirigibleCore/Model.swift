@@ -345,6 +345,8 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// A new reader updates the copies of this list: `track.role.help`, `EditRules.roleNote`,
     /// `AgentManual.roleLine`, and the guide section "Give a track a role".
     public internal(set) var role: Role?
+    /// The live EQ stage of the track after its rendered levels (decision 0074).
+    public internal(set) var match: VoiceMatch?
 
     /// The raw value is the word of `session.xml`, the CLI, and the tools.
     public enum Role: String, CaseIterable, Sendable {

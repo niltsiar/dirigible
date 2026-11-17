@@ -71,6 +71,7 @@
 "error.session.track.count" = "La copie contient %lld pistes. Sélectionnez le même nombre de pistes pour la coller.";
 "error.fill.too.many.clips" = "Le remplissage crée %1$lld clips, et la limite est de %2$lld. Sélectionnez une plage plus courte ou copiez un passage audio plus long.";
 "error.session.other" = "La session a refusé la modification.";
+"error.session.match.none" = "Cette piste n’a pas de correspondance de voix.";
 "error.duck.no.speech" = "L’atténuation n’a trouvé aucune voix au-dessus de %.1f dBFS, elle n’a donc modifié aucun point de gain.";
 "error.duck.no.speech.track" = "Sélectionnez une piste de voix ou donnez à une piste le rôle Dialogue.";
 "error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";

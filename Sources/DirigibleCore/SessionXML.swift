@@ -129,6 +129,7 @@ extension Session {
                     ))
             case .app(let bundleID): node.addChild(element("route", ("app", bundleID)))
             }
+            if let match = track.match { node.addChild(matchElement(match)) }
             for clip in track.clips {
                 let clipNode = element(
                     "clip", ("id", clip.id.rawValue), ("file", clip.file.rawValue),
@@ -235,6 +236,17 @@ extension Session {
         }
         return (lists, node)
     }
+}
+
+/// `<match amount reference curve target>` (decision 0074 D4), each list number in `Double.description`,
+/// and `bypassed="true"` only on a bypassed match.
+private func matchElement(_ match: VoiceMatch) -> XMLElement {
+    let list = { (values: [Double]) in values.map(\.description).joined(separator: " ") }
+    let node = element(
+        "match", ("amount", String(match.amount.percent)), ("reference", match.reference),
+        ("curve", list(match.curve.decibels)), ("target", list(match.targetPowers)))
+    if match.isBypassed { add(("bypassed", "true"), to: node) }
+    return node
 }
 
 /// `<origin source offset gain>` (decision 0057), with one element for each effect, in chain order.

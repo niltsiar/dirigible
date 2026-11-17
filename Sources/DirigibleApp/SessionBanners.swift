@@ -151,7 +151,12 @@ struct TakeBanner: View {
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
         case .matching:
-            BannerRow(kind: .info, text: L10n.takeMatching.text) {
+            let text = L10n.takeMatching.text
+            BannerRow(kind: .info, text: text) {
+                // An agent match has no bar here: its progress goes to the agent (decision 0049).
+                if let progress = model.matchProgress {
+                    ProgressView(value: progress).frame(width: 160).accessibilityLabel(Text(verbatim: text))
+                }
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
         case .ducking:

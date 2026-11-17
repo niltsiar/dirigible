@@ -106,6 +106,7 @@ extension SessionWindow {
             !dialogShowing && canImport
                 && idleStudio.map { !removeRideTarget(in: $0.session).clips.isEmpty } == true
         case .transcribe: canTranscribe
+        case .useAsVoiceReference: canUseAsVoiceReference
         case .restoreOriginal:
             importJob == nil && idleStudio.map { !restoreClips(in: $0.session).isEmpty } == true
         case .heal:

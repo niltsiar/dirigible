@@ -17,12 +17,12 @@ enum LaneMenu {
 
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
     /// frames; `clips` is true for a clip set with a clip; `stereo` is true when the selection holds a
-    /// stereo clip; `denoise` is true when it holds a clip that Reduce Noise and Repair Sound take; `restore` is true
+    /// stereo clip; `reference` is true when the selection gives a voice reference (decision 0074); `denoise` is true when it holds a clip that Reduce Noise and Repair Sound take; `restore` is true
     /// when it holds a clip on a rendered file; `closeGaps` is true for a clip set of 2 or more clips (Close Gaps is no
     /// ripple, so a pending or split take does not hide it).
     static func groups(
         selection: Bool, clips: Bool, stereo: Bool, denoise: Bool, restore: Bool, clipboard: Bool, split: Bool,
-        canEdit: Bool, canRipple: Bool, closeGaps: Bool
+        canEdit: Bool, canRipple: Bool, closeGaps: Bool, reference: Bool = false
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips
@@ -42,6 +42,7 @@ enum LaneMenu {
                 denoise ? Item(command: .reduceNoise, enabled: true) : nil,
                 denoise ? Item(command: .repairSound, enabled: true) : nil,
                 denoise ? Item(command: .levelOverTime, enabled: true) : nil,
+                reference ? Item(command: .useAsVoiceReference, enabled: true) : nil,
                 restore ? Item(command: .restoreOriginal, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
                 closeGaps ? Item(command: .closeGaps, enabled: true) : nil,
@@ -72,7 +73,8 @@ extension TimelineScrollView {
             clipboard: model.clipboard != nil,
             split: split,
             canEdit: model.canEdit, canRipple: context.canRipple,
-            closeGaps: selection.marks == nil && selection.selectedClips(in: session).count >= 2)
+            closeGaps: selection.marks == nil && selection.selectedClips(in: session).count >= 2,
+            reference: VoiceReference(selection, in: session) != nil)
         let menu = NSMenu()
         menu.autoenablesItems = false
         for (index, group) in groups.enumerated() {

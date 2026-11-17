@@ -45,6 +45,7 @@ struct TrackHeaders: View {
         // The layout of a row comes from the header width and the lane height only, never from
         // the text: a typed name that picks another layout rebuilds its field (code gate 1).
         let taking = studio.transport.liveTake != nil
+        let matching = model.matchingTracks
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(studio.session.tracks) { track in
@@ -54,7 +55,8 @@ struct TrackHeaders: View {
                         showsLayout: laneHeight >= 56 || geometry.size.width >= Self.layoutWidth,
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
-                        showsFader: laneHeight >= 56 && geometry.size.width >= Self.faderTwoLineWidth
+                        showsFader: laneHeight >= 56 && geometry.size.width >= Self.faderTwoLineWidth,
+                        learning: matching.contains(track.id)
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
                     // At the lane edge, as the lanes have no line: the rows read as rows (D8).
@@ -95,6 +97,8 @@ private struct TrackRow: View {
     let showsCompactLoudness: Bool
     /// The fader on line 2, from `TrackHeaders.faderTwoLineWidth`. A Bool, as `showsLayout`.
     let showsFader: Bool
+    /// A Match Voice reads this track now. A Bool, as `showsLayout`.
+    let learning: Bool
     @FocusState private var focused: Bool
     /// Key: the window is key, so a selected row shows the emphasized fill.
     @Environment(\.controlActiveState) private var activeState
@@ -102,10 +106,10 @@ private struct TrackRow: View {
     private var style: HeaderRowStyle { HeaderRowStyle(selected: selected, emphasized: activeState == .key) }
     private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
-    /// The role glyph and its spacing come out of the name, so the width gates hold with a role.
+    private var matchState: MatchMarkState? { MatchMarkState(track.match, learning: learning) }
+    /// The glyphs and their spacing come out of the name, so the width gates hold with them.
     private var nameMinWidth: Double {
-        (secondLine ? 60 : 54) - (track.role == nil ? 0 : RoleGlyph.size + 8)
-            - (track.isFollowTrack ? FollowGlyph.size + 8 : 0)
+        (secondLine ? 60 : 54) - HeaderGlyphs.room(track, marked: matchState != nil)
     }
 
     var body: some View {
@@ -116,6 +120,7 @@ private struct TrackRow: View {
                 if let role = track.role { RoleGlyph(role: role) }
                 if track.isFollowTrack { FollowGlyph() }
                 if taking { takeName } else { nameField }
+                if let matchState { MatchMark(model: model, track: track, state: matchState) }
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
                     // name is at its minimum, so the route and the state always show.
@@ -349,21 +354,6 @@ extension SessionWindow {
     /// Counts a body run of the track headers or of one row, for the tests.
     func countHeaderRun(row: Bool) {
         if row { headerRuns.rows += 1 } else { headerRuns.headers += 1 }
-    }
-}
-
-/// The look of a header row: the selection colors of a macOS source list (ui-panel 4). Nil: the
-/// default of the row.
-struct HeaderRowStyle: Equatable {
-    let fill: NSColor?
-    let text: NSColor?
-
-    /// `emphasized`: the window is key.
-    init(selected: Bool, emphasized: Bool) {
-        fill =
-            selected
-            ? (emphasized ? .selectedContentBackgroundColor : .unemphasizedSelectedContentBackgroundColor) : nil
-        text = selected && emphasized ? .alternateSelectedControlTextColor : nil
     }
 }
 

@@ -83,6 +83,8 @@ enum TimelineCommand: Hashable, CaseIterable {
     case exportChapters, exportTranscript, episodeInfo
     case autoLevel, autoLevelPerTrack, levelOverTime, removeLevelOverTime, duck, splitStereo, reduceNoise, repairSound
     case restoreOriginal, transcribe
+    /// Track > Match Voice > Use as Voice Reference and the same item of the clip menu (decision 0074).
+    case useAsVoiceReference
     case findSilences
     case addGainPoint, previousGainPoint, nextGainPoint
 
@@ -147,6 +149,8 @@ enum TimelineCommand: Hashable, CaseIterable {
         case .restoreOriginal: false
         // Transcribe Track has no key: a rare, slow command.
         case .transcribe: false
+        // Use as Voice Reference has no key: a rare command.
+        case .useAsVoiceReference: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
@@ -310,6 +314,7 @@ extension SessionWindow {
         case .reduceNoise: reduceNoise()
         case .repairSound: repairSound()
         case .transcribe: transcribeTrack()
+        case .useAsVoiceReference: useAsVoiceReference()
         case .restoreOriginal: restoreOriginal()
         }
     }

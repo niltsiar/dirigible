@@ -45,7 +45,7 @@ struct CLIFuzzTests {
         // A repeating positional takes one more value, and the command then refuses it itself.
         let tail: Set<Int32> = leaf.hasRepeatingPositional ? [1, 2, 64] : strict
         func make(_ family: String, _ arguments: [String], _ allowed: Set<Int32>) -> FuzzCase {
-            FuzzCase(family: family, command: leaf.name, arguments: arguments, allowed: allowed)
+            FuzzCase(family: family, arguments: arguments, allowed: allowed)
         }
         var cases = [make("S1", base + ["--zz-unknown"], strict), make("S2", base + ["--zz-unknown=1"], strict)]
         let required = leaf.arguments.indices.filter { !leaf.arguments[$0].isOptional }
@@ -92,7 +92,7 @@ struct CLIFuzzTests {
         guard !candidates.isEmpty else { return [] }
         let allowed: Set<Int32> = [0, 1, 2, 3, 64]
         func make(_ family: String, _ arguments: [String], _ note: String = "") -> FuzzCase {
-            FuzzCase(family: family, command: leaf.name, arguments: arguments, allowed: allowed, note: note)
+            FuzzCase(family: family, arguments: arguments, allowed: allowed, note: note)
         }
         var cases: [FuzzCase] = []
         for index in candidates {
@@ -156,7 +156,7 @@ struct CLIFuzzTests {
         let name = String(repeating: "n", count: 60_000)
         func pin(_ note: String, _ xml: String, _ code: Int32, _ text: String?) -> FuzzCase {
             FuzzCase(
-                family: "D3", command: "info", arguments: ["info", "@PKG@"], allowed: [code],
+                family: "D3", arguments: ["info", "@PKG@"], allowed: [code],
                 prepare: { try Data(xml.utf8).write(to: $0.appending(path: "session.xml")) }, stderrHolds: text,
                 note: note)
         }
@@ -210,7 +210,7 @@ struct CLIFuzzTests {
             }
             cases.append(
                 FuzzCase(
-                    family: family, command: command.joined(separator: " "), arguments: command, allowed: [0, 1, 2],
+                    family: family, arguments: command, allowed: [0, 1, 2],
                     prepare: prepare))
         }
         cases += Self.pinnedCases()

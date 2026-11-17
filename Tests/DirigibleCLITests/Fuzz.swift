@@ -18,7 +18,7 @@ struct SplitMix: RandomNumberGenerator {
 /// What a package folder holds: each entry by its relative path, with the kind of the entry
 /// (`lstat`), the bytes of a regular file, and the text of a link. It never opens a FIFO and never
 /// follows a link, so a hostile item cannot stop it.
-struct PackageSnapshot: Equatable, CustomStringConvertible {
+struct PackageSnapshot: Equatable {
     enum Entry: Equatable {
         case file(Data)
         case folder
@@ -67,8 +67,6 @@ struct PackageSnapshot: Equatable, CustomStringConvertible {
             }
         }.joined(separator: ", ")
     }
-
-    var description: String { "\(entries.count) entries" }
 }
 
 /// One `dirigible` child of a fuzz test: the arguments (with `@PKG@` for the package path and
@@ -76,7 +74,6 @@ struct PackageSnapshot: Equatable, CustomStringConvertible {
 /// edit of the package copy before the baseline snapshot.
 struct FuzzCase: Sendable {
     var family: String
-    var command: String
     var arguments: [String]
     var allowed: Set<Int32>
     var prepare: (@Sendable (URL) throws -> Void)?
@@ -127,7 +124,7 @@ struct FuzzRun: Sendable {
     func text(_ fuzzCase: FuzzCase, index: Int) -> String {
         let line = fuzzCase.arguments.map { $0.count > 80 ? String($0.prefix(80)) + "...(\($0.count))" : $0 }
         return
-            "seed \(seed) case \(index) family \(fuzzCase.family) \(fuzzCase.note): dirigible \(line.joined(separator: " "))"
+            "\(test) seed \(seed) case \(index) family \(fuzzCase.family) \(fuzzCase.note): dirigible \(line.joined(separator: " "))"
     }
 
     /// Runs one case and gives its problems. A nonzero exit has an `Error:` line and keeps the

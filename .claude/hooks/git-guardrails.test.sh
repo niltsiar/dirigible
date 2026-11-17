@@ -3500,6 +3500,28 @@ for run in "rg '^## ' $hk" "rg -n '^## ' $hk" "rg -n \"^## \" '$hk'" \
   "scripts/check-eval-keys.sh origin/main $hk_run"; do
   expect allow "$run"
 done
+# The eval call as the lead writes it from the main checkout: a cd head, R=... prefixes and
+# NAME=value words, a path that ends in /scripts/eval/run.sh, with-lock.sh, and a log redirect.
+hk_eval='/x/wt/scripts/eval/run.sh $R/eval-p7 origin/main HEAD H90 p7'
+for run in "cd /x/wt && R=/x/runs/r && scripts/eval/run.sh \$R/eval-p7 origin/main HEAD H90 p7 --holdout-keys \$R/holdout-keys.md > \$R/logs/eval-p7.log 2>&1" \
+  "R=/x/runs/r && scripts/eval/run.sh \$R/eval-p7 origin/main HEAD H90 p7 --holdout-keys \$R/holdout-keys.md" \
+  "R=/x/runs/r; RUNS=1 $hk_eval --holdout-keys \$R/holdout-keys.md >> \$R/logs/eval.log 2>&1" \
+  "cd /x/wt && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys /x/runs/r/holdout-keys.md" \
+  "ANSWER_MODEL=sonnet GRADER_MODEL=opus ../wt/scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk" \
+  "scripts/with-lock.sh scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk 2>&1" \
+  "WITH_LOCK_MAX_WAIT=0 /x/wt/scripts/with-lock.sh $hk_eval --holdout-keys $hk --holdout-keys /x/runs/q/holdout-keys.md"; do
+  expect allow "$run"
+done
+# Near forms that still read the file: a command after the call, a redirect into the file, the file
+# as another argument or in a variable value, and a name that is not listed (PATH can stub a tool).
+for run in "cd /x/wt && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk && cat $hk" \
+  "scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > $hk" \
+  "scripts/eval/run.sh $hk a b H90 t --holdout-keys $hk" \
+  "R=$hk && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys \$R" \
+  "PATH=/x/stub:\$PATH scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk" \
+  "cat $hk_run/Holdout-Keys.md"; do
+  expect_message 'reads holdout-keys.md' "$run"
+done
 # A mention of the bare name passes from a folder that does not hold the file, and is refused from
 # a folder that holds it.
 for run in "rg -c 'refuses a read of \`holdout-keys.md\`' docs/workflow/evals.md" 'rg -n holdout-keys.md docs .claude' \
@@ -3518,6 +3540,8 @@ hk_tool() {
 hk_tool block '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/holdout-keys.md"}}'
 hk_tool allow '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/keys.md"}}'
 hk_tool allow '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/holdout-keys.md.txt"}}'
+hk_tool block '{"tool_name":"Read","tool_input":{"file_path":"/w/.scratchpads/runs/r/Holdout-Keys.md"}}'
+hk_tool block '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r/HOLDOUT-KEYS.md"}}'
 hk_tool block '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r/holdout-keys.md"}}'
 hk_tool block '{"tool_name":"Grep","tool_input":{"pattern":"x","path":"/w/.scratchpads/runs/r","glob":"holdout-keys.md"}}'
 hk_tool allow '{"tool_name":"Grep","tool_input":{"pattern":"holdout-keys.md","path":"docs/workflow"}}'

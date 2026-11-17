@@ -121,8 +121,6 @@ plus="$(git -C "$main" cherry origin/main "$branch" | grep '^+' || true)"
 [[ -z "$plus" ]] || die 1 "the branch $branch has commits that origin/main lacks: $(wc -l <<<"$plus" | tr -d ' ') line(s) with +; land them first"
 kept=()
 if [[ -z "$wt" ]]; then
-    # A DMG step detaches the run worktree at the landed commit. It counts when run.md names its
-    # path and its HEAD is the end of a `range <a>..<b>` or the commit of a `tag <name> on <commit>`.
     landed=" "
     while IFS= read -r ref; do
         sha="$(git -C "$main" rev-parse --verify -q "$ref^{commit}")" && landed+="$sha "

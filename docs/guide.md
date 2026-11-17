@@ -698,7 +698,7 @@ Match Voice moves the sound of one track toward the voice of a reference clip. H
 - **Bypass** and **Remove** are also in **Track > Match Voice**. They are off for a track with no match.
 - Each side needs 10 seconds of voice. When the reference has less, a warning banner names the reference clip and the seconds that it has. When a track has less, the banner names the track. Nothing changes. A music or effects track is left out of a match.
 - The match keeps the name of the reference. It does not follow a later edit or a delete of that clip.
-- Limits. The waveform shows the audio before the match. The record monitor plays no match. Match Voice reads the reference clip as its file and its clip gain, without the voice match of its own track. Match Voice can raise peaks: export with a loudness target, or lower the track.
+- Limits. The waveform shows the audio before the match. The record monitor plays no match. The duck, the silence scan, and the loudness of an export hear the match, and Auto Level does not. Match Voice reads the reference clip as its file and its clip gain, without the voice match of its own track. Match Voice can raise peaks: export with a loudness target, or lower the track.
 
 ### Set the volume of a track
 

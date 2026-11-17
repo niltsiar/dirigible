@@ -11,7 +11,7 @@ extension TrackCommand {
             abstract: "Match the voice of tracks to a reference voice with a live EQ curve.",
             discussion: """
                 With --reference, the command reads the reference clip (only --from to --to, timeline frames, \
-                when given) and each track, and gives each track a match: a curve of 25 band gains that moves \
+                when given) and each track, and gives each track a match: a curve of \(ThirdOctave.bandCount) band gains that moves \
                 its spectrum toward the reference, at --amount percent (1 to 100). A new match takes 75, and a \
                 replace keeps the amount of the track unless you give one. Each match is on. The command \
                 changes no audio file. Each side needs 10 s of voice. Music and effects tracks and the track \

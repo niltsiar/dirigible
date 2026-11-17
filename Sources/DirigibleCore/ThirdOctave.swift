@@ -8,7 +8,7 @@ public enum ThirdOctave {
         63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000,
         6300, 8000, 10000, 12500, 16000,
     ]
-    public static let bandCount = 25
+    public static let bandCount = centers.count
 
     /// The lower and the upper edge of `band`, in Hz.
     public static func edges(of band: Int) -> (lower: Double, upper: Double) {

@@ -57,8 +57,8 @@ extension VoiceMatch {
 /// The room that the glyphs of a header row take from its name, so the name gives way first at
 /// each width gate (`HeaderRowTests`).
 @MainActor enum HeaderGlyphs {
-    static func room(_ track: Track, marked: Bool) -> Double {
-        (track.role == nil ? 0 : RoleGlyph.size + 8) + (track.isFollowTrack ? FollowGlyph.size + 8 : 0)
+    static func room(_ track: Track, follow: Bool, marked: Bool) -> Double {
+        (track.role == nil ? 0 : RoleGlyph.size + 8) + (follow ? FollowGlyph.size + 8 : 0)
             + (marked ? MatchMark.size + 8 : 0)
     }
 }

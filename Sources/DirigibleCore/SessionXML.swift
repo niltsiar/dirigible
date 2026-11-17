@@ -34,12 +34,42 @@ private func declaresOnlyUTF8(_ text: ArraySlice<UInt8>) -> Bool {
 }
 
 /// The parse of a package XML file (`session.xml`, a backup, a transcript file), or nil when it breaks
-/// `isPlainPackageXML` or has a DTD.
+/// `isPlainPackageXML`, fails `isShallowPackageXML`, or has a DTD.
 func packageXML(_ data: Data) -> XMLDocument? {
-    guard isPlainPackageXML(data), let document = try? XMLDocument(data: data, options: .nodeLoadExternalEntitiesNever),
-        document.dtd == nil
+    guard isPlainPackageXML(data), isShallowPackageXML(data),
+        let document = try? XMLDocument(data: data, options: .nodeLoadExternalEntitiesNever), document.dtd == nil
     else { return nil }
     return document
+}
+
+/// The deepest element nesting of a package XML file, the root counted as 1. The writer nests 6 deep.
+private let packageXMLDepthLimit = 64
+
+/// False on an element depth over `packageXMLDepthLimit`, or on a stop with libxml2 `XML_ERR_USER_STOP`
+/// (111), for example on a name of 60,000 bytes. The pass reads no byte after either stop, and
+/// `XMLDocument` overflows the stack on deep nesting. Another parser error falls to `XMLDocument`.
+private func isShallowPackageXML(_ data: Data) -> Bool {
+    let parser = XMLParser(data: data)
+    let depth = DepthCount()
+    parser.delegate = depth
+    guard !parser.parse(), let error = parser.parserError as NSError? else { return true }
+    return error.code != XMLParser.ErrorCode.delegateAbortedParseError.rawValue && error.code != 111
+}
+
+private final class DepthCount: NSObject, XMLParserDelegate {
+    private var depth = 0
+
+    func parser(
+        _ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName: String?,
+        attributes: [String: String] = [:]
+    ) {
+        depth += 1
+        if depth > packageXMLDepthLimit { parser.abortParsing() }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName: String?) {
+        depth -= 1
+    }
 }
 
 extension Session {

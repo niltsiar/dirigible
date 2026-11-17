@@ -181,4 +181,24 @@ extension UnusedFilesTests {
         #expect(report.failed.map(\.item.path) == ["u.wav"])
         #expect(report.failed.first?.fault == TrashFault(Self.refusal), "the error of the move, not .replaced")
     }
+
+    /// Boundary fuzz C4, X24: a backup with a track name of 11 MB, over the parser limit, is
+    /// damaged, so it keeps no file, and the prune moves the pool file that only it uses.
+    @Test func anOverLimitBackupIsDamagedAndItsFileGoesToTheTrash() throws {
+        var session = try Self.session([("b", "b.wav")])
+        try plant("b.wav")
+        var old = session
+        try old.addTrack("m", name: "MARK", layout: .mono)
+        try old.place(Clip(id: "c", file: "b", start: 0, offset: 0, length: 1), on: "m")
+        let text = String(decoding: try old.checkedData(), as: UTF8.self)
+        try #require(text.contains("name=\"MARK\""))
+        let damaged = try backup(Data(text.replacing("MARK", with: String(repeating: "n", count: 11_000_000)).utf8))
+
+        let scan = try scan(session)
+
+        #expect(scan.items.map(\.kind) == [.pool("b")], "the backup keeps no file")
+        #expect(scan.damagedBackups == [damaged])
+        let report = try scan.prune(&session, save: save) { url in Self.fakeTrashURL(url) }
+        #expect(report.moved.map(\.trashURL) == [URL(filePath: "/Trash/b.wav")])
+    }
 }

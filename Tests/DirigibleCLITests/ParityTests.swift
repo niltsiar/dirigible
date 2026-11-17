@@ -62,6 +62,10 @@ struct ParityTests {
         "roll": ["clip roll"],
         "slip": ["clip slip"],
         "setFollowTrack": ["track follow"],
+        "setMatch": ["track match-voice"],
+        "setMatchAmount": ["track match-voice"],
+        "setMatchBypassed": ["track match-voice"],
+        "removeMatch": ["track match-voice"],
         "shuffle": ["clip shuffle"],
     ]
 
@@ -184,8 +188,9 @@ struct ParityTests {
         }
         let requests = section.split(separator: "\n").filter { $0.hasPrefix("- \"") }
         #expect(requests.count >= 5, "the agent section has \(requests.count) example requests")
-        // W10 and W15: the gaps of the manual, and a request of the prepare and the edit phases.
-        #expect(section.contains("no voice profile"), "the agent section does not name the gaps")
+        // W10 and W15: a voice request, and a request of the prepare and the edit phases.
+        #expect(requests.contains { $0.contains("`track_match_voice`") }, "no voice request")
+        #expect(!section.contains("no voice profile"), "the agent section still says that no voice feature exists")
         #expect(requests.contains { $0.contains("Record the host from") }, "no route request")
         #expect(requests.contains { $0.contains("transcript") }, "no transcript request")
     }

@@ -11,7 +11,9 @@ struct NewerVersionCommandTests {
 
     static let commands: [[String]] = [
         ["info", "PKG"], ["info", "PKG", "--json"], ["peaks", "PKG", "--cache", "CACHE"],
-        ["track", "add", "PKG", "--id", "t2", "--name", "B", "--layout", "mono"], ["take", "finalize", "PKG"],
+        ["track", "add", "PKG", "--id", "t2", "--name", "B", "--layout", "mono"],
+        ["track", "match-voice", "PKG", "--reference", "c1", "t1"],
+        ["track", "match-voice", "PKG", "--amount", "50", "t1"], ["take", "finalize", "PKG"],
         ["take", "finalize", "PKG", "--leave-unreadable"],
         ["capture", "place", "PKG", "take1-1-1", "--track", "t1", "--at", "0"],
     ]

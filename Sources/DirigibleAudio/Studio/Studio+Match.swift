@@ -27,46 +27,13 @@ extension Studio {
         agent: AgentName?, progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> [TrackID: VoiceMatch] {
         try checkIdle()
-        guard let clip = session.clip(reference)?.clip else { throw .session(.unknownClip(reference)) }
-        let span = range ?? clip.range
-        guard !span.isEmpty, span.lowerBound >= clip.start, span.upperBound <= clip.end else {
-            throw .rangeOutsideReference(clip: clip.range)
-        }
-        if let unknown = tracks.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
-        let targets = session.tracks.filter { tracks.contains($0.id) && $0.role != .music && $0.role != .effects }.map {
-            track in
-            (
-                track.id,
-                track.clips.filter { $0.id != reference }.map { VoicePart($0, $0.offset..<$0.offset + $0.length) }
-            )
-        }
-        guard !targets.isEmpty else { throw .noTargetTrack }
-        let source = VoicePart(
-            clip, clip.offset + (span.lowerBound - clip.start)..<clip.offset + (span.upperBound - clip.start))
-        let name = session.name(of: clip)
+        let plan = try MatchPlan(reference: reference, range: range, tracks: tracks, in: session)
         return try await runReadJob(
             .matching, cancelled: .matchCancelled, agent: agent, progress: progress,
             read: { session, lock, progress, isCancelled in
-                await readMatch(source, targets, of: session, lock: lock, progress: progress, isCancelled: isCancelled)
+                await readMatch(plan, of: session, lock: lock, progress: progress, isCancelled: isCancelled)
             },
-            apply: { session, read throws(StudioError) in
-                var matches: [TrackID: VoiceMatch] = [:]
-                for (id, target) in read.targets {
-                    let old = session.track(id)?.match
-                    let curve = VoiceCurve.curve(
-                        reference: read.reference, target: target, sampleRate: session.sampleRate)
-                    do throws(VoiceMatch.Field) {
-                        matches[id] = try VoiceMatch(
-                            amount: amount ?? old?.amount ?? VoiceMatch.defaultAmount, reference: name,
-                            curve: curve.decibels, targetPowers: target.powers)
-                    } catch {
-                        throw .session(.invalidText(name))
-                    }
-                }
-                var matched = session
-                do throws(SessionError) { try matched.setMatch(matches) } catch { throw .session(error) }
-                return (matched, matches)
-            })
+            apply: { session, read throws(StudioError) in try plan.apply(read, amount: amount, to: session) })
     }
 
     /// Sets the amount of the match of each of `tracks` as one undo entry, with no audio read. A
@@ -109,7 +76,7 @@ extension Studio {
 }
 
 /// The spectra of one Match Voice read.
-struct MatchRead: Sendable {
+package struct MatchRead: Sendable {
     let reference: BandSpectrum
     let targets: [(TrackID, BandSpectrum)]
 }
@@ -119,44 +86,109 @@ extension VoicePart {
     init(_ clip: Clip, _ frames: Range<Frames>) { self.init(file: clip.file, frames: frames, gain: clip.gain) }
 }
 
-/// The reference spectrum, then the spectrum of each target, off the main actor in the package
-/// that `lock` holds now. A side with under 10 s of voice ends the read with `.tooLittleVoice`.
+/// What a Match Voice reads and where it stores: the checked inputs of `Studio.matchVoice` and of
+/// the command and the tool on a closed package, so one rule gives one refusal for each input.
+package struct MatchPlan: Sendable {
+    let name: String
+    let source: VoicePart
+    let targets: [(TrackID, [VoicePart])]
+
+    /// The checks of `Studio.matchVoice`, in its order after the busy check: the clip, the range
+    /// (empty, or not inside the clip), the tracks, and a target left. A reference clip is left
+    /// out of its own track.
+    package init(
+        reference: ClipID, range: Range<Frames>?, tracks: Set<TrackID>, in session: Session
+    ) throws(StudioError) {
+        guard let clip = session.clip(reference)?.clip else { throw .session(.unknownClip(reference)) }
+        let span = range ?? clip.range
+        guard !span.isEmpty, span.lowerBound >= clip.start, span.upperBound <= clip.end else {
+            throw .rangeOutsideReference(clip: clip.range)
+        }
+        if let unknown = tracks.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
+        targets = session.tracks.filter { tracks.contains($0.id) && $0.role != .music && $0.role != .effects }.map {
+            track in
+            (
+                track.id,
+                track.clips.filter { $0.id != reference }.map { VoicePart($0, $0.offset..<$0.offset + $0.length) }
+            )
+        }
+        guard !targets.isEmpty else { throw .noTargetTrack }
+        source = VoicePart(
+            clip, clip.offset + (span.lowerBound - clip.start)..<clip.offset + (span.upperBound - clip.start))
+        name = session.name(of: clip)
+    }
+
+    /// The reference spectrum, then the spectrum of each target, in the package at `package`. A
+    /// side with under 10 s of voice ends the read with `.tooLittleVoice`. It reads the disk, so
+    /// never call it on the main actor in the app.
+    package func read(
+        of session: Session, package: URL, progress: @escaping @Sendable (Double) -> Void,
+        isCancelled: @escaping @Sendable () -> Bool
+    ) -> Result<MatchRead, StudioError> {
+        let length = { (part: VoicePart) in part.frames.upperBound.count - part.frames.lowerBound.count }
+        let total = Double(
+            max(1, length(source) + targets.reduce(0) { $0 + $1.1.reduce(0) { $0 + length($1) } }))
+        var done = 0
+        let enough = { (spectrum: BandSpectrum, side: MatchSide) -> StudioError? in
+            let needed = Studio.matchVoiceSeconds * session.sampleRate
+            return spectrum.voiceFrames >= needed
+                ? nil : .tooLittleVoice(side: side, seconds: spectrum.voiceFrames / session.sampleRate)
+        }
+        do throws(MatchReadError) {
+            let read = { (parts: [VoicePart]) throws(MatchReadError) -> BandSpectrum in
+                let before = done
+                let spectrum = try voiceSpectrum(
+                    parts, in: session, package: package, progress: { progress(Double(before + $0) / total) },
+                    isCancelled: isCancelled)
+                done += parts.reduce(0) { $0 + length($1) }
+                return spectrum
+            }
+            let spectrum = try read([source])
+            if let refused = enough(spectrum, .reference) { return .failure(refused) }
+            var spectra: [(TrackID, BandSpectrum)] = []
+            for (id, parts) in targets {
+                let target = try read(parts)
+                if let refused = enough(target, .track(id)) { return .failure(refused) }
+                spectra.append((id, target))
+            }
+            return .success(MatchRead(reference: spectrum, targets: spectra))
+        } catch {
+            return .failure(StudioError(error))
+        }
+    }
+
+    /// `session` with the match of each target set from `read`: `amount`, else the amount of the
+    /// track, else the default, and the bypass off. It gives the new matches too.
+    package func apply(
+        _ read: MatchRead, amount: VoiceMatch.Amount?, to session: Session
+    ) throws(StudioError) -> (Session, [TrackID: VoiceMatch]) {
+        var matches: [TrackID: VoiceMatch] = [:]
+        for (id, target) in read.targets {
+            let old = session.track(id)?.match
+            let curve = VoiceCurve.curve(reference: read.reference, target: target, sampleRate: session.sampleRate)
+            do throws(VoiceMatch.Field) {
+                matches[id] = try VoiceMatch(
+                    amount: amount ?? old?.amount ?? VoiceMatch.defaultAmount, reference: name,
+                    curve: curve.decibels, targetPowers: target.powers)
+            } catch {
+                throw .session(.invalidText(name))
+            }
+        }
+        var matched = session
+        do throws(SessionError) { try matched.setMatch(matches) } catch { throw .session(error) }
+        return (matched, matches)
+    }
+}
+
+/// `plan.read` off the main actor, in the package that `lock` holds now.
 @concurrent nonisolated func readMatch(
-    _ reference: VoicePart, _ targets: [(TrackID, [VoicePart])], of session: Session, lock: PackageLock,
+    _ plan: MatchPlan, of session: Session, lock: PackageLock,
     progress: @escaping @Sendable (Double) -> Void, isCancelled: @escaping @Sendable () -> Bool
 ) async -> Result<MatchRead, StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
-    let length = { (part: VoicePart) in part.frames.upperBound.count - part.frames.lowerBound.count }
-    let total = Double(max(1, length(reference) + targets.reduce(0) { $0 + $1.1.reduce(0) { $0 + length($1) } }))
-    var done = 0
-    let enough = { (spectrum: BandSpectrum, side: MatchSide) -> StudioError? in
-        let needed = Studio.matchVoiceSeconds * session.sampleRate
-        return spectrum.voiceFrames >= needed
-            ? nil : .tooLittleVoice(side: side, seconds: spectrum.voiceFrames / session.sampleRate)
-    }
-    do throws(MatchReadError) {
-        let read = { (parts: [VoicePart]) throws(MatchReadError) -> BandSpectrum in
-            let before = done
-            let spectrum = try voiceSpectrum(
-                parts, in: session, package: package, progress: { progress(Double(before + $0) / total) },
-                isCancelled: isCancelled)
-            done += parts.reduce(0) { $0 + length($1) }
-            return spectrum
-        }
-        let spectrum = try read([reference])
-        if let refused = enough(spectrum, .reference) { return .failure(refused) }
-        var spectra: [(TrackID, BandSpectrum)] = []
-        for (id, parts) in targets {
-            let target = try read(parts)
-            if let refused = enough(target, .track(id)) { return .failure(refused) }
-            spectra.append((id, target))
-        }
-        return .success(MatchRead(reference: spectrum, targets: spectra))
-    } catch {
-        return .failure(StudioError(error))
-    }
+    return plan.read(of: session, package: package, progress: progress, isCancelled: isCancelled)
 }
 
 extension StudioError {

@@ -681,6 +681,7 @@ A role tells what a track holds: dialogue, music, or effects. A role is a label.
 - A session with a role does not open in a version of Dirigible from before roles.
 - In Terminal, `dirigible track role <package> <track> dialogue` sets a role (`music`, `effects`, or `none` to remove it). `dirigible info` shows the role of each track. The command prints nothing. The tool `track_role` answers `OK` and a second line that says the role is a label and changes no sound.
 - In Terminal, `dirigible track follow <package> <track>...` sets Follow in Ripples on the tracks, and `--off` clears it. `dirigible info` shows ` follow` on the line of each follow track, and `dirigible info --json` has `"follow": true` on it. No track exits 64, and an unknown track exits 1.
+- In Terminal, `dirigible track match-voice <package> --reference <clip> <track>...` gives each track a live EQ curve that moves its spectrum toward the voice of the reference clip. Add `--from` and `--to` (timeline frames) to learn only a part of the clip, and `--amount` (1 to 100) to set the amount; a new match takes 75, and a replace keeps the amount of the track. Each side needs 10 seconds of voice, music and effects tracks are left out, and no audio file changes. `--amount` and `--bypass on|off` change the match of tracks that have one, and `--remove` removes it. One line for each track: `t1: match 75 % (+4.2 dB, -3.1 dB)`, with `, bypassed` after it for a bypassed match. `dirigible info` shows the same text on the track line, and `dirigible info --json` gives `match` with the amount, the reference name, and the 25 band gains. Bad options exit 64. A refusal exits 1 with its reason and changes nothing: an unknown clip or track, a range outside the clip, a track with no match to change, or too little voice (the line names the side and the whole seconds found). Control-C exits 130 and changes nothing.
 - A duck lowers the tracks with the music role under the tracks with the dialogue role. A track with no role is not in a duck: give it a role, or name it in the duck.
 
 ### Set the volume of a track
@@ -1393,10 +1394,10 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 77 tools, in groups:
+The 78 tools, in groups:
 
 - Session: `session_create`, `session_info`.
-- Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`.
+- Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
 - Marker: `marker_set`, `marker_remove`.
 - Episode: `episode_set`, `episode_get`. The keys of `episode_get` are the argument names of `episode_set`.
 - Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing. The tool cannot see the clipboard of an app window.
@@ -1451,8 +1452,7 @@ The manual follows the order of the work: prepare, record, edit, produce, and ex
 - "Write the chapter list of this episode as text for my show notes." The agent writes a text file with `chapters_export`.
 - "Add the chapter Gear talk at minute 1."
 - "Prepare the episode for publishing as an MP3, with its title and show."
-
-Dirigible has no voice profile yet. The agent tells you so when you ask for one.
+- "Make the Guest track sound like the clip c1." The agent runs `track_match_voice` with the clip ID and the track IDs. Each side needs 10 seconds of voice, and no audio file changes.
 
 An agent with a shell can also run `dirigible record`. It records at once from the routed devices, with no consent sheet. The manual tells the agent to run it only when you ask for a recording. To stop an agent that runs commands, set the permission rules of your agent.
 

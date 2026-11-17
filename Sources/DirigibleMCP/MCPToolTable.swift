@@ -8,7 +8,8 @@ import Foundation
 /// its arguments have the option names of the command.
 extension Tool {
     static let all =
-        sessionTools + trackTools + markerTools + episodeTools + poolTools + clipTools + rideTools + timelineEditTools
+        sessionTools + trackTools + matchTools + markerTools + episodeTools + poolTools + clipTools + rideTools
+        + timelineEditTools
         + envelopeTools + rippleTools
         + transcriptTools + takeTools
         + backupTools + recordTools + transportTools + audioTools + chapterTools + sourceTools + batchTools

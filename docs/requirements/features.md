@@ -55,7 +55,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F34 | Ducking music under speech | Hindenburg PRO, Logic Pro | done, Release 4 run 9 (moved from Release 7) | R10 |
 | F35 | Noise reduction, one control | Hindenburg PRO | done, Release 4 run 25 (run 19 landed a fixed 12 dB) | R8 |
 | F36 | EQ and one-dial compressor per track | Hindenburg PRO, Logic Pro | Later | R7 |
-| F37 | Voice Profiler: learned EQ per voice | Hindenburg PRO | Release 4 (voice match; a profile per voice and a voice reference that is a range of a clip stay Later) | R10 |
+| F37 | Voice Profiler: learned EQ per voice | Hindenburg PRO | Release 4 (voice match to a reference clip or to a range of it; a profile per voice stays Later) | R10 |
 | F38 | Magic Levels: bleed, gain riding, auto duck | Hindenburg PRO | done, Release 4 run 30 (gain riding as Level Over Time; bleed is F42, auto duck is F34) | R10 |
 | F39 | Audio Unit plug-ins | Hindenburg PRO, GarageBand, Logic Pro | Later | - |
 | F40 | Loudness meter (ITU-R BS.1770, EBU R128) | Hindenburg PRO, Logic Pro | done, Release 2 run 9b | R10 |

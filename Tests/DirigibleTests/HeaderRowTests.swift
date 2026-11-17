@@ -26,14 +26,18 @@ import Testing
     }
 
     /// The rows in a hosting view of the header `width`, as the header ruler hosts them.
-    func rows(_ model: SessionWindow, _ studio: Studio, laneHeight: Double, width: Double) -> (NSWindow, NSView) {
+    func rows(
+        _ model: SessionWindow, _ studio: Studio, laneHeight: Double, width: Double,
+        followMatchGate: Double = TrackHeaders.followMatchWidth
+    ) -> (NSWindow, NSView) {
         let size = NSSize(width: width, height: laneHeight * Double(studio.session.tracks.count))
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .aqua)
         let host = NSHostingView(
-            rootView: TrackHeaders(model: model, studio: studio, laneHeight: laneHeight, selected: []))
+            rootView: TrackHeaders(
+                model: model, studio: studio, laneHeight: laneHeight, selected: [], followMatchGate: followMatchGate))
         host.sizingOptions = []
         host.frame = NSRect(origin: .zero, size: size)
         window.contentView?.addSubview(host)

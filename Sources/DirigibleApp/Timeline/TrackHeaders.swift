@@ -33,11 +33,11 @@ struct TrackHeaders: View {
     /// the other volume items still act. A one-line row has no fader.
     static let faderTwoLineWidth = 252.0
     static let faderRouteWidth = 80.0
-    /// The header width from which a one-line row shows the follow glyph next to a match mark: a
-    /// row with a role, the follow glyph, a match, and a live state stays inside the row from it
-    /// (`HeaderRowTests.aMatchedRowStaysInsideTheRowAtEachWidthGate`). The mark is the
-    /// way into the Amount control, and the glyph only repeats Track > Follow, so the glyph gives way.
-    static let followMatchWidth = 192.0
+    /// The header width from which a one-line row shows the follow glyph next to a match mark: the
+    /// narrowest width where the four marks stay inside the row (`HeaderRowTests`, the sweep
+    /// `theFollowGlyphWithAMatchFitsFromTheGateOnAOneLineRow`). Only a test sets `followMatchGate`.
+    static let followMatchWidth = 191.0
+    var followMatchGate = followMatchWidth
 
     /// The boxes of a row of `width`: M and S from their gate, Monitor from its gate.
     static func boxes(width: Double, twoLines: Bool) -> HeaderBoxes {
@@ -61,7 +61,7 @@ struct TrackHeaders: View {
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
                         showsFader: laneHeight >= 56 && geometry.size.width >= Self.faderTwoLineWidth,
-                        showsFollowWithMatch: laneHeight >= 56 || geometry.size.width >= Self.followMatchWidth,
+                        showsFollowWithMatch: laneHeight >= 56 || geometry.size.width >= followMatchGate,
                         learning: matching.contains(track.id)
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()

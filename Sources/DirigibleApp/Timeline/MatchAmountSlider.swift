@@ -85,17 +85,43 @@ final class MatchSlider: NSSlider {
                 model?.resetMatchAmount(track, joining: -1)
             }
             clickEdit = nil
-            // The jump of the first click off the thumb ends with an animation that writes the click
-            // value about 0.5 s later, over the reset.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                guard let self, !dragging else { return }
-                show(stored)
-            }
             return
         }
         (dragging, shown) = (true, stored)
         defer { endDrag() }
-        super.mouseDown(with: event)
+        if onThumb(event) {
+            super.mouseDown(with: event)
+        } else {
+            trackFromTrack(from: event)
+        }
+    }
+
+    private func onThumb(_ event: NSEvent) -> Bool {
+        guard let cell = cell as? NSSliderCell else { return true }
+        return cell.knobRect(flipped: isFlipped).contains(convert(event.locationInWindow, from: nil))
+    }
+
+    /// The amount under the knob center at `x`, in the coordinates of the slider: the inverse of the
+    /// knob placement of `NSSliderCell`.
+    func amount(atX x: Double) -> Double {
+        let knob = (cell as? NSSliderCell)?.knobRect(flipped: isFlipped).width ?? 0
+        let fraction = min(1, max(0, (x - knob / 2) / (bounds.width - knob)))
+        return minValue + fraction * (maxValue - minValue)
+    }
+
+    /// A press off the thumb moves the thumb to the click and follows the drag. `NSSliderCell` does
+    /// this with an animation that writes the click value about 0.5 s after the mouse-up, over a
+    /// reset that a double-click makes in between, so the track is followed here, with no animation.
+    private func trackFromTrack(from event: NSEvent) {
+        var current = event
+        while true {
+            doubleValue = amount(atX: convert(current.locationInWindow, from: nil).x)
+            sendAction(action, to: target)
+            guard current.type != .leftMouseUp,
+                let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp])
+            else { return }
+            current = next
+        }
     }
 
     /// The wheel scrolls the popover and never changes the amount.

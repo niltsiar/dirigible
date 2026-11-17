@@ -37,11 +37,9 @@ extension HeaderRowTests {
         await model.close()
     }
 
-    /// C22: a row with a role, the follow glyph, a match, and a live state (t1 and t2; t3 has no
-    /// live state) stays inside the row at each width gate, on one line and on two lines, and at the
-    /// minimum header width. Control: the mark width left out of `HeaderGlyphs.room` puts a view
-    /// outside the row at 180 pt.
-    @Test func aMatchedRowStaysInsideTheRowAtEachWidthGate() async throws {
+    /// Three tracks with the four marks: a role, the follow glyph, a match, and a live state (t1 and
+    /// t2; t3 has no live state).
+    func fourMarks() async throws -> (SessionWindow, Studio) {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
         studio.liveTracks["t2"] = LiveTrack(
@@ -52,6 +50,14 @@ extension HeaderRowTests {
         try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMatch(["t1": match, "t2": match, "t3": match])
         }
+        return (model, studio)
+    }
+
+    /// C22: a row with the four marks stays inside the row at each width gate, on one line and on
+    /// two lines, and at the minimum header width. Control: the mark width left out of
+    /// `HeaderGlyphs.room` puts a view outside the row at 180 pt.
+    @Test func aMatchedRowStaysInsideTheRowAtEachWidthGate() async throws {
+        let (model, studio) = try await fourMarks()
         let forms = [
             (
                 50.0,
@@ -74,6 +80,20 @@ extension HeaderRowTests {
                 window.close()
             }
         }
+        await model.close()
+    }
+
+    /// C22: `followMatchWidth` is the limit, not a guess. With the follow glyph forced on, the four
+    /// marks of a one-line row leave the row at each width under it, and stay inside from it.
+    @Test func theFollowGlyphWithAMatchFitsFromTheGateOnAOneLineRow() async throws {
+        let (model, studio) = try await fourMarks()
+        var outsideAt: [Double] = []
+        for width in stride(from: 180.0, through: TrackHeaders.followMatchWidth + 20, by: 1) {
+            let (window, host) = rows(model, studio, laneHeight: 50, width: width, followMatchGate: 0)
+            if !outside(host, width: width).isEmpty { outsideAt.append(width) }
+            window.close()
+        }
+        #expect(outsideAt.last == TrackHeaders.followMatchWidth - 1, "widths with a view outside: \(outsideAt)")
         await model.close()
     }
 }

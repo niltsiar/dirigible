@@ -13,9 +13,11 @@
 # ran no test: the script exits 1. After a timed run it also runs `bench-pairs.sh --lines` on its
 # own output and exits 1, naming each line, when a time line has no form that --compare reads.
 # A run is void, with a `bench: void: <reason>` line and exit 76, when the load wait ends at its cap
-# (check-changed.sh --wait-load bench exits 76: no test runs). A passed timed run is also void when
-# the load after it is not under CHECK_LOAD_MAX (default: the core count); a failed one keeps its
-# status. Exit 75 stays the lock wait.
+# (check-changed.sh --wait-load bench exits 76: no test runs). A timed run that passed, or that
+# failed with budget issues only (a report line, and each `✘ Test` issue line has `budget →`), is
+# also void when the load after it is not under CHECK_LOAD_MAX (default: the core count). A crash,
+# a run with no report line, or another failed expectation keeps its status. Exit 75 stays the
+# lock wait.
 # With --trace <file>, xctrace records a Time Profiler trace of the test run into <file> (a new
 # path), through scripts/test-helper.sh, and stops it after BENCH_TRACE_LIMIT (default 10m), so a
 # held dialog cannot hold the lock with no end. The trace adds sampling cost: it is not a timing
@@ -108,7 +110,15 @@ fi
 if [[ -z "$trace" ]]; then
     "$root/scripts/bench-pairs.sh" --lines "$out" || exit 1
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
-    if [[ $code -eq 0 ]] && ! awk -v l="$end" -v m="$max" 'BEGIN { exit !(l < m) }'; then
+    # A budget miss: a report line, and each issue line has `budget →` after `(` or `.` (the test
+    # of budget_miss in bench-pairs.sh).
+    miss=0
+    issues="$(grep -E '^✘ Test .+ recorded an issue' "$out" || true)"
+    if [[ $code -ne 0 && -n "$issues" ]] && grep -qE 'Test run with [1-9]' "$out" &&
+        ! grep -vqE '[(.]budget →' <<<"$issues"; then
+        miss=1
+    fi
+    if [[ $code -eq 0 || $miss -eq 1 ]] && ! awk -v l="$end" -v m="$max" 'BEGIN { exit !(l < m) }'; then
         echo "bench: void: load $end after the timed run, not under $max" >&2
         exit 76
     fi

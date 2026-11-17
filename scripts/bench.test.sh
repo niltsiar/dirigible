@@ -52,7 +52,16 @@ if [[ "$1" == test && -n "$FAKE_NONE" ]]; then
 else
     [[ -z "${FAKE_UNREAD:-}" ]] || printf '◇ Suite XBenchmark started.\nXBenchmark wobble %s seconds\n' "$FAKE_UNREAD"
     echo "XBenchmark a: p50 0.001 seconds, p95 0.001 seconds"
-    [[ "$1" != test || -z "${FAKE_FAIL:-}" ]] || { echo "Test run with 1 test failed"; exit 1; }
+    if [[ "$1" == test && -n "${FAKE_FAIL:-}" ]]; then
+        budget='✘ Test t() recorded an issue at X.swift:1:1: Expectation failed: (value → 0.01 seconds) <= (budget → 0.008 seconds)'
+        case "$FAKE_FAIL" in
+            budget) echo "$budget" ;;
+            mixed) echo "$budget"; echo '✘ Test t() recorded an issue at X.swift:2:1: Expectation failed: (count → 3) == 4' ;;
+            crash) echo "$budget"; exit 139 ;;
+        esac
+        echo "Test run with 1 test failed"
+        exit 1
+    fi
     echo "Test run with 1 test passed"
 fi
 EOF
@@ -119,10 +128,19 @@ code=$?
 FAKE_LOAD=7.99 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
 [[ $code -eq 0 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "end load 7.99: exit $code: $(cat "$tmp/out")"
-# A failed timed run keeps its status at a high end load: only a passed run can be void.
-FAKE_FAIL=1 FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+# A failed timed run whose only failed issues are budget misses is void at a high end load, as a
+# passed run is: the load can cause the miss. A run with no budget issue, with another failed
+# expectation, or with no report line (a crash), and a budget miss at a low end load, keep the status.
+FAKE_FAIL=budget FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
-[[ $code -eq 1 && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "failed run at end load 8.00: exit $code: $(cat "$tmp/out")"
+[[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||
+    fail "budget miss at end load 8.00: exit $code: $(cat "$tmp/out")"
+for kept in 1:8.00:1 mixed:8.00:1 crash:8.00:139 budget:7.99:1; do
+    IFS=: read -r how at want <<< "$kept"
+    FAKE_FAIL=$how FAKE_LOAD=$at CHECK_LOAD_MAX=8 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
+    code=$?
+    [[ $code -eq $want && "$(cat "$tmp/out")" != *'bench: void'* ]] || fail "failed run $how at end load $at: exit $code: $(cat "$tmp/out")"
+done
 FAKE_LOAD=8.00 PATH="$tmp/bin:$PATH" "$root/scripts/bench.sh" X > "$tmp/out" 2>&1
 code=$?
 [[ $code -eq 76 && "$(tail -1 "$tmp/out")" == 'bench: void: load 8.00 after the timed run, not under 8' ]] ||
@@ -154,8 +172,10 @@ grep -vqE '^([0-9]+) \1$' "$tmp/lock.log" && fail "pairs: a bench ran with no ho
 
 # The first void run ends the set: no later bench runs, load.txt holds its void line, and the
 # compare names the void, not a missing log. void_pairs <run> <void at> <want stop text> [env...]
+voids=0
 void_pairs() {
-    local run="$1" at="$2" stop="$3" dir="$root/.build/pairs-void-$1-$2" want="" n=0 r
+    voids=$((voids + 1))
+    local run="$1" at="$2" stop="$3" dir="$root/.build/pairs-void-$voids" want="" n=0 r
     shift 3
     for r in aa-1 aa-2 main-1; do want+=" $r.log" n=$((n + 1)); [[ $r != "$run" ]] || break; done
     : > "$tmp/wait.log"; : > "$tmp/args.log"
@@ -172,6 +192,7 @@ void_pairs aa-2 2 'load 9.00 after 300 s, not under 8; no timed run'
 void_pairs main-1 3 'load 9.00 after 300 s, not under 8; no timed run'
 [[ "$(grep -c '^test ' "$tmp/args.log")" == 2 ]] || fail "void at main-1: swift test calls: $(cat "$tmp/args.log")"
 void_pairs aa-1 0 'load 8.00 after the timed run, not under 8' FAKE_LOAD=8.00 CHECK_LOAD_MAX=8
+void_pairs aa-1 0 'load 8.00 after the timed run, not under 8' FAKE_LOAD=8.00 CHECK_LOAD_MAX=8 FAKE_FAIL=budget
 
 # A pair run checks its provenance at the start, not only at --compare. A change in a bench input
 # of a tree refuses the run with exit 2 before a bench; an untracked doc is not a bench input, so

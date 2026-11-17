@@ -124,7 +124,8 @@ extension Session {
     /// pool cannot name the new file, so the chain ends.
     func check(_ origin: RenderOrigin, of file: AudioFile) throws(SessionError) {
         guard origin.source != file.id, let source = files[origin.source] else { throw .invalidOrigin(file.id) }
-        guard source.layout == file.layout, origin.offset >= .zero, origin.offset + file.length <= source.length
+        // Both lengths are in `0...Frames.limit`, so the difference cannot overflow; an offset sum can.
+        guard source.layout == file.layout, origin.offset >= .zero, origin.offset <= source.length - file.length
         else { throw .invalidOrigin(file.id) }
     }
 }

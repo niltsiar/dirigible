@@ -178,8 +178,10 @@ struct StudioMatchTests {
             reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)])
         let studio = fixture.studio
         try await fixture.matchVoice()
-        try studio.setMatchAmount(VoiceMatch.Amount(40)!, tracks: ["t1"], agent: nil)
-        try studio.setMatchBypassed(true, tracks: ["t1"], agent: nil)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMatchAmount(VoiceMatch.Amount(40)!, tracks: ["t1"])
+            try session.setMatchBypassed(true, tracks: ["t1"])
+        }
         let old = try fixture.match()
         let revision = studio.sessionRevision
         try await fixture.matchVoice()
@@ -188,40 +190,6 @@ struct StudioMatchTests {
         #expect(new.amount.percent == 40 && !new.isBypassed)
         try studio.undo()
         #expect(try fixture.match() == old)
-    }
-
-    /// An amount change, a bypass on and off, and a remove are one entry each, with no audio read
-    /// (the Clips folder is gone, so a read would fault). A track with no match refuses.
-    @Test func editsAreOneEntryEach() async throws {
-        let fixture = try await MatchFixture(
-            reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)])
-        let studio = fixture.studio
-        try await fixture.matchVoice()
-        let matched = try fixture.match()
-        try FileManager.default.removeItem(at: fixture.package.url.appending(path: clipsFolderName))
-        var revision = studio.sessionRevision
-        let edits: [() throws -> Void] = [
-            { try studio.setMatchAmount(VoiceMatch.Amount(40)!, tracks: ["t1"], agent: nil) },
-            { try studio.setMatchBypassed(true, tracks: ["t1"], agent: nil) },
-            { try studio.setMatchBypassed(false, tracks: ["t1"], agent: nil) },
-            { try studio.removeMatch(tracks: ["t1"], agent: nil) },
-        ]
-        for edit in edits {
-            try edit()
-            #expect(studio.sessionRevision == revision + 1)
-            revision += 1
-        }
-        try studio.undo()
-        let restored = try fixture.match()
-        #expect(restored.amount.percent == 40 && !restored.isBypassed && restored.curve == matched.curve)
-        let undone = studio.sessionRevision
-        #expect(throws: StudioError.session(.noMatch("ref"))) {
-            try studio.setMatchAmount(VoiceMatch.Amount(50)!, tracks: ["ref"], agent: nil)
-        }
-        #expect(throws: StudioError.session(.noMatch("ref"))) {
-            try studio.setMatchBypassed(true, tracks: ["ref"], agent: nil)
-        }
-        #expect(studio.sessionRevision == undone)
     }
 
     /// C6 and C19: 60 s of bursts that rise 6 dB per decade, matched to a flat reference, play at

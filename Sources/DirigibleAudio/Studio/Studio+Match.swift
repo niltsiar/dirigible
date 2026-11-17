@@ -36,32 +36,6 @@ extension Studio {
             apply: { session, read throws(StudioError) in try plan.apply(read, amount: amount, to: session) })
     }
 
-    /// Sets the amount of the match of each of `tracks` as one undo entry, with no audio read. A
-    /// track with no match throws `noMatch` and changes nothing.
-    public func setMatchAmount(_ amount: VoiceMatch.Amount, tracks: [TrackID], agent: AgentName?)
-        throws(StudioError)
-    {
-        try edit(ripple: false, agent: agent) { session throws(SessionError) in
-            try session.setMatchAmount(amount, tracks: tracks)
-        }
-    }
-
-    /// Turns the bypass of the match of each of `tracks` on or off as one undo entry. A track with
-    /// no match throws `noMatch` and changes nothing.
-    public func setMatchBypassed(_ on: Bool, tracks: [TrackID], agent: AgentName?) throws(StudioError) {
-        try edit(ripple: false, agent: agent) { session throws(SessionError) in
-            try session.setMatchBypassed(on, tracks: tracks)
-        }
-    }
-
-    /// Removes the match of each of `tracks` as one undo entry. A remove that changes nothing
-    /// records no entry.
-    public func removeMatch(tracks: [TrackID], agent: AgentName?) throws(StudioError) {
-        try edit(ripple: false, agent: agent) { session throws(SessionError) in
-            try session.removeMatch(tracks: tracks)
-        }
-    }
-
     /// Plays `amount` on the match of `track` during play, with no edit and no autosave: the drag
     /// of the match slider. The mouse-up makes the one edit, then `endPreview` ends the preview.
     /// Stopped, it sends nothing. A track with no match throws `noMatch`.

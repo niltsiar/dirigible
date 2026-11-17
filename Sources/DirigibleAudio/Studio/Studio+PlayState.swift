@@ -23,6 +23,9 @@ struct PlayState {
     var revision = 0
     /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
     var preview: (track: TrackID, gain: Gain)?
+    /// The amount of a match slider drag: each session that the Player gets has it, until
+    /// `endPreview` (decision 0074).
+    var matchPreview: (track: TrackID, amount: VoiceMatch.Amount)?
     /// The armed tracks and T of a pre-roll take from its take play start to its end: each
     /// session that the Player gets is the take mix (decision 0070).
     var takeMix: (armed: [TrackID], from: Frames)?

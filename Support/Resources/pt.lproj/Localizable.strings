@@ -81,6 +81,15 @@
 "error.ride.missing" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
 "error.ride.short" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O arquivo de áudio “%@” é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
 "error.ride.unreadable" = "O Dirigible não pode nivelar os clipes ao longo do tempo. Não foi possível ler o arquivo de áudio “%@”. Verifique o disco e tente novamente.";
+"error.match.read" = "O Dirigible não pode corresponder a voz. Não foi possível ler um arquivo de áudio (erro %lld). Nenhum clipe mudou.";
+"error.match.missing" = "O Dirigible não pode corresponder a voz. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
+"error.match.short" = "O Dirigible não pode corresponder a voz. O arquivo de áudio “%@” é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
+"error.match.unreadable" = "O Dirigible não pode corresponder a voz. Não foi possível ler o arquivo de áudio “%@”. Verifique o disco e tente novamente.";
+"match.canceled" = "Corresponder Voz cancelado. Nenhuma pista mudou.";
+"match.refused.reference" = "O clipe de referência tem %1$d s de voz. Corresponder Voz precisa de %2$d s. Escolha um clipe mais longo.";
+"match.refused.track" = "A pista “%1$@” tem %2$d s de voz. Corresponder Voz precisa de %3$d s.";
+"error.studio.match.no.target" = "Corresponder Voz pula as pistas de música e de efeitos, então não sobra nenhuma pista.";
+"error.studio.match.range" = "A seleção de tempo deve ficar dentro do clipe de referência.";
 "error.silences.read" = "Um arquivo de áudio não foi lido (erro %lld). A busca não encontrou silêncios.";
 "error.silences.stale" = "As pistas mudaram depois da busca. Busque de novo para aplicar os silêncios.";
 "error.silences.faults" = "Estes arquivos estão faltando ou danificados: %@. Os clipes deles seriam lidos como silêncio, então a busca não mostra silêncios. Restaure os arquivos e busque de novo.";
@@ -357,6 +366,7 @@
 "take.placing" = "Posicionando %@…";
 "take.leveling" = "Nivelando os clipes…";
 "take.riding" = "Nivelando ao longo do tempo";
+"take.matching" = "Correspondendo a voz";
 "take.ducking" = "Abaixando a música sob a voz…";
 "take.finding.silences" = "Procurando silêncios…";
 "take.pending" = "A tomada %lld não foi finalizada.";

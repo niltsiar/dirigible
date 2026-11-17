@@ -101,6 +101,22 @@ public enum StudioError: Error, Hashable, Sendable {
     /// Files of a silence scan are missing, short, or unreadable: their clips would read as
     /// silence, so the scan gives no row (decisions 0062 and 0066).
     case silencesFaults([FileID: MediaFault])
+    /// Match Voice found less than 10 s of gated voice on `side`: `seconds` is the voice found,
+    /// in whole seconds rounded down, so it is never 10 (decision 0074). No track changed.
+    case tooLittleVoice(side: MatchSide, seconds: Int)
+    /// Match Voice leaves out music and effects tracks, and no target track was left. No track
+    /// changed.
+    case noTargetTrack
+    /// The range of a Match Voice is empty or not inside the reference clip, whose timeline frames
+    /// are `clip`. No track changed.
+    case rangeOutsideReference(clip: Range<Frames>)
+    /// The banner Cancel or a cancel of the caller ended a Match Voice. No track changed.
+    case matchCancelled
+    /// A Match Voice could not open an audio file: no free descriptor, with its errno.
+    case matchRead(Int32)
+    /// A source file of a Match Voice is missing, short, or unreadable (also a NaN or an infinity
+    /// in it). No track changed.
+    case matchFault(FileID, MediaFault)
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).
     /// The take stays pending with its audio on disk, and Retry Finalize waits for it again.
     case writerDidNotStop(String)

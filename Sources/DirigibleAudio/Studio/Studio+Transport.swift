@@ -26,30 +26,11 @@ public enum PlaybackStop: Hashable, Sendable {
 }
 
 extension Studio {
-    public enum Transport: Hashable, Sendable {
-        case idle
-        case recording(take: Int)
-        case finalizing(take: Int)
-        /// A placement (decision 0021) converts and saves this segment.
-        case placing(SegmentName)
-        /// Cmd-L measures the clips and saves their gains (decision 0031).
-        case leveling
-        /// Tools > Duck Music Under Speech... and the `duck` tool read the speech and save the
-        /// music envelopes (decision 0060).
-        case ducking
-        /// Level Over Time reads the clips and saves their ride layers (decision 0060).
-        case riding
-        /// Tools > Find Silences... reads the silences of the scan tracks (decision 0066).
-        case findingSilences
-        /// An import converts a file and saves the session (decision 0040).
-        case importing(ImportRun)
-    }
-
-    /// True when no take, placement, level, duck, silence scan, or import runs, and no take starts.
+    /// True when no take, placement, level, duck, match, silence scan, or import runs, and no take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
     /// Edits and a new take wait during a take (0004), a placement (0021), a level (0031), a duck
-    /// (0060), a silence scan (0066), or an import (0040). They also wait during `settle()`, so an agent edit that gets OK
+    /// (0060), a voice match (0074), a silence scan (0066), or an import (0040). They also wait during `settle()`, so an agent edit that gets OK
     /// is on disk before its window closes (decision 0046). A take marker and its save run during a
     /// take (F107).
     func checkIdle() throws(StudioError) {
@@ -267,6 +248,7 @@ extension Studio {
         var session = playerSession
         // An edit during a drag sends the session again: the Player keeps the dragged gain.
         if let preview = play.preview { try? session.setGain(preview.gain, track: preview.track) }
+        if let preview = play.matchPreview { try? session.setMatchAmount(preview.amount, tracks: [preview.track]) }
         play.revision += 1
         let revision = play.revision
         Task { await player.update(session, revision: revision) }
@@ -284,9 +266,13 @@ extension Studio {
         sendSession()
     }
 
-    /// Ends the preview of a drag. When the session gain differs from the preview gain, it sends
-    /// the session again. After the edit of a mouse-up the Player has the session already.
+    /// Ends the preview of a drag of a fader or a match amount. When the session value differs from
+    /// the preview value, it sends the session again. After the edit of a mouse-up the Player has the session already.
     public func endPreview() {
+        if let preview = play.matchPreview {
+            play.matchPreview = nil
+            if session.track(preview.track)?.match?.amount != preview.amount { sendSession() }
+        }
         guard let preview = play.preview else { return }
         play.preview = nil
         if session.track(preview.track)?.gain != preview.gain { sendSession() }

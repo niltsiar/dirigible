@@ -283,6 +283,16 @@ extension StudioError {
         case .rideCancelled: "the level over time was cancelled."
         case .rideRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         case .rideFault(let file, let fault): "file \(file) \(ExportText.describe(fault)); no ride changed."
+        case .tooLittleVoice(.reference, let seconds):
+            "the reference clip has \(seconds) s of voice; Match Voice needs \(Studio.matchVoiceSeconds) s."
+        case .tooLittleVoice(.track(let track), let seconds):
+            "track \(track) has \(seconds) s of voice; Match Voice needs \(Studio.matchVoiceSeconds) s."
+        case .noTargetTrack: "Match Voice leaves out music and effects tracks, so no track is left to match."
+        case .rangeOutsideReference(let clip):
+            "the range must lie inside the reference clip, frames \(clip.lowerBound) to \(clip.upperBound)."
+        case .matchCancelled: "the voice match was cancelled."
+        case .matchRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        case .matchFault(let file, let fault): "file \(file) \(ExportText.describe(fault)); no track changed."
         // No command or tool scans through Studio; `silences` calls `ReadWork.read`.
         case .silencesCancelled: "the silence scan was cancelled."
         case .silencesRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))

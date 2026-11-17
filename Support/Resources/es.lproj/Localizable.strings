@@ -81,6 +81,15 @@
 "error.ride.missing" = "Dirigible no puede nivelar los clips en el tiempo. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";
 "error.ride.short" = "Dirigible no puede nivelar los clips en el tiempo. El archivo de audio «%@» es más corto de lo que dice la sesión. Restaure el archivo e inténtelo de nuevo.";
 "error.ride.unreadable" = "Dirigible no puede nivelar los clips en el tiempo. El archivo de audio «%@» no se pudo leer. Compruebe el disco y vuelva a intentarlo.";
+"error.match.read" = "Dirigible no puede igualar la voz. Un archivo de audio no se pudo leer (error %lld). Ningún clip cambió.";
+"error.match.missing" = "Dirigible no puede igualar la voz. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";
+"error.match.short" = "Dirigible no puede igualar la voz. El archivo de audio «%@» es más corto de lo que dice la sesión. Restaure el archivo e inténtelo de nuevo.";
+"error.match.unreadable" = "Dirigible no puede igualar la voz. El archivo de audio «%@» no se pudo leer. Compruebe el disco y vuelva a intentarlo.";
+"match.canceled" = "Igualar voz cancelado. Ninguna pista cambió.";
+"match.refused.reference" = "El clip de referencia tiene %1$d s de voz. Igualar voz necesita %2$d s. Elige un clip más largo.";
+"match.refused.track" = "La pista «%1$@» tiene %2$d s de voz. Igualar voz necesita %3$d s.";
+"error.studio.match.no.target" = "Igualar voz omite las pistas de música y de efectos, así que no queda ninguna pista.";
+"error.studio.match.range" = "La selección de tiempo debe estar dentro del clip de referencia.";
 "error.silences.read" = "No se pudo leer un archivo de audio (error %lld). La búsqueda no encontró silencios.";
 "error.silences.stale" = "Las pistas cambiaron después de la búsqueda. Busca de nuevo para aplicar los silencios.";
 "error.silences.faults" = "Faltan estos archivos o están dañados: %@. Sus clips se leerían como silencio, así que la búsqueda no muestra silencios. Restaura los archivos y busca de nuevo.";
@@ -357,6 +366,7 @@
 "take.placing" = "Colocando %@…";
 "take.leveling" = "Nivelando clips…";
 "take.riding" = "Nivelando en el tiempo";
+"take.matching" = "Igualando la voz";
 "take.ducking" = "Atenuando la música bajo la voz…";
 "take.finding.silences" = "Buscando silencios…";
 "take.pending" = "La toma %lld no está terminada.";

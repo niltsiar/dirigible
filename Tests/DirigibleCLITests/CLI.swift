@@ -113,7 +113,7 @@ private func run(
 }
 
 /// A child process for the limit task. `Process` is not `Sendable`; the task only stops it.
-private final class Child: @unchecked Sendable {
+final class Child: @unchecked Sendable {
     private let process: Process
     init(_ process: Process) { self.process = process }
     func terminate() { process.terminate() }

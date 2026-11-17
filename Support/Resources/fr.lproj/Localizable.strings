@@ -86,7 +86,7 @@
 "error.match.short" = "Dirigible ne peut pas faire correspondre la voix. Le fichier audio « %@ » est plus court que ne l’indique la session. Restaurez le fichier et réessayez.";
 "error.match.unreadable" = "Dirigible ne peut pas faire correspondre la voix. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";
 "match.canceled" = "Faire correspondre la voix annulé. Aucune piste modifiée.";
-"match.refused.reference" = "Le clip de référence contient %1$d s de voix. Faire correspondre la voix nécessite %2$d s. Choisissez un clip plus long.";
+"match.refused.reference" = "Le clip de référence contient %1$d s de voix. Faire correspondre la voix nécessite %2$d s. Choisissez un clip plus long ou une plage plus longue.";
 "match.refused.track" = "La piste « %1$@ » contient %2$d s de voix. Faire correspondre la voix nécessite %3$d s.";
 "error.studio.match.no.target" = "Faire correspondre la voix ignore les pistes de musique et d’effets et la piste du clip de référence : aucune piste ne reste.";
 "error.studio.match.range" = "La sélection temporelle doit se trouver dans le clip de référence.";

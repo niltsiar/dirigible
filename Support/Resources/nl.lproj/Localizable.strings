@@ -86,7 +86,7 @@
 "error.match.short" = "Dirigible kan de stem niet afstemmen. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
 "error.match.unreadable" = "Dirigible kan de stem niet afstemmen. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";
 "match.canceled" = "Stem afstemmen geannuleerd. Geen spoor is gewijzigd.";
-"match.refused.reference" = "De referentieclip heeft %1$d s stem. Stem afstemmen heeft %2$d s nodig. Kies een langere clip.";
+"match.refused.reference" = "De referentieclip heeft %1$d s stem. Stem afstemmen heeft %2$d s nodig. Kies een langere clip of een langer bereik.";
 "match.refused.track" = "Het spoor “%1$@” heeft %2$d s stem. Stem afstemmen heeft %3$d s nodig.";
 "error.studio.match.no.target" = "Stem afstemmen slaat muziek- en effectensporen en het spoor van de referentieclip over, dus er blijft geen spoor over.";
 "error.studio.match.range" = "De tijdselectie moet binnen de referentieclip liggen.";

@@ -86,7 +86,7 @@
 "error.match.short" = "O Dirigible não pode corresponder a voz. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
 "error.match.unreadable" = "O Dirigible não pode corresponder a voz. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
 "match.canceled" = "Corresponder voz cancelado. Nenhuma faixa mudou.";
-"match.refused.reference" = "O clipe de referência tem %1$d s de voz. Corresponder voz precisa de %2$d s. Escolha um clipe mais longo.";
+"match.refused.reference" = "O clipe de referência tem %1$d s de voz. Corresponder voz precisa de %2$d s. Escolha um clipe mais longo ou um intervalo mais longo.";
 "match.refused.track" = "A faixa “%1$@” tem %2$d s de voz. Corresponder voz precisa de %3$d s.";
 "error.studio.match.no.target" = "Corresponder voz ignora as faixas de música e de efeitos e a faixa do clipe de referência, por isso não sobra nenhuma faixa.";
 "error.studio.match.range" = "A seleção de tempo tem de ficar dentro do clipe de referência.";

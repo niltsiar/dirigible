@@ -54,6 +54,12 @@ func childProcess(_ executable: URL, _ arguments: [String], in folder: URL, sock
 func dirigible(
     shell script: String, _ arguments: String..., slots: Slots = .shared, limit: Duration = .seconds(30)
 ) async throws -> CLIResult {
+    try await dirigible(shell: script, arguments: arguments, slots: slots, limit: limit)
+}
+
+func dirigible(
+    shell script: String, arguments: [String], slots: Slots = .shared, limit: Duration = .seconds(30)
+) async throws -> CLIResult {
     try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments, slots: slots, limit: limit)
 }
 

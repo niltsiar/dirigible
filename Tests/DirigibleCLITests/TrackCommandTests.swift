@@ -86,6 +86,21 @@ struct TrackCommandTests {
         #expect(try await package.run("info", "PKG").stdout.contains("track host \"Host\" mono 0.0 dB\n"))
     }
 
+    /// Boundary fuzz C8, near input of the repeating positional: `track mute` takes two IDs, and
+    /// one more word that is no track is an exit 1, not an exit 64.
+    @Test func muteTakesTwoTracksAndRefusesAnUnknownOne() async throws {
+        try package.edit { try $0.addTrack("guest", name: "Guest", layout: .mono) }
+
+        #expect(try await track(["mute", "PKG", "host", "guest"]) == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try package.read().tracks.map(\.isMuted) == [true, true])
+
+        let before = try package.xml()
+        #expect(
+            try await track(["mute", "PKG", "host", "zz-extra"])
+                == CLIResult(status: 1, stdout: "", stderr: "Error: no track \"zz-extra\".\n"))
+        #expect(try package.xml() == before)
+    }
+
     /// A3: `track route --app` sets an app route, and the package saves version 2.
     @Test func routeAppSetsAnAppRoute() async throws {
         #expect(

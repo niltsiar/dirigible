@@ -14,10 +14,10 @@
 # own output and exits 1, naming each line, when a time line has no form that --compare reads.
 # A run is void, with a `bench: void: <reason>` line and exit 76, when the load wait ends at its cap
 # (check-changed.sh --wait-load bench exits 76: no test runs). A timed run that passed, or that
-# failed with budget issues only (a report line, and each `✘ Test` issue line has `budget →`), is
-# also void when the load after it is not under CHECK_LOAD_MAX (default: the core count). A crash,
-# a run with no report line, or another failed expectation keeps its status. Exit 75 stays the
-# lock wait.
+# failed with budget issues only (exit 1, a report line, no `Exited with unexpected signal` line,
+# no XCTest failure line, and each `✘ Test` issue line has `budget →`), is also void when the load
+# after it is not under CHECK_LOAD_MAX (default: the core count). A crash, a run with no report
+# line, another exit, or another failed expectation keeps its status. Exit 75 stays the lock wait.
 # With --trace <file>, xctrace records a Time Profiler trace of the test run into <file> (a new
 # path), through scripts/test-helper.sh, and stops it after BENCH_TRACE_LIMIT (default 10m), so a
 # held dialog cannot hold the lock with no end. The trace adds sampling cost: it is not a timing
@@ -110,11 +110,13 @@ fi
 if [[ -z "$trace" ]]; then
     "$root/scripts/bench-pairs.sh" --lines "$out" || exit 1
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
-    # A budget miss: a report line, and each issue line has `budget →` after `(` or `.` (the test
-    # of budget_miss in bench-pairs.sh).
+    # A budget miss: exit 1, a report line, no crash line and no XCTest failure line, and each issue
+    # line has `budget →` after `(` or `.` (the test of budget_miss in bench-pairs.sh). Only these
+    # two `error:` forms count: a real miss can print other `error:` text (a module cache warning).
     miss=0
     issues="$(grep -E '^✘ Test .+ recorded an issue' "$out" || true)"
-    if [[ $code -ne 0 && -n "$issues" ]] && grep -qE 'Test run with [1-9]' "$out" &&
+    if [[ $code -eq 1 && -n "$issues" ]] && grep -qE 'Test run with [1-9]' "$out" &&
+        ! grep -qE 'Exited with unexpected signal|: error: -\[' "$out" &&
         ! grep -vqE '[(.]budget →' <<<"$issues"; then
         miss=1
     fi

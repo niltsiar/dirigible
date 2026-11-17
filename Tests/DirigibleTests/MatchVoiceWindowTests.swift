@@ -109,8 +109,9 @@ import Testing
     }
 
     /// C17: Use as Voice Reference is on for one clip and off for two clips; Match Voice to the
-    /// reference is off with no reference, with a take, and when the reference clip is gone. Bypass
-    /// and Remove are off for a track with no match.
+    /// reference is off with no reference, with no target track, with a take, and when the reference
+    /// clip is gone. Music and effects tracks are no target. Bypass and Remove are off for a track
+    /// with no match.
     @Test func menuStates() async throws {
         let (model, studio) = try await open()
         let clip = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
@@ -126,6 +127,16 @@ import Testing
         model.run(.useAsVoiceReference)
         #expect(model.activeVoiceReference?.name == "f1" && model.canMatchVoice(tracks: ["t2"]))
         #expect(!model.canMatchVoice(tracks: []), "no track")
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.addTrack("t3", name: "Music", layout: .mono)
+            try session.addTrack("t4", name: "Effects", layout: .mono)
+        }
+        model.setRole(.music, tracks: ["t3"])
+        model.setRole(.effects, tracks: ["t4"])
+        #expect(!model.canMatchVoice(tracks: ["t3"]), "a music track alone")
+        #expect(!model.canMatchVoice(tracks: ["t4"]), "an effects track alone")
+        #expect(!model.canMatchVoice(tracks: ["t1", "t3"]), "the reference track and a music track")
+        #expect(model.canMatchVoice(tracks: ["t2", "t3"]), "a voice track and a music track")
         #expect(!model.canChangeMatch(tracks: ["t2"]), "Bypass and Remove need a match")
         try give(try match(), to: "t2", studio)
         #expect(model.canChangeMatch(tracks: ["t2"]) && !model.canChangeMatch(tracks: ["t1"]))

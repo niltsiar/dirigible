@@ -294,31 +294,21 @@ import Testing
         await model.close()
     }
 
-    /// On screen, a double-click off the thumb: the jump of the first click ends with an animation
-    /// that writes the click value into the cell about 0.5 s later, over the reset. The slider
-    /// takes the session amount again after that.
-    @Test func aResetStaysAfterTheJumpOfTheFirstClickEnds() async throws {
-        let (model, studio) = try await open()
-        try give(try match(40), to: "t2", studio)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 200, height: 40), styleMask: [.borderless], backing: .buffered,
-            defer: false)
-        window.isReleasedWhenClosed = false
-        let view = MatchAmountView()
-        window.contentView?.addSubview(view)
-        view.update(model: model, track: "t2", percent: 40, enabled: true)
-        let point = view.slider.convert(NSPoint(x: 10, y: view.slider.bounds.midY), to: nil)
-        view.slider.mouseDown(
-            with: try #require(
-                NSEvent.mouseEvent(
-                    with: .leftMouseDown, location: point, modifierFlags: [],
-                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                    eventNumber: 0, clickCount: 2, pressure: 1)))
-        view.update(model: model, track: "t2", percent: amount("t2", studio) ?? 0, enabled: true)
-        view.slider.doubleValue = 26.74
-        await until(limit: .seconds(5), "the slider shows 75 again") { view.slider.integerValue == 75 }
-        window.close()
-        await model.close()
+    /// A press off the thumb places the knob under the click with no `NSSliderCell` animation, which
+    /// wrote the click value about 0.5 s after a double-click reset. The amount at a point is the
+    /// inverse of the knob placement, at each value, so the knob lands under the click. The tracking
+    /// loop needs real events (a posted mouse-up ends the test process), so the double-click is
+    /// checked on screen.
+    @Test func aClickOffTheThumbPlacesTheKnobUnderTheClick() throws {
+        let slider = MatchAmountView().slider
+        let cell = try #require(slider.cell as? NSSliderCell)
+        for percent in [1.0, 2.0, 25.0, 50.0, 75.0, 99.0, 100.0] {
+            slider.doubleValue = percent
+            let center = cell.knobRect(flipped: slider.isFlipped).midX
+            #expect(abs(slider.amount(atX: center) - percent) < 0.6, "the knob of \(percent) % is at \(center)")
+        }
+        #expect(
+            slider.amount(atX: -30) == 1 && slider.amount(atX: 500) == 100, "a drag outside the slider stops at an end")
     }
 
     /// C11 and C17: Bypass and Remove are one undo entry each, over the tracks that have a match.

@@ -684,6 +684,22 @@ A role tells what a track holds: dialogue, music, or effects. A role is a label.
 - In Terminal, `dirigible track match-voice <package> --reference <clip> <track>...` gives each track a live EQ curve that moves its spectrum toward the voice of the reference clip. Add `--from` and `--to` (timeline frames) to learn only a part of the clip, and `--amount` (1 to 100) to set the amount; a new match takes 75, and a replace keeps the amount of the track. Each side needs 10 seconds of voice, music and effects tracks are left out, and no audio file changes. `--amount` and `--bypass on|off` change the match of tracks that have one, and `--remove` removes it. One line for each track: `t1: match 75 % (+4.2 dB, -3.1 dB)`, with `, bypassed` after it for a bypassed match. `dirigible info` shows the same text on the track line, and `dirigible info --json` gives `match` with the amount, the reference name, and the 25 band gains. Bad options exit 64. A refusal exits 1 with its reason and changes nothing: an unknown clip or track, a range outside the clip, a track with no match to change, or too little voice (the line names the side and the whole seconds found). Control-C exits 130 and changes nothing.
 - A duck lowers the tracks with the music role under the tracks with the dialogue role. A track with no role is not in a duck: give it a role, or name it in the duck.
 
+### Match a voice
+
+Match Voice moves the sound of one track toward the voice of a reference clip. Hindenburg calls the same idea a voice profile. The match is a live EQ curve on the track: the audio files do not change, and you can turn the match off at any time.
+
+1. Select the reference clip, for example a clip of the host in a good room. Choose **Use as Voice Reference** (**Usar como referencia de voz**) in the right-click menu of the clip, or in **Track > Match Voice** (**Igualar voz**). To learn only a part of the clip, for example to leave out a talk over the host, select a range inside that one clip first.
+2. Select the header of the track to change. Choose **Track > Match Voice**, then **Match Voice to %@** (**Igualar voz a %@**), where the item shows the name of the reference clip in place of %@. With no reference, that item reads **Match Voice to Reference** (**Igualar voz a la referencia**) and is off.
+3. A banner **Matching voice** shows a bar and **Cancel**. A cancel changes no track. Then a banner says how many tracks were matched, and the largest boost and cut of the curve in dB.
+
+- A matched track has a mark after its name. A filled mark means the match plays. An outline in a dim color means the match is bypassed. A small wheel means Dirigible is reading the voices. The tip of the mark shows the reference clip and the amount, and VoiceOver reads the value (**Matched, 75%**).
+- Click the mark to open a popover. It shows the reference name with the largest boost and cut at the current amount, the **Amount** slider (**Cantidad**, 1 to 100%, a new match takes 75%), the **Bypass** box (**Omitir**), and **Remove** (**Eliminar**). Option-click the slider to set 75%.
+- While you drag the slider, you hear the new amount. The mouse-up makes one step in **Edit > Undo**. A match, a replace, a bypass, and a remove are one step each. A match on a track that has one replaces the curve and keeps its amount. **Undo** brings the old curve back.
+- **Bypass** and **Remove** are also in **Track > Match Voice**. They are off for a track with no match.
+- Each side needs 10 seconds of voice. When the reference has less, a warning banner names the reference clip and the seconds that it has. When a track has less, the banner names the track. Nothing changes. A music or effects track is left out of a match.
+- The match keeps the name of the reference. It does not follow a later edit or a delete of that clip.
+- Limits. The waveform shows the audio before the match. The record monitor plays no match. Match Voice reads the reference clip as its file and its clip gain, without the voice match of its own track. Match Voice can raise peaks: export with a loudness target, or lower the track.
+
 ### Set the volume of a track
 
 A track header with two lines has a volume slider and its value in dB at the end of the second line. The volume is the level of the track in the mix: it does not change the recording level. The slider goes from -60 dB to +20 dB, and 0 dB is three quarters of the way.
@@ -1073,6 +1089,7 @@ The **Track** menu (**Pista**).
 | **Solo Track** | **Solo de pista** | Shift-S |
 | **Role** | **Función** | - |
 | **Follow in Ripples** | **Seguir el desplazamiento** | - |
+| **Match Voice** | **Igualar voz** | - |
 | **Raise Track Volume** | **Subir volumen de pista** | Control-= |
 | **Lower Track Volume** | **Bajar volumen de pista** | Control-minus |
 | **Reset Track Volume** | **Restablecer volumen de pista** | Control-0 |

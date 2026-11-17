@@ -21,11 +21,12 @@
 # mutation-pass.sh.
 # Each exit 75 (the lock wait, the cap, the lock-free and run-only waits, and the --bench-mark waits)
 # appends a wait line with the sixth column exit75, so cost.sh counts its seconds. When the log has
-# an exit75 line of the same command and tree that ended (start plus wait) under 10 min before, the
-# call also prints "second exit 75 of this command in this tree since <time>" and the hand-back
-# route of AGENTS.md: an agent writes its remaining locked steps as one bash file and returns its
-# path to the lead, and the lead runs that file or its own command with WITH_LOCK_MAX_WAIT=0 in the
-# background. When the append fails, the call prints that the log cannot be written, and the route.
+# an exit75 line of the same command and tree that ended (start plus wait) under 10 min before this
+# call started, the call also prints "second exit 75 of this command in this tree since <time>" and
+# the hand-back route of AGENTS.md: an agent writes its remaining locked steps as one bash file and
+# returns its path to the lead, and the lead runs that file or its own command with
+# WITH_LOCK_MAX_WAIT=0 in the background. The wait limit of this call does not shrink the 10 min.
+# When the append fails, the call prints the route at each exit 75 and says to take it at the second.
 # scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
 # set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,
 # and ends in exit 75 at it; a lock-free make check-changed call (below) then exits 75 as well.
@@ -539,17 +540,17 @@ pause() {
     sleep "$nap"
 }
 # stop75 <command>...: the exit 75 of the header. It reads the waits log for an exit75 line of the
-# same command and tree that ended under 10 min before, appends its own exit75 line, prints the
-# rerun line, and after an earlier line, or when the append fails, also the hand-back route.
+# same command and tree that ended under 10 min before this call started, appends its own exit75
+# line, prints the rerun line, and after an earlier line, or when the append fails, also the route.
 stop75() {
     local now since logged=1
     now="$(date +%s)"
-    since="$(cmd="$*" tree="$tree" awk -F'\t' -v cutoff="$(date -r $((now - 600)) +%FT%T)" "$ep_awk"'
+    since="$(cmd="$*" tree="$tree" awk -F'\t' -v cutoff="$(date -r $((start - 600)) +%FT%T)" "$ep_awk"'
         $6 == "exit75" && $3 == ENVIRON["cmd"] && $5 == ENVIRON["tree"] && ep($1) + $2 > ep(cutoff) { print $1; exit }' "$waits" 2>/dev/null)"
     { printf '%s\t%s\t%s\t%s\t%s\texit75\n' "$(date -r "$start" +%FT%T)" "$((now - start))" "$*" "$held" "$tree" >> "$waits"; } 2>/dev/null || logged=""
     echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2
     if [[ -z "$logged" ]]; then
-        echo "with-lock: the waits log $waits cannot be written, so this call cannot count its exit 75; after a second exit 75 of this command, take the route below" >&2
+        echo "with-lock: the waits log $waits cannot be written, so this call cannot count its exit 75 and prints the route at each exit 75; take the route below only after a second exit 75 of this command" >&2
     elif [[ -n "$since" ]]; then
         echo "with-lock: second exit 75 of this command in this tree since $since; do not run it a third time" >&2
     fi

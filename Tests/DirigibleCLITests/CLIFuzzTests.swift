@@ -8,7 +8,6 @@ import Testing
 /// line on a refusal, and a refusal keeps each byte of the package. Each issue names the seed, the
 /// case, and the family.
 struct CLIFuzzTests {
-    static let seeds: [UInt64] = [20_261_117]
 
     /// The count of cases of each family, one line each, for the slice log.
     static func tally(_ test: String, seed: UInt64, _ cases: [FuzzCase]) {
@@ -67,7 +66,7 @@ struct CLIFuzzTests {
         return cases
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func badArgumentStructureExits64(seed: UInt64) async throws {
         let leaves = try await Leaf.tree().filter { !Leaf.skipped.contains($0.name) }
         var random = SplitMix(seed: seed)
@@ -115,7 +114,7 @@ struct CLIFuzzTests {
         return cases
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func stressValuesKeepThePackageOnRefusal(seed: UInt64) async throws {
         let leaves = try await Leaf.tree().filter {
             !Leaf.skipped.contains($0.name) && !Leaf.structureOnly.contains($0.name)
@@ -176,7 +175,7 @@ struct CLIFuzzTests {
         ]
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func damagedPackagesRefuseWithNoCrash(seed: UInt64) async throws {
         _ = try await Leaf.tree()
         let run = try FuzzRun(test: "damagedPackagesRefuseWithNoCrash", seed: seed)

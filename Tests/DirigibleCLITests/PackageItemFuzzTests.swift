@@ -10,7 +10,6 @@ import Testing
 /// `Elsewhere/`, where the link targets are, changes. Cells of the backlog items 1787 and 1788
 /// expect the present behavior.
 struct PackageItemFuzzTests {
-    static let seeds: [UInt64] = [20_261_117]
 
     enum Kind: String, Sendable {
         case regular, folder, linkToRegular, linkToFolder, linkToFIFO, dangling, fifo, hardLink, selfLink, none
@@ -288,7 +287,7 @@ struct PackageItemFuzzTests {
         return cases
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func packageItemKindsRefuseOrOpenInTime(seed: UInt64) async throws {
         var transcript = ""
         let run = try FuzzRun(test: "packageItemKindsRefuseOrOpenInTime", seed: seed) {
@@ -374,7 +373,7 @@ struct PackageItemFuzzTests {
         return cases
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func clipTempNameKindsRefuseOrFinalizeInTime(seed: UInt64) async throws {
         let run = try FuzzRun(test: "clipTempNameKindsRefuseOrFinalizeInTime", seed: seed) { try Self.pendingTake() }
         defer { run.remove() }

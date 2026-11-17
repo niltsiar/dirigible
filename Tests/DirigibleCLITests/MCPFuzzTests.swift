@@ -10,7 +10,6 @@ import Testing
 /// or a timeout, each call with no answer is sent again, alone, to a new child, and a call with no
 /// answer there is an issue too. Each issue names the seed, the case, the family, and the tool.
 struct MCPFuzzTests {
-    static let seeds: [UInt64] = [20_261_117]
     static let aloneLimit: Duration = .seconds(30)
 
     /// The limit of the child of `tool`: the budget of the test (C16).
@@ -354,12 +353,12 @@ struct MCPFuzzTests {
         for problem in problems { Issue.record(Comment(rawValue: problem)) }
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func badArgumentTypesAreToolErrors(seed: UInt64) async throws {
         try await Self.fuzz(test: "badArgumentTypesAreToolErrors", seed: seed, families: ["S"])
     }
 
-    @Test(arguments: seeds)
+    @Test(arguments: fuzzSeeds)
     func stressValuesKeepThePackageOnError(seed: UInt64) async throws {
         try await Self.fuzz(test: "stressValuesKeepThePackageOnError", seed: seed, families: ["V"])
     }

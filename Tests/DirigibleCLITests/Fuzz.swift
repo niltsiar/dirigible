@@ -2,6 +2,9 @@ import DirigibleCore
 import Foundation
 import Testing
 
+/// The seeds of each fuzz test of this target.
+let fuzzSeeds: [UInt64] = [20_261_117]
+
 /// SplitMix64, so each seed gives the same cases on each run.
 struct SplitMix: RandomNumberGenerator {
     var state: UInt64

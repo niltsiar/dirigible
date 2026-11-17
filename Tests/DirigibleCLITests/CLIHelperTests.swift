@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 @testable import DirigibleCLI
@@ -40,6 +41,27 @@ struct CLIHelperTests {
             #expect(started() == bound)
         }
         #expect(statuses == Array(repeating: 0, count: bound + 2))
+    }
+
+    /// A freed slot goes to a waiting child before each earlier waiter of `waitsLast`, so a short
+    /// test does not queue behind the children of a fuzz test.
+    @Test func aChildThatWaitsLastLetsEachOtherChildGoFirst() async throws {
+        let slots = Slots(bound: 1)
+        await slots.started()
+        let order = OSAllocatedUnfairLock<[String]>(initialState: [])
+        @Sendable func take(_ name: String) async {
+            await slots.started()
+            order.withLock { $0.append(name) }
+            slots.ended()
+        }
+        async let last: Void = Slots.$waitsLast.withValue(true) { await take("last") }
+        let lastWaits = try await poll(until: .now + .seconds(20)) { slots.waiting == 1 }
+        async let first: Void = take("first")
+        let bothWait = try await poll(until: .now + .seconds(20)) { slots.waiting == 2 }
+        slots.ended()
+        _ = await (last, first)
+        #expect(lastWaits && bothWait, "the two children did not both wait: \(slots.waiting)")
+        #expect(order.withLock { $0 } == ["first", "last"])
     }
 
     /// A3: `dirigible apps` writes one line for each app: the bundle ID, the name with no tab

@@ -86,9 +86,11 @@ import Testing
             VoiceReference(selection, in: studio.session)
         }
         let clip = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
-        #expect(reference(clip) == VoiceReference(clip: "c1", range: nil, name: "f1"))
+        #expect(reference(clip) == VoiceReference(clip: "c1", span: nil, name: "f1"))
         let inside = Selection.range(Marks(inPoint: 48_000, outPoint: 480_000, tracks: ["t1"]))
-        #expect(reference(inside) == VoiceReference(clip: "c1", range: 48_000..<480_000, name: "f1"))
+        #expect(
+            reference(inside)
+                == VoiceReference(clip: "c1", span: .init(file: "f1", frames: 48_000..<480_000), name: "f1"))
         let two = ClipSet(["c1", "c2"]).map { Selection.clips($0) } ?? .none
         #expect(reference(two) == nil, "two clips")
         #expect(reference(.range(Marks(inPoint: 0, outPoint: 100, tracks: ["t1", "t2"]))) == nil, "two tracks")
@@ -102,7 +104,7 @@ import Testing
         model.timeline.selection = inside
         model.useAsVoiceReference()
         model.timeline.selection = clip
-        #expect(model.voiceReference?.range == 48_000..<480_000, "a later selection keeps the range")
+        #expect(model.voiceReference?.span?.frames == 48_000..<480_000, "a later selection keeps the range")
         await model.close()
     }
 

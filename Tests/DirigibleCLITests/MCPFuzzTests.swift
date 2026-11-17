@@ -290,7 +290,7 @@ struct MCPFuzzTests {
             let unanswered = calls.filter { !answered($0, outcome) }
             if outcome.timedOut || outcome.status != 0 || !unanswered.isEmpty {
                 print(
-                    "tool \(tool): child status \(outcome.status) timed out \(outcome.timedOut), \(unanswered.count) ids with no answer"
+                    "tool \(tool): child ended \(outcome.end) timed out \(outcome.timedOut), \(unanswered.count) ids with no answer"
                 )
             }
             for call in calls where answered(call, outcome) {
@@ -298,15 +298,16 @@ struct MCPFuzzTests {
             }
             for call in unanswered {
                 let alone = try await mcpChild([call.line, request(call.id + 1, "ping")], limit: aloneLimit)
-                guard answered(call, alone), !alone.timedOut else {
+                guard answered(call, alone), !alone.timedOut, !alone.endedBadly else {
                     problems.append(
-                        "\(label(call)): no answer alone either (status \(alone.status), timed out \(alone.timedOut))")
+                        "\(label(call)): alone, the child ended \(alone.end), timed out \(alone.timedOut), "
+                            + "answered \(answered(call, alone))")
                     continue
                 }
                 problems += verify(call, alone, run: run).map { "\(label(call)): \($0)" }
             }
-            if outcome.status != 0 && !outcome.timedOut && unanswered.isEmpty {
-                problems.append("seed \(run.seed) tool \(tool): the child exited \(outcome.status)")
+            if outcome.endedBadly && unanswered.isEmpty {
+                problems.append("seed \(run.seed) tool \(tool): the child ended \(outcome.end)")
             }
         } catch {
             problems.append("seed \(run.seed) tool \(tool): the test failed to run the child: \(error)")

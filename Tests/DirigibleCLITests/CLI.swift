@@ -3,11 +3,13 @@ import Foundation
 import Testing
 import os
 
-/// The exit code, stdout, and stderr of one run of the `dirigible` binary.
+/// The exit code, stdout, and stderr of one run of the `dirigible` binary. With `signaled`, a
+/// signal ended the child and `status` is the signal number.
 struct CLIResult: Equatable {
     var status: Int32
     var stdout: String
     var stderr: String
+    var signaled = false
 }
 
 /// Runs the `dirigible` binary that `swift test` builds next to the test bundle. stdout and
@@ -64,7 +66,8 @@ func dirigible(
 }
 
 /// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
-/// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
+/// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite. A
+/// child that a signal ends records an issue, because its status alone looks like an exit code.
 private func run(
     _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil,
     directory: URL? = nil, slots: Slots = .shared, limit: Duration = .seconds(30)
@@ -85,8 +88,10 @@ private func run(
     // Take the slot before the limit task: the limit must not stop a child that has not started.
     await slots.started()
     let child = Child(process)
+    let stopped = OSAllocatedUnfairLock(initialState: false)
     let watch = Task {
         try await Task.sleep(for: limit)
+        stopped.withLock { $0 = true }
         child.terminate()
         Issue.record(
             "\(executable.path) \(arguments.joined(separator: " ")) ran for more than \(limit.components.seconds) s")
@@ -94,10 +99,10 @@ private func run(
     defer { watch.cancel() }
     // The handler is set before `run()`, inside the continuation, so a child that exits at once
     // still resumes it. Only the handler resumes it, or the error of `run()`.
-    let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+    let (status, signaled): (Int32, Bool) = try await withCheckedThrowingContinuation { continuation in
         process.terminationHandler = { process in
             slots.ended()
-            continuation.resume(returning: process.terminationStatus)
+            continuation.resume(returning: (process.terminationStatus, process.terminationReason == .uncaughtSignal))
         }
         do {
             try process.run()
@@ -106,10 +111,13 @@ private func run(
             continuation.resume(throwing: error)
         }
     }
+    if signaled, !stopped.withLock({ $0 }) {
+        Issue.record("\(executable.path) \(arguments.joined(separator: " ")) ended by signal \(status)")
+    }
     return CLIResult(
         status: status,
         stdout: String(decoding: try Data(contentsOf: output), as: UTF8.self),
-        stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self))
+        stderr: String(decoding: try Data(contentsOf: errors), as: UTF8.self), signaled: signaled)
 }
 
 /// A child process for the limit task. `Process` is not `Sendable`; the task only stops it.

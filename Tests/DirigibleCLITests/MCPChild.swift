@@ -2,12 +2,17 @@ import Foundation
 import os
 
 /// The end of one `dirigible mcp` child: the parsed answer lines, the lines that break the frame
-/// rule of `mcpLines`, the exit status, and whether the limit stopped it.
+/// rule of `mcpLines`, the exit status or the signal number, and whether the limit stopped it.
 struct MCPOutcome {
     var answers: [Answer] = []
     var frameProblems: [String] = []
     var status: Int32 = -1
+    var signaled = false
     var timedOut = false
+
+    /// True when the child ended by a signal that the limit did not send, or by an exit that is not 0.
+    var endedBadly: Bool { !timedOut && (signaled || status != 0) }
+    var end: String { signaled ? "by signal \(status)" : "with exit \(status)" }
 
     func answer(id: Int) -> Answer? { answers.first { ($0["id"] as? Int) == id } }
 }
@@ -39,10 +44,10 @@ func mcpChild(_ lines: [String], limit: Duration) async throws -> MCPOutcome {
         if process.isRunning { child.terminate() }
     }
     defer { watch.cancel() }
-    let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+    let (status, signaled): (Int32, Bool) = try await withCheckedThrowingContinuation { continuation in
         process.terminationHandler = { process in
             Slots.shared.ended()
-            continuation.resume(returning: process.terminationStatus)
+            continuation.resume(returning: (process.terminationStatus, process.terminationReason == .uncaughtSignal))
         }
         do {
             try process.run()
@@ -52,7 +57,7 @@ func mcpChild(_ lines: [String], limit: Duration) async throws -> MCPOutcome {
             continuation.resume(throwing: error)
         }
     }
-    var outcome = MCPOutcome(status: status, timedOut: stopped.withLock { $0 })
+    var outcome = MCPOutcome(status: status, signaled: signaled, timedOut: stopped.withLock { $0 })
     let text = String(decoding: try Data(contentsOf: output), as: UTF8.self)
     if !text.isEmpty, !text.hasSuffix("\n") { outcome.frameProblems.append("the last stdout line has no line feed") }
     for line in text.split(separator: "\n") {

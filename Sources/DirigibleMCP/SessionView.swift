@@ -143,6 +143,24 @@ package struct SessionView: Encodable {
         let follow: Bool?
         /// Left out with no role, as in `session.xml` (decision 0060).
         let role: String?
+        /// Left out with no match (decision 0074).
+        let match: MatchView?
+    }
+
+    /// The voice match of a track: the amount in percent, the reference name, and the 25 band
+    /// gains at that amount, in dB. `bypassed` is left out when false, as in `session.xml`.
+    struct MatchView: Encodable {
+        let amount: Int
+        let bypassed: Bool?
+        let reference: String
+        let gains: [Double]
+
+        init(_ match: VoiceMatch) {
+            amount = match.amount.percent
+            bypassed = match.isBypassed ? true : nil
+            reference = match.reference
+            gains = match.gains(at: match.amount).decibels
+        }
     }
 
     struct MarkerView: Encodable {
@@ -240,7 +258,8 @@ package struct SessionView: Encodable {
                 route: track.route.map(RouteView.init),
                 clips: track.clips.map(ClipView.init), muted: track.isMuted ? true : nil,
                 soloed: track.isSoloed ? true : nil,
-                follow: track.isFollowTrack ? true : nil, role: track.role?.rawValue)
+                follow: track.isFollowTrack ? true : nil, role: track.role?.rawValue,
+                match: track.match.map(MatchView.init))
         }
         markers = session.sortedMarkers.map {
             MarkerView(

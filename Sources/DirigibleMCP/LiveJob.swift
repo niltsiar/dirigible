@@ -42,6 +42,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveDuck(work, studio: studio, call: call, report: report)
     case .ride(let work):
         return await liveRide(work, studio: studio, call: call, report: report)
+    case .matchVoice(let work, let request):
+        return await liveMatchVoice(work, request, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
     case .splitStereo(let work):
@@ -150,6 +152,31 @@ private func liveRide(
         let text =
             Task.isCancelled
             ? cancelledMessage : "The user cancelled the level over time in Dirigible. No ride changed."
+        return .result(text: text, isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
+/// `track_match_voice` with `reference` through `Studio.matchVoice`: one undo step with the agent name.
+/// The banner Cancel or a cancel of the call ends it with no track changed (decisions 0049 and 0074).
+@MainActor
+private func liveMatchVoice(
+    _ work: MatchWork, _ request: MatchWork.Request, studio: Studio, call: AgentCall,
+    report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    do throws(StudioError) {
+        let matches = try await studio.matchVoice(
+            reference: request.reference, range: request.range, tracks: Set(work.tracks), amount: request.amount,
+            agent: call.agent, progress: report)
+        return .result(
+            text: work.lines(matched: Set(matches.keys), in: studio.session).joined(separator: "\n"), isError: false)
+    } catch .matchCancelled {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text =
+            Task.isCancelled ? cancelledMessage : "The user cancelled the voice match in Dirigible. No track changed."
         return .result(text: text, isError: true)
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
@@ -333,6 +360,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .ride: "Dirigible stopped its agent server, so the level over time stopped. No ride changed."
+    case .matchVoice: "Dirigible stopped its agent server, so the voice match stopped. No track changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
     case .clipRender(let render): "Dirigible stopped its agent server, so the \(render.noun) stopped. No clip changed."

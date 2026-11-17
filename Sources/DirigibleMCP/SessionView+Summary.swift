@@ -22,6 +22,7 @@ package func summary(
         if track.isSoloed { line += " soloed" }
         if track.isFollowTrack { line += " follow" }
         if let role = track.role { line += " role \(role.rawValue)" }
+        if let match = track.match { line += " \(match.text)" }
         lines.append(line)
         for clip in track.clips {
             lines.append(

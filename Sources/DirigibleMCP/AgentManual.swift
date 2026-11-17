@@ -142,7 +142,7 @@ package enum AgentManual {
         - On a package open in the app, an edit is one undo step there when Settings > Let Agents Edit Open \
         Sessions is on; else it is refused. On "is busy in Dirigible", if the text asks the user, ask and wait. \
         Else try again after a few seconds, at most 3 times.
-        - Dirigible has no voice profile yet: tell the user.
+        - `track_match_voice` matches tracks to a voice.
 
         Phases and recipes, in order:
         \(phaseLines)
@@ -175,6 +175,14 @@ package enum AgentManual {
     static let roleLine =
         "A role from `track_role` is a label: it changes no sound. `duck` and `clip_denoise` read it. "
         + "A track with no role is in no list of `duck`: give `speech` or `music`."
+
+    /// What Match Voice takes (decision 0074). In the skill only: the manual has no room under its 6000
+    /// characters.
+    static let matchLine =
+        "`track_match_voice` gives tracks a live EQ curve toward a reference voice: `reference` (a clip ID, with "
+        + "`from` and `to` for a part of it) and `tracks`; `amount` is 1 to 100, and a new match takes 75. Each "
+        + "side needs 10 s of voice, and no audio file changes. With no `reference`, `amount` and `bypass` change "
+        + "a match, and `remove` removes it."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
@@ -230,6 +238,8 @@ package enum AgentManual {
             \(preRollLine)
 
             \(roleLine)
+
+            \(matchLine)
 
             | Tool | Command |
             |---|---|

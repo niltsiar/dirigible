@@ -8,7 +8,7 @@ struct TrackCommand: ParsableCommand {
         commandName: "track", abstract: "Add, change, and remove tracks.",
         subcommands: [
             Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self, Mute.self,
-            Solo.self, SetRole.self, Follow.self,
+            Solo.self, SetRole.self, Follow.self, MatchVoice.self,
         ])
 
     struct Add: ParsableCommand {

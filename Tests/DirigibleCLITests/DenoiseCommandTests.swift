@@ -219,11 +219,12 @@ struct DenoiseCommandTests {
                 waitpid(pid, &status, 0)
             }
         }
-        let end = ContinuousClock.now + .seconds(20)
-        while Self.clips(package) == before.1, ContinuousClock.now < end { try await Task.sleep(for: .milliseconds(1)) }
-        try #require(Self.clips(package) != before.1, "the render wrote no temporary file in 20 s")
+        let (clips, names) = (package.url.appending(path: "Clips"), before.1)
+        let sent = try await send(SIGINT, to: pid, watching: clips, limit: .seconds(20)) {
+            ((try? FileManager.default.contentsOfDirectory(atPath: clips.path)) ?? []).sorted() != names
+        }
+        try #require(sent, "the render wrote no temporary file in 20 s")
 
-        kill(pid, SIGINT)
         let stop = ContinuousClock.now + .seconds(20)
         var finished = waitpid(pid, &status, WNOHANG)
         while finished == 0, ContinuousClock.now < stop {

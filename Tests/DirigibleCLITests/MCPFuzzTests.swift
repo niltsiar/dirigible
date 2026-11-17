@@ -303,6 +303,7 @@ struct MCPFuzzTests {
                 problems += verify(call, outcome, run: run).map { "\(label(call)): \($0)" }
             }
             for call in unanswered {
+                if let package = call.package { try run.renew(package) }
                 let alone = try await mcpChild([call.line, request(call.id + 1, "ping")], limit: aloneLimit)
                 guard answered(call, alone), !alone.timedOut, !alone.endedBadly else {
                     problems.append(

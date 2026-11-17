@@ -323,8 +323,9 @@ code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "limit, holder of 1 s under 3 s: exit $code: $(cat "$tmp/wait.out")"
 clear_hold
 # Each exit 75 appends a wait line whose sixth column is exit75. A call whose command and tree have
-# an exit75 line that ended under 10 min before also prints the hand-back route after the first
-# line. x75 <tree> <command...>: one call from <tree> behind the live holder, with a limit of 1 s.
+# an exit75 line that ended under 10 min before the call started also prints the hand-back route
+# after the first line. x75 <tree> <command...>: one call from <tree> behind the live holder, with
+# a limit of 1 s.
 x75() {
   local t="$1"
   shift
@@ -368,11 +369,19 @@ for age in 780:120 660:120 610:300; do
     *) [[ $code -eq 75 && "$out" == *'second exit 75'* ]] || fail "exit 75 after a line $age (start:wait) that ended under 10 min before: exit $code, no route line: $out" ;;
   esac
 done
+# The 10 min count ends at the start of this call, not at its end, so the wait limit of this call
+# does not shrink it: a line that ended 597 s before a call with a limit of 3 s gets the route.
+rm -f "$waits"
+printf '%s\t300\ttouch %s\tmake test\t%s\texit75\n' "$(date -r $(($(date +%s) - 897)) +%FT%T)" "$tmp/ran" "$repo_tree" > "$waits"
+out="$(cd "$repo" && WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>&1)"
+code=$?
+[[ $code -eq 75 && "$out" == *'second exit 75'* && "$out" == *"$route"* ]] || fail "exit 75 at a limit of 3 s after a line that ended 597 s before this call: exit $code, no route: $out"
 # With no waits log to write, the call cannot count its exit 75, so it prints the route each time.
 rm -f "$waits"
 mkdir "$waits"
 x75 "$repo" touch "$tmp/ran"
-[[ $code -eq 75 && "$out" == *'cannot be written'* && "$out" == *"$route"* ]] || fail "exit 75 with no waits log: exit $code, no route: $out"
+[[ $code -eq 75 && "$out" == *'cannot be written'* && "$out" == *'prints the route at each exit 75; take the route below only after a second exit 75 of this command'* && "$out" == *"$route"* ]] ||
+  fail "exit 75 with no waits log: exit $code, no route or no line that says when to take it: $out"
 rmdir "$waits"
 clear_hold
 rm -f "$waits"

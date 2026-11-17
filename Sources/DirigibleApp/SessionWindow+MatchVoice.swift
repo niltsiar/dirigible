@@ -122,11 +122,11 @@ extension SessionWindow {
     /// refusal. The banner Cancel changes nothing, and VoiceOver says the cancel text.
     func matchVoice(tracks: [TrackID]) async {
         guard canMatchVoice(tracks: tracks), let studio = idleStudio, let reference = voiceReference,
-            let range = reference.range(in: studio.session)
+            let range = reference.range(in: studio.session), let home = studio.session.clip(reference.clip)?.track
         else { return }
         voiceMatchReport = nil
         commitDrafts()
-        matchingTracks = Set(tracks)
+        matchingTracks = Set(MatchPlan.targets(of: Set(tracks), home: home, in: studio.session).map(\.id))
         matchProgress = 0
         defer { (matchingTracks, matchProgress) = ([], nil) }
         do throws(StudioError) {

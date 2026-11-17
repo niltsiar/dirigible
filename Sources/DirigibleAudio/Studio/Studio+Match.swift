@@ -79,13 +79,19 @@ package struct MatchPlan: Sendable {
             throw .rangeOutsideReference(clip: clip.range)
         }
         if let unknown = tracks.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
-        targets = session.tracks.filter {
-            tracks.contains($0.id) && $0.id != home && $0.role != .music && $0.role != .effects
-        }.map { track in (track.id, track.clips.map { VoicePart($0, $0.offset..<$0.offset + $0.length) }) }
+        targets = Self.targets(of: tracks, home: home, in: session).map { track in
+            (track.id, track.clips.map { VoicePart($0, $0.offset..<$0.offset + $0.length) })
+        }
         guard !targets.isEmpty else { throw .noTargetTrack }
         source = VoicePart(
             clip, clip.offset + (span.lowerBound - clip.start)..<clip.offset + (span.upperBound - clip.start))
         name = session.name(of: clip)
+    }
+
+    /// The tracks of `tracks` that a match with the reference clip on track `home` reads and sets,
+    /// in session order: not `home`, and no music or effects track.
+    package static func targets(of tracks: Set<TrackID>, home: TrackID, in session: Session) -> [Track] {
+        session.tracks.filter { tracks.contains($0.id) && $0.id != home && $0.role != .music && $0.role != .effects }
     }
 
     /// The reference spectrum, then the spectrum of each target, in the package at `package`. A

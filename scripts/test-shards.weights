@@ -142,7 +142,8 @@ DirigibleCoreTests.RippleTests	0.0
 DirigibleCoreTests.RippleTrimTests	0.0
 DirigibleCoreTests.SaturatedFreeBytesTests	0.0
 DirigibleCoreTests.SessionCreateTests	0.2
-DirigibleCoreTests.SessionFileTests	2.9
+DirigibleCoreTests.SessionFileFuzzTests	9.4
+DirigibleCoreTests.SessionFileTests	17.1
 DirigibleCoreTests.SessionTests	0.0
 DirigibleCoreTests.SplitClipsTests	0.0
 DirigibleCoreTests.TimelineEdgeTests	0.0

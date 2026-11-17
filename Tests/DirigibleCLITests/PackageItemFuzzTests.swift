@@ -25,7 +25,9 @@ struct PackageItemFuzzTests {
         var temp: TempState?
         var victimChanged: Bool?
         /// The take is placed, then the flush of a `Clips/` folder with no read access fails: exit 2,
-        /// with the WAV in `Clips/` and the sidecar changed, and the take still pending.
+        /// with the WAV in `Clips/` and the sidecar changed, and the take still pending. A second
+        /// finalize at 0755 finalizes the take. A hard-link cell gets no second finalize: its
+        /// overwritten pool file stays lost (item 1788).
         var placedBeforeFlushFault = false
 
         init(_ code: Character) {
@@ -175,6 +177,9 @@ struct PackageItemFuzzTests {
             if let changed = item.cell.victimChanged {
                 let victim = after.entries["Clips/victim.wav"] != before.entries["Clips/victim.wav"]
                 if victim != changed { problems.append("Clips/victim.wav changed \(victim), not \(changed)") }
+            }
+            if item.cell.placedBeforeFlushFault, item.kind != .hardLink {
+                problems += try await secondFinalizeProblems(package)
             }
         } catch {
             problems.append("the test failed to run the case: \(error)")

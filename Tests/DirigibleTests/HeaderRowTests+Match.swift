@@ -37,19 +37,17 @@ extension HeaderRowTests {
         await model.close()
     }
 
-    /// C22: a row with a role, a match, and a full live state, and a row with a role, the follow
-    /// glyph, and a match, stay inside the row at each width gate, on one line and on two lines, and
-    /// at the minimum header width. The mark width comes out of the name minimum. A row with the
-    /// role, the follow glyph, a match, and a live state needs 12 pt more than 180 pt on one line:
-    /// the follow glyph and the live state already fill that row with the name at its minimum. Control: the mark width left out of
-    /// `HeaderGlyphs.room` puts a view outside the row at 180 pt.
+    /// C22: a row with a role, the follow glyph, a match, and a live state (t1 and t2; t3 has no
+    /// live state) stays inside the row at each width gate, on one line and on two lines, and at the
+    /// minimum header width. Control: the mark width left out of `HeaderGlyphs.room` puts a view
+    /// outside the row at 180 pt.
     @Test func aMatchedRowStaysInsideTheRowAtEachWidthGate() async throws {
         let (model, studio) = try await model(tracks: 3)
         studio.liveTracks["t1"] = LiveTrack(state: .deviceLost, droppedFrames: 0, peak: 0)
         studio.liveTracks["t2"] = LiveTrack(
             state: .recording, droppedFrames: 3, peak: 0.1, shortTerm: LUFS(value: -17.4))
         model.setRole(.dialogue, tracks: ["t1", "t2", "t3"])
-        model.setFollowTrack(true, tracks: ["t3"])
+        model.setFollowTrack(true, tracks: ["t1", "t2", "t3"])
         let match = try matchOf()
         try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMatch(["t1": match, "t2": match, "t3": match])
@@ -57,8 +55,8 @@ extension HeaderRowTests {
         let forms = [
             (
                 50.0,
-                [180.0, TrackHeaders.muteSoloWidth, TrackHeaders.monitorWidth]
-                    + [TrackHeaders.compactLoudnessWidth]
+                [180.0, TrackHeaders.followMatchWidth - 1, TrackHeaders.followMatchWidth]
+                    + [TrackHeaders.muteSoloWidth, TrackHeaders.monitorWidth, TrackHeaders.compactLoudnessWidth]
             ),
             (
                 100.0,

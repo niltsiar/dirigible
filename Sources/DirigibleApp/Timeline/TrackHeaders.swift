@@ -33,6 +33,11 @@ struct TrackHeaders: View {
     /// the other volume items still act. A one-line row has no fader.
     static let faderTwoLineWidth = 252.0
     static let faderRouteWidth = 80.0
+    /// The header width from which a one-line row shows the follow glyph next to a match mark: a
+    /// row with a role, the follow glyph, a match, and a live state stays inside the row from it
+    /// (`HeaderRowTests.aMatchedRowStaysInsideTheRowAtEachWidthGate`). The mark is the
+    /// way into the Amount control, and the glyph only repeats Track > Follow, so the glyph gives way.
+    static let followMatchWidth = 192.0
 
     /// The boxes of a row of `width`: M and S from their gate, Monitor from its gate.
     static func boxes(width: Double, twoLines: Bool) -> HeaderBoxes {
@@ -56,6 +61,7 @@ struct TrackHeaders: View {
                         boxes: Self.boxes(width: geometry.size.width, twoLines: laneHeight >= 56),
                         showsCompactLoudness: geometry.size.width >= Self.compactLoudnessWidth,
                         showsFader: laneHeight >= 56 && geometry.size.width >= Self.faderTwoLineWidth,
+                        showsFollowWithMatch: laneHeight >= 56 || geometry.size.width >= Self.followMatchWidth,
                         learning: matching.contains(track.id)
                     )
                     .frame(height: laneHeight, alignment: .leading).clipped()
@@ -97,6 +103,9 @@ private struct TrackRow: View {
     let showsCompactLoudness: Bool
     /// The fader on line 2, from `TrackHeaders.faderTwoLineWidth`. A Bool, as `showsLayout`.
     let showsFader: Bool
+    /// The follow glyph of a matched row, from `TrackHeaders.followMatchWidth` on one line. A Bool, as
+    /// `showsLayout`.
+    let showsFollowWithMatch: Bool
     /// A Match Voice reads this track now. A Bool, as `showsLayout`.
     let learning: Bool
     @FocusState private var focused: Bool
@@ -107,9 +116,10 @@ private struct TrackRow: View {
     private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
     private var matchState: MatchMarkState? { MatchMarkState(track.match, learning: learning) }
+    private var showsFollow: Bool { track.isFollowTrack && (matchState == nil || showsFollowWithMatch) }
     /// The glyphs and their spacing come out of the name, so the width gates hold with them.
     private var nameMinWidth: Double {
-        (secondLine ? 60 : 54) - HeaderGlyphs.room(track, marked: matchState != nil)
+        (secondLine ? 60 : 54) - HeaderGlyphs.room(track, follow: showsFollow, marked: matchState != nil)
     }
 
     var body: some View {
@@ -118,7 +128,7 @@ private struct TrackRow: View {
             HStack(spacing: 8) {
                 TrackToggles(model: model, track: track, boxes: boxes)
                 if let role = track.role { RoleGlyph(role: role) }
-                if track.isFollowTrack { FollowGlyph() }
+                if showsFollow { FollowGlyph() }
                 if taking { takeName } else { nameField }
                 if let matchState { MatchMark(model: model, track: track, state: matchState) }
                 if showsLayout {

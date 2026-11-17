@@ -11,12 +11,20 @@ import DirigibleCore
 /// (decision 0039). Where no clip or no media is, the mix is silence. One owner, not Sendable: the
 /// Player or the command-line render. It keeps at most `openLimit` files open and closes the least
 /// recently used one, so a session with many files does not use up the descriptors of the process.
-/// Each read stops at the real length of the file (probe E6c).
+/// Each read stops at the real length of the file (probe E6c). A heard track with a voice match
+/// that is not bypassed plays through the match stage of decision 0074 (`MixReader+Match.swift`).
 final class MixReader {
     /// A calibration knob: the process limit is 256 descriptors by default.
     static let openLimit = 32
 
-    var session: Session
+    /// Setting it designs the kernels of the matches that the cache does not hold (0074 D2).
+    var session: Session {
+        didSet { updateMatch() }
+    }
+    /// The longest range that the match stage renders in one pass; a longer render runs in pieces.
+    let span: Int
+    /// The match stage, made at the first session with a heard match.
+    private(set) var matchStage: MatchStage?
     /// The faults of the files that this reader opened or read.
     private(set) var faults: [FileID: MediaFault] = [:]
     /// The last open that failed because the process had no free descriptor. The mix of that
@@ -44,11 +52,17 @@ final class MixReader {
     /// Opens a pool file. Tests give one that throws EMFILE.
     private let openFile: MediaOpen
 
-    init(package: URL, session: Session, tracks: Set<TrackID>? = nil, open: @escaping MediaOpen = openMedia) {
+    /// `span` is the longest range that the owner renders: the stage scratch holds it.
+    init(
+        package: URL, session: Session, tracks: Set<TrackID>? = nil, open: @escaping MediaOpen = openMedia,
+        span: Int = 1 << 16
+    ) {
         self.session = session
         self.package = package
         self.tracks = tracks
+        self.span = span
         openFile = open
+        updateMatch()
     }
 
     /// Sets `buffer.frameLength` to the range length. `buffer` is stereo float32 and holds the range.
@@ -58,64 +72,92 @@ final class MixReader {
         let out = buffer.floatChannelData!
         for channel in 0..<2 { out[channel].update(repeating: 0, count: count) }
         for track in session.heardTracks(in: tracks) {
-            for sounding in track.clips.sounding(in: range) {
-                let clip = sounding.clip
-                let part = max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound)
-                guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {
-                    continue
-                }
-                let decibels = clip.gain.dB + track.gain.dB
-                var gain = Float(pow(10, decibels / 20))
-                let target = part.lowerBound.count - range.lowerBound.count
-                let count = Int(read.frameLength)
-                let frames = vDSP_Length(count)
-                let last = Int(read.format.channelCount) - 1
-                // The clip frame of the part start. A part with no frame in a fade and no point in
-                // either gain layer keeps the one-gain path.
-                let first = part.lowerBound - clip.start
-                let faded = clip.fades.fadeIn > first || clip.fades.fadeOut > clip.length - first - Frames(count)
-                let enveloped = clip.hasLayers
-                if faded || enveloped {
-                    if factors.count < count { factors = [Float](repeating: 0, count: count) }
-                    if faded, enveloped, fadeFactors.count < count { fadeFactors = [Float](repeating: 0, count: count) }
-                    if enveloped, layerFactors.count < count { layerFactors = [Float](repeating: 0, count: count) }
-                    factors.withUnsafeMutableBufferPointer { all in
-                        let factors = UnsafeMutableBufferPointer(rebasing: all[..<count])
-                        guard enveloped else {
-                            gainFactors(
-                                clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: gain,
-                                into: factors)
-                            return
-                        }
-                        #if DEBUG
-                            envelopeParts += 1
-                        #endif
-                        layerFactors.withUnsafeMutableBufferPointer { all in
-                            envelopeFactors(
-                                [clip.envelope, clip.ride], from: clip.offset + first, decibels: decibels,
-                                into: factors, scratch: UnsafeMutableBufferPointer(rebasing: all[..<count]))
-                        }
-                        guard faded else { return }
-                        fadeFactors.withUnsafeMutableBufferPointer { all in
-                            let fades = UnsafeMutableBufferPointer(rebasing: all[..<count])
-                            gainFactors(
-                                clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: 1,
-                                into: fades)
-                            vDSP_vmul(factors.baseAddress!, 1, fades.baseAddress!, 1, factors.baseAddress!, 1, frames)
-                        }
+            if let matchStage, let kernel = matchStage.kernels[track.id] {
+                renderMatched(track, through: kernel, of: matchStage, range, into: out)
+            } else {
+                add(track, track.clips.sounding(in: range), range, into: out[0], out[1])
+            }
+        }
+    }
+
+    /// Adds the sounding parts of `clips` of `track` in `range` to `left` and `right`, whose frame 0
+    /// is the range start.
+    func add(
+        _ track: Track, _ clips: [SoundingClip], _ range: Range<Frames>, into left: UnsafeMutablePointer<Float>,
+        _ right: UnsafeMutablePointer<Float>
+    ) {
+        for sounding in clips {
+            let clip = sounding.clip
+            let part = max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound)
+            guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {
+                continue
+            }
+            let decibels = clip.gain.dB + track.gain.dB
+            var gain = Float(pow(10, decibels / 20))
+            let target = part.lowerBound.count - range.lowerBound.count
+            let count = Int(read.frameLength)
+            let frames = vDSP_Length(count)
+            let last = Int(read.format.channelCount) - 1
+            // The clip frame of the part start. A part with no frame in a fade and no point in
+            // either gain layer keeps the one-gain path.
+            let first = part.lowerBound - clip.start
+            let faded = clip.fades.fadeIn > first || clip.fades.fadeOut > clip.length - first - Frames(count)
+            let enveloped = clip.hasLayers
+            if faded || enveloped {
+                if factors.count < count { factors = [Float](repeating: 0, count: count) }
+                if faded, enveloped, fadeFactors.count < count { fadeFactors = [Float](repeating: 0, count: count) }
+                if enveloped, layerFactors.count < count { layerFactors = [Float](repeating: 0, count: count) }
+                factors.withUnsafeMutableBufferPointer { all in
+                    let factors = UnsafeMutableBufferPointer(rebasing: all[..<count])
+                    guard enveloped else {
+                        gainFactors(
+                            clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: gain,
+                            into: factors)
+                        return
                     }
-                }
-                for channel in 0..<2 {
-                    let source = read.floatChannelData![min(channel, last)]
-                    let destination = out[channel] + target
-                    if faded || enveloped {
-                        vDSP_vma(source, 1, factors, 1, destination, 1, destination, 1, frames)
-                    } else {
-                        vDSP_vsma(source, 1, &gain, destination, 1, destination, 1, frames)
+                    #if DEBUG
+                        envelopeParts += 1
+                    #endif
+                    layerFactors.withUnsafeMutableBufferPointer { all in
+                        envelopeFactors(
+                            [clip.envelope, clip.ride], from: clip.offset + first, decibels: decibels,
+                            into: factors, scratch: UnsafeMutableBufferPointer(rebasing: all[..<count]))
+                    }
+                    guard faded else { return }
+                    fadeFactors.withUnsafeMutableBufferPointer { all in
+                        let fades = UnsafeMutableBufferPointer(rebasing: all[..<count])
+                        gainFactors(
+                            clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: 1,
+                            into: fades)
+                        vDSP_vmul(factors.baseAddress!, 1, fades.baseAddress!, 1, factors.baseAddress!, 1, frames)
                     }
                 }
             }
+            for channel in 0..<2 {
+                let source = read.floatChannelData![min(channel, last)]
+                let destination = (channel == 0 ? left : right) + target
+                if faded || enveloped {
+                    vDSP_vma(source, 1, factors, 1, destination, 1, destination, 1, frames)
+                } else {
+                    vDSP_vsma(source, 1, &gain, destination, 1, destination, 1, frames)
+                }
+            }
         }
+    }
+
+    /// Makes the stage at the first heard match, gives it the matches of the session, and sizes the
+    /// gain factors for the longest stage part, so a render allocates nothing for the stage.
+    private func updateMatch() {
+        let matched = session.heardTracks(in: tracks).filter { $0.match.map { !$0.isBypassed } ?? false }
+        guard !matched.isEmpty || matchStage != nil else { return }
+        let stage = matchStage ?? MatchStage(sampleRate: session.sampleRate, span: span)
+        matchStage = stage
+        stage.update(matched)
+        let count = stage.inputCount
+        guard !matched.isEmpty else { return }
+        if factors.count < count { factors = [Float](repeating: 0, count: count) }
+        if fadeFactors.count < count { fadeFactors = [Float](repeating: 0, count: count) }
+        if layerFactors.count < count { layerFactors = [Float](repeating: 0, count: count) }
     }
 
     /// The frames of `file` from `start` for the length of `part`, up to the real end of the file.

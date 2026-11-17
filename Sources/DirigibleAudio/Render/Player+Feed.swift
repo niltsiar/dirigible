@@ -23,13 +23,15 @@ extension Player {
         var take: TakeBase?
     }
 
-    /// The heard set or a track gain of the tracks that are in both sessions changed: a mute, solo,
-    /// or fader change, or the removal of the only soloed track. A track add or remove alone keeps it.
+    /// The heard set, a track gain, or the voice match of a heard track of the tracks that are in
+    /// both sessions changed: a mute, solo, fader, match, amount, or bypass change, or the removal
+    /// of the only soloed track. A track add or remove alone keeps it.
     static func mixChanged(from old: Session, to new: Session) -> Bool {
         let shared = Set(old.tracks.map(\.id)).intersection(new.tracks.map(\.id))
         let gains = { (session: Session) in session.tracks.filter { shared.contains($0.id) }.map(\.gain) }
+        let matches = { (session: Session) in session.heardTracks(in: shared).map(\.match) }
         return Set(old.heardTracks(in: shared).map(\.id)) != Set(new.heardTracks(in: shared).map(\.id))
-            || gains(old) != gains(new)
+            || gains(old) != gains(new) || matches(old) != matches(new)
     }
 
     /// The output frames of the whole feed: to the end of the play or the session end, the smaller

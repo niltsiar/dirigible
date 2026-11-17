@@ -13,7 +13,9 @@ public func measureMix(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
 ) throws(POSIXError) -> (measure: MixMeasure, series: LevelSeries, faults: [FileID: MediaFault]) {
-    let reader = MixReader(package: package, session: session, tracks: tracks)
+    let reader = MixReader(
+        package: package, session: session, tracks: tracks,
+        span: LevelSeries.window(rate: session.sampleRate).count * 20)
     var meter = RangeMeter(sampleRate: session.sampleRate)
     let series = try scanMix(
         reader, rate: session.sampleRate, end: session.end, range: range, silence: nil, sink: { meter.feed($0) },
@@ -47,7 +49,9 @@ func mixLevels(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
     progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen
 ) throws(POSIXError) -> (series: LevelSeries, faults: [FileID: MediaFault]) {
-    let reader = MixReader(package: package, session: session.ignoringMuteAndSolo, tracks: tracks, open: open)
+    let reader = MixReader(
+        package: package, session: session.ignoringMuteAndSolo, tracks: tracks, open: open,
+        span: LevelSeries.window(rate: session.sampleRate).count * 20)
     let series = try scanMix(
         reader, rate: session.sampleRate, end: session.end, range: range, silence: silence, sink: { _ in },
         progress: progress, isCancelled: isCancelled)

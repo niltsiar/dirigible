@@ -103,7 +103,7 @@ func exportMix(
     let folded = options.layout == .mono ? monoBuffer : nil
     let first = source.range.lowerBound
     let total = source.range.upperBound.count - first.count
-    let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
+    let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks, span: chunk)
     var percent = 0
     let tags = aac && (!session.episode.isEmpty || !chapters.isEmpty)
     func report(_ fraction: Double) {

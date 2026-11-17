@@ -129,10 +129,12 @@ final class MatchFilter {
         }
     }
 
-    /// The gain in dB of the kernel at `frequency`: dB linear on log f between the band centers.
-    /// Past the end bands, a boost goes to 0 dB at the band edge, a cut at 63 Hz holds to the band
-    /// edge and goes to 0 dB one octave lower (28.1 Hz), and a cut at 16 kHz goes to 0 dB at the
-    /// band edge. DC and each frequency at and over 0.45 x the rate get 0 dB.
+    /// The gain in dB of the kernel at `frequency`: each band gain over the middle three quarters
+    /// of its band on log f, and dB linear on log f over the 1/12 octave around each band edge, so
+    /// a narrow cut keeps most of its gain in band power. Past the end bands, a boost goes to 0 dB
+    /// at the band edge, a cut at 63 Hz holds to the band edge and goes to 0 dB one octave lower
+    /// (28.1 Hz), and a cut at 16 kHz goes to 0 dB at the band edge. DC and each frequency at and
+    /// over 0.45 x the rate get 0 dB.
     private func gain(at frequency: Double, of gains: ThirdOctave.Gains) -> Double {
         let decibels = gains.decibels
         let centers = ThirdOctave.centers
@@ -153,7 +155,8 @@ final class MatchFilter {
         var band = 0
         while band < last - 1 && frequency > centers[band + 1] { band += 1 }
         let position = log(frequency / centers[band]) / log(centers[band + 1] / centers[band])
-        return decibels[band] + position * (decibels[band + 1] - decibels[band])
+        let ramp = min(max(4 * position - 1.5, 0), 1)
+        return decibels[band] + ramp * (decibels[band + 1] - decibels[band])
     }
 
     /// Packs `source` (`points` frames) into the split scratch and transforms it in place.

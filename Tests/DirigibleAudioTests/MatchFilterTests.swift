@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -33,6 +34,27 @@ private func gains(_ values: [Double]) throws -> ThirdOctave.Gains {
     try #require(ThirdOctave.Gains(decibels: values))
 }
 
+/// The band powers of 48 kHz mono `samples` as `BandAnalyzer` measures them, summed over its frames.
+private func bandPowers(_ samples: [Float]) throws -> [Double] {
+    let analyzer = BandAnalyzer(sampleRate: 48_000)
+    let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+    let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)))
+    var filled = false
+    let read = try #require(
+        analyzer.read(buffer, layout: .mono) { buffer in
+            guard !filled else { return false }
+            filled = true
+            samples.withUnsafeBufferPointer {
+                buffer.floatChannelData![0].update(from: $0.baseAddress!, count: $0.count)
+            }
+            buffer.frameLength = AVAudioFrameCount(samples.count)
+            return true
+        })
+    return (0..<ThirdOctave.bandCount).map { band in
+        stride(from: band, to: read.frames.count, by: ThirdOctave.bandCount).reduce(0) { $0 + read.frames[$1] }
+    }
+}
+
 /// The curves of criterion C1: a tilt from -12 dB at 63 Hz to +12 dB at 16 kHz, +12 dB at 1 kHz
 /// only, -12 dB at 80 Hz only, and the mirror tilt.
 private let tilt = (0..<25).map { -12 + Double($0) }
@@ -63,6 +85,41 @@ private let rates = [(44_100, 16_385), (48_000, 16_385), (96_000, 32_769)]
         if !errors.isEmpty { print("band errors:\n" + errors.joined(separator: "\n")) }
         let meetsTheCurve = errors.isEmpty
         #expect(meetsTheCurve, "\(errors.count) band errors over the C1 bound")
+    }
+
+    /// A narrow cut delivers its band gain (C9): the band power gain that `BandAnalyzer` measures
+    /// through the filter is within 1.0 dB of each band gain, on noise with the slope of a voice.
+    /// C9 allows 1.5 dB in each band; on its corpus voices the learn and the measure take 0.17 dB
+    /// at most, so 1.0 dB here leaves C9 a margin of 0.33 dB.
+    @Test func narrowCutDeliversItsBandGain() throws {
+        let filter = MatchFilter(sampleRate: 48_000)
+        let curve = (0..<25).map { $0 == 19 ? -8.0 : 0 }
+        let kernel = filter.kernel(try gains(curve))
+        // White noise through a one-pole low-pass at 500 Hz: -6 dB per octave over 500 Hz.
+        var random = SeededGenerator(seed: 9)
+        let pole = Float(exp(-2 * Double.pi * 500 / 48_000))
+        var level: Float = 0
+        let frames = 4 * 48_000
+        let input = (0..<(frames + filter.taps - 1)).map { _ in
+            level = pole * level + (1 - pole) * Float.random(in: -1...1, using: &random)
+            return level
+        }
+        var output = [Float](repeating: 0, count: frames)
+        input.withUnsafeBufferPointer { source in
+            output.withUnsafeMutableBufferPointer { filter.filter(source, through: kernel, into: $0) }
+        }
+        let plain = try bandPowers(Array(input[filter.contextFrames..<filter.contextFrames + frames]))
+        let heard = try bandPowers(output)
+        var errors: [String] = []
+        for (band, center) in ThirdOctave.centers.enumerated() {
+            let delivered = 10 * log10(heard[band] / plain[band])
+            if abs(delivered - curve[band]) > 1.0 {
+                errors.append("\(center) Hz: \(String(format: "%.2f", delivered)) dB for \(curve[band]) dB")
+            }
+        }
+        if !errors.isEmpty { print("band power errors:\n" + errors.joined(separator: "\n")) }
+        let delivers = errors.isEmpty
+        #expect(delivers, "\(errors.count) bands over 1.0 dB from the curve")
     }
 
     /// No boost lies outside the band range, and a cut at 63 Hz ends at 28.1 Hz.

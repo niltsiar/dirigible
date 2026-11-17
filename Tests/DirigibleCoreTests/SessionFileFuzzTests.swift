@@ -8,6 +8,9 @@ import Testing
 /// changes no file of the case folder. Before each case the test writes
 /// `<test> seed <n> case <i> family <f>` to stderr, so a trap in process names its case.
 @Suite(.serialized) struct SessionFileFuzzTests {
+    /// The seeds of each fuzz test of this target.
+    static let seeds: [UInt64] = [20_261_104]
+
     /// The cases, refusals, and opens of one family.
     struct Tally {
         var cases = 0
@@ -112,7 +115,7 @@ import Testing
     }
 
     /// C7, C17: 2,000 session files of the families M1 to M12, the fixed M3 and M12 cases first.
-    @Test(arguments: [UInt64(20_261_104)])
+    @Test(arguments: seeds)
     func mutatedSessionsRefuseOrRoundTrip(seed: UInt64) throws {
         let test = "mutatedSessionsRefuseOrRoundTrip"
         var random = SplitMix(seed: seed)
@@ -183,7 +186,7 @@ import Testing
 
     /// C7: 500 transcript files of the families M1 to M11. `TranscriptStore.decode` gives words that
     /// encode and decode equal, or a refusal, and the package that names the file still opens.
-    @Test(arguments: [UInt64(20_261_104)])
+    @Test(arguments: seeds)
     func mutatedTranscriptFilesRefuseOrRoundTrip(seed: UInt64) throws {
         let test = "mutatedTranscriptFilesRefuseOrRoundTrip"
         var random = SplitMix(seed: seed)

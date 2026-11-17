@@ -256,6 +256,71 @@ import Testing
         await model.close()
     }
 
+    /// C11 and C24: `MatchSlider.mouseDown` with a click count of 2 sets 75 as one undo step. The
+    /// Option-click does the same with a click count of 1. A mouse-down with a click count of 2 or
+    /// with Option returns before the modal drag loop, so the test sends real events.
+    @Test func aDoubleClickOnTheSliderResetsTheAmount() async throws {
+        let (model, studio) = try await open()
+        try give(try match(40), to: "t2", studio)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 40), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        let view = MatchAmountView()
+        window.contentView?.addSubview(view)
+        func click(count: Int, flags: NSEvent.ModifierFlags = []) throws {
+            view.update(model: model, track: "t2", percent: amount("t2", studio) ?? 0, enabled: true)
+            let point = view.slider.convert(NSPoint(x: 10, y: view.slider.bounds.midY), to: nil)
+            view.slider.mouseDown(
+                with: try #require(
+                    NSEvent.mouseEvent(
+                        with: .leftMouseDown, location: point, modifierFlags: flags,
+                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                        context: nil, eventNumber: 0, clickCount: count, pressure: 1)))
+        }
+        let before = studio.session
+        let revision = studio.sessionRevision
+
+        try click(count: 2)
+        #expect(amount("t2", studio) == 75 && studio.sessionRevision == revision + 1, "one edit")
+        try studio.undo()
+        #expect(studio.session == before, "one undo gives 40")
+
+        try click(count: 1, flags: .option)
+        #expect(amount("t2", studio) == 75, "an Option-click sets 75")
+        try studio.undo()
+        #expect(studio.session == before, "one undo gives 40")
+        window.close()
+        await model.close()
+    }
+
+    /// On screen, a double-click off the thumb: the jump of the first click ends with an animation
+    /// that writes the click value into the cell about 0.5 s later, over the reset. The slider
+    /// takes the session amount again after that.
+    @Test func aResetStaysAfterTheJumpOfTheFirstClickEnds() async throws {
+        let (model, studio) = try await open()
+        try give(try match(40), to: "t2", studio)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 40), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        let view = MatchAmountView()
+        window.contentView?.addSubview(view)
+        view.update(model: model, track: "t2", percent: 40, enabled: true)
+        let point = view.slider.convert(NSPoint(x: 10, y: view.slider.bounds.midY), to: nil)
+        view.slider.mouseDown(
+            with: try #require(
+                NSEvent.mouseEvent(
+                    with: .leftMouseDown, location: point, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                    eventNumber: 0, clickCount: 2, pressure: 1)))
+        view.update(model: model, track: "t2", percent: amount("t2", studio) ?? 0, enabled: true)
+        view.slider.doubleValue = 26.74
+        await until(limit: .seconds(5), "the slider shows 75 again") { view.slider.integerValue == 75 }
+        window.close()
+        await model.close()
+    }
+
     /// C11 and C17: Bypass and Remove are one undo entry each, over the tracks that have a match.
     /// The bypass of a mix of matched and plain tracks changes only the matched ones.
     @Test func bypassAndRemoveAreOneEntryEach() async throws {

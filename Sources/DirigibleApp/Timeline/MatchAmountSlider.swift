@@ -85,6 +85,12 @@ final class MatchSlider: NSSlider {
                 model?.resetMatchAmount(track, joining: -1)
             }
             clickEdit = nil
+            // The jump of the first click off the thumb ends with an animation that writes the click
+            // value about 0.5 s later, over the reset.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self, !dragging else { return }
+                show(stored)
+            }
             return
         }
         (dragging, shown) = (true, stored)

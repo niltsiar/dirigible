@@ -168,6 +168,30 @@ import Testing
         await model.close()
     }
 
+    /// C21: during the read, only the target tracks show the learn mark. The track of the reference
+    /// clip and a music track of the selection are no target.
+    @Test func onlyTargetTracksShowTheLearnMark() async throws {
+        let (model, studio) = try await open()
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.addTrack("t3", name: "Music", layout: .mono)
+        }
+        model.setRole(.music, tracks: ["t3"])
+        model.timeline.selection = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
+        model.useAsVoiceReference()
+        let gate = AsyncGate()
+        studio.environment.beforeFinalize = { await gate.wait() }
+
+        let matching = Task { await model.matchVoice(tracks: ["t1", "t2", "t3"]) }
+        await gate.entered()
+        #expect(model.matchingTracks == ["t2"], "the read: \(model.matchingTracks)")
+        gate.open()
+        await matching.value
+        studio.environment.beforeFinalize = {}
+
+        #expect(studio.session.track("t2")?.match != nil && model.matchingTracks.isEmpty, "the read ends")
+        await model.close()
+    }
+
     /// C23: a reference range with too little voice shows a warning banner that names the reference,
     /// and nothing is stored. A track with no clip shows the banner that names the track.
     @Test func refusalNamesTheFailingSide() async throws {

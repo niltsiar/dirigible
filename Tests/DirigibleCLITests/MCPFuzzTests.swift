@@ -8,9 +8,13 @@ import Testing
 /// of the right type does not stop the server (family V); an error keeps each byte of the package.
 /// A child that ends before its last answer is an issue, with the calls sent to it. After a crash
 /// or a timeout, each call with no answer is sent again, alone, to a new child, and a call with no
-/// answer there is an issue too. Each issue names the seed, the case, the family, and the tool.
+/// answer there is an issue too. After a timeout, a new child also gets all the calls again, so a
+/// hang that needs an earlier call is an issue. Each issue names the seed, the case, the family, and the tool.
 struct MCPFuzzTests {
     static let aloneLimit: Duration = .seconds(30)
+    /// The limit of a new child that gets the same calls after a timeout. It is three times the
+    /// child limit, so load alone does not stop it, and a hang that needs an earlier call does.
+    static let replayLimit: Duration = .seconds(60)
 
     /// The limit of the child of `tool`: the budget of the test (C16).
     static func childLimit(_ tool: String) -> Duration { .seconds(20) }
@@ -274,8 +278,9 @@ struct MCPFuzzTests {
         return problems
     }
 
-    /// Sends the calls of one tool to one child, checks each answer, and sends each call with no
-    /// answer again, alone. It gives the problems and prints one line when the child ends badly.
+    /// Sends the calls of one tool to one child, checks each answer, sends all the calls again to a
+    /// new child after a timeout, and sends each call with no answer again, alone. It gives the
+    /// problems and prints one line when the child ends badly.
     static func check(tool: String, _ calls: [Call], run: FuzzRun) async -> [String] {
         func label(_ call: Call) -> String { "seed \(run.seed) \(call.text) tool \(tool): \(call.line.prefix(160))" }
         let sent = calls.map { "\n  \($0.text): \($0.line.prefix(160))" }.joined()
@@ -300,6 +305,17 @@ struct MCPFuzzTests {
             }
             for call in calls where answered(call, outcome) {
                 problems += verify(call, outcome, run: run).map { "\(label(call)): \($0)" }
+            }
+            if outcome.timedOut {
+                for call in calls { if let package = call.package { try run.renew(package) } }
+                let again = try await mcpChild(lines, limit: replayLimit)
+                let left = calls.filter { !answered($0, again) }
+                if again.timedOut || again.endedBadly || !left.isEmpty {
+                    problems.append(
+                        "seed \(run.seed) tool \(tool): the child ran past \(childLimit(tool).components.seconds) s, "
+                            + "and a new child with the same calls ended \(again.end), timed out \(again.timedOut), "
+                            + "\(left.count) calls with no answer; the calls sent:\(sent)")
+                }
             }
             for call in unanswered {
                 if let package = call.package { try run.renew(package) }

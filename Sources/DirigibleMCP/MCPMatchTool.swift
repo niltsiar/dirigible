@@ -26,11 +26,11 @@ let matchTools = [
         "Match the voice of tracks to a reference voice, as dirigible track match-voice. With reference (and "
             + "optionally from and to), it reads the reference clip and each track, and gives each track a live "
             + "EQ curve that moves its spectrum toward the reference. It changes no audio file. Each side needs "
-            + "10 s of voice. Music and effects tracks are left out. With amount, bypass, or both (no "
-            + "reference), it changes the match of tracks that have one; with remove, the match goes. Give one line "
-            + "for each track: \"<track>: match <amount> % (+<boost> dB, -<cut> dB)\" with \", bypassed\" after it "
-            + "for a bypassed match, \"<track>: left out, a music or effects track\", \"<track>: match removed\", "
-            + "or \"<track>: no match\"."
+            + "10 s of voice. Music and effects tracks and the track of the reference clip are left out. With "
+            + "amount, bypass, or both (no reference), it changes the match of tracks that have one; with remove, "
+            + "the match goes. Give one line for each track: \"<track>: match <amount> % (+<boost> dB, -<cut> dB)\" "
+            + "with \", bypassed\" after it for a bypassed match, \"<track>: left out, the track of the reference\", "
+            + "\"<track>: left out, a music or effects track\", \"<track>: match removed\", or \"<track>: no match\"."
             + editCancelNote("no track changes"),
         [tracks, reference, from, to, amount, bypass, remove], batch: .step
     ) { a throws(ToolError) in

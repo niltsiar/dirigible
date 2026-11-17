@@ -88,7 +88,7 @@
 "match.canceled" = "Abbina voce annullato. Nessuna traccia è cambiata.";
 "match.refused.reference" = "Il clip di riferimento ha %1$d s di voce. Abbina voce richiede %2$d s. Scegli un clip più lungo.";
 "match.refused.track" = "La traccia “%1$@” ha %2$d s di voce. Abbina voce richiede %3$d s.";
-"error.studio.match.no.target" = "Abbina voce salta le tracce di musica e di effetti, quindi non resta nessuna traccia.";
+"error.studio.match.no.target" = "Abbina voce salta le tracce di musica e di effetti e la traccia del clip di riferimento, quindi non resta nessuna traccia.";
 "error.studio.match.range" = "La selezione temporale deve stare dentro il clip di riferimento.";
 "menu.track.match" = "Abbina voce";
 "menu.track.match.reference" = "Usa come riferimento voce";

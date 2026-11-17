@@ -287,7 +287,9 @@ extension StudioError {
             "the reference clip has \(seconds) s of voice; Match Voice needs \(Studio.matchVoiceSeconds) s."
         case .tooLittleVoice(.track(let track), let seconds):
             "track \(track) has \(seconds) s of voice; Match Voice needs \(Studio.matchVoiceSeconds) s."
-        case .noTargetTrack: "Match Voice leaves out music and effects tracks, so no track is left to match."
+        case .noTargetTrack:
+            "Match Voice leaves out music and effects tracks and the track of the reference clip, so no track is "
+                + "left to match."
         case .rangeOutsideReference(let clip):
             "the range must lie inside the reference clip, frames \(clip.lowerBound) to \(clip.upperBound)."
         case .matchCancelled: "the voice match was cancelled."

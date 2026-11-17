@@ -88,7 +88,7 @@
 "match.canceled" = "Igualar voz cancelado. Ninguna pista cambió.";
 "match.refused.reference" = "El clip de referencia tiene %1$d s de voz. Igualar voz necesita %2$d s. Elige un clip más largo.";
 "match.refused.track" = "La pista «%1$@» tiene %2$d s de voz. Igualar voz necesita %3$d s.";
-"error.studio.match.no.target" = "Igualar voz omite las pistas de música y de efectos, así que no queda ninguna pista.";
+"error.studio.match.no.target" = "Igualar voz omite las pistas de música y de efectos y la pista del clip de referencia, así que no queda ninguna pista.";
 "error.studio.match.range" = "La selección de tiempo debe estar dentro del clip de referencia.";
 "menu.track.match" = "Igualar voz";
 "menu.track.match.reference" = "Usar como referencia de voz";

@@ -77,6 +77,19 @@ struct StudioMatchTests {
         #expect(Set(matches.keys) == ["t1"] && fixture.studio.session.track("t2")?.match == nil)
     }
 
+    /// The track of the reference clip is left out next to a real target and keeps no match; named
+    /// alone, it refuses with no target and changes nothing.
+    @Test func referenceTrackIsLeftOut() async throws {
+        let fixture = try await MatchFixture(
+            reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)])
+        let matches = try await fixture.matchVoice(["ref", "t1"])
+        #expect(Set(matches.keys) == ["t1"] && fixture.studio.session.track("ref")?.match == nil)
+
+        let revision = fixture.studio.sessionRevision
+        await #expect(throws: StudioError.noTargetTrack) { try await fixture.matchVoice(["ref"]) }
+        #expect(fixture.studio.sessionRevision == revision)
+    }
+
     @Test func noTargetRefused() async throws {
         let fixture = try await MatchFixture(
             reference: repeated(Self.flat, seconds: 20), targets: [repeated(Self.rising, seconds: 20)]

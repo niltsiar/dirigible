@@ -137,14 +137,14 @@ package struct MatchWork: Sendable {
     }
 
     /// One line for each named track, from the session after the work: `<track>: match <amount> %
-    /// (<boost>, <cut>)` with `, bypassed` after it, as `info` shows it; or `<track>: left out, a
-    /// music or effects track` for a track that a match leaves out.
+    /// (<boost>, <cut>)` with `, bypassed` after it, as `info` shows it; or, for a track that a match
+    /// leaves out, `<track>: left out, the track of the reference` or `<track>: left out, a music or
+    /// effects track`.
     package func lines(matched: Set<TrackID>, in session: Session) -> [String] {
-        tracks.map { id in
-            guard matched.contains(id), let match = session.track(id)?.match else {
-                return "\(id): left out, a music or effects track"
-            }
-            return "\(id): " + match.text
+        let home = if case .set(let request) = mode { session.clip(request.reference)?.track } else { TrackID?.none }
+        return tracks.map { id in
+            if matched.contains(id), let match = session.track(id)?.match { return "\(id): " + match.text }
+            return "\(id): left out, " + (id == home ? "the track of the reference" : "a music or effects track")
         }
     }
 

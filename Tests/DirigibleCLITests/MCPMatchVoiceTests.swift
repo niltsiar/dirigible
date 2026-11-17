@@ -102,6 +102,18 @@ struct MCPMatchVoiceTests {
         #expect(try side.read().track("t1")?.match == nil)
     }
 
+    /// The tool leaves out the track of the reference clip with the line of the command.
+    @Test func referenceTrackIsLeftOut() async throws {
+        let package = try MatchVoiceCommandTests.package()
+
+        let answer = try await call(package, ["reference": "R", "tracks": ["ref", "t1"]])
+
+        let session = try package.read()
+        let text = "ref: left out, the track of the reference\n" + (try MatchVoiceCommandTests.line("t1", in: session))
+        #expect(answer == (text, false), "\(answer)")
+        #expect(session.track("ref")?.match == nil)
+    }
+
     /// A batch holds the amount, the bypass, and the remove as steps in one edit, and refuses a
     /// call with `reference` at its index with no step run.
     @Test func batchHoldsTheEditModes() async throws {

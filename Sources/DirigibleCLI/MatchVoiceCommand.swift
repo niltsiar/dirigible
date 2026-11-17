@@ -10,23 +10,23 @@ extension TrackCommand {
             commandName: "match-voice",
             abstract: "Match the voice of tracks to a reference voice with a live EQ curve.",
             discussion: """
-                With --reference, the command reads the reference clip (only --from to --to, timeline \
-                frames, when given) and each track, and gives each track a match: a curve of 25 band gains \
-                that moves its spectrum toward the reference, at --amount percent (1 to 100). A new match \
-                takes 75, and a replace keeps the amount of the track unless you give one. Each match is \
-                on. The command changes no audio file. Each side needs 10 s of voice. Music and effects \
-                tracks are left out. With --amount, --bypass on|off, or both, and no --reference, the \
-                command changes the match of tracks that have one. --remove removes the match. A line for \
-                each track: "<track>: match <amount> % (+<boost> dB, -<cut> dB)" with ", bypassed" after \
-                it for a bypassed match, "<track>: left out, a music or effects track", "<track>: match \
-                removed", or "<track>: no match". Exit 64 when no track is named, --from comes without \
-                --to or without --reference, --from is at or after --to, --amount is not from 1 to 100, \
-                --bypass is not on or off, --bypass comes with --reference, or --remove comes with another \
-                option. Exit 1 when a clip or a track is unknown, the range is not inside the reference \
-                clip, a track has no match to change, a side has under 10 s of voice, or a source WAV is \
-                missing, short, or unreadable. Exit 2 when the package cannot be read or written, is \
-                locked, or has a take that is not finalized. Control-C leaves the package as it was and \
-                exits 130.
+                With --reference, the command reads the reference clip (only --from to --to, timeline frames, \
+                when given) and each track, and gives each track a match: a curve of 25 band gains that moves \
+                its spectrum toward the reference, at --amount percent (1 to 100). A new match takes 75, and a \
+                replace keeps the amount of the track unless you give one. Each match is on. The command \
+                changes no audio file. Each side needs 10 s of voice. Music and effects tracks and the track \
+                of the reference clip are left out. With --amount, --bypass on|off, or both, and no \
+                --reference, the command changes the match of tracks that have one. --remove removes the \
+                match. A line for each track: "<track>: match <amount> % (+<boost> dB, -<cut> dB)" with ", \
+                bypassed" after it for a bypassed match, "<track>: left out, the track of the reference", \
+                "<track>: left out, a music or effects track", "<track>: match removed", or "<track>: no \
+                match". Exit 64 when no track is named, --from comes without --to or without --reference, \
+                --from is at or after --to, --amount is not from 1 to 100, --bypass is not on or off, --bypass \
+                comes with --reference, or --remove comes with another option. Exit 1 when a clip or a track \
+                is unknown, the range is not inside the reference clip, a track has no match to change, a side \
+                has under 10 s of voice, or a source WAV is missing, short, or unreadable. Exit 2 when the \
+                package cannot be read or written, is locked, or has a take that is not finalized. Control-C \
+                leaves the package as it was and exits 130.
                 """)
 
         @OptionGroup var package: PackageArgument

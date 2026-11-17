@@ -3529,6 +3529,11 @@ for run in "R=/x/runs/r && scripts/eval/run.sh \$R/eval a b H90 t --holdout-keys
   "R=/x/runs/r/holdout-key && scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > \${R}s.md"; do
   expect_message 'reads holdout-keys.md' "$run"
 done
+# The block text names each redirect operator that the eval form takes, and each one passes.
+expect_message '<op> one of >, >>, 1>, 1>>, 2>, and 2>>' "scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk > $hk"
+for op in '>' '>>' '1>' '1>>' '2>' '2>>'; do
+  expect allow "scripts/eval/run.sh $hk_run/eval a b H90 t --holdout-keys $hk $op $hk_run/logs/e.log 2>&1"
+done
 # A mention of the bare name passes from a folder that does not hold the file, and is refused from
 # a folder that holds it.
 for run in "rg -c 'refuses a read of \`holdout-keys.md\`' docs/workflow/evals.md" 'rg -n holdout-keys.md docs .claude' \

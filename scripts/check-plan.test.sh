@@ -12,7 +12,7 @@
 # without them does not.
 # Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
-# Check that a bench criterion with a time value and no statistic word is refused.
+# Check that a bench criterion with a time budget and no statistic word is refused.
 # Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
 # with no criterion change row after the first phase 6 row.
 # Run by `make test-hooks`.
@@ -470,12 +470,13 @@ printf '2026-10-21T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisi
 refuse 'a run whose first row is after the cutoff' 'criterion C2'
 
 # Bench statistic: a criterion line of ## Acceptance criteria that names a bench (`make bench` or a
-# word that ends in Benchmark) and a time value (a number with ms or s) names a statistic word too
-# (p50, p90, p95, p99, median, max). The rule reads the current line of the criterion, and a run
-# whose first row is older than 2026-11-18T21:30 is not checked.
+# word that ends in Benchmark) and a time budget (under, at most, budget, or takes before a number
+# with ms or s, or a number with ms or s before "or less", in the same sentence) names a statistic
+# word too (p50, p90, p95, p99, median, max). A table row is one sentence. The rule reads the current
+# line of the criterion, and a run whose first row is older than 2026-11-18T21:30 is not checked.
 # bench <line>: a run with the criterion C1 of that line, named in plan.md.
 bench() { criteria "- C1: $1"; names 'C1'; }
-BENCH_REFUSAL='criterion C1 names a bench and a time value with no statistic word (p50, p90, p95, p99, median, or max)'
+BENCH_REFUSAL='criterion C1 names a bench and a time budget with no statistic word (p50, p90, p95, p99, median, or max)'
 bench '`FooBenchmark` at most 8 ms'
 refuse 'a bench and a time value with no statistic word' "$BENCH_REFUSAL"
 bench 'p95 of `FooBenchmark` at most 8 ms'
@@ -494,6 +495,25 @@ bench 'The export takes at most 8 ms'
 pass 'a time value with no bench'
 bench '`FooBenchmark` runs 8 times in 3 hours'
 pass 'a number with a unit that is not ms or s'
+bench 'The full draw of `LaneRenderBenchmark` stays under 16 ms'
+refuse 'a bench with an under budget and no statistic' "$BENCH_REFUSAL"
+bench 'The compare of `EditBenchmark` takes 5 ms or less'
+refuse 'a bench with an or less budget and no statistic' "$BENCH_REFUSAL"
+bench 'No case of `LaneRenderBenchmark` is worse than main by more than 10 % or 1 ms (`scripts/bench-pairs.sh`)'
+pass 'a compare with main by more than 10 % or 1 ms'
+bench 'Pass: 1 s against 1 ms records no issue; `MouseEventBenchmark.budget` is set to 1 us'
+pass 'a fixture of 1 s against 1 ms'
+bench 'A 600 s take of `FinalizeBenchmark` stays under 64 MB'
+pass 'a fixture length and a budget in MB'
+bench '`WhisperEngineBenchmark`: the word start is within 0.25 s of the onset (pass 0.20 s, fail 0.30 s)'
+pass 'a within tolerance in s'
+bench '`WhisperEngineBenchmark` also runs in the debug build, 20.3 s by step 9'
+pass 'a test time with no budget phrase'
+bench 'Run `make bench FILTER=FooBenchmark`. The export stays under 8 ms.'
+pass 'a bench and a budget in two sentences'
+criteria $'| id | text |\n|---|---|\n| C1 | `make bench FILTER=FooBenchmark`. The export stays under 8 ms |'
+names 'C1'
+refuse 'a table row is one sentence' "$BENCH_REFUSAL"
 criteria $'1. **C1** `FooBenchmark` at most 8 ms\n- C2: b'
 names 'C1 and C2'
 refuse 'a numbered criterion with a bench and no statistic' "$BENCH_REFUSAL"

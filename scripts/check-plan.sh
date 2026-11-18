@@ -96,10 +96,12 @@
 #   a `## Act on` heading: each finding is a numbered item under `## Act on` or another verdict
 #   section. A round file older than the rule is not checked; a per-lens file is none.
 # - A criterion line of the `## Acceptance criteria` section of analysis.md (an item or a table row
-#   with an ID) that names a bench (`make bench` or a word that ends in Benchmark) and a time value
-#   (a number with ms or s) has a statistic word (p50, p90, p95, p99, median, max): a bench time
-#   with no statistic cannot be graded. The rule reads the current line only, so a criterion change
-#   that drops the bench or the time value passes. A run whose first decisions.tsv row is older than
+#   with an ID) that names a bench (`make bench` or a word that ends in Benchmark) and a time budget
+#   in one sentence has a statistic word (p50, p90, p95, p99, median, max): a bench time with no
+#   statistic cannot be graded. A time budget is under, at most, budget, or takes before a number
+#   with ms or s, or a number with ms or s before "or less"; a table row is one sentence, so a
+#   compare with main, a fixture length, and a tolerance are no budget. The rule reads the current
+#   line only, so a criterion change that drops the bench or the budget passes. A run whose first decisions.tsv row is older than
 #   bench_stat_cutoff is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
@@ -417,10 +419,15 @@ else
                 t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
                 if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
                 id = substr(t, 1, RLENGTH)
-                if ($0 !~ /(make bench|[A-Za-z]+Benchmark)([^A-Za-z0-9]|$)/) next
-                if ($0 !~ /(^|[^A-Za-z0-9.])[0-9]+(\.[0-9]+)?[ ]?(ms|s)([^A-Za-z0-9]|$)/) next
                 if (tolower($0) ~ /(^|[^a-z0-9])(p50|p90|p95|p99|median|maximum|max)([^a-z0-9]|$)/) next
-                print "analysis.md: criterion " id " names a bench and a time value with no statistic word (p50, p90, p95, p99, median, or max); name the statistic that the bench measures over its span, for example \"p95 of FooBenchmark at most 8 ms\""
+                if ($0 ~ /^\|/) { n = 1; sentence[1] = $0 } else n = split($0, sentence, /\. /)
+                for (i = 1; i <= n; i++)
+                    if (sentence[i] ~ /(make bench|[A-Za-z]+Benchmark)([^A-Za-z0-9]|$)/ &&
+                        (sentence[i] ~ /(under|at most|budget|takes) [0-9]+(\.[0-9]+)? ?(ms|s)([^A-Za-z0-9]|$)/ ||
+                         sentence[i] ~ /(^|[^A-Za-z0-9.])[0-9]+(\.[0-9]+)? ?(ms|s) or less/)) {
+                        print "analysis.md: criterion " id " names a bench and a time budget with no statistic word (p50, p90, p95, p99, median, or max); name the statistic that the bench measures over its span, for example \"p95 of FooBenchmark at most 8 ms\""
+                        break
+                    }
             }' "$run/analysis.md")
     fi
     # Cutoff 2026-10-24T10:00, the commit that added the Landings rule: a run that started earlier passes without it.

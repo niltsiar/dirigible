@@ -9,6 +9,8 @@
 # and lock_free_targets (the make targets that take none). scripts/with-lock.sh sets its own
 # free_targets, so this list has another name. lock_make_opt and lock_make_set match the make words
 # before the target. git-guardrails.test.sh keeps the lists equal to the Makefile and AGENTS.md.
+# hold_base gives scripts/with-lock.sh and scripts/flake-monitor/loop.sh the push-check baseline
+# of their hold limit.
 # Sourced only: no set line, and the top level holds the list assignments only.
 lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|test-slow|test-slow-push|check-slow-gates|check-warnings|check-sizes|bench|test-app|dmg|test-dmg|test-hooks|run|static|check|check-changed|clean'
 lock_scripts='swift-test|test-shards|bench|bench-pairs|flake-monitor/loop|sanitize|test-stress'
@@ -69,4 +71,11 @@ lock_make_words() {
         check-changed) ;;
         *) return 1 ;;
     esac
+}
+
+# hold_base <hold log>: prints the largest hold of the last 10 push-check lines (a command with
+# check-changed and BASE=) whose fifth column is not limit; a limit line takes no slot. It prints 0
+# when the log is missing or has no such line.
+hold_base() {
+    awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { h[n++ % 10] = $2 } END { for (i in h) if (h[i] > s) s = h[i]; print s + 0 }' "$1" 2>/dev/null || echo 0
 }

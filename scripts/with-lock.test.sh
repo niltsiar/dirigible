@@ -1971,8 +1971,8 @@ reset_builders
 # then KILL after WITH_LOCK_HOLD_GRACE seconds; the lock goes, the hold line gets the fifth column
 # limit, and the call exits 124. A command that ends in time keeps its status, and 0 turns the
 # limit off. The default is in $lock/maxhold while the lock is held: 30 min, and for a call with no
-# wait limit (a release call, WITH_LOCK_MAX_WAIT=0) 2 times the newest push-check hold in the log,
-# at least 60 min.
+# wait limit (a release call, WITH_LOCK_MAX_WAIT=0) 2 times the largest of the last 10 push-check
+# holds in the log, at least 60 min.
 reset_builders
 rm -f "$tmp/inner"
 printf '#!/bin/bash\necho $$ > "%s"\ntrap "" TERM\nwhile :; do sleep 0.2; done\n' "$tmp/inner" > "$fake/stubborn"
@@ -2013,9 +2013,32 @@ started="" seconds=0 command="" htree="" word=""
 IFS=$'\t' read -r started seconds command htree word < "$holds"
 [[ $code -eq 1 && "$word" == limit && "$command" == "$fake/shardlimit" ]] || fail "shard-limit file: exit $code, hold line [$started] [$seconds] [$command] [$htree] [$word]"
 [[ "$(cat "$tmp/wait.out")" != *'ran past WITH_LOCK_MAX_HOLD'* && ! -e "$lock" ]] || fail "shard-limit file: a hold limit line or the lock stays: $(cat "$tmp/wait.out")"
+# A TERM to a push check gives its hold line the column limit too, and the exit stays 143. A
+# command that exits 143 by itself keeps its four-column hold line.
+reset_builders
+rm -f "$tmp/inner"
+mkdir -p "$tmp/slowbin"
+printf '#!/bin/bash\necho $$ > "%s"\nexec sleep 60\n' "$tmp/inner" > "$tmp/slowbin/make"
+chmod +x "$tmp/slowbin/make"
+"$repo/scripts/with-lock.sh" "$tmp/slowbin/make" check-changed BASE=origin/main > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 test -s "$tmp/inner" || fail 'a TERM to a push check: the command did not start'
+kill -TERM "$waiter"
+wait "$waiter"
+code=$?
+waiter="" inner=""
+started="" seconds=0 command="" htree="" word="" mark=""
+IFS=$'\t' read -r started seconds command htree word mark < "$holds"
+[[ $code -eq 143 && "$word" == limit && "$mark" == nocap && "$command" == "$tmp/slowbin/make check-changed BASE=origin/main" ]] ||
+  fail "a TERM to a push check: hold line [$(cat "$holds" 2>/dev/null)], exit $code"
+[[ "$(cat "$tmp/wait.out")" != *'ran past WITH_LOCK_MAX_HOLD'* ]] || fail "a TERM to a push check: a hold limit line: $(cat "$tmp/wait.out")"
+reset_builders
+"$repo/scripts/with-lock.sh" bash -c 'exit 143' > /dev/null 2>&1
+code=$?
+[[ $code -eq 143 && "$(awk -F'\t' '{ print NF }' "$holds")" == 4 ]] || fail "a command that exits 143: exit $code, hold line [$(cat "$holds" 2>/dev/null)]"
 # The default limit: 30 min for an ordinary call, 60 min for a release call with no push check in
-# the log, and 2 times the newest push-check hold when that is over 30 min. A killed push check
-# does not count.
+# the log, and 2 times the largest of the last 10 push-check holds when that is over 30 min. A
+# killed push check does not count.
 mkdir -p "$tmp/relbin"
 printf '#!/bin/bash\ncat "%s/maxhold"\n' "$lock" > "$tmp/relbin/make"
 chmod +x "$tmp/relbin/make"
@@ -2033,6 +2056,28 @@ out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin
 [[ "$out" == 12000 ]] || fail "default hold limit, release call, newest push check 6000 s: [$out]"
 out="$(WITH_LOCK_MAX_HOLD=77 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
 [[ "$out" == 77 ]] || fail "WITH_LOCK_MAX_HOLD=77: [$out]"
+# The base is the largest hold of the last 10 push-check lines with no limit column, compared as
+# numbers; a limit line takes no slot. write_holds <seconds>[:limit]... writes the lines oldest first.
+write_holds() {
+  local s m=$# word
+  for s in "$@"; do
+    word=""
+    [[ $s != *:limit ]] || word=limit
+    printf '%s\t%s\tmake check-changed BASE=origin/main\t/t/a\t%s\tnocap\n' "$(ago $((m--)))" "${s%:limit}" "$word"
+  done > "$holds"
+}
+for fixture in '6748|3374 s then 174 s|3374 174' \
+  '3600|3374 s then ten 174 s|3374 174 174 174 174 174 174 174 174 174 174' \
+  '6748|3374 s as the 10th uncut line before a limit line|3374 174 174 174 174 174 174 174 174 174 9000:limit' \
+  '6748|3374 s then 999 s|3374 999'; do
+  IFS='|' read -r want name spec <<< "$fixture"
+  read -ra lines <<< "$spec"
+  write_holds "${lines[@]}"
+  out="$(WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
+  [[ "$out" == "$want" ]] || fail "default hold limit, WITH_LOCK_MAX_WAIT=0, $name: [$out]"
+  out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin/main 2>&1)"
+  [[ "$out" == "$want" ]] || fail "default hold limit, release call, $name: [$out]"
+done
 # --builders prints the hold seconds of the live holder, and its limit when the lock folder has one.
 reset_builders
 hold

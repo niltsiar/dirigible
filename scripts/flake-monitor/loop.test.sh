@@ -55,8 +55,8 @@ env -u DIRIGIBLE_FULL_SUITE "$loop" t 1 1 "$tmp/out11" "$tmp/stub" > /dev/null 2
 [[ "$(cat "$tmp/out11/t-1.log" 2>/dev/null)" == "suite=1" ]] \
     || { echo "FAIL: the loop does not export DIRIGIBLE_FULL_SUITE=1 to make test: $(cat "$tmp/out11/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
 
-# The loop takes the lock once, with a hold limit of its run count times 2 times the newest push-check
-# hold, at least 3600 s. A make test that prints the limit in the lock folder shows it.
+# The loop takes the lock once, with a hold limit of its run count times 2 times the push-check
+# baseline (hold_base), at least 3600 s. A make test that prints the limit in the lock folder shows it.
 printf 'test:\n\t@cat "%s/dirigible-build.lock/maxhold"\n' "$repo/.git" > "$tmp/stub/Makefile"
 limit() { rm -rf "$tmp/outh"; "$loop" t 1 "$1" "$tmp/outh" "$tmp/stub" > /dev/null 2>&1; cat "$tmp/outh/t-$1.log" 2>/dev/null; }
 got="$(limit 1)"
@@ -66,6 +66,15 @@ got="$(limit 1)"
 [[ "$got" == 12000 ]] || { echo "FAIL: the hold limit of a 1-run loop, newest push check 6000 s: [$got]"; failures=$((failures + 1)); }
 got="$(limit 3)"
 [[ "$got" == 36000 ]] || { echo "FAIL: the hold limit of a 3-run loop, newest push check 6000 s: [$got]"; failures=$((failures + 1)); }
+push_line() { printf '2026-10-17T10:00:00\t%s\tmake check-changed BASE=origin/main\t/t/a\t%s\tnocap\n' "$1" "${2:-}"; }
+{ push_line 3374; push_line 174; } > "$holds"
+got="$(limit 1)"
+[[ "$got" == 6748 ]] || { echo "FAIL: the hold limit of a 1-run loop, 3374 s then 174 s: [$got]"; failures=$((failures + 1)); }
+got="$(limit 3)"
+[[ "$got" == 20244 ]] || { echo "FAIL: the hold limit of a 3-run loop, 3374 s then 174 s: [$got]"; failures=$((failures + 1)); }
+{ push_line 3374; for _ in 1 2 3 4 5 6 7 8 9; do push_line 174; done; push_line 9000 limit; } > "$holds"
+got="$(limit 1)"
+[[ "$got" == 6748 ]] || { echo "FAIL: the hold limit of a 1-run loop, 3374 s as the 10th uncut line before a limit line: [$got]"; failures=$((failures + 1)); }
 
 # A caller that holds the lock already (the nested path) runs the loop at once under its own limit.
 rm -rf "$tmp/outh"

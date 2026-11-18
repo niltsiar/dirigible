@@ -70,13 +70,15 @@
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
-# call that has no wait limit (above) gets 2 times the newest push-check hold line (a make
-# check-changed BASE= line with no limit column) in the hold log, at least 3600 s. 0 turns the
-# limit off. A step limit of scripts/test-shards.sh makes the second writer of the column limit:
-# it creates <lock>/shard-limit, so the hold line of that push check has the column too, and the
-# exit stays that of the command (only <lock>/limit gives exit 124). The lock folder keeps the
-# limit in <lock>/maxhold, and --builders ends with the line
-# "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
+# call that has no wait limit (above) gets 2 times the largest of the last 10 push-check holds in
+# the hold log (hold_base of lock-words.sh: make check-changed BASE= lines with no limit column; a
+# limit line takes no slot), at least 3600 s. A docs or tooling push check holds the lock for a few
+# minutes, so the newest line alone can be short. 0 turns the limit off. A step limit of
+# scripts/test-shards.sh makes the second writer of the column limit: it creates
+# <lock>/shard-limit, so the hold line of that push check has the column too, and the exit stays
+# that of the command (only <lock>/limit gives exit 124). A stop by INT or TERM makes the third
+# writer (below). The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the
+# line "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
 # make test-hooks with DIRIGIBLE_HOOKS_ALL=1 in the same three places; land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
@@ -89,8 +91,9 @@
 # in a git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails,
 # exits 2 and leaves no lock. Only after its own take does the call set the trap that removes the
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
-# waits never removes the lock of another process. INT or TERM stops the process group of the
-# command first. The call exits with the status of the command.
+# waits never removes the lock of another process. INT or TERM to a holder stops the process group
+# of the command first, gives the hold line the column limit, and the call exits 130 or 143.
+# Otherwise the call exits with the status of the command.
 # A lock-free call takes no lock and writes no hold line, and prints one stderr line
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
 # check, the hooks pass, a land, or make dmg), a bench, a mutation pass, a flake loop, or a stress
@@ -696,8 +699,8 @@ maxhold="${WITH_LOCK_MAX_HOLD:-}"
 if [[ -z "$maxhold" && -z "$long" ]]; then
     maxhold=1800
 elif [[ -z "$maxhold" ]]; then
-    maxhold="$(awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 } END { s *= 2; print (s < 3600) ? 3600 : s }' "$holds" 2>/dev/null)"
-    maxhold="${maxhold:-3600}"
+    maxhold=$((2 * $(hold_base "$holds")))
+    [[ $maxhold -ge 3600 ]] || maxhold=3600
 fi
 [[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
 maxhold=$((10#$maxhold))
@@ -763,19 +766,19 @@ rm -f ${marker:+"$marker"}
 taken="$(date +%s)" cmdline="$*"
 [[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \
     >> "$waits" 2>/dev/null
-child="" watcher=""
+child="" watcher="" stopped=""
 release() {
     local extra=""
     [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
         [[ -z "$watcher" ]] || kill "$watcher" 2>/dev/null
-        [[ ! -e "$lock/limit" && ! -e "$lock/shard-limit" ]] || extra=$'\tlimit'
+        [[ -z "$stopped" && ! -e "$lock/limit" && ! -e "$lock/shard-limit" ]] || extra=$'\tlimit'
         [[ -z "$nocap" ]] || extra="${extra:-$'\t'}"$'\tnocap'
         printf '%s\t%s\t%s\t%s%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" "$extra" >> "$holds" 2>/dev/null
         rm -rf "$lock"
     }
 }
 # The TERM goes to the process group of the command: make sends it only to its recipe shell.
-stop() { [[ -z "$child" ]] || { kill -TERM -- "-$child" 2>/dev/null; wait "$child"; }; exit "$1"; }
+stop() { stopped=1; [[ -z "$child" ]] || { kill -TERM -- "-$child" 2>/dev/null; wait "$child"; }; exit "$1"; }
 trap release EXIT
 trap 'stop 130' INT
 trap 'stop 143' TERM

@@ -9,8 +9,8 @@
 # The first form runs itself under with-lock.sh (with the DIRIGIBLE_LOCKED_SCRIPT marker, as
 # test-shards.sh does), so the loop takes the build lock once, outside the loop. A caller that holds
 # the lock already (a nested call) keeps its own hold limit. For its own take, the loop sets
-# WITH_LOCK_MAX_HOLD to the run count times 2 times the newest push-check hold in the hold log,
-# at least 3600 s, unless the caller sets it.
+# WITH_LOCK_MAX_HOLD to the run count times 2 times the push-check baseline of the hold log
+# (hold_base of scripts/lock-words.sh), at least 3600 s, unless the caller sets it.
 # It sets WITH_LOCK_MAX_WAIT=0: a lock wait in a run never ends in exit 75 and never counts as a
 # failed run. It sets DIRIGIBLE_FULL_SUITE=1: the loop runs the full suite on purpose, and a bare
 # make test refuses (test-shards.sh).
@@ -55,14 +55,15 @@ while [[ "${1:-}" == --min-load || "${1:-}" == --filter ]]; do
 done
 [[ $# -ge 4 && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]] || { echo "usage: loop.sh [--min-load <n>] [--filter '<names>'] <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
 tag="$1" first="$2" last="$3"
-# with-lock.sh runs this script again with the marker, and the marker stops a second wrap. The awk
-# line is the one of with-lock.sh for a call with no wait limit, with the run count as a factor.
+# with-lock.sh runs this script again with the marker, and the marker stops a second wrap. The base
+# is hold_base, read as with-lock.sh reads it for a call with no wait limit, with the run count as a
+# factor.
 if [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" != "$0" ]]; then
     wrapper="$(dirname "$0")/../with-lock.sh"
     holds="$(git -C "$(dirname "$wrapper")" rev-parse --path-format=absolute --git-common-dir)/dirigible-build-holds.log" || exit 2
-    export WITH_LOCK_MAX_HOLD="${WITH_LOCK_MAX_HOLD:-$(awk -F'\t' -v first="$first" -v last="$last" \
-        '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 }
-        END { s *= 2 * ((last > first ? last - first : first - last) + 1); print (s < 3600) ? 3600 : s }' "$holds" 2>/dev/null)}"
+    . "$(dirname "$wrapper")/lock-words.sh"
+    export WITH_LOCK_MAX_HOLD="${WITH_LOCK_MAX_HOLD:-$(awk -v base="$(hold_base "$holds")" -v first="$first" -v last="$last" \
+        'BEGIN { s = base * 2 * ((last > first ? last - first : first - last) + 1); print (s < 3600) ? 3600 : s }')}"
     DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$wrapper" "$0" "${args[@]}"
 fi
 mkdir -p "$4"

@@ -27,7 +27,7 @@
 # The list step and each shard have a limit of L seconds: TEST_SHARD_LIMIT (whole seconds, 0 for
 # none), else max(2400, 1.5 x the newest push-check hold of dirigible-build-holds.log in the git
 # common dir: the last line whose command has check-changed and BASE=, with no fifth column
-# limit, as with-lock.sh reads it). The script prints "test-shards: each shard has a limit of
+# limit). The script prints "test-shards: each shard has a limit of
 # <L> s" before the build. A step past L gets TERM, then KILL 10 s later, only while its pid is a
 # live child of this script. A shard past L prints "test-shards: shard <n>: the test process
 # ended before its report (over its limit of <L> s)", and the run fails after the other shards

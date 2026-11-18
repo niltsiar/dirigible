@@ -66,10 +66,10 @@ import Testing
                 }
                 // The first 10 events are not timed (the draws after the window shows).
                 if event >= 10 { times.append(time) }
-                try #require(model.inspectorPreview?.points == width, "\(zoom): target \(width)")
+                try #require(model.inspectorResize.preview?.points == width, "\(zoom): target \(width)")
                 try #require(
-                    Double(model.inspectorGuide.frame.minX) == 1440 - width,
-                    "\(zoom): guide \(model.inspectorGuide.frame)")
+                    Double(model.inspectorResize.guide.frame.minX) == 1440 - width,
+                    "\(zoom): guide \(model.inspectorResize.guide.frame)")
                 try #require(model.inspectorWidth == .standard && view.frame.width == lanesWidth, "\(zoom): live width")
                 try #require(view.lanes.draws == draws, "\(zoom): a drag event drew the lanes")
             }
@@ -102,8 +102,9 @@ import Testing
         }
     }
 
-    static func handle(_ view: NSView) -> InspectorHandleView? {
-        view as? InspectorHandleView ?? view.subviews.lazy.compactMap(handle).first
+    static func handle(_ view: NSView) -> PaneHandleView? {
+        if let handle = view as? PaneHandleView, handle.edge == .trailing { return handle }
+        return view.subviews.lazy.compactMap(handle).first
     }
 
     static func event(_ type: NSEvent.EventType, _ x: Double, _ window: NSWindow) throws -> NSEvent {

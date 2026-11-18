@@ -87,7 +87,7 @@ struct SessionView: View {
                     HStack(spacing: 0) {
                         SessionIndexView(model: model, studio: studio).frame(width: model.leadingPane.width.points - 1)
                         // Centered on the divider, so its trailing half is over the lanes (0023).
-                        Divider().overlay { IndexHandle(model: model).frame(width: 6) }
+                        Divider().overlay { PaneHandle(model: model, edge: .leading).frame(width: 6) }
                     }
                     .frame(width: model.leadingPane.width.points, alignment: .leading)
                     .zIndex(1)
@@ -97,7 +97,7 @@ struct SessionView: View {
                 if model.showsInspector {
                     HStack(spacing: 0) {
                         // The handle is centered on the 1 pt divider, above the lanes (0023).
-                        Divider().overlay { InspectorHandle(model: model).frame(width: 6) }
+                        Divider().overlay { PaneHandle(model: model, edge: .trailing).frame(width: 6) }
                         InspectorView(model: model, studio: studio)
                     }
                     // Leading: a pane wider than the column overflows at the window edge, and the

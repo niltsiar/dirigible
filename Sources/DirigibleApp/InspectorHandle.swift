@@ -1,48 +1,5 @@
 import AppKit
 import DirigibleTimeline
-import SwiftUI
-
-/// The 6 pt hit area over the inspector divider (decision 0023): the drag, the double-click, the
-/// cursor, and the AX splitter of the inspector width, as the header handle.
-struct InspectorHandle: NSViewRepresentable {
-    let model: SessionWindow
-
-    func makeNSView(context: Context) -> InspectorHandleView {
-        let view = InspectorHandleView()
-        view.model = model
-        return view
-    }
-
-    func updateNSView(_ view: InspectorHandleView, context: Context) { view.model = model }
-}
-
-final class InspectorHandleView: NSView {
-    weak var model: SessionWindow?
-
-    /// Minus the window x: the column origin moves with the width, and the pane grows to the left.
-    private func x(_ event: NSEvent) -> Double { -Double(event.locationInWindow.x) }
-
-    override func mouseDown(with event: NSEvent) { model?.dragInspector(.down(x: x(event), clicks: event.clickCount)) }
-    override func mouseDragged(with event: NSEvent) { model?.dragInspector(.drag(x: x(event))) }
-    override func mouseUp(with event: NSEvent) { model?.dragInspector(.up) }
-
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
-
-    override func isAccessibilityElement() -> Bool { true }
-    override func accessibilityRole() -> NSAccessibility.Role? { .splitter }
-    override func accessibilityLabel() -> String? { L10n.inspectorHandle.text }
-    override func accessibilityValue() -> Any? { model?.shownInspectorWidth }
-
-    override func accessibilityPerformIncrement() -> Bool {
-        model?.stepInspector(by: 20)
-        return true
-    }
-
-    override func accessibilityPerformDecrement() -> Bool {
-        model?.stepInspector(by: -20)
-        return true
-    }
-}
 
 extension SessionWindow {
     /// An event of the inspector handle. A drag moves the guide line, the up sets and saves a
@@ -52,26 +9,14 @@ extension SessionWindow {
     /// tab minimum never changes the saved width (P20).
     func dragInspector(_ event: PaneDragEvent) {
         // A down first commits the typed text and ends the text focus, as the header handle does:
-        // a focused field takes Esc. A drag with no mouse-up leaves an old target: drop it.
-        if case .down = event {
-            endNameEdit()
-            inspectorPreview = nil
-            inspectorRequest = nil
-        }
-        let width = inspectorRequest ?? InspectorWidth(shownInspectorWidth)
-        guard let step = inspectorDrag.handle(event, width: width) else { return }
-        if inspectorDrag.isActive {
-            // The guide shows from the first drag, so a click shows no line.
-            if case .drag = event {
-                inspectorRequest = fitted(step.width)
-                inspectorPreview = atLeastTranscript(fitted(step.width))
-            }
-        } else {
-            inspectorPreview = nil
-            inspectorRequest = nil
-            endInspectorDrag(event, step)
-        }
-        showInspectorGuide()
+        // a focused field takes Esc.
+        if case .down = event { endNameEdit() }
+        let step = inspectorResize.step(
+            event, start: InspectorWidth(shownInspectorWidth),
+            aim: { (fitted($0), atLeastTranscript(fitted($0))) })
+        guard let step else { return }
+        if !inspectorResize.drag.isActive { endInspectorDrag(event, step) }
+        showGuide(inspectorResize, edge: .trailing)
     }
 
     /// Sets the width of an ended press. A double-click gives the standard width; an up or Esc
@@ -95,7 +40,7 @@ extension SessionWindow {
 
     /// Esc: true when an inspector drag ran and Esc ended it with the start width.
     func cancelInspectorDrag() -> Bool {
-        guard inspectorDrag.isActive else { return false }
+        guard inspectorResize.drag.isActive else { return false }
         dragInspector(.escape)
         return true
     }
@@ -128,26 +73,5 @@ extension SessionWindow {
         let width = fitted(request)
         if width != inspectorWidth { inspectorWidth = width }
         if save { app?.defaults?.set(request.points, forKey: InspectorWidth.defaultsKey) }
-    }
-
-    /// The 1 pt accent line at the target edge, over the window content; nil removes it. A Core
-    /// Animation layer: a move runs no SwiftUI body and draws no lanes.
-    private func showInspectorGuide() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        defer { CATransaction.commit() }
-        guard let content = window?.contentView, let layer = content.layer, let preview = inspectorPreview else {
-            inspectorGuide.removeFromSuperlayer()
-            return
-        }
-        if inspectorGuide.superlayer !== layer {
-            layer.addSublayer(inspectorGuide)
-            inspectorGuide.zPosition = 100
-            content.effectiveAppearance.performAsCurrentDrawingAppearance {
-                inspectorGuide.backgroundColor = NSColor.controlAccentColor.cgColor
-            }
-        }
-        inspectorGuide.frame = CGRect(
-            x: content.bounds.width - preview.points, y: 0, width: 1, height: content.bounds.height)
     }
 }

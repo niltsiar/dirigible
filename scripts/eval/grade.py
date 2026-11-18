@@ -45,7 +45,8 @@ verdict: grade.py verdict <eval> <old set> <new set>
   scored run of each policy ID, and for a pooled line of each below ID (check-governance.sh). Before
   it replaces the file, a verdict reads the old one: for each ID of an old below or pooled line that
   this verdict does not mark rerun due again, it writes pooled <id>: old <p>/<r>, new <p>/<r>:
-  PASS or FAIL, the below clause over all tags of the folder.
+  PASS or FAIL over all tags of the folder: PASS when the below clause passes or old minus new is
+  at or under the bound of the rerun due line, and the below line of the ID prints the same result.
   The last line is verdict: PASS (exit 0), verdict: FAIL (exit 1), or verdict: RERUN DUE (exit 1,
   when rerun due lines are the only fails).
   unasked.tsv (from score) makes a second count. A row passes in it when its missing keys are
@@ -283,12 +284,14 @@ def verdict(old, new):
         ro, rn = runs.get((s, old), 0), runs.get((s, new), 0)
         def below(counts):
             return "not due" if min(ro, rn) < 6 else "PASS" if counts.get((s, new), 0) > counts.get((s, old), 0) - 2 else "FAIL"
-        po, pn = passes.get((s, old), 0), passes.get((s, new), 0)
         result = below(passes)
         unasked_fail = result == "FAIL" and below(passes2) != "FAIL"
         # A small sample can miss by chance: the bound of the retention sum, for this scenario alone.
-        spread = 2 * math.sqrt((ro + rn) * ((po + pn) / (ro + rn)) * (1 - (po + pn) / (ro + rn)))
+        po, pn, spread = drop([s], passes)
         below_due = result == "FAIL" and not unasked_fail and not s.startswith("H") and min(ro, rn) < 12 and po - pn <= spread
+        # The pooled tags of a rerun due ID pass inside the same bound, so a recovered rerun can pass.
+        if result == "FAIL" and not unasked_fail and s in earlier and not below_due and po - pn <= spread:
+            result = "PASS"
         if result == "FAIL" and s.startswith("H") and not unasked_fail:
             held.append(s)
         elif not below_due:

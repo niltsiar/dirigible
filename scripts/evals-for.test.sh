@@ -486,17 +486,27 @@ due_file below-holdout ''
 verdict_case below-twelve 1 'below E5: old 12/12, new 9/12: FAIL' 'verdict: FAIL'
 due_file below-twelve ''
 # A rerun in the same folder (a new tag) reads the old rerun-due.txt. For each ID of an old below or
-# pooled line that the verdict does not mark rerun due again, it writes pooled <ID>: ...: PASS or
-# FAIL, the below clause over all tags. A pooled line stays through a third verdict.
+# pooled line that the verdict does not mark rerun due again, it writes pooled <ID>: ...: PASS when
+# old minus new over all tags is at or under the bound of the rerun due line, else FAIL. A recovered
+# rerun passes: 12/12 against 10/12 has the bound 2.7, and 12/12 against 9/12 has 3.2. A pooled
+# drop past the bound fails: 12/12 against 6/12 has 4.2. A pooled line stays through a third verdict.
 old_due() { mkdir -p "$tmp/v/$1"; printf '%s\n' "${@:2}" > "$tmp/v/$1/rerun-due.txt"; }
 { sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 3 6; sc u E5 retention new 6 6; } > "$tmp/rows"
 old_due pooled-pass 'below E5: old 6/6, new 3/6: rerun due'
 verdict_case pooled-pass 0 'below E5: old 9/12, new 9/12: PASS' 'verdict: PASS'
 due_file pooled-pass 'pooled E5: old 9/12, new 9/12: PASS'
+{ sc t E5 retention old 6 6; sc t E5 retention new 4 6; sc u E5 retention old 6 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+old_due pooled-recovered 'below E5: old 6/6, new 4/6: rerun due'
+verdict_case pooled-recovered 0 'below E5: old 12/12, new 10/12: PASS' 'verdict: PASS'
+due_file pooled-recovered 'pooled E5: old 12/12, new 10/12: PASS'
 { sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 6 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+old_due pooled-recovered-three 'below E5: old 6/6, new 3/6: rerun due'
+verdict_case pooled-recovered-three 0 'below E5: old 12/12, new 9/12: PASS' 'verdict: PASS'
+due_file pooled-recovered-three 'pooled E5: old 12/12, new 9/12: PASS'
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 6 6; sc u E5 retention new 3 6; } > "$tmp/rows"
 old_due pooled-fail 'below E5: old 6/6, new 3/6: rerun due'
-verdict_case pooled-fail 1 'verdict: FAIL'
-due_file pooled-fail 'pooled E5: old 12/12, new 9/12: FAIL'
+verdict_case pooled-fail 1 'below E5: old 12/12, new 6/12: FAIL' 'verdict: FAIL'
+due_file pooled-fail 'pooled E5: old 12/12, new 6/12: FAIL'
 { sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 3 6; sc u E5 retention new 6 6; sc v E5 retention old 6 6; sc v E5 retention new 6 6; } > "$tmp/rows"
 old_due pooled-third 'pooled E5: old 9/12, new 9/12: PASS'
 verdict_case pooled-third 0 'verdict: PASS'

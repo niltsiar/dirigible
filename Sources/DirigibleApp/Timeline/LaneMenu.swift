@@ -3,9 +3,9 @@ import DirigibleAudio
 import DirigibleCore
 import DirigibleTimeline
 
-/// The context menu of the lanes (decision 0037, `ui-panel.md` 4): three groups of the Edit and
-/// Markers commands, with no Undo item and no keys. An item that does not apply hides, but Cut, Copy,
-/// Paste, and Paste to Fill Selection dim. During a take only the marker group shows; it dims by the
+/// The context menu of the lanes (decision 0037, `ui-panel.md` 4): the groups of the Edit, Tools,
+/// Track > Match Voice, and Markers commands, with no Undo item and no keys. An item that does not
+/// apply hides, but Cut, Copy, Paste, and Paste to Fill Selection dim. During a take only the marker group shows; it dims by the
 /// Markers menu rule. A pending or split take hides the ripple items (Cut, Insert, Replace, and Delete
 /// and Close Gap). A clip set has no Delete and Close Gap, Replace, or Paste to Fill Selection; its Cut
 /// is no ripple, so it shows also under a pending or split take (decision 0038).
@@ -42,11 +42,11 @@ enum LaneMenu {
                 denoise ? Item(command: .reduceNoise, enabled: true) : nil,
                 denoise ? Item(command: .repairSound, enabled: true) : nil,
                 denoise ? Item(command: .levelOverTime, enabled: true) : nil,
-                reference ? Item(command: .useAsVoiceReference, enabled: true) : nil,
                 restore ? Item(command: .restoreOriginal, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
                 closeGaps ? Item(command: .closeGaps, enabled: true) : nil,
             ],
+            [reference ? Item(command: .useAsVoiceReference, enabled: true) : nil],
         ]
         let markers = [Item(command: .addMarker, enabled: true), Item(command: .addChapter, enabled: true)]
         return ((canEdit ? edits.map { $0.compactMap { $0 } } : []) + [markers]).filter { !$0.isEmpty }

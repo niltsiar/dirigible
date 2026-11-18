@@ -24,19 +24,30 @@ fi
 
 # The Folders line of the module map names each folder of Sources/<target>/ that holds a Swift file,
 # at any depth: as `<folder>/` for DirigibleAudio (the line scopes its bare names), else as
-# `<target>/<folder>/`.
+# `<target>/<folder>/`. It also names no folder that Sources/ lacks. A record with no Folders line
+# gives one error and no folder check.
 map="$root/docs/decisions/0002-module-map.md"
 swift_folders=""
-[[ ! -d "$root/Sources" ]] || swift_folders="$(cd "$root/Sources" && find . -mindepth 3 -name '*.swift' | awk -F/ '{ print $2 "/" $3 }' | sort -u)"
+[[ ! -d "$root/Sources" ]] || swift_folders="$(cd "$root/Sources" && find . -mindepth 3 -type f -name '*.swift' | awk -F/ '{ print $2 "/" $3 }' | sort -u)"
 if [[ -n "$swift_folders" && ! -f "$map" ]]; then
     err "no docs/decisions/0002-module-map.md for the folders of Sources/"
-elif [[ -n "$swift_folders" ]]; then
+elif [[ -f "$map" ]]; then
     folders_line="$(grep -m1 '^- \*\*Folders\.\*\*' "$map" || true)"
-    while IFS=/ read -r target folder; do
-        name="$target/$folder"
-        [[ "$target" != DirigibleAudio ]] || name="$folder"
-        [[ "$folders_line" == *"\`$name/\`"* ]] || err "docs/decisions/0002-module-map.md: Folders does not name Sources/$target/$folder/"
-    done <<<"$swift_folders"
+    if [[ -z "$folders_line" ]]; then
+        err "docs/decisions/0002-module-map.md: no Folders line"
+    else
+        while IFS=/ read -r target folder; do
+            [[ -n "$target" ]] || continue
+            name="$target/$folder"
+            [[ "$target" != DirigibleAudio ]] || name="$folder"
+            [[ "$folders_line" == *"\`$name/\`"* ]] || err "docs/decisions/0002-module-map.md: Folders does not name Sources/$target/$folder/"
+        done <<<"$swift_folders"
+        for named in $(grep -oE '`[A-Za-z0-9_]+(/[A-Za-z0-9_]+)?/`' <<<"$folders_line" | tr -d '`' | sort -u); do
+            path="$named"
+            [[ "$named" == */*/ ]] || path="DirigibleAudio/$named"
+            [[ -d "$root/Sources/$path" ]] || err "docs/decisions/0002-module-map.md: Folders names $named with no folder Sources/$path"
+        done
+    fi
 fi
 
 # Each `dirigible <command>` or `swift run dirigible <command>` in AGENTS.md, the README, the

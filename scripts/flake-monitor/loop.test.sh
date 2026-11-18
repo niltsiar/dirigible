@@ -75,6 +75,9 @@ got="$(limit 3)"
 { push_line 3374; for _ in 1 2 3 4 5 6 7 8 9; do push_line 174; done; push_line 9000 limit; } > "$holds"
 got="$(limit 1)"
 [[ "$got" == 6748 ]] || { echo "FAIL: the hold limit of a 1-run loop, 3374 s as the 10th uncut line before a limit line: [$got]"; failures=$((failures + 1)); }
+rm -f "$holds"
+got="$(limit 1)"
+[[ "$got" == 3600 ]] || { echo "FAIL: the hold limit of a 1-run loop with no hold log: [$got]"; failures=$((failures + 1)); }
 
 # A caller that holds the lock already (the nested path) runs the loop at once under its own limit.
 rm -rf "$tmp/outh"

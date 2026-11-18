@@ -74,8 +74,10 @@ lock_make_words() {
 }
 
 # hold_base <hold log>: prints the largest hold of the last 10 push-check lines (a command with
-# check-changed and BASE=) whose fifth column is not limit; a limit line takes no slot. It prints 0
-# when the log is missing or has no such line.
+# check-changed and BASE=) whose fifth column is not limit, as one whole number; a limit line takes
+# no slot, and a field that is no number counts as 0. It prints 0 when the log is missing or has no
+# such line.
 hold_base() {
-    awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { h[n++ % 10] = $2 } END { for (i in h) if (h[i] > s) s = h[i]; print s + 0 }' "$1" 2>/dev/null || echo 0
+    [[ -r "$1" ]] || { echo 0; return; }
+    awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { h[n++ % 10] = $2 + 0 } END { for (i in h) if (h[i] > s + 0) s = h[i]; print int(s + 0) }' "$1"
 }

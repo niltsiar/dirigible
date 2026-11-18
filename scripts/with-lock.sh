@@ -70,15 +70,13 @@
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
-# call that has no wait limit (above) gets 2 times the largest of the last 10 push-check holds in
-# the hold log (hold_base of lock-words.sh: make check-changed BASE= lines with no limit column; a
-# limit line takes no slot), at least 3600 s. A docs or tooling push check holds the lock for a few
-# minutes, so the newest line alone can be short. 0 turns the limit off. A step limit of
-# scripts/test-shards.sh makes the second writer of the column limit: it creates
-# <lock>/shard-limit, so the hold line of that push check has the column too, and the exit stays
-# that of the command (only <lock>/limit gives exit 124). A stop by INT or TERM makes the third
-# writer (below). The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the
-# line "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
+# call that has no wait limit (above) gets 2 times hold_base of scripts/lock-words.sh (the push-check
+# baseline), at least 3600 s. 0 turns the limit off. The column limit marks a cut call: the hold
+# limit, the shard limit, or a stop by INT, TERM, or HUP (below). A step limit of
+# scripts/test-shards.sh creates <lock>/shard-limit, so the hold line of that push check has the
+# column too, and the exit stays that of the command (only <lock>/limit gives exit 124). The lock
+# folder keeps the limit in <lock>/maxhold, and --builders ends with the line
+# "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
 # make test-hooks with DIRIGIBLE_HOOKS_ALL=1 in the same three places; land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
@@ -91,8 +89,9 @@
 # in a git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails,
 # exits 2 and leaves no lock. Only after its own take does the call set the trap that removes the
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
-# waits never removes the lock of another process. INT or TERM to a holder stops the process group
-# of the command first, gives the hold line the column limit, and the call exits 130 or 143.
+# waits never removes the lock of another process. INT, TERM, or HUP to a holder stops the process
+# group of the command first, gives the hold line the column limit, and the call exits 130, 143, or
+# 129.
 # Otherwise the call exits with the status of the command.
 # A lock-free call takes no lock and writes no hold line, and prints one stderr line
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
@@ -699,7 +698,9 @@ maxhold="${WITH_LOCK_MAX_HOLD:-}"
 if [[ -z "$maxhold" && -z "$long" ]]; then
     maxhold=1800
 elif [[ -z "$maxhold" ]]; then
-    maxhold=$((2 * $(hold_base "$holds")))
+    maxhold="$(hold_base "$holds")"
+    [[ "$maxhold" =~ ^[0-9]+$ ]] || maxhold=0
+    maxhold=$((2 * 10#$maxhold))
     [[ $maxhold -ge 3600 ]] || maxhold=3600
 fi
 [[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
@@ -782,6 +783,7 @@ stop() { stopped=1; [[ -z "$child" ]] || { kill -TERM -- "-$child" 2>/dev/null; 
 trap release EXIT
 trap 'stop 130' INT
 trap 'stop 143' TERM
+trap 'stop 129' HUP
 export DIRIGIBLE_BUILD_LOCK=$$
 # A child in the background, so a signal reaches the trap while the command runs. Job control
 # (set -m) gives it its own process group, which a TERM and the takeover check can name.

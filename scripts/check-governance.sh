@@ -52,9 +52,12 @@
 # - With a run folder, each line of a rerun-due.txt of an eval* folder (grade.py verdict) is due, except a
 #   `pooled <ID>: ...: PASS` line. A `policy` line (a policy miss under six runs that six runs can still
 #   pass) clears when another eval* folder of the run has scores.tsv rows of its ID, newer than that
-#   rerun-due.txt. A `below` line (a retention drop of a small sample) clears only through a
+#   rerun-due.txt. A `below` line (a retention drop of a small sample) clears through a
 #   `pooled <ID>: ...: PASS` line of the same file: a rerun in the same folder replaces its rerun-due.txt
-#   and writes that line when the pooled verdict passes. A `pooled <ID>: ...: FAIL` line refuses the land.
+#   and writes that line when the pooled verdict passes. A `below` line or a `pooled <ID>: ...: FAIL`
+#   line also clears when another eval* folder of the run, at another commit (logs/build-b.commit) and
+#   with scores.tsv newer than that rerun-due.txt, passes the below clause of the ID with at least the
+#   runs of the line in each set (a docs fix: run.sh refuses the old folder at a new commit).
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -355,8 +358,11 @@ if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
     done < <(failed_holdouts "$run/eval/holdout-fails.txt")
 fi
 # A rerun due ID is no fail yet, but the land waits for its pooled verdict: the same folder after a
-# rerun with a new tag (the folder replaces its rerun-due.txt), or, for a policy ID, a later eval* folder
-# with rows of it.
+# rerun with a new tag (the folder replaces its rerun-due.txt), or a later eval* folder: with rows of a
+# policy ID, or, after a docs fix, at another commit with a full-size below pass of a below or pooled ID.
+# run.sh refuses a rerun in the same folder at another commit.
+runs_re='old [0-9]+/([0-9]+), new [0-9]+/([0-9]+)'
+background='as a background run (AGENTS.md, Commands); a subagent returns to the lead'
 if [[ -n "$run" ]]; then
     for due in "$run"/eval*/rerun-due.txt; do
         [[ -s "$due" ]] || continue
@@ -364,17 +370,34 @@ if [[ -n "$run" ]]; then
         while read -r kind id rest; do
             [[ -n "$kind" ]] || continue
             id="${id%:}" cleared=
-            if [[ "$kind" == pooled ]]; then
-                [[ "$rest" == *': PASS' ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id failed the pooled verdict; fix its docs, then the lead runs scripts/eval/run.sh again in that eval folder with a new tag" >&2; fail=1; }
-                continue
-            fi
+            [[ "$kind" == pooled && "$rest" == *': PASS' ]] && continue
             if [[ "$kind" == policy ]]; then
                 for scores in "$run"/eval*/scores.tsv; do
                     [[ "$(dirname "$scores")" != "$folder" && "$scores" -nt "$due" ]] || continue
                     awk -F'\t' -v id="$id" '$2 == id { found = 1 } END { exit !found }' "$scores" && { cleared=1; break; }
                 done
+                [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, $background" >&2; fail=1; }
+                continue
             fi
-            [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, as a background run (AGENTS.md, Commands); a subagent returns to the lead" >&2; fail=1; }
+            old_runs=6 new_runs=6
+            [[ "$rest" =~ $runs_re ]] && old_runs="${BASH_REMATCH[1]}" new_runs="${BASH_REMATCH[2]}"
+            # The below clause of grade.py verdict on the later folder: new passes over old passes minus 2.
+            for scores in "$run"/eval*/scores.tsv; do
+                later="$(dirname "$scores")"
+                [[ "$later" != "$folder" && "$scores" -nt "$due" && -s "$later/logs/build-b.commit" ]] || continue
+                [[ "$(cat "$later/logs/build-b.commit")" != "$(cat "$folder/logs/build-b.commit" 2> /dev/null)" ]] || continue
+                awk -F'\t' -v id="$id" -v ro="$old_runs" -v rn="$new_runs" '
+                    $2 == id && $4 == "a" { oa++; op += ($6 == "PASS") }
+                    $2 == id && $4 == "b" { nb++; np += ($6 == "PASS") }
+                    END { exit !(oa >= ro && nb >= rn && np > op - 2) }' "$scores" && { cleared=1; break; }
+            done
+            [[ -z "$cleared" ]] || continue
+            fail=1
+            if [[ "$kind" == pooled ]]; then
+                echo "check-governance: $(basename "$folder")/rerun-due.txt: $id failed the pooled verdict; fix its docs, then the lead runs scripts/eval/run.sh in a new eval folder with at least $old_runs runs of set a and $new_runs of set b, $background" >&2
+            else
+                echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, or after a docs fix in a new eval folder with at least $old_runs runs of set a and $new_runs of set b, $background" >&2
+            fi
         done < "$due"
     done
 fi

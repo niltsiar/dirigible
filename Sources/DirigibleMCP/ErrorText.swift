@@ -97,6 +97,8 @@ extension DuckFailure: EditBodyText {
     package func message(package _: String) -> String { message }
 }
 
+extension SyncRefusal: EditBodyText {}
+
 extension ClipRenderError: EditBodyText {
     package func message(package _: String) -> String { message }
 }

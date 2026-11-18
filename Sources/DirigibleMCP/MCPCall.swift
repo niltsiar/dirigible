@@ -138,6 +138,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path, control: control)
     case .ride(let work):
         return try work.run(package, path: path, control: control)
+    case .sync(let work):
+        return try work.run(package, path: path, control: control)
     case .matchVoice(let work, _):
         return try work.run(package, path: path, control: control)
     case .importFile(let work):

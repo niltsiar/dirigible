@@ -42,6 +42,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveDuck(work, studio: studio, call: call, report: report)
     case .ride(let work):
         return await liveRide(work, studio: studio, call: call, report: report)
+    case .sync(let work):
+        return await liveSync(work, studio: studio, call: call, report: report)
     case .matchVoice(let work, let request):
         return await liveMatchVoice(work, request, studio: studio, call: call, report: report)
     case .importFile(let work):
@@ -360,6 +362,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .ride: "Dirigible stopped its agent server, so the level over time stopped. No ride changed."
+    case .sync: "Dirigible stopped its agent server, so the sync stopped. No clip moved."
     case .matchVoice: "Dirigible stopped its agent server, so the voice match stopped. No track changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."

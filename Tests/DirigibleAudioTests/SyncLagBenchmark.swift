@@ -30,7 +30,7 @@ struct SyncLagBenchmark {
     /// The reference track holds 3 files of 1 h of noise, each with its own seed, so no passage
     /// repeats over 3 h. The clip is the second file at 3500 s, 100 s before its audio, and
     /// `within` 2364 s gives a cut span of 8328 s with no cut, so n = 2^24. The budget is 2 times
-    /// the first optimized time (<first> s on the Intel Mac), rounded up to 0.5 s.
+    /// the first optimized time (3.57 s on the Intel Mac), rounded up to 0.5 s.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aSpanAtTheCapFitsTheBudget() throws {
         let package = try MixPackage()
@@ -63,6 +63,6 @@ struct SyncLagBenchmark {
         )
         #expect(result.lag == 4_800_000, "\(result)")
         #expect(footprint <= 512 << 20, "peak footprint \(footprint >> 20) MiB")
-        expectWithinBudget(elapsed, .seconds(60), "sync at the cap took \(elapsed)")
+        expectWithinBudget(elapsed, .seconds(7.5), "sync at the cap took \(elapsed)")
     }
 }

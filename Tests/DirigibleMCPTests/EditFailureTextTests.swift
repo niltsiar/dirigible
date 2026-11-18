@@ -60,6 +60,12 @@ struct EditFailureTextTests {
         row("TranscribeFailure", TranscribeFailure.cancelled, text: "the transcription was cancelled.") {
             $0.message(package: "p.dirigible")
         },
+        row("ClipRenderError", ClipRenderError.cancelled, text: "the clip render was cancelled.") {
+            $0.message(package: "p.dirigible")
+        },
+        row("SplitError", SplitError.cancelled, text: "the split was cancelled.") {
+            $0.message(package: "p.dirigible")
+        },
         row("TakeImportError", TakeImportError.session(.unknownTrack("t9")), text: "no track \"t9\".") {
             $0.message(package: "p.dirigible")
         },
@@ -77,5 +83,47 @@ struct EditFailureTextTests {
         #expect(row.split == Self.split)
         #expect(row.file == Self.file)
         #expect(row.body == row.bodyText)
+    }
+
+    /// The tool call of the clip render and of the split on the files.
+    enum Tool: CaseIterable, Sendable, CustomTestStringConvertible {
+        case clipRender, split
+        var testDescription: String { self == .clipRender ? "ClipRenderWork" : "SplitWork" }
+
+        /// The error text of a call on a clip that the session does not hold.
+        func message(in package: LivePackage) -> String {
+            let control = CallControl(token: nil, interval: .zero, send: { _ in }, poll: { _ in false }, step: {})
+            do throws(ToolError) {
+                switch self {
+                case .clipRender:
+                    let request = ClipRenderRequest(Treatment(.rumble(.standard)))
+                    _ = try ClipRenderWork(clips: ["c9"], request: request).run(
+                        package.url, path: package.path, control: control)
+                case .split:
+                    _ = try SplitWork(clips: ["c9"]).run(package.url, path: package.path, control: control)
+                }
+                return "the call did not fail"
+            } catch {
+                return error.message
+            }
+        }
+    }
+
+    /// The tool call of each of these two edits gives the text of its pending take, its file error, and
+    /// its body. The two tools do not ripple, so the rows above hold their split take text.
+    @Test(arguments: Tool.allCases) func theToolCallGivesTheTextOfEachFailure(_ tool: Tool) throws {
+        let pending = try LivePackage()
+        var session = try Session(contentsOf: pending.url)
+        try session.setRecording(
+            Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        try session.write(to: pending.url)
+        let damaged = try LivePackage()
+        try Data("not xml".utf8).write(to: damaged.url.appending(path: "session.xml"))
+        let body = try LivePackage()
+
+        let notFinalized = "\(pending.path) has a take that is not finalized; open it in Dirigible first."
+        #expect(tool.message(in: pending) == notFinalized)
+        #expect(tool.message(in: damaged) == "\(damaged.path)/session.xml is not a Dirigible session file.")
+        #expect(tool.message(in: body) == "no clip \"c9\".")
     }
 }

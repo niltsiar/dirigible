@@ -150,14 +150,7 @@ package struct ClipRenderWork: Sendable {
             }
             return (Self.lines(moved.clips, repairs: moved.repairs) + note).joined(separator: "\n")
         } catch {
-            let message =
-                switch error {
-                case .body(let error): error.message
-                case .file(let error): error.message(package: path)
-                case .pendingTake: pendingTakeMessage(path)
-                case .splitTake: splitTakeMessage(path)
-                }
-            throw ToolError(message)
+            throw ToolError(error.message(package: path))
         }
     }
 }

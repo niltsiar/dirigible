@@ -11,7 +11,7 @@ enum PaneEdge {
 /// The state of one pane resize (decision 0023): the drag, the target of the drag, and the guide
 /// line. Not observed: a drag event runs no SwiftUI body (C16).
 @MainActor final class PaneResize<Width: PaneWidth> {
-    var drag = PaneDrag<Width>()
+    private(set) var drag = PaneDrag<Width>()
     /// The fitted width that the pointer asks for, and the width that the guide shows (the request
     /// before the pane minimum of its tab). Nil when idle or before the first drag. The up saves
     /// the request.

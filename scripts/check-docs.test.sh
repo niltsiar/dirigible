@@ -286,6 +286,34 @@ expect_only 'a record with no Folders line' 'docs/decisions/0002-module-map.md: 
 good; audio_folders; mkdir -p "$tmp/Sources/DirigibleAudio/Odd/A.swift"; map "$audio"
 expect pass 'a directory named like a Swift file'
 
+# The Imports cell of the module map: each module that a target file imports is a word of the Imports cell of
+# its target row, in each import form of Tests/DirigibleTests/ImportRuleTests.swift. A tree has one file in
+# DirigibleX, a Folders line that names no folder, and a Decision table row for each Swift target.
+src() { mkdir -p "$tmp/Sources/$1"; printf '%s\n' "$3" > "$tmp/Sources/$1/$2"; }
+imports_map() { # <Owns cell of DirigibleX> <Imports cell of DirigibleX>
+  map "$(printf '%s\n' '- **Folders.** None.' '' '| Target | Owns | Imports | First release |' '|---|---|---|---|' \
+    "| \`DirigibleX\` | $1 | $2 | 1 |" '| `DirigibleCLI` | the commands | Foundation | 1 |' '| `DirigibleMCP` | the server | Foundation | 1 |')"
+}
+zeta="docs/decisions/0002-module-map.md: the Imports cell of DirigibleX does not name Zeta"
+good; src DirigibleX X.swift 'import Zeta'; imports_map 'x' 'Foundation'
+expect fail 'an import that the Imports cell does not name' "$zeta"
+good; src DirigibleX X.swift 'import IOKit.pwr_mgt'; imports_map 'x' 'Foundation, IOKit'
+expect pass 'an import of a submodule that the Imports cell names'
+good; src DirigibleX X.swift '@preconcurrency import Zeta'; imports_map 'x' 'Foundation, Zeta'
+expect pass 'an attribute import that the Imports cell names'
+good; src DirigibleX X.swift 'import Zeta'; imports_map 'Zeta work' 'Foundation'
+expect fail 'an import that only the Owns cell names' "$zeta"
+good; src DirigibleX X.swift 'internal import Zeta'; imports_map 'x' 'Foundation'
+expect fail 'an internal import that the Imports cell does not name' "$zeta"
+good; src DirigibleX X.swift 'import struct Zeta.T'; imports_map 'x' 'Foundation'
+expect fail 'a struct import that the Imports cell does not name' "$zeta"
+good; src DirigibleX X.swift $'#if canImport(Zeta)\n    import Zeta\n#endif'; imports_map 'x' 'Foundation'
+expect fail 'an indented import that the Imports cell does not name' "$zeta"
+good; src DirigibleX X.swift $'// import Zeta\nlet important = 1'; imports_map 'x' 'Foundation'
+expect pass 'a commented import and a name that holds import'
+good; src DirigibleY Y.swift 'import Foundation'; imports_map 'x' 'Foundation'
+expect fail 'a Swift target with no Decision table row' 'docs/decisions/0002-module-map.md: no Decision table row for DirigibleY'
+
 # The provenance statement stays true: no text file claims a clean room (a quote in docs/research and
 # the two check-docs scripts excepted), NOTICE names each shipped file and each vendored folder, and the
 # README links docs/provenance.md.

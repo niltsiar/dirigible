@@ -3,7 +3,8 @@
 # Usage: scripts/check-docs-code.sh [repo root]. scripts/check-docs.sh runs it once.
 # Rules of this script:
 #   The Commands table of AGENTS.md has one row for each make target, and the Makefile has it.
-#   decision 0002 (the module map) names each folder of Sources/ that holds a Swift file.
+#   decision 0002 (the module map) names each folder of Sources/ that holds a Swift file, and the
+#   Imports cell of each Swift target names each module that its files import.
 #   Each `dirigible <command>` of a loaded doc names a root command of Sources/DirigibleCLI.
 # Rules that read code and stay in check-docs.sh: the Files cell of the eval E38, NOTICE, the menu
 # names, and the Act on line.
@@ -48,6 +49,29 @@ elif [[ -f "$map" ]]; then
             [[ -d "$root/Sources/$path" ]] || err "docs/decisions/0002-module-map.md: Folders names $named with no folder Sources/$path"
         done
     fi
+fi
+
+# The Imports cell (the third cell) of the Decision table row of each Swift target of Sources/ names
+# each module that its files import, and each Swift target has a row. An import line is a line that
+# the grammar of Tests/DirigibleTests/ImportRuleTests.swift reads: attributes, an access modifier,
+# and an import kind keyword. The module is the name before the first dot. The rule checks nothing
+# when the module map has no Decision table row (a line that starts with "| `").
+import_ere='^[[:space:]]*(@[[:alnum:]_]+[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?[A-Za-z_][[:alnum:]_]*'
+module_sed='s/^[[:space:]]*(@[[:alnum:]_]+[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?([A-Za-z_][[:alnum:]_]*).*/\6/'
+if [[ -f "$map" ]] && grep -q '^| `' "$map"; then
+    for dir in "$root"/Sources/*/; do
+        [[ -n "$(find "$dir" -type f -name '*.swift' -print -quit)" ]] || continue
+        target="$(basename "$dir")"
+        row="$(grep -m1 "^| \`$target\` " "$map" || true)"
+        if [[ -z "$row" ]]; then
+            err "docs/decisions/0002-module-map.md: no Decision table row for $target"
+            continue
+        fi
+        cell="$(awk -F'|' '{ print $4 }' <<<"$row")"
+        for module in $(find "$dir" -type f -name '*.swift' -exec grep -hE "$import_ere" {} + | sed -E "$module_sed" | sort -u); do
+            grep -qw -- "$module" <<<"$cell" || err "docs/decisions/0002-module-map.md: the Imports cell of $target does not name $module"
+        done
+    done
 fi
 
 # Each `dirigible <command>` or `swift run dirigible <command>` in AGENTS.md, the README, the

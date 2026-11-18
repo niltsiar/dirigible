@@ -65,8 +65,9 @@ final class CoarseScores {
     private let excerptLength: Int
     private let separation: Int
     private let length: Int
-    private let log2Length: vDSP_Length
-    private let setup: FFTSetup
+    /// DFT setups, not an `FFTSetup`: at 2^24 points the FFT setup holds 579 MiB, the DFT setups 100 MiB.
+    private let forwardSetup: vDSP_DFT_Setup
+    private let inverseSetup: vDSP_DFT_Setup
     private var spectrumReal: [Float]
     private var spectrumImaginary: [Float]
     private var workReal: [Float]
@@ -77,12 +78,11 @@ final class CoarseScores {
 
     /// `separation`: the positions of 50 ms at the coarse rate, which the ratio leaves out around the peak.
     init(reference: [Float], excerptLength: Int, separation: Int) {
-        let log2Length = vDSP_Length(max(1, Int.bitWidth - (reference.count + excerptLength - 1).leadingZeroBitCount))
-        let length = 1 << Int(log2Length)
-        guard let setup = vDSP_create_fftsetup(log2Length, FFTRadix(kFFTRadix2)) else {
-            fatalError("vDSP has no FFT setup of \(length) points")
-        }
-        (self.setup, self.length, self.log2Length) = (setup, length, log2Length)
+        let length = 1 << max(1, Int.bitWidth - (reference.count + excerptLength - 1).leadingZeroBitCount)
+        guard let forwardSetup = vDSP_DFT_zrop_CreateSetup(nil, vDSP_Length(length), .FORWARD),
+            let inverseSetup = vDSP_DFT_zrop_CreateSetup(forwardSetup, vDSP_Length(length), .INVERSE)
+        else { fatalError("vDSP has no DFT setup of \(length) points") }
+        (self.forwardSetup, self.inverseSetup, self.length) = (forwardSetup, inverseSetup, length)
         (self.excerptLength, self.separation) = (excerptLength, separation)
         positions = max(0, reference.count - excerptLength + 1)
         (spectrumReal, spectrumImaginary) = (
@@ -104,7 +104,10 @@ final class CoarseScores {
         }
     }
 
-    deinit { vDSP_destroy_fftsetup(setup) }
+    deinit {
+        vDSP_DFT_DestroySetup(inverseSetup)
+        vDSP_DFT_DestroySetup(forwardSetup)
+    }
 
     /// The scores of the last `match`, one for each position.
     var scores: ArraySlice<Float> { values[0..<positions] }
@@ -128,7 +131,7 @@ final class CoarseScores {
         }
         (workReal[0], workImaginary[0]) = (zero, nyquist)
         withSplit(&workReal, &workImaginary) { work in
-            vDSP_fft_zrip(setup, &work, 1, log2Length, FFTDirection(kFFTDirection_Inverse))
+            vDSP_DFT_Execute(inverseSetup, work.realp, work.imagp, work.realp, work.imagp)
             values.withUnsafeMutableBufferPointer { values in
                 values.withMemoryRebound(to: DSPComplex.self) {
                     vDSP_ztoc(&work, 1, $0.baseAddress!, 2, vDSP_Length(length / 2))
@@ -162,7 +165,7 @@ final class CoarseScores {
                     vDSP_ctoz($0.baseAddress!, 2, &split, 1, vDSP_Length(length / 2))
                 }
             }
-            vDSP_fft_zrip(setup, &split, 1, log2Length, FFTDirection(kFFTDirection_Forward))
+            vDSP_DFT_Execute(forwardSetup, split.realp, split.imagp, split.realp, split.imagp)
         }
     }
 }

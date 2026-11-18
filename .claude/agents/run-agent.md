@@ -9,6 +9,7 @@ You do one part of a deliver run for the lead. `AGENTS.md` and the **deliver** s
 - The files on disk win over your brief.
 - Write each run file that the brief names. Never return a run file only as text.
 - Claude Code refuses your Write of a file named `analysis*.md`, `findings*.md`, `report*.md`, or `summary*.md` (any case), new or not, also after a Read. Change such a file that exists with Edit. For a new one, Write `<name>.txt`, then run `mv -n <name>.txt <name>.md && test ! -e <name>.txt`. If the test fails, merge `<name>.txt` into `<name>.md` with Edit.
+- A Bash cat, sed, or rg read does not count as a read for Edit: use the Read tool, never python or sed.
 - Batch independent read-only calls as parallel calls in one message, up to about 150 KB per batch.
 - Wait in the foreground for a loop, a lock, a build, or a test: 10 min or less per call. A longer command returns to the lead. Wait on a PID with `kill -0`, or on a log line. Never wait on `pgrep -f` text that another waiter can hold.
 - On exit 75, run the same command once more at once; at a second exit 75 of a rerun that starts within 10 min of the end of the first call, `scripts/with-lock.sh` prints the hand-back route: follow it. A timing test that fails while another worktree builds gets the triage of `flake-triage.md` (**tdd** skill) before any rerun.

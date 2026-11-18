@@ -631,6 +631,25 @@ gov_out "$tmp/run"
 [[ $code -ne 0 && "$out" == *'eval-1/rerun-due.txt: E7 is rerun due'* ]] || fail "a later eval folder that scored one of two scenarios: expected the refusal for E7: $out"
 [[ "$out" != *'E40 is rerun due'* ]] || fail "a later eval folder that scored E40: the refusal names E40: $out"
 
+# A below line (a small-sample retention drop) clears only through a pooled line of its own folder:
+# grade.py verdict writes pooled <ID>: ...: PASS or FAIL when a rerun with a new tag pools the data.
+# A later folder that scored the ID does not clear a below line, and absence is no pass.
+new_repo; due eval-1 'below E5: old 6/6, new 3/6: rerun due'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+refuse 'a below line with no rerun' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+rows eval-2 E5; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a below line and a later eval folder that scored its scenario' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+new_repo; due eval-1 'pooled E5: old 9/12, new 9/12: PASS'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+pass 'a pooled line that passes' "$tmp/run"
+new_repo; due eval-1 'pooled E5: old 12/12, new 9/12: FAIL'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+refuse 'a pooled line that fails' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
+rows eval-2 E5; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a pooled line that fails and a later eval folder that scored its scenario' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
+new_repo; due eval-1 'below E7: old 6/6, new 3/6: rerun due' 'pooled E5: old 9/12, new 9/12: PASS' 'policy E40: new 1/3: rerun due'; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+rows eval-2 E40; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+gov_out "$tmp/run"
+[[ $code -ne 0 && "$out" == *'eval-1/rerun-due.txt: E7 is rerun due'* ]] || fail "a below, a pooled, and a policy line: expected the refusal for E7: $out"
+[[ "$out" != *'E5'* && "$out" != *'E40 is rerun due'* ]] || fail "a below, a pooled, and a policy line: the refusal names E5 or E40: $out"
+
 # A branch that adds an evals.md key needs a graded eval folder in the run folder (check-eval-keys.sh).
 new_repo
 printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E4 | policy | s | q | (a) new. | `a.md` | - | - |\n' > "$tmp/r/docs/workflow/evals.md"; commit

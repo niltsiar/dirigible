@@ -38,8 +38,14 @@ verdict: grade.py verdict <eval> <old set> <new set>
   not fail the verdict, and the same lines go to <eval>/holdout-fails.txt (empty for none; each
   verdict replaces it). A policy miss of a scenario that is not a holdout, under 6 new runs, where
   the new passes plus the runs left to 6 reach 4, prints policy <id>: new <p>/<r>: rerun due
-  instead of FAIL. It is no fail yet. The lines go to <eval>/rerun-due.txt (empty for none; each
-  verdict replaces it), and the land waits for a later scored run of each ID (check-governance.sh).
+  instead of FAIL. It is no fail yet. A below fail of a scenario that is not a holdout, with under
+  12 runs in the smaller set and old minus new at or under 2 x sqrt(k x p x (1 - p)) of that
+  scenario (k and p as above), prints below <id>: ...: rerun due in place of FAIL. The lines go to
+  <eval>/rerun-due.txt (empty for none; each verdict replaces it). The land waits for a later
+  scored run of each policy ID, and for a pooled line of each below ID (check-governance.sh). Before
+  it replaces the file, a verdict reads the old one: for each ID of an old below or pooled line that
+  this verdict does not mark rerun due again, it writes pooled <id>: old <p>/<r>, new <p>/<r>:
+  PASS or FAIL, the below clause over all tags of the folder.
   The last line is verdict: PASS (exit 0), verdict: FAIL (exit 1), or verdict: RERUN DUE (exit 1,
   when rerun due lines are the only fails).
   unasked.tsv (from score) makes a second count. A row passes in it when its missing keys are
@@ -201,6 +207,14 @@ def unasked_keys():
     return out
 
 
+def earlier_ids(path):
+    """The scenario IDs of the below and pooled lines that the rerun-due.txt of an earlier verdict holds."""
+    if not os.path.exists(path):
+        return set()
+    words = (line.split() for line in open(path, encoding="utf-8"))
+    return {w[1].rstrip(":") for w in words if len(w) > 1 and w[0] in ("below", "pooled")}
+
+
 def verdict(old, new):
     rows = [line.rstrip("\n").split("\t") for line in open(os.path.join(EVAL, "scores.tsv"), encoding="utf-8")][1:]
     # A set with no row (a typo, an empty file) leaves each clause empty, and the verdict would pass.
@@ -250,7 +264,8 @@ def verdict(old, new):
     word = {True: "PASS", False: "FAIL"}
     fix = "fix the question or the key"
     # A fail of holdouts only does not fail the verdict: check-governance.sh stops the second in a row.
-    held, reruns = [], []
+    held, reruns, pooled = [], [], []
+    earlier = earlier_ids(os.path.join(EVAL, "rerun-due.txt"))
     kept = [s for s in live if typ[s] == "retention"]
     old_sum, new_sum, bound = drop(kept, passes)
     print(f"retention: old {old_sum}, new {new_sum}, bound {bound:.1f}: {word[old_sum - new_sum <= bound]}")
@@ -271,11 +286,19 @@ def verdict(old, new):
         po, pn = passes.get((s, old), 0), passes.get((s, new), 0)
         result = below(passes)
         unasked_fail = result == "FAIL" and below(passes2) != "FAIL"
+        # A small sample can miss by chance: the bound of the retention sum, for this scenario alone.
+        spread = 2 * math.sqrt((ro + rn) * ((po + pn) / (ro + rn)) * (1 - (po + pn) / (ro + rn)))
+        below_due = result == "FAIL" and not unasked_fail and not s.startswith("H") and min(ro, rn) < 12 and po - pn <= spread
         if result == "FAIL" and s.startswith("H") and not unasked_fail:
             held.append(s)
-        else:
+        elif not below_due:
             ok &= result != "FAIL" or unasked_fail
-        print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
+        line = f"below {s}: old {po}/{ro}, new {pn}/{rn}: {'rerun due' if below_due else result}"
+        print(line)
+        if below_due:
+            reruns.append(line)
+        elif s in earlier:
+            pooled.append(f"pooled {s}: old {po}/{ro}, new {pn}/{rn}: {word[result != 'FAIL' or unasked_fail]}")
         if typ[s] == "policy":
             policy = 3 * pn >= 2 * rn
             excused = not policy and 3 * passes2.get((s, new), 0) >= 2 * rn
@@ -304,9 +327,10 @@ def verdict(old, new):
     # check-governance.sh reads this file: two holdout fails in a row stop the land with no hand step.
     with open(os.path.join(EVAL, "holdout-fails.txt"), "w", encoding="utf-8") as f:
         f.write("".join(line + "\n" for line in fails))
-    # check-governance.sh reads this file: the land waits for a later scored run of each rerun due ID.
+    # check-governance.sh reads this file: the land waits for a later scored run of each policy ID and
+    # for a passing pooled line of each below ID.
     with open(os.path.join(EVAL, "rerun-due.txt"), "w", encoding="utf-8") as f:
-        f.write("".join(line + "\n" for line in reruns))
+        f.write("".join(line + "\n" for line in reruns + pooled))
     print(f"verdict: {'FAIL' if not ok else 'RERUN DUE' if reruns else 'PASS'}")
     sys.exit(0 if ok and not reruns else 1)
 

@@ -49,9 +49,12 @@
 # - With a run folder, scripts/check-eval-keys.sh passes on this tree: each evals.md key that the
 #   branch adds or changes has an eval folder of the run with its exact key text and a scores.tsv line.
 # - The done runs of the holdout stop are the log statuses `done`, `done:`, and `done,`.
-# - With a run folder, each ID in a rerun-due.txt of an eval* folder (grade.py verdict: a policy miss under
-#   six runs that six runs can still pass) has scores.tsv rows in another eval* folder of the run whose
-#   scores.tsv is newer than that rerun-due.txt. A rerun in the same folder replaces its rerun-due.txt.
+# - With a run folder, each line of a rerun-due.txt of an eval* folder (grade.py verdict) is due, except a
+#   `pooled <ID>: ...: PASS` line. A `policy` line (a policy miss under six runs that six runs can still
+#   pass) clears when another eval* folder of the run has scores.tsv rows of its ID, newer than that
+#   rerun-due.txt. A `below` line (a retention drop of a small sample) clears only through a
+#   `pooled <ID>: ...: PASS` line of the same file: a rerun in the same folder replaces its rerun-due.txt
+#   and writes that line when the pooled verdict passes. A `pooled <ID>: ...: FAIL` line refuses the land.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -352,18 +355,25 @@ if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
     done < <(failed_holdouts "$run/eval/holdout-fails.txt")
 fi
 # A rerun due ID is no fail yet, but the land waits for its pooled verdict: the same folder after a
-# rerun with a new tag (the folder replaces its rerun-due.txt), or a later eval* folder with rows of it.
+# rerun with a new tag (the folder replaces its rerun-due.txt), or, for a policy ID, a later eval* folder
+# with rows of it.
 if [[ -n "$run" ]]; then
     for due in "$run"/eval*/rerun-due.txt; do
         [[ -s "$due" ]] || continue
         folder="$(dirname "$due")"
-        while read -r kind id _; do
-            [[ "$kind" == policy ]] || continue
+        while read -r kind id rest; do
+            [[ -n "$kind" ]] || continue
             id="${id%:}" cleared=
-            for scores in "$run"/eval*/scores.tsv; do
-                [[ "$(dirname "$scores")" != "$folder" && "$scores" -nt "$due" ]] || continue
-                awk -F'\t' -v id="$id" '$2 == id { found = 1 } END { exit !found }' "$scores" && { cleared=1; break; }
-            done
+            if [[ "$kind" == pooled ]]; then
+                [[ "$rest" == *': PASS' ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id failed the pooled verdict; fix its docs, then the lead runs scripts/eval/run.sh again in that eval folder with a new tag" >&2; fail=1; }
+                continue
+            fi
+            if [[ "$kind" == policy ]]; then
+                for scores in "$run"/eval*/scores.tsv; do
+                    [[ "$(dirname "$scores")" != "$folder" && "$scores" -nt "$due" ]] || continue
+                    awk -F'\t' -v id="$id" '$2 == id { found = 1 } END { exit !found }' "$scores" && { cleared=1; break; }
+                done
+            fi
             [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, as a background run (AGENTS.md, Commands); a subagent returns to the lead" >&2; fail=1; }
         done < "$due"
     done

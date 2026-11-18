@@ -419,7 +419,7 @@ verdict_case() {
 five() { local i=0 n; for n in "$@"; do i=$((i + 1)); sc t "E$i" retention old 6 6; sc t "E$i" retention new "$n" 6; done > "$tmp/rows"; }
 five 6 6 5 5 5; verdict_case retention-in-bound 0 'retention: old 30, new 27, bound 3.3: PASS' 'verdict: PASS'
 five 4 4 4 4 4; verdict_case retention-past-bound 1 'retention: old 30, new 20, bound 5.8: FAIL' 'verdict: FAIL'
-five 4 5 6 6 6; verdict_case retention-one-below 1 'retention: old 30, new 27, bound 3.2: PASS' 'below E1: old 6/6, new 4/6: FAIL' 'verdict: FAIL'
+five 4 5 6 6 6; verdict_case retention-one-below 1 'retention: old 30, new 27, bound 3.2: PASS' 'below E1: old 6/6, new 4/6: rerun due' 'verdict: RERUN DUE'
 # A fail of holdouts only (a below line, or a retention sum that passes with no holdout) prints one
 # holdout fail line for each such H and does not fail the verdict. An E fail still fails. The verdict
 # writes the same lines to holdout-fails.txt in the eval folder (check-governance.sh reads it).
@@ -432,12 +432,12 @@ verdict_case holdout-sum 0 'retention: old 12, new 6, bound 3.5: FAIL' 'holdout 
 [[ "$(cat "$tmp/v/holdout-sum/holdout-fails.txt" 2>&1)" == 'holdout fail H6: no changed text' ]] ||
   fail "verdict holdout-sum: holdout-fails.txt does not hold one fail line: [$(cat "$tmp/v/holdout-sum/holdout-fails.txt" 2>&1)]"
 [[ "$(grep -c '^holdout fail' <<<"$out")" -eq 1 ]] || fail "verdict holdout-sum: not one holdout fail line: [$out]"
-{ sc t E1 retention old 6 6; sc t E1 retention new 4 6; sc t H6 retention old 6 6; sc t H6 retention new 4 6; } > "$tmp/rows"
-verdict_case holdout-and-e 1 'below E1: old 6/6, new 4/6: FAIL' 'verdict: FAIL'
+{ sc t E1 retention old 6 6; sc t E1 retention new 2 6; sc t H6 retention old 6 6; sc t H6 retention new 4 6; } > "$tmp/rows"
+verdict_case holdout-and-e 1 'below E1: old 6/6, new 2/6: FAIL' 'verdict: FAIL'
 { sc t E1 retention old 4 6; sc t E1 retention new 3 6; sc t E5 retention old 0 6; sc t E5 retention new 1 6; } > "$tmp/rows"
 verdict_case below-pass 0 'retention: old 4, new 4, bound 3.9: PASS' 'below E1: old 4/6, new 3/6: PASS' 'verdict: PASS'
-{ sc t E1 retention old 4 6; sc t E1 retention new 2 6; sc t E5 retention old 0 6; sc t E5 retention new 2 6; } > "$tmp/rows"
-verdict_case below-fail 1 'retention: old 4, new 4, bound 4.3: PASS' 'below E1: old 4/6, new 2/6: FAIL' 'verdict: FAIL'
+{ sc t E1 retention old 6 6; sc t E1 retention new 2 6; sc t E5 retention old 0 6; sc t E5 retention new 2 6; } > "$tmp/rows"
+verdict_case below-fail 1 'retention: old 6, new 4, bound 4.2: PASS' 'below E1: old 6/6, new 2/6: FAIL' 'verdict: FAIL'
 # Tags pool: two tags of 3 runs give 6 runs, so the below clause is due.
 { sc t E1 retention old 2 3; sc t E1 retention new 2 3; } > "$tmp/rows"; verdict_case below-not-due 0 'below E1: old 2/3, new 2/3: not due'
 { sc t E1 retention old 2 3; sc t E1 retention new 2 3; sc u E1 retention old 2 3; sc u E1 retention new 2 3; } > "$tmp/rows"
@@ -461,7 +461,7 @@ due_file rerun-unreachable ''
 { sc t E40 policy old 3 3; sc t E40 policy new 2 3; } > "$tmp/rows"
 verdict_case rerun-passes 0 'policy E40: new 2/3: PASS' 'verdict: PASS'
 due_file rerun-passes ''
-{ sc t E40 policy old 3 3; sc t E40 policy new 2 3; sc u E40 policy old 3 3; sc u E40 policy new 1 3; } > "$tmp/rows"
+{ sc t E40 policy old 2 3; sc t E40 policy new 2 3; sc u E40 policy old 2 3; sc u E40 policy new 1 3; } > "$tmp/rows"
 verdict_case rerun-pooled-six 1 'policy E40: new 3/6: FAIL' 'verdict: FAIL'
 due_file rerun-pooled-six ''
 { sc t E40 policy old 3 3; sc t E40 policy new 1 3; sc t E1 retention old 6 6; sc t E1 retention new 2 6; } > "$tmp/rows"
@@ -470,6 +470,45 @@ due_file rerun-and-fail 'policy E40: new 1/3: rerun due'
 { sc t H9 policy old 3 3; sc t H9 policy new 1 3; } > "$tmp/rows"
 verdict_case rerun-holdout 1 'policy H9: new 1/3: FAIL' 'verdict: FAIL'
 due_file rerun-holdout ''
+# A below drop of a scenario that is not a holdout, with under 12 runs in the smaller set, and with
+# old minus new at or under 2 x sqrt(k x p x (1 - p)) (k the runs of both sets, p the pooled pass
+# rate), prints rerun due in place of FAIL. 3/6 against 6/6 has the bound 3.0, and 2/6 has 3.3.
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; } > "$tmp/rows"
+verdict_case below-rerun-due 1 'below E5: old 6/6, new 3/6: rerun due' 'verdict: RERUN DUE'
+due_file below-rerun-due 'below E5: old 6/6, new 3/6: rerun due'
+{ sc t E5 retention old 6 6; sc t E5 retention new 2 6; } > "$tmp/rows"
+verdict_case below-near-fail 1 'below E5: old 6/6, new 2/6: FAIL' 'verdict: FAIL'
+due_file below-near-fail ''
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t H6 retention old 6 6; sc t H6 retention new 3 6; } > "$tmp/rows"
+verdict_case below-holdout 0 'below H6: old 6/6, new 3/6: FAIL' 'holdout fail H6: no changed text' 'verdict: PASS'
+due_file below-holdout ''
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 6 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+verdict_case below-twelve 1 'below E5: old 12/12, new 9/12: FAIL' 'verdict: FAIL'
+due_file below-twelve ''
+# A rerun in the same folder (a new tag) reads the old rerun-due.txt. For each ID of an old below or
+# pooled line that the verdict does not mark rerun due again, it writes pooled <ID>: ...: PASS or
+# FAIL, the below clause over all tags. A pooled line stays through a third verdict.
+old_due() { mkdir -p "$tmp/v/$1"; printf '%s\n' "${@:2}" > "$tmp/v/$1/rerun-due.txt"; }
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 3 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+old_due pooled-pass 'below E5: old 6/6, new 3/6: rerun due'
+verdict_case pooled-pass 0 'below E5: old 9/12, new 9/12: PASS' 'verdict: PASS'
+due_file pooled-pass 'pooled E5: old 9/12, new 9/12: PASS'
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 6 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+old_due pooled-fail 'below E5: old 6/6, new 3/6: rerun due'
+verdict_case pooled-fail 1 'verdict: FAIL'
+due_file pooled-fail 'pooled E5: old 12/12, new 9/12: FAIL'
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 3 6; sc u E5 retention new 6 6; sc v E5 retention old 6 6; sc v E5 retention new 6 6; } > "$tmp/rows"
+old_due pooled-third 'pooled E5: old 9/12, new 9/12: PASS'
+verdict_case pooled-third 0 'verdict: PASS'
+due_file pooled-third 'pooled E5: old 15/18, new 15/18: PASS'
+{ sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 3 3; sc u E5 retention new 3 3; } > "$tmp/rows"
+old_due rerun-again 'below E5: old 6/6, new 3/6: rerun due'
+verdict_case rerun-again 1 'verdict: RERUN DUE'
+due_file rerun-again 'below E5: old 9/9, new 6/9: rerun due'
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; } > "$tmp/rows"
+old_due pooled-other-id 'policy E40: new 1/3: rerun due'
+verdict_case pooled-other-id 0 'verdict: PASS'
+due_file pooled-other-id ''
 { sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t H1 retention old 0 3; sc t H1 retention new 0 3; } > "$tmp/rows"
 verdict_case void 0 'void H1' 'retention: old 3, new 3, bound 0.0: PASS' 'verdict: PASS'
 grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: [$out]"

@@ -169,17 +169,6 @@ package enum TakeImportError: Error {
     }
 }
 
-extension EditFailure where Body == TakeImportError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
-}
-
 /// The work of a `transcript export` command or a `transcript_export` call after its arguments are
 /// checked (decision 0061). It is the one owner of the form of `out`, the refusals, and the warning
 /// lines, as `ChaptersWork` is for the chapters export. `Session.subtitleFile` owns the file text.

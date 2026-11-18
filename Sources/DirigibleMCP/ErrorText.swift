@@ -44,59 +44,61 @@ package func mediaCheckMessage(_ error: any Error) -> String {
     "cannot check the audio files: \(error.localizedDescription)"
 }
 
-extension EditFailure where Body == SessionError {
+/// The body of an `EditFailure` with a text: a package edit gives one text for each failure, for
+/// the CLI and for an MCP tool.
+package protocol EditBodyText: Error {
+    func message(package: String) -> String
+}
+
+extension EditFailure where Body: EditBodyText {
     package func message(package: String) -> String {
         switch self {
         case .file(let error): error.message(package: package)
         case .pendingTake: pendingTakeMessage(package)
         case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
+        case .body(let error): error.message(package: package)
         }
     }
 }
 
-extension EditFailure where Body == LevelFailure {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
+extension UnusedFilesError: EditBodyText {}
+extension RevertError: EditBodyText {}
+extension StudioError: EditBodyText {}
+
+extension SessionError: EditBodyText {
+    package func message(package _: String) -> String { message }
 }
 
-extension EditFailure where Body == PasteError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
+extension LevelFailure: EditBodyText {
+    package func message(package _: String) -> String { message }
 }
 
-extension EditFailure where Body == MarkerEditError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
+extension PasteError: EditBodyText {
+    package func message(package _: String) -> String { message }
 }
 
-extension EditFailure where Body == ArtworkError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
+extension MarkerEditError: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension ArtworkError: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension TranscribeFailure: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension TakeImportError: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension DuckFailure: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension BatchWork.Failure: EditBodyText {
+    package func message(package: String) -> String { message(rippleBlocked: splitTakeMessage(package)) }
 }
 
 extension ArtworkError {
@@ -110,28 +112,6 @@ extension ArtworkError {
         case .tooLarge(let side):
             "the artwork is \(side) x \(side) pixels; the largest is \(maximumArtworkSide) x \(maximumArtworkSide)."
         case .writeFailed(let code): "the copy of the artwork into Artwork/ failed: \(String(cString: strerror(code)))."
-        }
-    }
-}
-
-extension EditFailure where Body == UnusedFilesError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message(package: package)
-        }
-    }
-}
-
-extension EditFailure where Body == RevertError {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message(package: package)
         }
     }
 }

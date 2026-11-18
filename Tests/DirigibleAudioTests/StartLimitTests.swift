@@ -293,8 +293,11 @@ struct StartLimitTests {
     /// A writer that never attached holds no audio: the stop gives it up and does not wait for it,
     /// with a `stopLimit` of 1 h. The take finalizes with the `t1` clip, and the late track gets a
     /// gap and no clip. A late attach tears down and writes nothing; the writer then goes, the
-    /// package opens again, and a second take records on the device.
-    @Test(arguments: Start.allCases)
+    /// package opens again, and a second take records on the device. Slow: the wall bound of the
+    /// stop also times the main-actor, pool, and disk steps of the stop, which wait behind the
+    /// CPU work of parallel tests. `aStopCutsTheHeldStartWaitAndFinalizesTheHealthyWriters` checks
+    /// the cut of a held writer in the fast suite, with no wall bound.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Start.allCases)
     func aWriterThatNeverAttachedDoesNotHoldTheStop(start: Start) async throws {
         let hal = hal()
         switch start {

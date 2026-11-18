@@ -12,6 +12,7 @@
 # without them does not.
 # Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
+# Check that a bench criterion with a time value and no statistic word is refused.
 # Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
 # with no criterion change row after the first phase 6 row.
 # Run by `make test-hooks`.
@@ -467,6 +468,62 @@ printf '2026-10-20T11:35\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisi
 refuse 'a run whose first row is at the cutoff' 'criterion C2'
 printf '2026-10-21T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
 refuse 'a run whose first row is after the cutoff' 'criterion C2'
+
+# Bench statistic: a criterion line of ## Acceptance criteria that names a bench (`make bench` or a
+# word that ends in Benchmark) and a time value (a number with ms or s) names a statistic word too
+# (p50, p90, p95, p99, median, max). The rule reads the current line of the criterion, and a run
+# whose first row is older than 2026-11-18T21:30 is not checked.
+# bench <line>: a run with the criterion C1 of that line, named in plan.md.
+bench() { criteria "- C1: $1"; names 'C1'; }
+BENCH_REFUSAL='criterion C1 names a bench and a time value with no statistic word (p50, p90, p95, p99, median, or max)'
+bench '`FooBenchmark` at most 8 ms'
+refuse 'a bench and a time value with no statistic word' "$BENCH_REFUSAL"
+bench 'p95 of `FooBenchmark` at most 8 ms'
+pass 'a bench and a time value with p95'
+bench 'The median of `FooBenchmark` is at most 8 ms'
+pass 'a bench and a time value with median'
+bench 'The max of `FooBenchmark` is under 8 ms'
+pass 'a bench and a time value with max'
+bench 'The p99 of `make bench` is at most 8 ms'
+pass 'make bench with p99 and a time value'
+bench '`make bench` takes at most 2 s'
+refuse 'make bench and a time value in s with no statistic word' "$BENCH_REFUSAL"
+bench '`make bench` prints the row of `FooBenchmark`'
+pass 'a bench with no time value'
+bench 'The export takes at most 8 ms'
+pass 'a time value with no bench'
+bench '`FooBenchmark` runs 8 times in 3 hours'
+pass 'a number with a unit that is not ms or s'
+criteria $'1. **C1** `FooBenchmark` at most 8 ms\n- C2: b'
+names 'C1 and C2'
+refuse 'a numbered criterion with a bench and no statistic' "$BENCH_REFUSAL"
+criteria $'| id | text |\n|---|---|\n| C1 | `FooBenchmark` at most 8 ms |'
+names 'C1'
+refuse 'a table row with a bench and no statistic' "$BENCH_REFUSAL"
+criteria $'- C1: a\n  `FooBenchmark` at most 8 ms on a second line'
+names 'C1'
+pass 'only the first line of a criterion is read'
+# An approved criterion change: the gate copy has the old line with the bench, a criterion change
+# row names the ID, and the new line drops the bench. The same run with the bench kept is refused.
+ROW_AT=2026-11-19T10:00
+bench 'a'
+sed 's/^- C1: a$/- C1: `FooBenchmark` at most 8 ms/' "$run/analysis.md" > "$run/analysis-gate.md"
+row 2 'plan written'
+row 4 'Slice S1 committed'
+row 4 'criterion change C1: old a bench at most 8 ms, new a'
+pass 'an approved criterion change that drops the bench'
+bench '`FooBenchmark` at most 8 ms'
+cp "$run/analysis.md" "$run/analysis-gate.md"
+row 2 'plan written'
+row 4 'Slice S1 committed'
+refuse 'a bench criterion of a run with phase 4 rows' "$BENCH_REFUSAL"
+bench '`FooBenchmark` at most 8 ms'
+ROW_AT=2026-11-18T21:29 row 2 'plan written'
+pass 'a run whose first row is older than the bench statistic rule'
+bench '`FooBenchmark` at most 8 ms'
+ROW_AT=2026-11-18T21:30 row 2 'plan written'
+refuse 'a run whose first row is at the bench statistic cutoff' "$BENCH_REFUSAL"
+unset ROW_AT
 
 # The decision number of a record that the plan makes. A fixture repo holds a copy of the script and
 # of wiki.py, and docs/decisions/0042-old.md on origin/main. The temp wiki holds the numbers.

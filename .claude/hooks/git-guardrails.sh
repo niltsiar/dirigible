@@ -898,6 +898,9 @@ bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:a
 bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
 bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
 bg_shell_c="^([^[:space:]]*/)?(ba|z|da)?sh([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*c[A-Za-z]*[[:space:]]+[\"']"
+# background holds tool_input.run_in_background, read only when the text matches bg_gate (hook
+# latency, item 1222). The release wait reads this value too.
+background=""
 bg_free_make="^([^[:space:]]*/)?make[[:space:]]+(check-docs|check-fast|lint|format)(([[:space:]]+[0-9]*|[[:space:]]*)>>?[[:space:]]*[^[:space:]>)}\"]*)*[[:space:])}\"]*$"
 # bg_lock_job <segment> <prefix re>: sets lock_job to 1 when the segment runs a lock job, else to "",
 # and bg_prefix, bg_rest, and bg_words to the prefix words, the text after them, and its words.
@@ -1354,8 +1357,9 @@ release_segments() {
   done <<< "$scripts"
 }
 release_found="" release_masked="" release_long=""
-# The long kind reads each background call of the lead, whatever its text: a subagent input holds agent_id.
-if [[ "$(plutil -extract tool_input.run_in_background raw -o - "$input" 2> /dev/null)" == true ]] &&
+# The long kind reads each background call of the lead: a subagent input holds agent_id. Each long
+# holder has a .sh, shell, or make word, so bg_gate matches its text and background holds the flag.
+if [[ "$background" == true ]] &&
   ! plutil -extract agent_id raw -o - "$input" > /dev/null 2>&1; then
   release_long=1
 fi

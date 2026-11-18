@@ -230,14 +230,3 @@ package struct BatchWork: Sendable {
         return lines(results) + note
     }
 }
-
-extension EditFailure where Body == BatchWork.Failure {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let failure): failure.message(rippleBlocked: splitTakeMessage(package))
-        }
-    }
-}

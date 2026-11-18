@@ -158,14 +158,3 @@ package struct DuckWork: Sendable {
         }
     }
 }
-
-extension EditFailure where Body == DuckFailure {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
-}

@@ -138,14 +138,3 @@ package struct TranscribeWork: Sendable {
         }
     }
 }
-
-extension EditFailure where Body == TranscribeFailure {
-    package func message(package: String) -> String {
-        switch self {
-        case .file(let error): error.message(package: package)
-        case .pendingTake: pendingTakeMessage(package)
-        case .splitTake: splitTakeMessage(package)
-        case .body(let error): error.message
-        }
-    }
-}

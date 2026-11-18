@@ -55,9 +55,7 @@ while [[ "${1:-}" == --min-load || "${1:-}" == --filter ]]; do
 done
 [[ $# -ge 4 && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]] || { echo "usage: loop.sh [--min-load <n>] [--filter '<names>'] <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
 tag="$1" first="$2" last="$3"
-# with-lock.sh runs this script again with the marker, and the marker stops a second wrap. The base
-# is hold_base, read as with-lock.sh reads it for a call with no wait limit, with the run count as a
-# factor.
+# with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 if [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" != "$0" ]]; then
     wrapper="$(dirname "$0")/../with-lock.sh"
     holds="$(git -C "$(dirname "$wrapper")" rev-parse --path-format=absolute --git-common-dir)/dirigible-build-holds.log" || exit 2

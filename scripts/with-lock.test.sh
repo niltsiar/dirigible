@@ -12,7 +12,7 @@
 # default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make, also with a test-app whose app step exits 75), scripts/bundle.sh
 # (it takes the lock itself after its path check, and keeps the wait limit and the cap), and --release-holder (a live
 # release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), --long-holder (the same, plus a
-# bench, mutation-pass, or flake-loop holder and a live bench marker), and the hold limit
+# bench, mutation-pass, or flake-loop holder and a live bench marker, but no bench-pairs.sh --compare or --lines holder), and the hold limit
 # (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit), and --bench-mark (a marker in
 # dirigible-bench-marks/ blocks each lock-free call, a lock-free call keeps a file in dirigible-lock-free/ while it runs and the
 # marked call waits for it, a file of a reused pid, two marked calls that start together, the load wait, and the refusal of a
@@ -2113,7 +2113,7 @@ rh_state() { # <kind>: write the lock state of a case
   reset_builders
   rm -rf "$marks"
   case "$1" in
-    release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test | pairs | make-bench | mutation | flake | dead-bench)
+    release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test | pairs | compare | lines | make-bench | mutation | flake | dead-bench)
       mkdir -p "$lock"
       case "$1" in dead-release* | dead-lane | dead-bench) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
       case "$1" in
@@ -2124,6 +2124,8 @@ rh_state() { # <kind>: write the lock state of a case
         ordinary) echo 'make build' > "$lock/command" ;;
         bench | dead-bench) echo 'scripts/bench.sh' > "$lock/command" ;;
         pairs) echo 'scripts/bench-pairs.sh origin/main NavBench 5 /t/pairs' > "$lock/command" ;;
+        compare) echo 'scripts/bench-pairs.sh --compare /t/pairs' > "$lock/command" ;;
+        lines) echo 'scripts/bench-pairs.sh --lines /t/b.log' > "$lock/command" ;;
         make-bench) echo 'make FILTER=NavBench bench' > "$lock/command" ;;
         mutation) echo '.claude/skills/deliver/scripts/mutation-pass.sh /t/wt' > "$lock/command" ;;
         flake) echo 'scripts/flake-monitor/loop.sh' > "$lock/command" ;;
@@ -2196,6 +2198,9 @@ lh_check release 0 "holder: $rh_cmd"
 lh_check lane 0 'holder: scripts/test-stress.sh --runs 1 out'
 lh_check ticket 0 "ticket: $$"
 lh_check ordinary 1 ''
+# bench-pairs.sh --compare and --lines take no lock (long_words of lock-words.sh), so they are no long holder.
+lh_check compare 1 ''
+lh_check lines 1 ''
 lh_check filter 1 ''
 lh_check free 1 ''
 lh_check dead-bench 1 ''

@@ -1264,16 +1264,10 @@ release_expand() {
   done
   printf '%s' "$w"
 }
-# release_bench_cmd: succeeds when rcmd runs a bench: bench.sh, bench-pairs.sh in pair mode (not
-# --compare or --lines), or make with a bench goal.
-release_bench_cmd() {
-  local w
-  case "${rcmd[0]##*/}" in
-    bench.sh) return 0 ;;
-    bench-pairs.sh) [[ "${rcmd[1]:-}" != --compare && "${rcmd[1]:-}" != --lines ]] ;;
-    make) for w in "${rcmd[@]:1}"; do [[ "$w" == bench ]] && return 0; done; return 1 ;;
-    *) return 1 ;;
-  esac
+# release_long_cmd: succeeds when long_words of scripts/lock-words.sh takes rcmd (a long holder). Each
+# long holder has .sh or make in its words, so other words start no subshell.
+release_long_cmd() {
+  [[ "${rcmd[*]:-}" == *.sh* || "${rcmd[*]:-}" == *make* ]] && ( . "$release_words_file" && long_words "${rcmd[@]}" ) 2> /dev/null
 }
 release_assign_re='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*)+$'
 release_script_re='^([^[:space:]]*/)?(ba|z|da)?sh$'
@@ -1282,8 +1276,8 @@ release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A
 # for each release call of the text (release_call of scripts/lock-words.sh). Each segment of the chain
 # is read from its start after the prefix words (release_pre); a with-lock.sh word in the prefix gives
 # a lock call of the words after it, and a land.sh command word with no with-lock.sh a bare call. When
-# release_bench is set, a segment whose command release_bench_cmd takes (bare or after a with-lock.sh
-# word) prints "bench<TAB><segment>". In a
+# release_long is set, a segment whose command release_long_cmd takes (bare or after a with-lock.sh
+# word) prints "long<TAB><command words>". In a
 # shell -c body (masked to one segment), each with-lock.sh word at a word start is a call too. A
 # segment whose command word is bash, sh, zsh, or dash with a file argument runs a script: the file
 # (a $NAME of an assignment or export of the chain put in, a relative path read from the last cd dir,
@@ -1291,14 +1285,15 @@ release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A
 # are classified the same way, one level deep. A segment whose first word is one quoted string with
 # a space in it is a list or array item (test data), and a segment that only sets NAME to a quoted
 # string is an assignment: neither is a command. In a script file, only a segment with a with-lock.sh,
-# land.sh, or export word is read. The split uses tr: ${text//;/...} is too slow in bash 3.2 for a
-# long script file.
+# land.sh, or export word is read, and, when release_long is set, a segment with .sh or make. The
+# split uses tr: ${text//;/...} is too slow in bash 3.2 for a long script file.
 release_segments() {
   local text="$1" rdir="${2:-}" depth="${3:-0}" seg prefix rest body head w i f
   local release_exports=() rvars=() rw=() scripts=""
   text="$(tr ';&|(`' '\n\n\n\n\n' <<< "$text")"
   while IFS= read -r seg; do
-    ((depth == 0)) || [[ "$seg" == *with-lock.sh* || "$seg" == *land.sh* || "$seg" == *export* ]] || continue
+    ((depth == 0)) || [[ "$seg" == *with-lock.sh* || "$seg" == *land.sh* || "$seg" == *export* ]] ||
+      [[ -n "$release_long" && ("$seg" == *.sh* || "$seg" == *make*) ]] || continue
     if [[ "$seg" =~ $release_assign_re ]]; then
       read -ra rw <<< "${seg//[\"\']/}"
       for w in ${rw[@]+"${rw[@]}"}; do rvars+=("${w%%=*}=$(release_expand "${w#*=}")"); done
@@ -1324,7 +1319,7 @@ release_segments() {
       release_cmd "$rest"
       [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
     fi
-    [[ -n "$release_bench" ]] && release_bench_cmd && printf 'bench\t%s\n' "$seg"
+    [[ -n "$release_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     read -ra rw <<< "${rest//[\"\']/}"
     if [[ "${rw[0]:-}" == cd && -n "${rw[1]:-}" ]]; then
       rdir="$(sw_dir "$rdir" "$(release_expand "${rw[1]}")")"
@@ -1349,7 +1344,7 @@ release_segments() {
       release_env "$head"
       release_cmd "$body"
       [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
-      [[ -n "$release_bench" ]] && release_bench_cmd && printf 'bench\t%s\n' "$seg"
+      [[ -n "$release_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     done
   done <<< "$text"
   while IFS=$'\t' read -r rdir f; do
@@ -1358,13 +1353,13 @@ release_segments() {
     release_segments "$body" "$rdir" 1
   done <<< "$scripts"
 }
-release_found="" release_masked="" release_bench=""
-# The bench kind reads only a background call of the lead: a subagent input holds agent_id.
-if [[ "$chained" == *bench* && "$(plutil -extract tool_input.run_in_background raw -o - "$input" 2> /dev/null)" == true ]] &&
+release_found="" release_masked="" release_long=""
+# The long kind reads each background call of the lead, whatever its text: a subagent input holds agent_id.
+if [[ "$(plutil -extract tool_input.run_in_background raw -o - "$input" 2> /dev/null)" == true ]] &&
   ! plutil -extract agent_id raw -o - "$input" > /dev/null 2>&1; then
-  release_bench=1
+  release_long=1
 fi
-if [[ "$chained" == *with-lock.sh* || "$chained" == *land.sh* || -n "$release_bench" || "$chained" =~ (^|[^A-Za-z0-9_.-])(ba|z|da)?sh[[:space:]] ]]; then
+if [[ "$chained" == *with-lock.sh* || "$chained" == *land.sh* || -n "$release_long" || "$chained" =~ (^|[^A-Za-z0-9_.-])(ba|z|da)?sh[[:space:]] ]]; then
   release_masked="$lock_masked"
   [[ -n "$release_masked" ]] || release_masked="$(mask_quoted_data <<< "$chained")" || exit 2
   release_found="$(release_segments "$release_masked" "$(plutil -extract cwd raw -o - "$input" 2> /dev/null)")"
@@ -1398,10 +1393,11 @@ if [[ -n "$agent" ]]; then
   fi
 fi
 
-# A release call waits while an agent whose brief names a lock step runs (AGT-152). A bench that the
-# lead runs in the background (input with run_in_background true and no agent_id; bench.sh,
-# bench-pairs.sh in pair mode, or make bench, bare or after a with-lock.sh word) waits the same way:
-# the agent would wait behind its lock hold on its 90 min clock. agent-guard.sh
+# A release call waits while an agent whose brief names a lock step runs (AGT-152). A long background
+# step of the lead (input with run_in_background true and no agent_id; a command that long_words of
+# scripts/lock-words.sh takes: a bench, a mutation pass, a flake loop, or a stress lane, bare, after a
+# with-lock.sh word, or as a line of a script file) waits the same way: the agent would wait behind its
+# lock hold on its 90 min clock. The message names the first such step. agent-guard.sh
 # writes a record of each Agent, SendMessage, or delegate_task brief that names a lock step in
 # dirigible-lock-agents of the git common dir (or $DIRIGIBLE_LOCK_AGENTS), and removes it after 24 h.
 # A delegate_task record has no meta file. delegate-record.sh puts the taskId of the call in its key,
@@ -1428,11 +1424,9 @@ fi
 # and run as bash -c "$NAME" or eval, a quoted NAME='a b' word before the command word, an end text
 # that reaches the lead inside a running turn, and a child thread that runs again after its end text
 # (a retry of its thread). A python3 heredoc body with a process call or a backtick stays code to the
-# mask, so a release text in its quotes can block. Bench misses: a foreground bench of the lead; a
-# bare bench line in a script file; a background bench of a delegate_task child, which has no
-# agent_id, so its own record holds it until RELEASE_PAST=<id>; and a lead mutation pass, flake loop,
-# or scripts/eval/agent-tasks.sh that starts beside a live lock-step agent: the rule reads only bench
-# kinds, and lock_holder of with-lock.sh lists no agent-tasks.sh, so both hooks pass it.
+# mask, so a release text in its quotes can block. Long-step misses: a foreground call of the lead; a
+# background step of a delegate_task child, which has no agent_id, so its own record holds it until
+# RELEASE_PAST=<id>; and scripts/eval/agent-tasks.sh, which long_words does not list.
 release_note=""
 release_past_re="(^|[[:space:];&|(\`\"'])RELEASE_PAST=(\"[^\"]*\"|'[^']*'|[^[:space:];&|()\`\"']*)(.*)\$"
 if [[ -n "$release_found" ]]; then
@@ -1498,7 +1492,9 @@ if [[ -n "$release_found" ]]; then
     for id in $live_ids; do [[ " $past " == *" $id "* ]] || missing+=" $id"; done
     for id in $past; do [[ " $live_ids " == *" $id "* ]] || unknown+=" $id"; done
     if [[ -n "$missing" || -n "$unknown" ]]; then
-      block "is a release call (a push check, the hooks pass, a land, or make dmg) or a background bench of the lead (bench.sh, bench-pairs.sh, make bench) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}. Live agents:$live_lines$note_lines
+      release_step=""
+      while IFS=$'\t' read -r kind text; do [[ "$kind" == long ]] && { release_step="$text"; break; }; done <<< "$release_found"
+      block "is a release call (a push check, the hooks pass, a land, or make dmg) or a long background step of the lead (a bench, a mutation pass, a flake loop, or a stress lane) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}.${release_step:+ Step: $release_step.} Live agents:$live_lines$note_lines
 An agent stops being live when its meta file says finished true (the end of its run), 90 min after its run started, or 5 min after its newest record when no meta write follows it. A SendMessage resume makes it live again while one of its records is under 24 h old. A delegate_task record ends at the end text of its child (Delegated task <taskId> (<title>) [completed]: or [failed]:) or at a task_cancel of its taskId, and at the latest 90 min after its brief (5 min when its call returned no taskId)" \
         "Start the release call after that agent hands back, and run lock-free work meanwhile; for a delegate_task child, that is after its end text. For a delegate_task child that handed back while the hook still names it, a dead agent, or a brief with no lock step, pass RELEASE_PAST=<id>[,<id>] before the release call, with the id of each live agent. A brief with no with-lock.sh step needs the line Build lock: none."
     fi

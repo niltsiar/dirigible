@@ -51,8 +51,8 @@
 # The CPU-share signal of the TV launcher session reads it.
 # scripts/with-lock.sh --long-holder takes no lock and runs no command, also inside a locked process
 # tree. It prints the --release-holder line and exits 0 when that query exits 0. Else, while a live
-# holder runs a bench (bench.sh, bench-pairs.sh, make bench), a mutation pass, or a flake loop, it
-# prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
+# holder runs a long holder (long_words of scripts/lock-words.sh: a bench, a mutation pass, or a flake
+# loop), it prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
 # (<tree>)" and exits 0; else it prints nothing and exits 1. It removes a dead ticket or a dead marker.
 # .claude/hooks/agent-guard.sh reads it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
@@ -108,8 +108,8 @@
 # leaves out a name of its filter: line) runs no command:
 # the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
 # log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
-# does not wait for another build or test. While a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane holds the lock, or a bench marker is live (long-runs.md), and, after it waited, while a release call has a live
+# does not wait for another build or test. While a long holder (long_words of lock-words.sh: a release
+# call, a bench, a mutation pass, a flake loop, or a stress lane) holds the lock, or a bench marker is live (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
 # and then runs. That wait keeps no marker, no ticket, and no lock-free file, and appends one wait line that ends with
 # lockfree. cost.sh counts its minutes. A lock-free call runs its command as a child. TERM or INT
@@ -305,22 +305,14 @@ foreign_mark() {
     [[ -n "$found" ]]
 }
 # lock_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane.
+# loop, or a stress lane (long_words of lock-words.sh).
 lock_holder() {
-    local m c cmd w words make=""
+    local m c words
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
     alive "$m" || alive "$c" || alive "-$c" || return 1
     [[ ! -e "$lock/release" ]] || return 0
-    cmd="$(cat "$lock/command" 2>/dev/null)"
-    case "$cmd" in
-        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh* | *test-stress.sh*) return 0 ;;
-    esac
-    # The goal bench or dmg of make, also after a NAME=value word (make bench FILTER=X, make FILTER=X bench).
-    read -ra words <<<"$cmd"
-    for w in ${words[@]+"${words[@]}"}; do
-        if [[ "${w##*/}" == make ]]; then make=1; elif [[ -n "$make" && ($w == bench || $w == dmg) ]]; then return 0; fi
-    done
-    return 1
+    read -ra words <<<"$(cat "$lock/command" 2>/dev/null)"
+    long_words ${words[@]+"${words[@]}"}
 }
 # long_holder: succeeds while a live marker (foreign_mark) or a live holder (lock_holder) makes a
 # lock-free call wait.

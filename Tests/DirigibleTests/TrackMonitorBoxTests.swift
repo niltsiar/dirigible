@@ -80,14 +80,19 @@ import Testing
     // MARK: B3
 
     /// The Monitor box of t1 is green only when t1 is monitored; the box of t2 stays with no
-    /// green. In Light, as `HeaderRowTests.armRed`.
+    /// green. In Light, as `HeaderRowTests.armRed`. The rows draw the new state at a later run-loop turn,
+    /// so the test waits for a row body, then for the end of a pass, before the capture.
     @Test func theMonitorBoxIsGreenOnlyWhenOn() async throws {
         let (model, _, window, view) = try await open()
         window.appearance = NSAppearance(named: .aqua)
+        await until("the rows draw the first state") {
+            drawNow(window)
+            return model.headerRuns.rows > 0
+        }
         func green() async throws -> [Int] {
             window.orderFront(nil)
             drawNow(window)
-            try await Task.sleep(for: .milliseconds(200))
+            await runLoopPass()
             let capture = try await TimelineColorTests.capture(window)
             return try (0...1).map { row in
                 let box = try headerBoxRows(in: view)[row][1]
@@ -95,7 +100,12 @@ import Testing
             }
         }
         #expect(try await green() == [0, 0], "no green with the monitor off")
+        let runs = model.headerRuns.rows
         model.setListen(true, track: "t1")
+        await until("the rows draw the Monitor box") {
+            drawNow(window)
+            return model.headerRuns.rows > runs
+        }
         let on = try await green()
         #expect(on[0] > 20 && on[1] == 0, "green in the box of t1 only: \(on)")
         await model.close()

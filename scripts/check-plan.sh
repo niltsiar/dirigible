@@ -37,6 +37,10 @@
 #   (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
 #   From fixline_cutoff, each `- <round>.<item>` line there has the parts that lead-judgment.md, Fix check
 #   names, and each deferred control of the last review-plan-<n>.md has its file in the run folder.
+# - With CHECK_PLAN_FIX_CHECK=1 (log-decision.sh sets it for a phase 6 row that reports a fix check),
+#   the same Fix check line and parts rule runs, with the same cutoffs, but not the deferred control
+#   files and not the quote rule below. CHECK_PLAN_FIX_ITEMS (words <round>.<item>, separated by
+#   spaces) limits the lines and the parts to those items; empty means each item.
 # - When analysis-gate.md exists (log-decision.sh copies analysis.md to it at the first phase 4 row)
 #   and the run has a phase 4 row (or CHECK_PLAN_AT_PHASE4=1), each criterion line of its
 #   `## Acceptance criteria` section whose line differs in analysis.md, or is gone, needs a
@@ -107,7 +111,8 @@ quote_cutoff=2026-11-03T00:00
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
 # lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
 # of each line, and the control of each item that a criterion change row or a Plan gate changes item names.
-# parts (code gate): the new failure part of each line. files (phase 7): the file of each deferred control.
+# parts (code gate): the new failure part of each line, of the items of CHECK_PLAN_FIX_ITEMS when it is set.
+# files (phase 7): the file of each deferred control.
 fix_lines() {
     local kind="$1" mode="$2" files="" last_file="" last=0 file n msg
     for file in "$run"/review-"$kind"-*.md; do
@@ -117,7 +122,7 @@ fix_lines() {
         ((n > last)) && { last=$n; last_file="$file"; }
     done
     ((last)) || return 0
-    while IFS= read -r msg; do say "$msg"; done < <(FIX_FILES="$files" awk -v run="$run" -v last_file="$last_file" -v mode="$mode" '
+    while IFS= read -r msg; do say "$msg"; done < <(FIX_FILES="$files" FIX_ITEMS="${CHECK_PLAN_FIX_ITEMS:-}" awk -v run="$run" -v last_file="$last_file" -v mode="$mode" '
         function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
         # nf_ok(line): the text after "new failure:" is not empty, and "none" has ": <reason>" after it.
         function nf_ok(line,  i, t) {
@@ -218,8 +223,11 @@ fix_lines() {
                 if (missing != "")
                     print lastname ": the ## Fix check has no \"- <round>.<item>\" line for the Act on item(s)" missing "; write one line for each item of each round, starting with its <round>.<item> (lead-judgment.md, Fix check)"
             }
+            nonly = split(ENVIRON["FIX_ITEMS"], O, " ")
+            for (i = 1; i <= nonly; i++) only[O[i]] = 1
             for (i = 1; i <= nl; i++) {
                 key = lkey[i]
+                if (mode == "parts" && nonly && !(key in only)) continue
                 if (mode != "files" && !nf_ok(ltext[i]))
                     print lastname ": the Fix check line for " key " has no valid new failure: part; write new failure: <what the fix can break>, or new failure: none: <reason> (lead-judgment.md, Fix check)"
                 c = ctl(ltext[i]); f = form(c)
@@ -509,7 +517,7 @@ else
         fi
     fi
     # Cutoff 2026-10-28T23:50, the commit that added the Fix check line rule: a run that started earlier needs none.
-    if [[ -n "${CHECK_PLAN_AT_PHASE7:-}" && ( -z "$start" || ! "$start" < 2026-10-28T23:50 ) ]]; then
+    if [[ ( -n "${CHECK_PLAN_AT_PHASE7:-}" || -n "${CHECK_PLAN_FIX_CHECK:-}" ) && ( -z "$start" || ! "$start" < 2026-10-28T23:50 ) ]]; then
         last=0 missing=""
         for file in "$run"/review-diff-*.md; do
             [[ "${file##*/}" =~ ^review-diff-([0-9]+)\.md$ ]] || continue
@@ -522,6 +530,7 @@ else
                 [[ "${file##*/}" =~ ^review-diff-([0-9]+)\.md$ ]] || continue
                 n=$((10#${BASH_REMATCH[1]}))
                 while IFS= read -r k; do
+                    [[ -z "${CHECK_PLAN_FIX_ITEMS:-}" || " $CHECK_PLAN_FIX_ITEMS " == *" $n.$((10#$k)) "* ]] || continue
                     grep -qE "(^|[^0-9.])$n\\.$k([^0-9]|\$)" <<<"$fix" || missing+=" $n.$k"
                 done < <(awk '/^## / { act = ($0 ~ /^## Act on/); next } act && /^[0-9]+\. / { k = $0; sub(/\..*/, "", k); print k }' "$file")
             done
@@ -530,10 +539,10 @@ else
         fi
         if [[ -z "$start" || ! "$start" < "$fixline_cutoff" ]]; then
             fix_lines diff parts
-            fix_lines plan files
+            [[ -z "${CHECK_PLAN_AT_PHASE7:-}" ]] || fix_lines plan files
         fi
         first6="$(awk -F'\t' '$2 == "6" { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
-        if [[ -f "$run/run.md" && -f "$run/analysis.md" && -n "$first6" && ! "$start" < "$quote_cutoff" ]]; then
+        if [[ -n "${CHECK_PLAN_AT_PHASE7:-}" && -f "$run/run.md" && -f "$run/analysis.md" && -n "$first6" && ! "$start" < "$quote_cutoff" ]]; then
             root="$(cd "$(dirname "$0")/.." && pwd)"
             branch="$(grep '^- Branch:' "$run/run.md" | tail -n 1 | sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' || true)"
             if ! git -C "$root" rev-parse --verify -q "refs/heads/$branch" >/dev/null; then

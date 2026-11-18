@@ -9,6 +9,7 @@ import Foundation
 extension Tool {
     static let all =
         sessionTools + trackTools + matchTools + markerTools + episodeTools + poolTools + clipTools + rideTools
+        + syncTools
         + timelineEditTools
         + envelopeTools + rippleTools
         + transcriptTools + takeTools

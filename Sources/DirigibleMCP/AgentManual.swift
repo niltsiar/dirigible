@@ -184,6 +184,15 @@ package enum AgentManual {
         + "side needs 10 s of voice, and no audio file changes. With no `reference`, `amount` and `bypass` change "
         + "a match, and `remove` removes it."
 
+    /// What Sync Clip takes (decision 0076). In the skill only: the manual has no room under its 6000
+    /// characters.
+    static let syncLine =
+        "`clip_sync` moves a clip onto its audio on another track, for a recording with no shared clock, such as "
+        + "a guest file and the call track: `clip`, `to` (the reference track), and `within` (seconds on each "
+        + "side, 1800 by default). It moves the whole clip by one lag and changes no audio file. The text says "
+        + "\"the lag changes by <ms> ms across the clip\" when the lag changes along the clip: it does not "
+        + "correct a drift. No match is an error and changes nothing."
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -240,6 +249,8 @@ package enum AgentManual {
             \(roleLine)
 
             \(matchLine)
+
+            \(syncLine)
 
             | Tool | Command |
             |---|---|

@@ -95,6 +95,12 @@
 #   item ID (`## G1:`, `## R2 (`, `## 3.`), also next to `## Act on`, and no `## Fix check` without
 #   a `## Act on` heading: each finding is a numbered item under `## Act on` or another verdict
 #   section. A round file older than the rule is not checked; a per-lens file is none.
+# - A criterion line of the `## Acceptance criteria` section of analysis.md (an item or a table row
+#   with an ID) that names a bench (`make bench` or a word that ends in Benchmark) and a time value
+#   (a number with ms or s) has a statistic word (p50, p90, p95, p99, median, max): a bench time
+#   with no statistic cannot be graded. The rule reads the current line only, so a criterion change
+#   that drops the bench or the time value passes. A run whose first decisions.tsv row is older than
+#   bench_stat_cutoff is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -107,6 +113,8 @@ say() { echo "check-plan: $1" >&2; fail=1; }
 fixline_cutoff=2026-11-02T04:58
 # The same for the rule on a fix commit that removes a quoted criterion text.
 quote_cutoff=2026-11-03T00:00
+# The same for the rule that a bench criterion with a time value names a statistic word.
+bench_stat_cutoff=2026-11-18T21:30
 
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
 # lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
@@ -400,6 +408,19 @@ else
                     if (rp[k] == gp && (gn > lo[k] || (gn == lo[k] && gs >= los[k])) && (gn < hi[k] || (gn == hi[k] && (his[k] == "" || gs <= his[k])))) covered = 1
                 if (!covered)
                     print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices, ## Criteria map, or ## Plan gate changes (a range such as C2 to C5 counts)"
+            }' "$run/analysis.md")
+    fi
+    if [[ -f "$run/analysis.md" && ( -z "$start" || ! "$start" < "$bench_stat_cutoff" ) ]]; then
+        while IFS= read -r msg; do say "$msg"; done < <(awk '
+            /^## / { inside = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); next }
+            inside && /^(- |[0-9]+\. |\|)/ {
+                t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
+                id = substr(t, 1, RLENGTH)
+                if ($0 !~ /(make bench|[A-Za-z]+Benchmark)([^A-Za-z0-9]|$)/) next
+                if ($0 !~ /(^|[^A-Za-z0-9.])[0-9]+(\.[0-9]+)?[ ]?(ms|s)([^A-Za-z0-9]|$)/) next
+                if (tolower($0) ~ /(^|[^a-z0-9])(p50|p90|p95|p99|median|maximum|max)([^a-z0-9]|$)/) next
+                print "analysis.md: criterion " id " names a bench and a time value with no statistic word (p50, p90, p95, p99, median, or max); name the statistic that the bench measures over its span, for example \"p95 of FooBenchmark at most 8 ms\""
             }' "$run/analysis.md")
     fi
     # Cutoff 2026-10-24T10:00, the commit that added the Landings rule: a run that started earlier passes without it.

@@ -101,8 +101,8 @@
 #   statistic cannot be graded. A time budget is under, at most, budget, or takes before a number
 #   with ms or s, or a number with ms or s before "or less"; a table row is one sentence, so a
 #   compare with main, a fixture length, and a tolerance are no budget. The rule reads the current
-#   line only, so a criterion change that drops the bench or the budget passes. A run whose first decisions.tsv row is older than
-#   bench_stat_cutoff is not checked.
+#   line only, so a criterion change that drops the bench or the budget passes. A run whose first
+#   decisions.tsv row is older than bench_stat_cutoff is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }

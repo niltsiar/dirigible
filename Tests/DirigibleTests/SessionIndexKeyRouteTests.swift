@@ -222,12 +222,13 @@ import Testing
         let start = model.leadingPane.width
         model.dragIndex(.down(x: start.points, clicks: 1))
         model.dragIndex(.drag(x: start.points + 40))
-        try #require(model.leadingPane.preview != nil, "the drag shows the guide")
+        try #require(model.leadingPane.resize.preview != nil, "the drag shows the guide")
 
         window.sendEvent(try cgKey(53))
         model.dragIndex(.up)
 
-        #expect(model.leadingPane.width == start && model.leadingPane.preview == nil, "Esc gives the start width")
+        #expect(
+            model.leadingPane.width == start && model.leadingPane.resize.preview == nil, "Esc gives the start width")
         #expect(windows.defaults.object(forKey: IndexWidth.defaultsKey) == nil, "Esc saves no width")
         #expect(model.timeline.selectedRows == [.marker("m1")] && model.timeline.selection == .range(marks))
         await model.close()
@@ -237,7 +238,8 @@ import Testing
     @Test func theIndexHandleTakesTheHitOnBothSides() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, window, _, _) = try await list()
-        let handle = try #require(windows.views(IndexHandleView.self, in: window.contentView).first)
+        let handle = try #require(
+            windows.views(PaneHandleView.self, in: window.contentView).first { $0.edge == .leading })
         window.contentView?.layoutSubtreeIfNeeded()
         let frame = handle.convert(handle.bounds, to: nil)
         #expect(frame.width == 6, "\(frame)")

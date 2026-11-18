@@ -63,7 +63,8 @@ extension EmptyStateTests {
             #expect(abs(midX - free / 2) <= 2, "inspector \(String(describing: inspector)), banner \(banner): \(midX)")
             if inspector != nil {
                 let handle = try #require(
-                    views(InspectorHandleView.self, under: window.contentView).first, "no inspector handle")
+                    views(PaneHandleView.self, under: window.contentView).first { $0.edge == .trailing },
+                    "no inspector handle")
                 #expect(abs(Double(frame(handle).midX) - free) <= 1, "handle \(frame(handle))")
             }
             await model.close()

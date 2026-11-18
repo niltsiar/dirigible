@@ -30,11 +30,8 @@ import SwiftUI
     @ObservationIgnored var reconciles = 0
     /// VoiceOver says a text. Tests give their own.
     @ObservationIgnored var announce: (String) -> Void = { postAnnouncement($0, priority: .high) }
-    @ObservationIgnored var drag = PaneDrag<IndexWidth>()
-    /// The target of a drag and the fitted width that the pointer asks for, as the inspector's.
-    @ObservationIgnored var preview: IndexWidth?
-    @ObservationIgnored var request: IndexWidth?
-    @ObservationIgnored let guide = CALayer()
+    /// The drag, the target, and the guide line of the index handle.
+    @ObservationIgnored let resize = PaneResize<IndexWidth>()
     @ObservationIgnored private var indexCache: (session: Session, index: SessionIndex)?
     /// The row builds of this window, for the tests.
     @ObservationIgnored private(set) var builds = 0

@@ -10,9 +10,10 @@ import Testing
 /// The inspector handle (run ui-polish-chrome criteria C10 to C14): the drag, the clamp, the
 /// preference, the window minimum, the double-click and Esc, and the AX splitter.
 extension InspectorTests {
-    func handle(_ window: NSWindow) throws -> InspectorHandleView {
-        func find(_ view: NSView) -> InspectorHandleView? {
-            view as? InspectorHandleView ?? view.subviews.lazy.compactMap(find).first
+    func handle(_ window: NSWindow) throws -> PaneHandleView {
+        func find(_ view: NSView) -> PaneHandleView? {
+            if let handle = view as? PaneHandleView, handle.edge == .trailing { return handle }
+            return view.subviews.lazy.compactMap(find).first
         }
         window.contentView?.layoutSubtreeIfNeeded()
         return try #require(window.contentView.flatMap(find), "no inspector handle")
@@ -85,10 +86,10 @@ extension InspectorTests {
         window.setContentSize(NSSize(width: 1180, height: 600))
         await until("the window takes 1180 pt") { window.contentLayoutRect.width == 1180 }
         try drag(window, by: -30, up: false)
-        #expect(model.inspectorPreview?.points == 300 && model.inspectorWidth == .standard)
+        #expect(model.inspectorResize.preview?.points == 300 && model.inspectorWidth == .standard)
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) == nil, "a drag event saves nothing")
         try handle(window).mouseUp(with: try event(.leftMouseUp, 0, window))
-        #expect(model.inspectorWidth.points == 300 && model.inspectorPreview == nil, "the up sets the width")
+        #expect(model.inspectorWidth.points == 300 && model.inspectorResize.preview == nil, "the up sets the width")
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) as? Double == 300, "the up saves")
         await model.close()
     }
@@ -117,13 +118,15 @@ extension InspectorTests {
         window.setContentSize(NSSize(width: 1180, height: 600))
         await until("the window takes 1180 pt") { window.contentLayoutRect.width == 1180 }
         try drag(window, by: -100, up: false)
-        #expect(model.inspectorPreview?.points == 370)
+        #expect(model.inspectorResize.preview?.points == 370)
         #expect(window.firstResponder === view.lanes, "Esc goes to the window from the lanes")
         window.cancelOperation(nil)
         #expect(model.inspectorWidth.points == 270, "Esc gives the start width")
-        #expect(model.inspectorPreview == nil && model.inspectorGuide.superlayer == nil, "Esc removes the guide")
+        #expect(
+            model.inspectorResize.preview == nil && model.inspectorResize.guide.superlayer == nil,
+            "Esc removes the guide")
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) == nil, "Esc saves nothing")
-        #expect(!model.inspectorDrag.isActive)
+        #expect(!model.inspectorResize.drag.isActive)
 
         try drag(window, by: -60)
         #expect(model.inspectorWidth.points == 330)
@@ -208,13 +211,13 @@ extension InspectorTests {
         let x = Double(view.convert(view.bounds, to: nil).midX)
         view.mouseDown(with: try event(.leftMouseDown, x, window))
         await runLoopPass()
-        #expect(model.inspectorGuide.superlayer == nil, "the guide shows at the first drag, not at the down")
+        #expect(model.inspectorResize.guide.superlayer == nil, "the guide shows at the first drag, not at the down")
         let (bodies, inspectorBodies) = (model.bodyRuns, model.inspectorRuns)
         for dx in [-20.0, -60, -100, 40] {
             view.mouseDragged(with: try event(.leftMouseDragged, x + dx, window))
             await runLoopPass()
             #expect(model.inspectorWidth == .standard && layout(window) == 910, "dx \(dx): the pane keeps 270 pt")
-            let guide = model.inspectorGuide
+            let guide = model.inspectorResize.guide
             #expect(guide.superlayer != nil && guide.superlayer === window.contentView?.layer, "dx \(dx): no guide")
             let target = 1180 - min(400, max(240, 270 - dx))
             #expect(abs(Double(guide.frame.minX) - target) <= 0.5, "dx \(dx): guide at \(guide.frame)")
@@ -225,7 +228,7 @@ extension InspectorTests {
             "a drag ran \(model.inspectorRuns - inspectorBodies) inspector bodies")
         view.mouseUp(with: try event(.leftMouseUp, x + 40, window))
         #expect(model.inspectorWidth.points == 240, "the up sets the clamped width")
-        #expect(model.inspectorGuide.superlayer == nil, "the up removes the guide")
+        #expect(model.inspectorResize.guide.superlayer == nil, "the up removes the guide")
         await until("the lanes take the new width") { layout(window) == 940 }
         await model.close()
     }
@@ -251,8 +254,8 @@ extension InspectorTests {
             window.contentView?.responds(to: #selector(NSResponder.cancelOperation(_:))) == false
         }
         press("\u{1b}", 53, window)
-        #expect(model.inspectorWidth == .standard && !model.inspectorDrag.isActive, "Esc ends the drag")
-        #expect(model.inspectorGuide.superlayer == nil, "Esc removes the guide")
+        #expect(model.inspectorWidth == .standard && !model.inspectorResize.drag.isActive, "Esc ends the drag")
+        #expect(model.inspectorResize.guide.superlayer == nil, "Esc removes the guide")
         await model.close()
     }
 
@@ -267,8 +270,8 @@ extension InspectorTests {
         }
         try drag(window, by: -100, up: false)
         model.toggleInspector()
-        #expect(!model.inspectorDrag.isActive && model.inspectorPreview == nil, "a hide ends the drag")
-        #expect(model.inspectorGuide.superlayer == nil, "a hide removes the guide")
+        #expect(!model.inspectorResize.drag.isActive && model.inspectorResize.preview == nil, "a hide ends the drag")
+        #expect(model.inspectorResize.guide.superlayer == nil, "a hide removes the guide")
         model.toggleInspector()
         await until("the pane shows at 270 pt") { layout(window) == 910 }
         try drag(window, by: -100, up: false)
@@ -289,8 +292,8 @@ extension InspectorTests {
         try drag(window, by: -100, up: false)
         let view = try handle(window)
         #expect(view.accessibilityPerformIncrement())
-        #expect(model.inspectorWidth.points == 290 && !model.inspectorDrag.isActive, "the step ends the drag")
-        #expect(model.inspectorGuide.superlayer == nil, "the step removes the guide")
+        #expect(model.inspectorWidth.points == 290 && !model.inspectorResize.drag.isActive, "the step ends the drag")
+        #expect(model.inspectorResize.guide.superlayer == nil, "the step removes the guide")
         view.mouseUp(with: try event(.leftMouseUp, 0, window))
         #expect(model.inspectorWidth.points == 290, "the up keeps the step: \(model.inspectorWidth.points)")
         await model.close()

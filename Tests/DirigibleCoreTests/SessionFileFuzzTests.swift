@@ -42,6 +42,7 @@ import Testing
         try session.setSoloed(true, tracks: ["t1"])
         try session.setRole(.dialogue, tracks: ["t1"])
         try session.setFollowTrack(true, tracks: ["t2"])
+        try session.setMatch(["t1": try VoiceMatchTests.match(VoiceMatchTests.curve([0: 6.5, 12: -3.1]))])
         try session.setMarker(
             try MarkerFieldTests.chapter(url: "https://example.com/a?b=1&c=<2>", image: MarkerFieldTests.image))
         session.setEpisode(try EpisodeSessionTests.fullEpisode())

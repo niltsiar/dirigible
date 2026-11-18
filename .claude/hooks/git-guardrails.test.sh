@@ -14,6 +14,8 @@
 #   commit message file (an option value): expect_each_value <want> <path> <command with @V@>
 #   lock-free make words (a with-lock.sh make test-hooks call): expect_each_lock [--live <dir>] <want> <command>...
 #   release call while a lock-step agent runs: expect_each_release <want> <records dir> (release_forms)
+# Before the red run of a new refusal rule, add the real forms of its target command from transcripts,
+# decisions.tsv files, or run logs to allowed-commands.txt. The corpus block expects allow for each line.
 # HOOK_CASES=<label pattern> runs only the case blocks whose label matches the whole value, with no
 # anchors: HOOK_CASES=agent-clock, HOOK_CASES='agent-clock|write-guard'. The `labels` array lists
 # them. Each block is an `if case_block <label>; then` segment; the helpers stay outside.
@@ -235,7 +237,7 @@ printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"co
 # HOOK_CASES=<ERE> runs only the case blocks whose label matches the whole value. The test wraps the
 # value as ^(<value>)$, so write it with no anchors: make drops a trailing $. A block prints its
 # label when it starts. A value that matches no label exits 1.
-labels=(guardrails guardrails-tag guardrails-rules test-rule release-wait post-commit pre-commit commit-msg agent-guard usage-hook
+labels=(guardrails guardrails-tag guardrails-rules test-rule release-wait corpus post-commit pre-commit commit-msg agent-guard usage-hook
   handback-guard agent-clock write-guard holdout-keys stop-guard pre-compact hook-cases)
 cases_pattern="^(${HOOK_CASES:-.*})\$"
 cases_hit=0
@@ -2199,6 +2201,75 @@ rw_took=$(($(rw_ms) - rw_start))
 expect_release block "$rw/empty" "bash $sd/push.sh" '' a1
 expect_release allow "$rw/empty" "bash $sd/tests.sh" '' a1
 fi # release-wait
+
+# Real allowed commands (TDD-002). Each line of allowed-commands.txt is "<mode><TAB><command>", or a
+# comment that starts with #. The hook gets each command as a lead input with the cwd $cp_dir: with no
+# record (each mode), and as a background call beside a live lock-step record (mode any). A free line
+# is a long background step of the lead that a release wait can hold.
+if case_block corpus; then
+corpus="$(dirname "$0")/allowed-commands.txt" cp_dir="$tmp/corpus"
+# The bash <file> lines of the corpus name these step files of past runs, relative to $cp_dir.
+cp_runs="$cp_dir/.scratchpads/runs"
+mkdir -p "$tmp/corpus-none" "$cp_runs/2026-11-04-needs-repro" "$cp_runs/2026-11-07-upkeep-release-wait/logs" \
+  "$cp_runs/2026-11-16-upkeep-twentyfirst/controls"
+cat > "$cp_runs/2026-11-04-needs-repro/locked-steps.sh" <<'EOF'
+set -euo pipefail
+cd /x/main
+R=.scratchpads/runs/2026-11-04-needs-repro
+export WITH_LOCK_RUN_ONLY=1
+scripts/with-lock.sh scripts/probe.sh "$PWD/$R/probes/p2" bash "$PWD/$R/probes/p2/run-red.sh" || true
+scripts/with-lock.sh scripts/probe.sh "$PWD/$R/probes/p2" bash "$PWD/$R/probes/p2/run-green.sh" || true
+tail -n 15 "$R/probes/p2/red.log" "$R/probes/p2/green.log"
+EOF
+cat > "$cp_runs/2026-11-07-upkeep-release-wait/logs/gate2-1-steps.sh" <<'EOF'
+R=/x/main/.scratchpads/runs/2026-11-07-upkeep-release-wait
+cd /x/wt-upkeep-rw || exit 1
+scripts/with-lock.sh bash -c 'time make test-hooks HOOK_TESTS=.claude/hooks/git-guardrails.test.sh HOOK_CASES=release-wait' > "$R/logs/gate2-1-red.log" 2>&1; echo "exit $?" >> "$R/logs/gate2-1-red.log"
+git apply "$R/logs/gate2-1-fix.patch" > "$R/logs/gate2-1-apply.log" 2>&1; echo "exit $?" >> "$R/logs/gate2-1-apply.log"
+scripts/with-lock.sh scripts/probe.sh "$R/probes/gate2-1" bash "$R/probes/gate2-1/time-hook.sh" "$R/probes/gate2-1/head" HEAD 2000 4000 8000 > "$R/logs/gate2-1-time-head.log" 2>&1; echo "exit $?" >> "$R/logs/gate2-1-time-head.log"
+scripts/with-lock.sh bash -c 'time make test-hooks HOOK_TESTS=.claude/hooks/git-guardrails.test.sh HOOK_CASES=release-wait' > "$R/logs/gate2-1-green.log" 2>&1; echo "exit $?" >> "$R/logs/gate2-1-green.log"
+EOF
+cat > "$cp_runs/2026-11-16-upkeep-twentyfirst/controls/pass-locked-steps.sh" <<'EOF'
+set -uo pipefail
+tree=/x/wt-upkeep
+controls=/x/main/.scratchpads/runs/2026-11-16-upkeep-twentyfirst/controls
+cd "$tree" || exit 2
+WITH_LOCK_MAX_HOLD=7000 .claude/skills/deliver/scripts/mutation-pass.sh "$tree" "$controls/batch.txt" > "$controls/pass-1.log" 2>&1
+echo "exit $?" >> "$controls/pass-1.log"
+EOF
+rw_rec "$tmp/corpus-live" toolu_corpus 600 Agent toolu_corpus 'S1 slice agent'
+rw_meta corpus toolu_corpus none 598
+# The record is live: a release call beside it blocks, so an allow of an any line beside it counts.
+expect_release block "$tmp/corpus-live" "${release_forms[0]}" "$cp_dir" '' bg
+cp_lines=0 cp_eval=0 cp_lock=0 cp_row=0
+while IFS= read -r cp_line; do
+  [[ -z "$cp_line" || "$cp_line" == '#'* ]] && continue
+  cp_mode="${cp_line%%$'\t'*}" cp_cmd="${cp_line#*$'\t'}"
+  [[ "$cp_line" == *$'\t'* && "$cp_mode" =~ ^(any|free)$ ]] ||
+    { echo "FAIL: corpus line with no mode word any or free and a tab: ${cp_line:0:160}"; failures=$((failures + 1)); continue; }
+  cp_lines=$((cp_lines + 1))
+  [[ "$cp_cmd" == *scripts/eval/run.sh* && "$cp_cmd" == *--holdout-keys* ]] && cp_eval=$((cp_eval + 1))
+  [[ "$cp_cmd" == *scripts/with-lock.sh* ]] && cp_lock=$((cp_lock + 1))
+  [[ "$cp_cmd" == *log-decision.sh* ]] && cp_row=$((cp_row + 1))
+  for cp_case in none live; do
+    [[ "$cp_case" == none || "$cp_mode" == any ]] || continue
+    plutil -create xml1 "$input"
+    plutil -insert cwd -string "$cp_dir" "$input"
+    plutil -insert tool_input -dictionary "$input"
+    plutil -insert tool_input.command -string "$cp_cmd" "$input"
+    if [[ "$cp_case" == live ]]; then
+      plutil -insert tool_input.run_in_background -bool true "$input"
+      plutil -insert tool_input.timeout -integer 7200000 "$input"
+    fi
+    plutil -convert json "$input"
+    DIRIGIBLE_LOCK_AGENTS="$tmp/corpus-$cp_case" "$hook" < "$input" > /dev/null 2> "$tmp/corpus.err"
+    [[ $? -ne 2 ]] || { echo "FAIL: corpus $cp_mode line blocked $( [[ $cp_case == none ]] && echo 'with no record' || echo 'beside a live record'): ${cp_cmd:0:160}: $(head -c 200 "$tmp/corpus.err" | tr '\n' ' ')"; failures=$((failures + 1)); }
+  done
+done < <(cat "$corpus" 2> /dev/null)
+((cp_lines >= 30 && cp_eval >= 5 && cp_lock >= 5 && cp_row >= 5)) ||
+  { echo "FAIL: $corpus has $cp_lines command lines ($cp_eval eval run.sh --holdout-keys, $cp_lock with-lock.sh, $cp_row log-decision.sh); it needs 30, and 5 of each kind"; failures=$((failures + 1)); }
+rm -f "$rw_sub/agent-corpus.meta.json"
+fi # corpus
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
 

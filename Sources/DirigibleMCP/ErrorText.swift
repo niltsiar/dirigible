@@ -97,6 +97,14 @@ extension DuckFailure: EditBodyText {
     package func message(package _: String) -> String { message }
 }
 
+extension ClipRenderError: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
+extension SplitError: EditBodyText {
+    package func message(package _: String) -> String { message }
+}
+
 extension BatchWork.Failure: EditBodyText {
     package func message(package: String) -> String { message(rippleBlocked: splitTakeMessage(package)) }
 }

@@ -631,19 +631,49 @@ gov_out "$tmp/run"
 [[ $code -ne 0 && "$out" == *'eval-1/rerun-due.txt: E7 is rerun due'* ]] || fail "a later eval folder that scored one of two scenarios: expected the refusal for E7: $out"
 [[ "$out" != *'E40 is rerun due'* ]] || fail "a later eval folder that scored E40: the refusal names E40: $out"
 
-# A below line (a small-sample retention drop) clears only through a pooled line of its own folder:
+# A below line (a small-sample retention drop) clears through a pooled PASS line of its own folder:
 # grade.py verdict writes pooled <ID>: ...: PASS or FAIL when a rerun with a new tag pools the data.
-# A later folder that scored the ID does not clear a below line, and absence is no pass.
+# A below line or a pooled FAIL line also clears after a docs fix: a later eval* folder at another
+# commit (logs/build-b.commit), newer than the line, whose own below clause passes the ID (new passes
+# over old passes minus 2) with at least the runs of the line in each set. A later folder with fewer
+# runs, at the same commit, or with a below fail does not clear it, and absence is no pass.
+# scored <folder> <commit> <ID> <old passes> <old runs> <new passes> <new runs>: the scores.tsv rows
+# of set a and set b, and the commit stamp of the folder.
+scored() {
+  local i
+  mkdir -p "$tmp/run/$1/logs"
+  echo "$2" > "$tmp/run/$1/logs/build-b.commit"
+  { printf 'tag\tscenario\ttype\tset\trun\tresult\tmissing\n'
+    for ((i = 1; i <= $5; i++)); do printf 't\t%s\tretention\ta\t%s\t%s\t\n' "$3" "$i" "$( ((i <= $4)) && echo PASS || echo FAIL)"; done
+    for ((i = 1; i <= $7; i++)); do printf 't\t%s\tretention\tb\t%s\t%s\t\n' "$3" "$i" "$( ((i <= $6)) && echo PASS || echo FAIL)"; done
+  } > "$tmp/run/$1/scores.tsv"
+}
 new_repo; due eval-1 'below E5: old 6/6, new 3/6: rerun due'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
-refuse 'a below line with no rerun' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+refuse 'a below line with no rerun' 'eval-1/rerun-due.txt: E5 is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, or after a docs fix in a new eval folder with at least 6 runs of set a and 6 of set b' "$tmp/run"
 rows eval-2 E5; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 refuse 'a below line and a later eval folder that scored its scenario' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+mkdir -p "$tmp/run/eval-1/logs"; echo aaa > "$tmp/run/eval-1/logs/build-b.commit"
+scored eval-2 bbb E5 6 6 6 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+pass 'a below line and a docs fix in a new eval folder with a full-size below pass' "$tmp/run"
+scored eval-2 bbb E5 3 3 3 3; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a below line and a new eval folder with fewer runs' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+scored eval-2 bbb E5 6 6 4 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a below line and a new eval folder whose below clause fails' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+scored eval-2 aaa E5 6 6 6 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a below line and a later eval folder at the same commit' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+scored eval-2 bbb E5 6 6 6 6; stamp 202512312323 "$tmp/run/eval-2/scores.tsv"
+refuse 'a below line and a new eval folder scored before the line' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
 new_repo; due eval-1 'pooled E5: old 9/12, new 9/12: PASS'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
 pass 'a pooled line that passes' "$tmp/run"
-new_repo; due eval-1 'pooled E5: old 12/12, new 9/12: FAIL'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
-refuse 'a pooled line that fails' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
+new_repo; due eval-1 'pooled E5: old 12/12, new 6/12: FAIL'; rows eval-1 E5; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+refuse 'a pooled line that fails' 'eval-1/rerun-due.txt: E5 failed the pooled verdict; fix its docs, then the lead runs scripts/eval/run.sh in a new eval folder with at least 12 runs of set a and 12 of set b' "$tmp/run"
 rows eval-2 E5; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 refuse 'a pooled line that fails and a later eval folder that scored its scenario' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
+mkdir -p "$tmp/run/eval-1/logs"; echo aaa > "$tmp/run/eval-1/logs/build-b.commit"
+scored eval-2 bbb E5 6 6 6 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a pooled line that fails and a new eval folder with fewer runs' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
+scored eval-2 bbb E5 12 12 12 12; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+pass 'a pooled line that fails and a docs fix in a new eval folder with a full-size below pass' "$tmp/run"
 new_repo; due eval-1 'below E7: old 6/6, new 3/6: rerun due' 'pooled E5: old 9/12, new 9/12: PASS' 'policy E40: new 1/3: rerun due'; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
 rows eval-2 E40; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 gov_out "$tmp/run"

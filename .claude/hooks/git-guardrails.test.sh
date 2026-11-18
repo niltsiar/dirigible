@@ -1946,6 +1946,36 @@ hook_saved="$hook" hook="$tmp/nolw/.claude/hooks/git-guardrails.sh"
 expect_message 'scripts/lock-words.sh' "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T"
 expect allow 'git status'
 hook="$hook_saved"
+# One word list decides what a long holder is, for lock_holder of scripts/with-lock.sh and for the release wait
+# of a background call of the lead (items 1808, 1766).
+lh_repo="$tmp/lh-repo" lh_lock="$tmp/lh-repo/.git/dirigible-build.lock"
+mkdir -p "$lh_repo/scripts"
+cp "$(dirname "$0")/../../scripts/with-lock.sh" "$(dirname "$0")/../../scripts/lock-words.sh" "$lh_repo/scripts/"
+git -C "$lh_repo" init -q
+# expect_each_long <held|free> <command>...: with-lock.sh --long-holder with the command as the live holder in a
+# temp repo exits 0 for held and 1 for free; the hook blocks (held) or allows (free) the command as a background
+# call of the lead beside a live lock-step agent, after a with-lock.sh word, and bare for a command that is no make.
+expect_each_long() {
+  local want="$1" verdict=allow code=1 cmd got
+  [[ "$want" == held ]] && verdict=block code=0
+  shift
+  for cmd in "$@"; do
+    mkdir -p "$lh_lock" && echo $$ > "$lh_lock/pid" && echo "$cmd" > "$lh_lock/command"
+    (cd "$lh_repo" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u DIRIGIBLE_BUILD_LOCK -u DIRIGIBLE_BENCH_MARK \
+      -u BASE -u MAKEFLAGS -u DIRIGIBLE_HOOKS_ALL scripts/with-lock.sh --long-holder > /dev/null 2>&1)
+    got=$?
+    rm -rf "$lh_lock"
+    [[ $got -eq $code ]] || { echo "FAIL: with-lock.sh --long-holder exit $got (want $code) for the holder: $cmd"; failures=$((failures + 1)); }
+    expect_release "$verdict" "$tmp/rw-lock" "scripts/with-lock.sh $cmd" '' '' bg
+    [[ "$cmd" == make\ * ]] || expect_release "$verdict" "$tmp/rw-lock" "$cmd" '' '' bg
+  done
+}
+expect_each_long held 'make check-changed BASE=origin/main' 'scripts/land.sh t x/pr.md' 'make dmg' 'scripts/bench.sh NavBench' \
+  'scripts/bench-pairs.sh /x/main NavBench 3 /x/pairs' 'make bench FILTER=NavBench' 'make FILTER=NavBench bench' \
+  '.claude/skills/deliver/scripts/mutation-pass.sh /x/wt /x/batch.txt' 'scripts/flake-monitor/loop.sh 10 FooTests' \
+  'scripts/test-stress.sh --runs 1 /x/out'
+expect_each_long free 'scripts/bench-pairs.sh --compare /x/pairs' 'scripts/bench-pairs.sh --lines /x/b.log' 'make build' \
+  'make test-filter FILTER=ATests'
 fi # test-rule
 
 # A release call waits while an agent whose brief names a lock step runs (AGT-152).
@@ -2066,7 +2096,7 @@ for run in "$B" 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh Navi
   'cd /x/wt && scripts/bench.sh --trace /x/t.trace NavigationKeyBenchmark > /x/run/logs/b.log 2>&1' \
   'bash scripts/bench.sh NavigationKeyBenchmark'; do
   expect_release block "$rw/live" "$run" '' '' bg
-  release_has 'or a background bench of the lead (bench.sh, bench-pairs.sh, make bench)'
+  release_has 'or a long background step of the lead (a bench, a mutation pass, a flake loop, or a stress lane)'
   release_has 'alive: Agent "S1 slice agent"'
 done
 for run in "$B" "${bench_bare[@]}"; do expect_release allow "$rw/live" "$run"; done
@@ -2076,6 +2106,37 @@ for run in 'scripts/bench-pairs.sh --compare /x/run/pairs' 'scripts/bench-pairs.
   expect_release allow "$rw/live" "$run" '' '' bg
 done
 expect_release allow "$rw/empty" "$B" '' '' bg
+# A mutation pass, a flake loop, or a stress lane that the lead runs in the background waits the same way
+# (items 1808, 1766): bare, after a with-lock.sh word, or as a line of a script file whose name holds no
+# command word. The message names the step. The same calls pass with RELEASE_PAST, with no live record,
+# and in the foreground; a subagent mutation pass keeps its refusal of a wait with no limit.
+M='.claude/skills/deliver/scripts/mutation-pass.sh /x/wt /x/run/controls/batch.txt'
+mkdir -p "$tmp/rw-long"
+cat > "$tmp/rw-long/steps.sh" << 'EOF'
+set -uo pipefail
+tree=/x/wt batch=/x/run/controls/batch.txt log=/x/run/controls/pass-1.log status=0
+cd "$tree" || exit 2
+WITH_LOCK_MAX_HOLD=6000 .claude/skills/deliver/scripts/mutation-pass.sh "$tree" "$batch" > "$log" 2>&1 || status=$?
+echo "exit $status" >> "$log"
+EOF
+printf 'echo "then run .claude/skills/deliver/scripts/mutation-pass.sh"\nrg -n "flake-monitor/loop.sh" notes.txt\n' > "$tmp/rw-long/notes.sh"
+long_forms=("$M > /x/run/controls/pass.log 2>&1" "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh $M"
+  'cd /x/wt && scripts/flake-monitor/loop.sh 10 FooTests > /x/l.log 2>&1' 'scripts/with-lock.sh scripts/flake-monitor/loop.sh 10 FooTests'
+  'scripts/test-stress.sh --runs 3 /x/run/stress' "bash $tmp/rw-long/steps.sh > /x/run/p.log 2>&1")
+long_steps=(mutation-pass.sh mutation-pass.sh flake-monitor/loop.sh flake-monitor/loop.sh test-stress.sh mutation-pass.sh)
+for i in "${!long_forms[@]}"; do
+  expect_release block "$rw/live" "${long_forms[i]}" '' '' bg
+  release_has 'or a long background step of the lead (a bench, a mutation pass, a flake loop, or a stress lane)'
+  release_has 'pass RELEASE_PAST=<id>'
+  grep -F 'Step: ' "$tmp/release.err" | grep -qF -- "${long_steps[i]}" ||
+    { echo "FAIL: release-wait message names no step ${long_steps[i]}: ${long_forms[i]}"; failures=$((failures + 1)); }
+  expect_release allow "$rw/live" "RELEASE_PAST=alive ${long_forms[i]}" '' '' bg
+  expect_release allow "$rw/empty" "${long_forms[i]}" '' '' bg
+  expect_release allow "$rw/live" "${long_forms[i]}"
+done
+expect_release allow "$rw/live" "bash $tmp/rw-long/notes.sh" '' '' bg
+expect_release block "$rw/empty" "$M" '' a1
+release_has 'runs a with-lock.sh call with no wait limit in a subagent'
 # A subagent bench passes in the foreground and in the background, beside its own live record and
 # beside the record of another agent.
 rw_rec "$rw/own" toolu_own 600 Agent toolu_own 'S3 slice agent'

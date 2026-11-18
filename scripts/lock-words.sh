@@ -10,7 +10,9 @@
 # free_targets, so this list has another name. lock_make_opt and lock_make_set match the make words
 # before the target. git-guardrails.test.sh keeps the lists equal to the Makefile and AGENTS.md.
 # hold_base gives scripts/with-lock.sh and scripts/flake-monitor/loop.sh the push-check baseline
-# of their hold limit.
+# of their hold limit. long_words is the one list of the long holders: lock_holder of
+# scripts/with-lock.sh reads the command of the holder with it, and the release wait of
+# git-guardrails.sh reads each command of a background call of the lead with it.
 # Sourced only: no set line, and the top level holds the list assignments only.
 lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|test-slow|test-slow-push|check-slow-gates|check-warnings|check-sizes|bench|test-app|dmg|test-dmg|test-hooks|run|static|check|check-changed|clean'
 lock_scripts='swift-test|test-shards|bench|bench-pairs|flake-monitor/loop|sanitize|test-stress'
@@ -46,6 +48,32 @@ release_call() {
         esac
     done
     [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
+}
+
+# long_words <command word>...: succeeds when the words run a long holder: a release call
+# (release_call with no BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL of the environment, and not a
+# test-hooks goal that lock_make_words takes), bench.sh, bench-pairs.sh (not --compare or --lines,
+# which take no lock), make with a bench or dmg goal, mutation-pass.sh, flake-monitor/loop.sh, or
+# test-stress.sh. Words before the command are skipped: env, nice, nohup, a shell word (bash, sh,
+# zsh, or dash, so bash <file> gives the file), an option or a number, and NAME=value.
+long_words() {
+    local w
+    while [[ $# -gt 0 && ("${1##*/}" =~ ^(env|nice|nohup|command|time|bash|sh|zsh|dash|-.*|[0-9]+)$ || "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*=) ]]; do shift; done
+    w="${1:-}"
+    case "$w" in
+        */flake-monitor/loop.sh | flake-monitor/loop.sh) return 0 ;;
+    esac
+    case "${w##*/}" in
+        bench.sh | mutation-pass.sh | test-stress.sh | land.sh) return 0 ;;
+        bench-pairs.sh) [[ "${2:-}" != --compare && "${2:-}" != --lines ]]; return ;;
+        make) ;;
+        *) return 1 ;;
+    esac
+    for w in "${@:2}"; do [[ "$w" == bench || "$w" == dmg ]] && return 0; done
+    (
+        unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
+        ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]]; } && release_call "$@"
+    )
 }
 
 # lock_make_words <command>: succeeds for make (any path) with no BASE in the environment or in

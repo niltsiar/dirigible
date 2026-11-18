@@ -13,6 +13,11 @@
 #   that the schema call gives `own build`, runs one mutate.py call, in batch order, after the line
 #   `<n>: own build: <reason>`. A mutant whose baseline failed does not run again: its reason line
 #   counts as other. The batch has only mutant lines, comments, and blank lines.
+# - The batch has the line `# head: <sha>`, the HEAD where its writer proved each killer. When HEAD
+#   of the tree is another commit, `git diff --name-only <sha> HEAD` decides: a file under Tests/ or
+#   Sources/, or a file of a mutant line, makes the script exit 2 before the lock, with the files;
+#   else it prints the new head and runs. A missing head line, or a head that the repo does not
+#   have, is also exit 2.
 # - The script runs again under scripts/with-lock.sh of the tree once, so the lock calls of each
 #   build and test command run at once, and no other run builds between two mutants. No sleep
 #   between two mutants.
@@ -56,6 +61,21 @@ fi
 lock="$(git -C "$top" rev-parse --absolute-git-dir)/dirigible-mutate.lock"
 [[ -d "$lock" ]] && kill -0 "$(cat "$lock/pid" 2>/dev/null)" 2>/dev/null &&
     { echo "mutation-pass: a mutate.py run holds $lock; wait for it to end" >&2; exit 2; }
+head="$(sed -n 's/^# head: \([0-9a-f]\{7,40\}\)[[:space:]]*$/\1/p' "$batch" | head -1)"
+[[ -n "$head" ]] || { echo "mutation-pass: $batch has no head line (# head: <sha>); write the batch again at HEAD" >&2; exit 2; }
+changed="$(git -C "$top" diff --name-only "$head" HEAD -- 2>/dev/null)" ||
+    { echo "mutation-pass: head $head not found: write the batch again at HEAD" >&2; exit 2; }
+if [[ -n "$changed" ]]; then
+    stale=""
+    while IFS= read -r f; do
+        case "$f" in
+            Tests/* | Sources/*) stale+="$f"$'\n' ;;
+            *) ! grep -E '^[[:space:]]*mutant[[:space:]]' "$batch" | grep -qF -- "$f" || stale+="$f"$'\n' ;;
+        esac
+    done <<<"$changed"
+    [[ -z "$stale" ]] || { echo "mutation-pass: $batch was written at $head, and these files changed since; write the batch again at HEAD:" >&2; printf '%s' "$stale" >&2; exit 2; }
+    [[ -n "${MUTATION_PASS_HELD:-}" ]] || echo "mutation-pass: head is now $(git -C "$top" rev-parse HEAD); no Tests/, Sources/, or mutant file changed since $head"
+fi
 cd "$top" || exit 2
 # One lock hold for the batch: run again under with-lock.sh once.
 [[ -n "${MUTATION_PASS_HELD:-}" ]] || MUTATION_PASS_HELD=1 exec "$top/scripts/with-lock.sh" "$here/mutation-pass.sh" "$top" "$batch"

@@ -5,6 +5,9 @@
 # exit 3 (a failed restore) or 130 (stopped), stops the running mutate.py and the batch on a TERM
 # to the script (exit 130), and refuses a missing batch file, a tree with
 # changes, a live mutate.py lock, a tree that is not a worktree root, and the main checkout.
+# Check that the head line of the batch file decides: a batch written at another head runs only when
+# no Tests/ file, Sources/ file, or file of a mutant line changed since; a batch with no head line, or
+# with a head that is not in the repo, is refused before the lock.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/mutation-pass.sh"
@@ -60,11 +63,13 @@ esac
 EOF
 chmod +x "$tmp/bin/python3"
 
-# batch <result>...: a batch file with one mutant for each result.
+# headline: the head line of a batch file, at HEAD of the tree.
+headline() { printf '# head: %s\n' "$(git -C "$tmp/tree" rev-parse HEAD)"; }
+# batch <result>...: a batch file with a head line and one mutant for each result.
 batch() {
   local r
   : > "$tmp/calls"; : > "$tmp/locks"
-  for r in "$@"; do printf 'mutant Sources/x.swift %s new log build test\n' "$r"; done > "$tmp/batch.sh"
+  { headline; for r in "$@"; do printf 'mutant Sources/x.swift %s new log build test\n' "$r"; done; } > "$tmp/batch.sh"
 }
 run() { out="$(PATH="$tmp/bin:$PATH" "$script" "$@" 2>&1)"; code=$?; }
 calls() { cut -d' ' -f1 "$tmp/calls" | paste -sd' ' -; }
@@ -115,10 +120,10 @@ run "$tmp/tree" "$tmp/none.sh"
 [[ $code -eq 2 && -z "$(calls)" ]] || fail "no batch file: exit $code: $out"
 # The pass reads the whole batch before the first mutant, so a line other than a mutant line, a
 # comment, or a blank line would run once at the start, not between two mutants: refused.
-printf '# a comment\n\nmutant Sources/x.swift killed new log build test\nrm -rf out\nmutant Sources/x.swift killed new log build test\n' > "$tmp/other.sh"
+{ headline; printf '# a comment\n\nmutant Sources/x.swift killed new log build test\nrm -rf out\nmutant Sources/x.swift killed new log build test\n'; } > "$tmp/other.sh"
 : > "$tmp/calls"
 run "$tmp/tree" "$tmp/other.sh"
-[[ $code -eq 2 && "$out" == *'line 4: rm -rf out'* && -z "$(calls)" ]] || fail "a line that is not a mutant: exit $code: $out"
+[[ $code -eq 2 && "$out" == *'line 5: rm -rf out'* && -z "$(calls)" ]] || fail "a line that is not a mutant: exit $code: $out"
 touch "$tmp/tree/new"
 run "$tmp/tree" "$tmp/batch.sh"
 [[ $code -eq 2 && "$out" == *'has changes'* && -z "$(calls)" ]] || fail "dirty tree: exit $code: $out"
@@ -139,6 +144,7 @@ run "$tmp/tree"
 # --switch lines go to one --schema call with their numbers; the other lines and each own build
 # line of the schema call run one mutate.py call each, in batch order, after it.
 {
+  headline
   printf 'mutant --switch expr Sources/x.swift killed new log build test\n'
   printf 'mutant --timeout 5 --switch stmt Sources/x.swift survived new log build test\n'
   printf 'mutant Sources/x.swift killed new log build test\n'
@@ -157,7 +163,7 @@ run "$tmp/tree" "$tmp/batch.sh"
 
 # A mutant whose baseline failed counts as other with its reason and does not run again: a kill
 # needs a passing baseline.
-printf 'mutant --switch expr Sources/x.swift killed new log build test\nmutant --switch expr Sources/x.swift survived new log build test\n' > "$tmp/baseline.sh"
+{ headline; printf 'mutant --switch expr Sources/x.swift killed new log build test\nmutant --switch expr Sources/x.swift survived new log build test\n'; } > "$tmp/baseline.sh"
 printf '1 own build: the baseline failed (b/baseline-1.log)\n2 survived: l2\n' > "$tmp/schema.out"
 : > "$tmp/calls"
 run "$tmp/tree" "$tmp/baseline.sh"
@@ -216,6 +222,49 @@ run "$tmp/tree" "$tmp/batch.sh"
 [[ $code -eq 2 && "$out" == *'clean at the start'*'git diff'*'git restore'*"$tmp/batch.sh.schema/orig.tsv"* && "$out" != *'commit them'* ]] ||
   fail "dirty tree after a killed pass: exit $code: $out"
 rm "$tmp/tree/new"
+
+# The head line: a batch written at another head runs only when no Tests/ file, Sources/ file, or
+# file of a mutant line changed since. Each refusal comes before the lock and the first mutant.
+commit() { git -C "$tmp/tree" add -A && git -C "$tmp/tree" -c user.name=t -c user.email=t@t commit -q -m "$1"; }
+head0="$(git -C "$tmp/tree" rev-parse HEAD)"
+mkdir -p "$tmp/tree/Tests"; echo test > "$tmp/tree/Tests/FooTests.swift"; commit 'add a test'
+batch killed
+sed -i '' "1s/.*/# head: $head0/" "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'Tests/FooTests.swift'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "new test file: exit $code, calls [$(calls)]: $out"
+
+head1="$(git -C "$tmp/tree" rev-parse HEAD)"
+echo notes > "$tmp/tree/README.md"; commit 'docs only'
+head2="$(git -C "$tmp/tree" rev-parse HEAD)"
+sed -i '' "1s/.*/# head: $head1/" "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 0 && "$out" == *"$head2"* && "$(calls)" == killed ]] || fail "docs-only commit: exit $code, calls [$(calls)]: $out"
+
+mkdir -p "$tmp/tree/Other"; echo y > "$tmp/tree/Other/y.swift"; commit 'add Other/y.swift'
+head3="$(git -C "$tmp/tree" rev-parse HEAD)"
+echo yy > "$tmp/tree/Other/y.swift"; echo zz > "$tmp/tree/Other/z.swift"; commit 'change Other files'
+{ echo "# head: $head3"; echo 'mutant Other/y.swift killed new log build test'; } > "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'Other/y.swift'* && "$out" != *'Other/z.swift'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "mutant file changed: exit $code, calls [$(calls)]: $out"
+{ echo "# head: $head3"; echo 'mutant Sources/x.swift killed new log build test'; } > "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 0 && "$(calls)" == killed ]] || fail "a changed file that no mutant names: exit $code, calls [$(calls)]: $out"
+
+batch killed
+sed -i '' 1d "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'no head line'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "no head line: exit $code, calls [$(calls)]: $out"
+
+batch killed
+sed -i '' '1s/.*/# head: 0123456789abcdef0123456789abcdef01234567/' "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'head 0123456789abcdef0123456789abcdef01234567 not found: write the batch again at HEAD'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "head not in the repo: exit $code, calls [$(calls)]: $out"
 
 [[ $failures -eq 0 ]] && echo "mutation-pass tests: all passed"
 exit $((failures > 0))

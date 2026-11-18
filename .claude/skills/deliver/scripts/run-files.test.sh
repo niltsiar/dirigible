@@ -517,6 +517,90 @@ printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-2.md"
 p7_run p7-old 2026-10-01T10:00
 "$log" "$tmp/p7-old" 7 'criterion 1 verified' why evidence done || fail "p7: a run older than the rule exits $?"
 
+# A phase 6 row that reports a fix check needs a line in the ## Fix check of the last review-diff-<n>.md
+# for each Act on item that the row checks: a close row checks each item, another row checks the
+# <round>.<item> words that equal an item (an "a to b" range of one round expanded), else each item.
+# A row that only says the fix check is still to come needs none. A criterion change row skips the check.
+fc_run() { # <name> <Act on item count> <Fix check lines or empty>: a run with a plan, dated now
+  local d="$tmp/$1" i
+  mkdir "$d"
+  printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n\n## Acceptance criteria\n\n- C1: the meter moves.\n' > "$d/analysis.md"
+  printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: C1\n' > "$d/plan.md"
+  printf '%s\t2\tplan written\twhy\tevidence\tdone\n' "$(date +%FT%R)" > "$d/decisions.tsv"
+  {
+    printf '# V\n\n## Act on\n\n'
+    for ((i = 1; i <= $2; i++)); do printf '%s. (warning, x, read) Item %s. Invariant: a. Siblings: none, grepped x.\n' "$i" "$i"; done
+    [[ -z "$3" ]] || printf '\n## Fix check\n\n%b' "$3"
+  } > "$d/review-diff-1.md"
+}
+FCL='; new failure: none: x.\n'
+fc_refused() { # <name> <run> <decision> <text the refusal has> [<text it must not have>]
+  local before err code
+  before="$(shasum -a 256 "$tmp/$2/decisions.tsv")"
+  err="$("$log" "$tmp/$2" 6 "$3" 'why. Reverse: say so.' evidence done 2>&1)"
+  code=$?
+  [[ $code -eq 2 && "$err" == *"$4"* && ( -z "${5:-}" || "$err" != *"$5"* ) ]] || fail "fc: $1: exit $code: $err"
+  [[ "$(shasum -a 256 "$tmp/$2/decisions.tsv")" == "$before" ]] || fail "fc: $1: the refused phase 6 row changed decisions.tsv"
+}
+fc_accepted() { # <name> <run> <decision>
+  local rows
+  rows="$(wc -l < "$tmp/$2/decisions.tsv")"
+  "$log" "$tmp/$2" 6 "$3" 'why. Reverse: say so.' evidence done > /dev/null 2>&1 || fail "fc: $1: exit $?"
+  [[ "$(wc -l < "$tmp/$2/decisions.tsv")" -eq $((rows + 1)) ]] || fail "fc: $1: no row appended"
+}
+
+# The rows of run architecture-audit-5 (decisions.tsv, 13:57 and 14:14), then its fix check row of 17:38, over a
+# review-diff-1.md with one Act on item and no ## Fix check.
+fc_run fc-a5 1 ''
+printf '2026-11-18T13:57\t6\tcode gate round 1 verdict: 1 Act on item (two inline EditFailure text switches in ClipRenderWork and SplitWork), 4 Consider items, 1 refuted\twhy\tevidence\tdone\n2026-11-18T14:14\t6\tFix the Act-on item of code gate 1: one EditFailure text for clip render and split\twhy\tevidence\tfixed\n' >> "$tmp/fc-a5/decisions.tsv"
+a5_row='fix check of the gate fix 73b26c497: the two conformances replace the two inline switches, drag is private(set), ImportWork keeps its own text'
+fc_refused 'the audit-5 fix check row with no Fix check section' fc-a5 "$a5_row" 1.1
+printf '\n## Fix check\n\n- 1.1 OK: the two conformances hold; new failure: none: the texts stay.\n' >> "$tmp/fc-a5/review-diff-1.md"
+fc_accepted 'the audit-5 fix check row with the line of item 1.1' fc-a5 "$a5_row"
+
+# Each form of a row that reports a fix check, and each close form, is refused while item 1.1 has no line.
+fc_run fc-forms 1 ''
+for form in 'fix check: the gate fix holds' 'Fix check of the gate fix: ok' 'the lead ran the fix check of 1.1: ok' \
+  'code gate 1 fix check: ok' 'code gate round 1 fix check: ok' 'L2 code gate 1 fix check: ok' 'lead code gate 1 fix check: ok' \
+  'G1 fix check: ok' 'L2 fix check: ok' 'code gate closed: the fix check passed' 'code gate round 2 closed' \
+  'code gate L1 closed after the fix check' 'close the code gate' 'default: code gate closed'; do
+  fc_refused "the row '$form'" fc-forms "$form" 1.1
+done
+# A row that says the fix check is still to come, or that is no report of one, needs no line.
+for form in 'code gate round 1 verdict: 3 Act on, no critical; the lead runs the fix check' \
+  'default: the work waits for the fix check' 'gate fix 1.2 committed before the fix check' \
+  'code gate closed in name only: the gate is not closed yet' 'Fix the Act-on item of code gate 1'; do
+  fc_accepted "the row '$form'" fc-forms "$form"
+done
+sed 's/^- C1: the meter moves\./- C1: the meter moves at 24 fps./' "$tmp/fc-forms/analysis.md" > "$tmp/fc-forms/analysis.new" && mv "$tmp/fc-forms/analysis.new" "$tmp/fc-forms/analysis.md"
+fc_accepted 'a criterion change row that names a fix check' fc-forms 'criterion change C1: old the meter moves, new the meter moves at 24 fps; fix check of 1.1'
+fc_run fc-old 1 ''
+printf '2026-10-01T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$tmp/fc-old/decisions.tsv"
+fc_accepted 'a run older than the Fix check line rule' fc-old 'fix check of 1.1: ok'
+
+# Two Act on items and a Fix check with the line of 1.1 only: a row checks the items that it names, else each item.
+fc_run fc-two 2 "- 1.1 OK$FCL"
+fc_accepted 'fix check of 1.1, the only line that exists' fc-two 'fix check of 1.1: ok'
+fc_refused 'a fix check row that names no item' fc-two 'fix check: ok' 1.2 1.1
+fc_refused 'fix check of 1.2' fc-two 'fix check of 1.2: ok' 1.2 1.1
+fc_refused 'a close row' fc-two 'code gate closed: each fix holds' 1.2 1.1
+
+# A d.d word that is no item changes nothing, and a range of one round names each item between its ends.
+fc_run fc-three 3 "- 1.1 OK$FCL- 1.2 OK$FCL"
+fc_refused 'a close row with the word 1.5 s' fc-three 'code gate closed: under the 1.5 s budget' 1.3 1.2
+fc_refused 'fix check of 1.1 to 1.3' fc-three 'fix check of 1.1 to 1.3: ok' 1.3 1.2
+fc_refused 'fix check of the 2.5 s timeout' fc-three 'fix check of the 2.5 s timeout: ok' 1.3 1.2
+fc_refused 'code gate 1 fix check' fc-three 'code gate 1 fix check: ok' 1.3 1.2
+fc_accepted 'fix check of 1.1 and 1.2' fc-three 'fix check of 1.1 and 1.2: ok'
+fc_run fc-range 3 "- 1.1 OK$FCL- 1.3 OK$FCL"
+fc_refused 'fix check of 1.1 to 1.3, with no line for 1.2' fc-range 'fix check of 1.1 to 1.3: ok' 1.2 1.3
+fc_accepted 'fix check of 1.3 on swift 6.2' fc-range 'fix check of 1.3 on swift 6.2: ok'
+
+# A line with no new failure part refuses a row that checks its item. A row that names another item passes.
+fc_run fc-parts 2 "- 1.1 OK$FCL- 1.2 OK\n"
+fc_refused 'a line of 1.2 with no new failure part' fc-parts 'fix check of 1.2: ok' 'new failure:'
+fc_accepted 'fix check of 1.1 beside a bad line of 1.2' fc-parts 'fix check of 1.1: ok'
+
 # The first phase 4 row copies analysis.md to analysis-gate.md when that file is absent and the run
 # has no phase 4 row. After that, a criterion line of analysis.md that differs from the copy, or
 # is gone, needs a criterion change row that names its ID as a whole word, logged after the first

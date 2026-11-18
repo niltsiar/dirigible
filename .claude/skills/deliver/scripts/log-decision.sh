@@ -28,6 +28,13 @@
 # starts with `criterion change`: that row repairs the gap, and the check cannot count it before the
 # append. A later round file with no heading ends the check. A phase 6 row needs a passing scripts/check-plan.sh with
 # no variable, the check of the land: the review files have their fields. A criterion change row skips that check.
+# A phase 6 row that reports a fix check also runs it with CHECK_PLAN_FIX_CHECK=1: the Fix check of the last
+# review-diff-<n>.md has a line, with its parts, for each Act on item that the row checks. A row reports a fix
+# check when its decision starts with `fix check`, has `fix check of`, has a code gate name or a landing label
+# (L2, G1) just before `fix check`, or closes the code gate (`code gate closed`, `close the code gate`, and
+# not `not closed`). A close row checks each item. Another row checks the <round>.<item> words that are an
+# item (`1.1 to 1.3` is a range of one round); a word that is no item (`1.5 s`) counts for nothing; no item
+# named means each item. A row that only says the fix check is still to come is no report.
 # A row of a run folder with a run.md that enters phase 5, 6, or 7 (the last row of decisions.tsv
 # has another phase, and the header row counts as none) also needs a passing
 # scripts/check-eval-keys.sh against origin/main: each evals.md key that the branch of the last
@@ -206,7 +213,12 @@ fi
 # A phase 3 row that closes the plan gate, or comes after the Fix check (a ## Fix check heading in
 # the review-plan-<n>.md with the highest number), runs the check of the first phase 4 row, with the
 # row itself counted as the phase 3 row. A criterion change row skips it, as the header says.
-close_form='^((default:? )?([a-z0-9]+ )?plan gate( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|(plan gate fix check|fix check of (the )?plan gate).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
+# close_form_of <gate name> <pattern of an optional label after the name>: the regex of a decision that closes the gate.
+close_form_of() {
+    printf '%s' "^((default:? )?([a-z0-9]+ )?$1$2( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|($1 fix check|fix check of (the )?$1).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?$1)([^a-z]|\$)"
+}
+close_form="$(close_form_of 'plan gate' '')"
+code_close_form="$(close_form_of 'code gate' '( l[0-9]+[a-z]?)?')"
 not_closed='(^|[^a-z])not( [a-z]+){0,3} clos(e|ed|es|ing)([^a-z]|$)'
 fix_checked=0
 if [[ "$1" == 3 && -f "${file%/*}/plan.md" ]]; then
@@ -233,10 +245,53 @@ if [[ "$1" == 4 && -f "${file%/*}/analysis.md" && ! -e "${file%/*}/analysis-gate
 fi
 # A phase 6 row: check-plan.sh passes as the land check runs it (no plan gate test), so the review
 # fields are complete before the fixer starts. The criterion change row repairs a missing criterion
-# change row, which that check refuses, so it skips the check.
+# change row, which that check refuses, so it skips the check. A row that reports a fix check also
+# needs the Fix check line of each item that it checks (the header gives the words that make a report).
+gate_fix_form='^(lead )?((l[0-9]+[a-z]? )?code gate[^:;]{0,30}|[lg][0-9]+[a-z]?) fix check([^a-z]|$)'
+# fix_check_items <run folder> <decision>: the <round>.<item> words of the decision that are an Act on item
+# of a review-diff-<n>.md, a range "a.b to a.c" of one round expanded, in one line.
+fix_check_items() {
+    local review round
+    for review in "$1"/review-diff-*.md; do
+        [[ "${review##*/}" =~ ^review-diff-([0-9]+)\.md$ ]] || continue
+        round=$((10#${BASH_REMATCH[1]}))
+        awk -v round="$round" '/^## / { act = ($0 ~ /^## Act on/); next } act && /^[0-9]+\. / { k = $0; sub(/\..*/, "", k); print round "." (k + 0) }' "$review"
+    done | DECISION="$2" awk '
+        { item[$0] = 1 }
+        END {
+            d = tolower(ENVIRON["DECISION"]); gsub(/[^[:alnum:]_.]/, " ", d)
+            n = split(d, t, " ")
+            for (i = 1; i <= n; i++) { w = t[i]; sub(/\.+$/, "", w); tok[i] = (w ~ /^[0-9]+\.[0-9]+$/) ? w : "" }
+            for (i = 1; i <= n; i++) {
+                if (tok[i] == "") continue
+                split(tok[i], a, "."); r = a[1] + 0
+                if ((r "." (a[2] + 0)) in item) named[r "." (a[2] + 0)] = 1
+                if (t[i + 1] == "to" && tok[i + 2] != "") {
+                    split(tok[i + 2], b, ".")
+                    if (r == b[1] + 0) for (k = a[2] + 0; k <= b[2] + 0; k++) if ((r "." k) in item) named[r "." k] = 1
+                }
+            }
+            for (k in named) printf "%s ", k
+        }'
+}
+# fix_check_report <decision>: prints close for a row that closes the code gate, report for another row that
+# reports a fix check, and nothing for any other row.
+fix_check_report() {
+    local d
+    d="$(lower "$1")"
+    if [[ "$d" =~ $code_close_form && ! "$d" =~ $not_closed ]]; then echo close
+    elif [[ "$d" == "fix check"* || "$d" == *"fix check of"* || "$d" =~ $gate_fix_form ]]; then echo report
+    fi
+}
+fix_check="" fix_items="" fix_hint=""
 if [[ "$1" == 6 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]]; then
-    if ! out="$("$plan_check" "${file%/*}" 2>&1)"; then
-        printf '%s\na phase 6 row needs a passing check-plan.sh: fix the review file or the plan, then log this row\n' "$out" >&2
+    case "$(fix_check_report "$2")" in
+        close) fix_check=1 ;;
+        report) fix_check=1 fix_items="$(fix_check_items "${file%/*}" "$2")" ;;
+    esac
+    [[ -z "$fix_check" ]] || fix_hint=' (a row that reports a fix check also needs the Fix check line of each item that it checks)'
+    if ! out="$(CHECK_PLAN_FIX_CHECK="$fix_check" CHECK_PLAN_FIX_ITEMS="$fix_items" "$plan_check" "${file%/*}" 2>&1)"; then
+        printf '%s\na phase 6 row needs a passing check-plan.sh: fix the review file or the plan, then log this row%s\n' "$out" "$fix_hint" >&2
         exit 2
     fi
 fi

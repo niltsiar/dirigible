@@ -940,6 +940,32 @@ pass 'a fix commit that removes a fragment of a nested quote'
 unset CHECK_PLAN_AT_PHASE7
 script="$saved_script"
 
+# CHECK_PLAN_FIX_CHECK=1 (log-decision.sh, for a phase 6 row that reports a fix check) runs the Fix check
+# line rule of the code gate: a line for each Act on item, or for each item of CHECK_PLAN_FIX_ITEMS
+# (<round>.<item> words) when that is set, and the parts of those lines. The deferred control files stay
+# with CHECK_PLAN_AT_PHASE7=1.
+# fcrun <review-diff-1.md Fix check lines>: a run with two Act on items, and a plan gate Fix check line
+# that defers its control to logs/c1.log after S1.
+fcrun() {
+  good; ROW_AT="$(date +%FT%R)" row 2 'plan written'
+  printf '## Act on\n\n%s\n\n## Fix check\n\n%s\n' "$ACT2" "$1" > "$run/review-diff-1.md"
+  printf '## Act on\n\n%s\n\n## Fix check\n\n- 1.1 OK; %s control: logs/c1.log after S1\n' "$ACT" "$NF" > "$run/review-plan-1.md"
+}
+export CHECK_PLAN_FIX_CHECK=1
+fcrun "- 1.1 OK; $NF"
+refuse 'FIX_CHECK: a Fix check with no line for 1.2' '1.2'
+CHECK_PLAN_FIX_ITEMS=1.1 pass 'FIX_CHECK: the item 1.1 only'
+CHECK_PLAN_FIX_ITEMS=1.2 refuse 'FIX_CHECK: the item 1.2 only' '1.2'
+fcrun "- 1.1 OK; $NF"$'\n- 1.2 OK'
+refuse 'FIX_CHECK: a line of 1.2 with no new failure part' 'new failure:'
+CHECK_PLAN_FIX_ITEMS=1.1 pass 'FIX_CHECK: a bad line of 1.2, and only 1.1 named'
+fcrun "- 1.1 OK; $NF"$'\n- 1.2 OK; '"$NF"
+pass 'FIX_CHECK: a deferred control with no file'
+CHECK_PLAN_AT_PHASE7=1 refuse 'PHASE7: the same deferred control' 'logs/c1.log'
+unset CHECK_PLAN_FIX_CHECK
+fcrun "- 1.1 OK; $NF"
+pass 'the land check with a missing line, no CHECK_PLAN_FIX_CHECK'
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

@@ -920,3 +920,11 @@
 "waveform.zoom.announce" = "Wellenformbereich: %lld dB";
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Standard-Wellenformbereich";
+"take.syncing" = "Clip wird synchronisiert";
+"error.sync.no.match" = "Keine Übereinstimmung: Der Ton des Clips wurde auf der Spur nicht gefunden.";
+"error.sync.read" = "Dirigible kann den Clip nicht synchronisieren. Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
+"error.sync.missing" = "Dirigible kann den Clip nicht synchronisieren. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.sync.unreadable" = "Dirigible kann den Clip nicht synchronisieren. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
+"error.sync.same.track" = "Die Referenzspur ist die Spur des Clips. Wähle eine andere Spur aus.";
+"error.sync.no.reference" = "Die Referenzspur hat keinen Ton in der Nähe des Clips. Wähle eine andere Spur aus.";
+"error.sync.too.long" = "Der Clip ist zu lang zum Synchronisieren. Teile ihn und synchronisiere dann jeden Teil.";

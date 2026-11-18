@@ -82,6 +82,16 @@ extension L10n {
             case .short: return errorMatchShort.format(path)
             case .unreadable: return errorMatchUnreadable.format(path)
             }
+        case .syncNoMatch: return errorSyncNoMatch.text
+        case .syncRead(let code): return errorSyncRead.format(Int(code))
+        case .syncFile(let file, let fault):
+            let path = session?.files[file]?.path ?? file.rawValue
+            switch fault {
+            case .missing: return errorSyncMissing.format(path)
+            case .short, .unreadable: return errorSyncUnreadable.format(path)
+            }
+        // The banner Cancel ends a sync, so the window shows no alert for it.
+        case .syncCancelled: return errorSessionOther.text
         // The window shows no alert for a stop or a cancel: the banner and the announcement say it.
         case .transcriptionYielded: return transcribeStopped.text
         case .transcriptionCancelled: return transcribeCanceled.text
@@ -303,6 +313,10 @@ extension L10n {
             return errorSessionOther.text
         case .noRippleTrack: return errorRippleFollowOnly.text
         case .noMatch: return errorSessionMatchNone.text
+        case .syncSameTrack: return errorSyncSameTrack.text
+        case .noReferenceAudio: return errorSyncNoReference.text
+        // The app clamps the default `within`, so only a clip longer than the cap gets here.
+        case .syncSpanTooLong: return errorSyncTooLong.text
         // A transcript cut, a split (0053), and a clip render (0054) refuse it while a transcript did not load.
         case .transcriptNotLoaded: return errorTranscriptUnloaded.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text

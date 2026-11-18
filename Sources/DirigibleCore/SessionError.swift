@@ -119,4 +119,12 @@ public enum SessionError: Error, Hashable, Sendable {
     /// An amount or a bypass change names a track with no voice match (decision 0074). It changes
     /// nothing.
     case noMatch(TrackID)
+    /// A sync names the track of the clip as the reference (decision 0076). It changes nothing.
+    case syncSameTrack
+    /// The reference track of a sync has no clip in the search span (decision 0076). It changes
+    /// nothing.
+    case noReferenceAudio
+    /// The search span of a sync is over `Session.syncSpanCap`: a `within` of `maxWithin` frames
+    /// or less fits, and 0 when the clip alone is over the cap (decision 0076). It changes nothing.
+    case syncSpanTooLong(maxWithin: Frames)
 }

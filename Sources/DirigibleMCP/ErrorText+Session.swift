@@ -95,6 +95,13 @@ extension SessionError {
         case .emptyExcerpt: "the excerpt has no frames: give a range or clips with audio."
         case .noJoin(let id): "no clip touches the end of clip \"\(id)\", so it has no join to roll."
         case .noMatch(let id): "track \"\(id)\" has no voice match."
+        case .syncSameTrack: "the reference is the track of the clip; name another track."
+        case .noReferenceAudio: "the reference track has no clip in the search span of the clip."
+        case .syncSpanTooLong(let maxWithin):
+            maxWithin == .zero
+                ? "the clip is longer than the longest span that a sync reads."
+                : "the search span is over the longest span that a sync reads; use a within of \(maxWithin) "
+                    + "frames or less for this clip."
         }
     }
 }

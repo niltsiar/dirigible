@@ -283,6 +283,10 @@ extension StudioError {
         case .matchCancelled: "the voice match was cancelled."
         case .matchRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         case .matchFault(let file, let fault): "file \(file) \(ExportText.describe(fault)); no track changed."
+        case .syncNoMatch: "No match: the clip audio was not found on the track."
+        case .syncFile(let file, let fault): "file \(file) \(ExportText.describe(fault)); no clip moved."
+        case .syncRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        case .syncCancelled: "the sync was cancelled."
         // No command or tool scans through Studio; `silences` calls `ReadWork.read`.
         case .silencesCancelled: "the silence scan was cancelled."
         case .silencesRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))

@@ -117,6 +117,15 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A source file of a Match Voice is missing, short, or unreadable (also a NaN or an infinity
     /// in it). No track changed.
     case matchFault(FileID, MediaFault)
+    /// No excerpt of the clip matched the reference track (decision 0076); `best` is the best
+    /// excerpt score. No clip moved.
+    case syncNoMatch(best: MatchScore)
+    /// A file of a sync is missing or unreadable, so its clips would read as silence. No clip moved.
+    case syncFile(FileID, MediaFault)
+    /// A sync could not read an audio file: no free descriptor or no memory, with its errno.
+    case syncRead(Int32)
+    /// The banner Cancel or a cancel of the caller ended a sync. No clip moved.
+    case syncCancelled
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).
     /// The take stays pending with its audio on disk, and Retry Finalize waits for it again.
     case writerDidNotStop(String)

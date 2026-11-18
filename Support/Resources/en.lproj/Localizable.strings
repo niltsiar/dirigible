@@ -920,3 +920,11 @@
 "waveform.zoom.announce" = "Waveform range %lld dB";
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Default waveform range";
+"take.syncing" = "Syncing clip";
+"error.sync.no.match" = "No match: the clip audio was not found on the track.";
+"error.sync.read" = "Dirigible cannot sync the clip. An audio file did not read (error %lld). No clip changed.";
+"error.sync.missing" = "Dirigible cannot sync the clip. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.sync.unreadable" = "Dirigible cannot sync the clip. The audio file “%@” did not read. Check the disk and try again.";
+"error.sync.same.track" = "The reference track is the track of the clip. Choose another track.";
+"error.sync.no.reference" = "The reference track has no audio near the clip. Choose another track.";
+"error.sync.too.long" = "The clip is too long to sync. Split it, then sync each part.";

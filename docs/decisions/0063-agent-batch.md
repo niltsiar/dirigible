@@ -5,6 +5,7 @@
 - Accepted: 2026-10-26, after plan gate 1 of run `2026-10-26-agent-batch`.
 - Amends: 0002 (Snapshot undo: one entry for a batch), 0011 (Grammar: `batch` applies many edits in one save; the command and its exit codes), 0041 (the tool `batch`), 0046 (Live tools), 0037 (the ripple rule of each step)
 - Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (see 0053). `clip_replace` and `clip_fill` with no `source` are steps, as `clip_paste` and `clip_paste_clips`; with a `source` they copy files, so a batch refuses them. A `clip_replace` step under a split take is refused, as each ripple step.
+- Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). `clip_sync` reads files, so a batch refuses it: "sync" joins the list of work that a batch cannot hold.
 
 ## Context
 

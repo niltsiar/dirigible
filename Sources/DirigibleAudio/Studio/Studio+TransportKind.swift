@@ -19,6 +19,9 @@ extension Studio {
         case matching
         /// Tools > Find Silences... reads the silences of the scan tracks (decision 0066).
         case findingSilences
+        /// Sync Clip to Track reads the clip and the reference track and moves the clip (decision
+        /// 0076).
+        case syncing
         /// An import converts a file and saves the session (decision 0040).
         case importing(ImportRun)
     }

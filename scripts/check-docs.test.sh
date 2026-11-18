@@ -101,6 +101,13 @@ expect() {
   [[ "$got" == "$want" ]] || { echo "FAIL: expected $want, got $got: $name"; failures=$((failures + 1)); }
 }
 
+# expect_only <name> <message>: the check fails with that one error line and no other.
+expect_only() {
+  local name="$1" message="$2" output
+  output="$("$check" "$tmp" 2>&1 >/dev/null)" && output="(passed)"
+  [[ "$output" == "check-docs: $message" ]] || { echo "FAIL: expected only '$message', got '$output': $name"; failures=$((failures + 1)); }
+}
+
 good; expect pass 'good tree'
 good; printf '# Topic\n\n## Sources\n' > "$tmp/docs/research/topic.md"; expect fail 'research file without a date' "docs/research/topic.md: no 'Date: YYYY-MM-DD' line"
 good; printf '# Topic\n\nDate: 2026-09-24\n' > "$tmp/docs/research/topic.md"; expect fail 'research file without sources' "docs/research/topic.md: no '## Sources' section"
@@ -250,12 +257,15 @@ good; sed -i '' 's/^Status: closed$/Status: closedown/' "$tmp/docs/requirements/
 folder() { mkdir -p "$tmp/Sources/$1"; printf 'struct X {}\n' > "$tmp/Sources/$1/$2"; }
 map() { printf '# 0002. Map\n\n%s\n' "$1" > "$tmp/docs/decisions/0002-module-map.md"; }
 audio='- **Folders.** Inside `DirigibleAudio`: `Capture/` (the device list), and `Studio/` (the facade). `DirigibleApp/Timeline/` holds the view.'
-good; folder DirigibleAudio/Capture A.swift; map "$audio"; expect pass 'a Swift folder that the Folders line names'
+good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Studio S.swift; folder DirigibleApp/Timeline T.swift; map "$audio"
+expect pass 'a Swift folder that the Folders line names'
 good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Transcribe B.swift; map "$audio"
 expect fail 'a Swift folder that the Folders line does not name' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/Transcribe/'
-good; folder DirigibleAudio/Capture A.swift; mkdir -p "$tmp/Sources/CLame/src"; : > "$tmp/Sources/CLame/src/a.c"; map "$audio"
+good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Studio S.swift; folder DirigibleApp/Timeline T.swift
+mkdir -p "$tmp/Sources/CLame/src"; : > "$tmp/Sources/CLame/src/a.c"; map "$audio"
 expect pass 'a C folder with no Swift file'
-good; folder DirigibleApp/Timeline T.swift; map "$audio"; expect pass 'a folder of another target named with its target'
+good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Studio S.swift; folder DirigibleApp/Timeline T.swift; map "$audio"
+expect pass 'a folder of another target named with its target'
 good; folder DirigibleAudio/Transcribe B.swift; map "$audio"$'\n- Amended: 2026-11-01. `Transcribe/` holds the transcription job.'
 expect fail 'a folder that only another line names' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/Transcribe/'
 good; folder DirigibleAudio/Capture A.swift; expect fail 'a Swift folder and no module map' 'no docs/decisions/0002-module-map.md for the folders of Sources/'
@@ -263,6 +273,18 @@ good; folder DirigibleMCP/Capture X.swift; map "$audio"
 expect fail 'a bare folder name for another target' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleMCP/Capture/'
 good; folder DirigibleAudio/New/Sub C.swift; map "$audio"
 expect fail 'a folder with only nested Swift files' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/New/'
+
+# The Folders line is two-way: a folder it names has a folder under Sources/, a record with no Folders line
+# gives one error, and a directory named like a Swift file is no Swift file.
+audio_folders() { folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Studio S.swift; folder DirigibleApp/Timeline T.swift; }
+good; audio_folders; map "$audio"' `Listen/` holds the monitor.'
+expect fail 'a Folders name with no folder' 'docs/decisions/0002-module-map.md: Folders names Listen/ with no folder Sources/DirigibleAudio/Listen/'
+good; audio_folders; map "$audio"' `DirigibleApp/Gone/` holds nothing.'
+expect fail 'a Folders name of another target with no folder' 'docs/decisions/0002-module-map.md: Folders names DirigibleApp/Gone/ with no folder Sources/DirigibleApp/Gone/'
+good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Transcribe B.swift; map '- **Other.** None.'
+expect_only 'a record with no Folders line' 'docs/decisions/0002-module-map.md: no Folders line'
+good; audio_folders; mkdir -p "$tmp/Sources/DirigibleAudio/Odd/A.swift"; map "$audio"
+expect pass 'a directory named like a Swift file'
 
 # The provenance statement stays true: no text file claims a clean room (a quote in docs/research and
 # the two check-docs scripts excepted), NOTICE names each shipped file and each vendored folder, and the

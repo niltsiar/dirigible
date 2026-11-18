@@ -109,8 +109,8 @@
 # the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
 # log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
 # does not wait for another build or test. While a long holder (long_words of lock-words.sh: a release
-# call, a bench, a mutation pass, a flake loop, or a stress lane) holds the lock, or a bench marker is live (long-runs.md), and, after it waited, while a release call has a live
-# ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
+# call, a bench, a mutation pass, a flake loop, or a stress lane) holds the lock, or a bench marker is
+# live (long-runs.md), and, after it waited, while a release call has a live ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
 # and then runs. That wait keeps no marker, no ticket, and no lock-free file, and appends one wait line that ends with
 # lockfree. cost.sh counts its minutes. A lock-free call runs its command as a child. TERM or INT
 # stops the process group of the command. make exits 2 for a recipe that exits 75, so the call exits

@@ -26,11 +26,11 @@ public enum PlaybackStop: Hashable, Sendable {
 }
 
 extension Studio {
-    /// True when no take, placement, level, duck, match, silence scan, or import runs, and no take starts.
+    /// True when no take, placement, level, duck, match, silence scan, sync, or import runs, and no take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
     /// Edits and a new take wait during a take (0004), a placement (0021), a level (0031), a duck
-    /// (0060), a voice match (0074), a silence scan (0066), or an import (0040). They also wait during `settle()`, so an agent edit that gets OK
+    /// (0060), a voice match (0074), a silence scan (0066), a sync (0076), or an import (0040). They also wait during `settle()`, so an agent edit that gets OK
     /// is on disk before its window closes (decision 0046). A take marker and its save run during a
     /// take (F107).
     func checkIdle() throws(StudioError) {

@@ -6,6 +6,7 @@
 - Amends: 0011 (`take map`, `transcript export`, `transcript import --take`), 0041 (the tools `take_map` and `transcript_export`, the `take` argument of `transcript_import`, and the sync line of an edit result), 0051 (the `cut-from-transcript` recipe), 0055 (the SRT parser, the take-time import, and the export), 0021 (a second reader of the take anchor file, which keeps the take time, so it must stay; a read fault throws), 0004 (one owner of the aligned start formula).
 - Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0004). A transcript of a take file that starts before the record start needs a negative `at`.
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). A rendered file whose root is a take file has the take origin of the root plus the sum of the origin offsets, so a rendered clip keeps its take time.
+- Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). A sync is an edit: a sync that moves a clip with take audio gives the `Take sync:` line. No rule changes.
 
 ## Context
 

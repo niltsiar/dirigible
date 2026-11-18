@@ -117,7 +117,7 @@ func checkedMixLevels(
 /// `end`, or `LevelSeries.edgeWindows` windows past the edge. The window level is the mean of
 /// the L and R mean squares and the largest absolute sample. A buffer that does not allocate
 /// throws `ENOMEM`.
-private func scanMix(
+func scanMix(
     _ reader: MixReader, rate: Int, end: Frames, range: Range<Frames>, silence: Gain?,
     sink: (AVAudioPCMBuffer) -> Void, progress: (Double) -> Void, isCancelled: () -> Bool
 ) throws(POSIXError) -> LevelSeries {

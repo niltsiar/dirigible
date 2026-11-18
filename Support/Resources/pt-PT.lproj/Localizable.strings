@@ -920,3 +920,11 @@
 "waveform.zoom.announce" = "Intervalo da forma de onda: %lld dB";
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Intervalo predefinido da forma de onda";
+"take.syncing" = "A sincronizar o clipe";
+"error.sync.no.match" = "Sem correspondência: o áudio do clipe não foi encontrado na faixa.";
+"error.sync.read" = "O Dirigible não pode sincronizar o clipe. Não foi possível ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
+"error.sync.missing" = "O Dirigible não pode sincronizar o clipe. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
+"error.sync.unreadable" = "O Dirigible não pode sincronizar o clipe. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
+"error.sync.same.track" = "A faixa de referência é a faixa do clipe. Escolha outra faixa.";
+"error.sync.no.reference" = "A faixa de referência não tem áudio perto do clipe. Escolha outra faixa.";
+"error.sync.too.long" = "O clipe é demasiado longo para sincronizar. Divida-o e depois sincronize cada parte.";

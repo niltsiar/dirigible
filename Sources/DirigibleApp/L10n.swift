@@ -904,4 +904,12 @@ enum L10n: String, CaseIterable {
     case waveformZoomAnnounce = "waveform.zoom.announce"
     case waveformZoomReadout = "waveform.zoom.readout"
     case settingsWaveformRange = "settings.waveform.range"
+    case takeSyncing = "take.syncing"
+    case errorSyncNoMatch = "error.sync.no.match"
+    case errorSyncRead = "error.sync.read"
+    case errorSyncMissing = "error.sync.missing"
+    case errorSyncUnreadable = "error.sync.unreadable"
+    case errorSyncSameTrack = "error.sync.same.track"
+    case errorSyncNoReference = "error.sync.no.reference"
+    case errorSyncTooLong = "error.sync.too.long"
 }

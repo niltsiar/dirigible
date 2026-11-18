@@ -920,3 +920,11 @@
 "waveform.zoom.announce" = "Bereik van de golfvorm: %lld dB";
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Standaardbereik van de golfvorm";
+"take.syncing" = "Clip wordt gesynchroniseerd";
+"error.sync.no.match" = "Geen overeenkomst: de audio van de clip is niet gevonden op het spoor.";
+"error.sync.read" = "Dirigible kan de clip niet synchroniseren. Een audiobestand kon niet worden gelezen (fout %lld). Geen clip is gewijzigd.";
+"error.sync.missing" = "Dirigible kan de clip niet synchroniseren. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.sync.unreadable" = "Dirigible kan de clip niet synchroniseren. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";
+"error.sync.same.track" = "Het referentiespoor is het spoor van de clip. Kies een ander spoor.";
+"error.sync.no.reference" = "Het referentiespoor heeft geen audio in de buurt van de clip. Kies een ander spoor.";
+"error.sync.too.long" = "De clip is te lang om te synchroniseren. Splits hem en synchroniseer dan elk deel.";

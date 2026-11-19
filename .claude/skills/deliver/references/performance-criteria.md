@@ -2,7 +2,7 @@
 
 ## A performance criterion
 
-- A performance criterion names its build configuration (debug or optimized), its size (for example the window size in pixels), its make target (`make bench FILTER='<name> <name>'`), and its statistic (p50, p95, median, or max). Its test asserts the real budget under those conditions.
+- A performance criterion names its build configuration (debug or optimized), its size (for example the window size in pixels), its make target (`make bench FILTER='<name> <name>'`), and its statistic, for example p95: a word that `scripts/check-plan.sh` accepts. Its test asserts the real budget under those conditions.
 - A timing at other conditions is a proxy: it cannot close the criterion, and a debug miss only prints (`expectWithinBudget`). A criterion that no committed command runs is a manual check.
 - The criterion names each input path that reaches the costly code (each gesture that redraws), the worst-case fixtures (many items per lane, one item wider than the view, a change at the end), and the real input rate. A path that it does not name is outside its budget.
 - The benchmark sends one event per display frame, as a pointer does: events back to back measure the frame throttle.

@@ -1189,16 +1189,19 @@ fi
 
 release_shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
 release_pre="(\{ |! |if |then |do |else |elif |while |until |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |$release_shell_c|[^[:space:]]*with-lock\.sh[\"']? )*"
-release_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
+release_words_file="$(dirname "$0")/../../scripts/lock-words.sh" release_loaded=""
+# release_load: sources scripts/lock-words.sh once for each hook call (release_segments runs in one
+# subshell, and a script file can hold hundreds of lines); it fails when the file is missing.
+release_load() { [[ -n "$release_loaded" ]] || { . "$release_words_file" 2> /dev/null && release_loaded=1; }; }
 # release_words <env word>... -- <command word>...: succeeds when release_call does and with-lock.sh
 # does not run the call lock-free (a test-hooks goal that lock_make_words takes, also with a
 # DIRIGIBLE_HOOKS_ALL=1 word).
 release_words() {
+  release_load || return 1
   (
     unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
     while [[ $# -gt 0 && "$1" != -- ]]; do export "$1"; shift; done
     shift
-    . "$release_words_file"
     lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && exit 1
     release_call "$@"
   )
@@ -1267,10 +1270,10 @@ release_expand() {
   done
   printf '%s' "$w"
 }
-# release_long_cmd: succeeds when long_words of scripts/lock-words.sh takes rcmd (a long holder). Each
-# long holder has .sh or make in its words, so other words start no subshell.
+# release_long_cmd: succeeds when long_words of scripts/lock-words.sh takes rcmd (a long holder).
+# release_segments loads lock-words.sh first when release_long is set.
 release_long_cmd() {
-  [[ "${rcmd[*]:-}" == *.sh* || "${rcmd[*]:-}" == *make* ]] && ( . "$release_words_file" && long_words "${rcmd[@]}" ) 2> /dev/null
+  [[ "${rcmd[*]:-}" =~ $long_text_re ]] && long_words "${rcmd[@]}"
 }
 release_assign_re='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*)+$'
 release_script_re='^([^[:space:]]*/)?(ba|z|da)?sh$'
@@ -1288,15 +1291,19 @@ release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A
 # are classified the same way, one level deep. A segment whose first word is one quoted string with
 # a space in it is a list or array item (test data), and a segment that only sets NAME to a quoted
 # string is an assignment: neither is a command. In a script file, only a segment with a with-lock.sh,
-# land.sh, or export word is read, and, when release_long is set, a segment with .sh or make. The
-# split uses tr: ${text//;/...} is too slow in bash 3.2 for a long script file.
+# land.sh, or export word is read, and, when release_long is set, a segment that long_text_re of
+# lock-words.sh matches. The split uses tr: ${text//;/...} is too slow in bash 3.2 for a long script file.
 release_segments() {
   local text="$1" rdir="${2:-}" depth="${3:-0}" seg prefix rest body head w i f
   local release_exports=() rvars=() rw=() scripts=""
+  # long: the text can hold a long holder. One match for the whole text keeps a long script file with no
+  # long-holder word from a regex match for each line (hook latency, item 1222).
+  local long=""
+  [[ -n "$release_long" ]] && release_load && [[ "$text" =~ $long_text_re ]] && long=1
   text="$(tr ';&|(`' '\n\n\n\n\n' <<< "$text")"
   while IFS= read -r seg; do
     ((depth == 0)) || [[ "$seg" == *with-lock.sh* || "$seg" == *land.sh* || "$seg" == *export* ]] ||
-      [[ -n "$release_long" && ("$seg" == *.sh* || "$seg" == *make*) ]] || continue
+      { [[ -n "$long" ]] && [[ "$seg" =~ $long_text_re ]]; } || continue
     if [[ "$seg" =~ $release_assign_re ]]; then
       read -ra rw <<< "${seg//[\"\']/}"
       for w in ${rw[@]+"${rw[@]}"}; do rvars+=("${w%%=*}=$(release_expand "${w#*=}")"); done
@@ -1322,7 +1329,7 @@ release_segments() {
       release_cmd "$rest"
       [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
     fi
-    [[ -n "$release_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
+    [[ -n "$long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     read -ra rw <<< "${rest//[\"\']/}"
     if [[ "${rw[0]:-}" == cd && -n "${rw[1]:-}" ]]; then
       rdir="$(sw_dir "$rdir" "$(release_expand "${rw[1]}")")"
@@ -1347,7 +1354,7 @@ release_segments() {
       release_env "$head"
       release_cmd "$body"
       [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
-      [[ -n "$release_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
+      [[ -n "$long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     done
   done <<< "$text"
   while IFS=$'\t' read -r rdir f; do

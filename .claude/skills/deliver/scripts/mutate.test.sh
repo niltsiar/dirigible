@@ -304,7 +304,7 @@ PYTHONPATH="$tmp/fake" check '0:killed (hang)' 'a hang when killpg raises EPERM'
 for sig in TERM HUP INT EPERM; do
   fake=""
   [[ $sig == EPERM ]] && sig=TERM fake="$tmp/fake"
-  PYTHONPATH="$fake" "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 32 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
+  PYTHONPATH="$fake" "$mutate" "$file" 'b = 1' 'b = 2' "$tmp/stop" "$build" "sleep 300 & echo \$! > $tmp/pid; wait" > "$tmp/stop.out" 2>&1 &
   runner=$!
   started=no
   for _ in $(seq 300); do grep -q 'b = 2' "$file" && [[ -s "$tmp/pid" ]] && started=yes && break; sleep 0.1; done
@@ -490,7 +490,7 @@ cp "$sdir/0.orig" "$src"; same 'the copy of orig.tsv'
 for sig in TERM INT HUP; do
   reset_schema
   rm -f "$tmp/pid"
-  marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "[[ \${DIRIGIBLE_MUTANT:-} != 1 ]] || { sleep 34 & echo \$! > '$tmp/pid'; wait; }"
+  marg 1 --switch expr s.swift 10 11 "$tmp/l1" "$sbuild" "[[ \${DIRIGIBLE_MUTANT:-} != 1 ]] || { sleep 300 & echo \$! > '$tmp/pid'; wait; }"
   marg 2 --switch expr t.swift 40 41 "$tmp/l2" "$sbuild" "$stest"
   "$mutate" --schema "$sdir" 1 2 > "$tmp/stop.out" 2>&1 &
   runner=$!

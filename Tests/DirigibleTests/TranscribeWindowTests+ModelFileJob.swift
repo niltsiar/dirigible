@@ -69,7 +69,7 @@ import os
             await window.model.transcribe.task?.value
         }
 
-        /// C3 (b): Locate... or Choose Model File... on a studio that became busy while the panel was
+        /// Locate... or Choose Model File... on a studio that became busy while the panel was
         /// open starts nothing: the busy alert shows, no words are added, and the other job keeps running.
         @Test func pickedModelFileOnABusyStudioShowsTheBusyAlert() async throws {
             let picks = Picks([])

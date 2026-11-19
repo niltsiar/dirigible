@@ -18,7 +18,7 @@
 - Amended: 2026-10-29, run `2026-10-27-repair-set` (see 0064). `clip_repair` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
 - Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `silence_edit` is in the tool list only: the core and the whole text have no room.
 - Amended: 2026-11-06, run `2026-10-28-timeline-edits` (see 0011 and 0036). `clip_close_gaps`, `clip_roll`, and `clip_slip` are in the tool list only: the skill table takes their description from the tool table, and no recipe names them, because the core and the whole text have no room.
-- Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). The skill table names the tool `clip_sync` with the command `dirigible clip sync`.
+- Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). The skill table names the tool `clip_sync` with the command `dirigible clip sync`. Its arguments and its one-lag limit are in the skill only (`AgentManual.syncLine`), with no result line: `dirigible help clip sync` gives those.
 
 ## Context
 

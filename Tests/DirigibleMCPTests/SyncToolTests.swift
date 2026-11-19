@@ -220,6 +220,20 @@ struct SyncToolTests {
                 == #"{"clip":"C","frames":-240000,"headCut":288000,"match":0.98,"seconds":-5,"spread":null}"#)
     }
 
+    /// The tool description and the skill line say what the tool does and its one-lag limit, and quote
+    /// no result line: `dirigible help clip sync` holds those.
+    @Test func theAgentTextsQuoteNoResultLine() throws {
+        let tool = try #require(Tool.all.first { $0.name == "clip_sync" })
+        for (name, text) in [("description", tool.description), ("syncLine", AgentManual.syncLine)] {
+            let quoted = ["moved <clip>", "the lag changes by", "the drift was not measured", "at the head"].filter {
+                text.contains($0)
+            }
+            #expect(quoted.isEmpty, "the \(name) quotes \(quoted)")
+            #expect(text.contains("one lag") && text.contains("does not correct a drift"), "\(name): \(text)")
+        }
+        #expect(tool.description.contains("dirigible help clip sync"), "\(tool.description)")
+    }
+
     /// The skill names the tool, each of its arguments, and its command; the manual has no room for the line.
     @Test func theSkillNamesTheSyncTool() throws {
         let tool = try #require(Tool.all.first { $0.name == "clip_sync" })

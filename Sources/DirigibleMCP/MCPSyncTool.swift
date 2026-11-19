@@ -13,15 +13,11 @@ private let within = Param<Int?>.optional(
 let syncTools = [
     Tool(
         "clip_sync",
-        "Move a clip onto its audio on another track, as dirigible clip sync. Use it to line up a recording "
-            + "that has no shared clock with a track that holds the same audio, for example a guest recording and "
-            + "the call track. It reads the clip and the reference track and finds the one move that matches "
-            + "their waveforms; the clip keeps its ID, and the clips under its new place are cut. It changes no "
-            + "audio file. Give \"moved <clip> by <+|-><seconds> s (<frames> frames), match <score>\", then \"the "
-            + "lag changes by <ms> ms across the clip\" when the lag changes along the clip, or \"the drift was "
-            + "not measured: only one part of the clip matched\", then \"cut <seconds> s at the head\" when the "
-            + "new start is before frame 0. It moves the whole clip by one lag and does not correct a drift. "
-            + "No match changes nothing and is an error." + editCancelNote("no clip moves"),
+        "Move a clip onto its audio on another track by the waveform, for a recording with no shared clock, "
+            + "such as a guest file and the call track. It moves the whole clip by one lag and does not correct a "
+            + "drift; the clips under its new place are cut, and no audio file changes. No match is an error and "
+            + "changes nothing. The text is that of dirigible clip sync; dirigible help clip sync gives each line."
+            + editCancelNote("no clip moves"),
         [clip, reference, within], batch: .alone
     ) { a throws(ToolError) in
         switch SyncWork.parse(clip: try a[clip], to: try a[reference], within: try a[within]) {

@@ -18,8 +18,9 @@
 # with no criterion change row after the first phase 6 row, and the same for the pattern of a backticked
 # rg grader (read as rg reads it) in the files that its command names.
 # Check that a code gate Act on item has a Criteria: field, and at phase 7 a criterion change row for each ID.
-# Check that a review-diff-1.md with the line `review: lead` needs that line in review-plan-1.md and in the
-# check-changed.sh output of the run tree, also when check-plan.sh runs from another tree.
+# Check that a review-diff-1.md with the line `review: lead <commit>` needs the line `review: lead` in
+# review-plan-1.md and in the check-changed.sh output at <commit>, also when check-plan.sh runs from another tree,
+# and that a later commit does not change the verdict.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -1241,8 +1242,8 @@ unset CHECK_PLAN_FIX_CHECK
 fcrun "- 1.1 OK; $NF"
 pass 'the land check with a missing line, no CHECK_PLAN_FIX_CHECK'
 
-# The lead review path: a review-diff-1.md with the line `review: lead` needs the line in review-plan-1.md and a
-# `review: lead` line of check-changed.sh origin/main in the run tree. The fixture repo holds the scripts on
+# The lead review path: a review-diff-1.md with the line `review: lead <commit>` needs the line `review: lead` in
+# review-plan-1.md and a `review: lead` line of check-changed.sh origin/main at <commit>. The fixture repo holds the scripts on
 # origin/main, a run tree on feat/lead, and a second tree on feat/other with an empty diff.
 lrepo="$tmp/lead-repo" ltree="$tmp/lead-tree" lother="$tmp/lead-other" sdir="$(dirname "$script")"
 mkdir -p "$lrepo/scripts" "$lrepo/Sources/A" "$lrepo/.scratchpads/runs"
@@ -1256,16 +1257,29 @@ git -C "$lrepo" init -q -b main && git -C "$lrepo" add . \
   && git -C "$lrepo" worktree add -q -b feat/other "$lother" || fail 'lead review fixture repo'
 saved_script="$script" saved_run="$run"
 script="$lrepo/scripts/check-plan.sh" run="$lrepo/.scratchpads/runs/2026-11-19-lead"
-# lead_run <line of review-plan-1.md> <changed lines of the run tree> [<branch of run.md>]
+# lead_run <line of review-plan-1.md> <changed lines of the gate commit> [<branch of run.md>]
+# The run tree gets one commit on origin/main, the gate commit, and the diff round file names it.
+lc() { git -C "$ltree" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q "$@"; }
 lead_run() {
   good
-  printf '# Run\n\n- Branch: %s\n' "${3:-feat/lead}" > "$run/run.md"
-  printf 'review: lead\n\n## Act on\n\nNone.\n' > "$run/review-diff-1.md"
-  printf '%s\n\n## Act on\n\nNone.\n' "$1" > "$run/review-plan-1.md"
+  git -C "$ltree" reset -q --hard origin/main
   seq 1 "$2" > "$ltree/Sources/A/Change.swift"
+  git -C "$ltree" add . && lc -m gate || fail 'lead review gate commit'
+  gate="$(git -C "$ltree" rev-parse --short HEAD)"
+  printf '# Run\n\n- Branch: %s\n' "${3:-feat/lead}" > "$run/run.md"
+  printf 'review: lead %s\n\n## Act on\n\nNone.\n' "$gate" > "$run/review-diff-1.md"
+  printf '%s\n\n## Act on\n\nNone.\n' "$1" > "$run/review-plan-1.md"
 }
 lead_run 'review: lead' 5
 pass 'a lead diff round file, a lead plan round file, and a small diff'
+mkdir -p "$ltree/docs"
+seq 1 300 > "$ltree/docs/features.md"
+git -C "$ltree" add . && lc -m phase7 || fail 'lead review phase 7 commit'
+pass 'a features.md commit of 300 lines after the gate commit'
+printf 'review: lead\n\n## Act on\n\nNone.\n' > "$run/review-diff-1.md"
+refuse 'a lead diff round file with no gate commit' 'gate commit'
+printf 'review: lead 0000000\n\n## Act on\n\nNone.\n' > "$run/review-diff-1.md"
+refuse 'a lead diff round file with a commit that the run tree lacks' 'gate commit'
 lead_run 'review: panel' 5
 refuse 'a lead diff round file and a plan round file with no review: lead line' 'review-plan-1.md has none'
 lead_run 'review: lead' 201

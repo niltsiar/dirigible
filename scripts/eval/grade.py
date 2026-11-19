@@ -46,7 +46,9 @@ verdict: grade.py verdict <eval> <old set> <new set>
   it replaces the file, a verdict reads the old one: for each ID of an old below or pooled line that
   this verdict does not mark rerun due again, it writes pooled <id>: old <p>/<r>, new <p>/<r>:
   PASS or FAIL over all tags of the folder: PASS when the below clause passes or old minus new is
-  at or under the bound of the rerun due line, and the below line of the ID prints the same result.
+  at or under 2 x sqrt(k x p x (1 - p)) of the pooled counts, and the below line of the ID prints the
+  same result. Under 12 runs in the smaller set, inside that bound, the ID is rerun due again. A first
+  verdict keeps the below clause. check-governance.sh grades a docs-fix folder by the same pooled rule.
   The last line is verdict: PASS (exit 0), verdict: FAIL (exit 1), or verdict: RERUN DUE (exit 1,
   when rerun due lines are the only fails).
   unasked.tsv (from score) makes a second count. A row passes in it when its missing keys are

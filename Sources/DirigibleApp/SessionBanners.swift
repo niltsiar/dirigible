@@ -71,9 +71,9 @@ struct WindowBanners: View {
                     Button(L10n.bannerSyncUndo.key) { model.undoAgentEdit(revision: revision) }
                         .disabled(!model.canUndoAgentEdit(revision: revision))
                 }
-            } else if case .syncNoMatch(let clip, _, _, _) = banner {
+            } else if case .syncNoMatch(let clip, let track, _, _, _) = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
-                    Button(L10n.bannerSyncChoose.key) { model.chooseAnotherSyncTrack(for: clip) }
+                    Button(L10n.bannerSyncChoose.key) { model.chooseAnotherSyncTrack(for: clip, after: track) }
                         .disabled(!model.canChooseAnotherSyncTrack(for: clip))
                 }
             } else if case .exportSetDone(let files, _, _, _) = banner {

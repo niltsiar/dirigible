@@ -54,11 +54,13 @@ extension Session {
 
     /// The reference that a sync of `clip` takes by default: the first other track with an app
     /// route that holds a clip in the default span, else the first other track that holds a clip
-    /// there, else nil (decision 0076).
-    public func defaultSyncReference(for clip: ClipID) -> TrackID? {
+    /// there, else nil (decision 0076). The track `excluding` is never the result.
+    public func defaultSyncReference(for clip: ClipID, excluding: TrackID? = nil) -> TrackID? {
         guard let (found, home) = self.clip(clip), let within = try? syncWithin(clip) else { return nil }
         let span = span(of: found, within: within)
-        let candidates = tracks.filter { $0.id != home && !$0.clips.clips(overlapping: span).isEmpty }
+        let candidates = tracks.filter {
+            $0.id != home && $0.id != excluding && !$0.clips.clips(overlapping: span).isEmpty
+        }
         let call = candidates.first {
             if case .app = $0.route { true } else { false }
         }

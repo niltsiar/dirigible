@@ -427,6 +427,12 @@ lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n' Support/Info.plist; comm
 pass 'a feat run that changes only Support/ and writes Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n'; commit
 refuse 'a feat run that changes Sources/ and writes Lands: none' 'scripts/tag-release.sh' "$tmp/run"
+# A file list of about 200 KB after the Sources/ path: each check reads the whole list, so no early exit hides the change.
+wide() { mkdir -p "$tmp/r/Wide"; for i in $(seq 1000); do : > "$tmp/r/Wide/$(printf 'w%0190d' "$i")"; done; }
+lands_repo '# Run\n\n- Branch: fix/x\n'; wide; commit
+refuse 'a fix run that changes Sources/ and 1000 later paths with no Lands line' 'name the F-IDs of this land in - Lands: of run.md' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n'; wide; commit
+refuse 'a feat run with Lands: none that changes Sources/ and 1000 later paths' 'scripts/tag-release.sh' "$tmp/run"
 # The branch that lands decides: HEAD of the tree under check. A run of several landings may write its later
 # `- Branch:` lines ahead. The last `- Branch:` line decides only on a detached HEAD.
 lands_repo '# Run\n\n- Branch: feat/x\n- Branch: fix/y\n- Lands: none\n'; commit

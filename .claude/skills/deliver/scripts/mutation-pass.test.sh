@@ -6,7 +6,7 @@
 # to the script (exit 130), and refuses a missing batch file, a tree with
 # changes, a live mutate.py lock, a tree that is not a worktree root, and the main checkout.
 # Check that the head line of the batch file decides: a batch written at another head runs only when
-# no Tests/ file, Sources/ file, or file of a mutant line changed since; a batch with no head line, or
+# no Tests/ file, Sources/ file, package file, or file of a mutant line changed since, whatever the batch size; a batch with no head line, or
 # with a head that is not in the repo, is refused before the lock.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -223,8 +223,8 @@ run "$tmp/tree" "$tmp/batch.sh"
   fail "dirty tree after a killed pass: exit $code: $out"
 rm "$tmp/tree/new"
 
-# The head line: a batch written at another head runs only when no Tests/ file, Sources/ file, or
-# file of a mutant line changed since. Each refusal comes before the lock and the first mutant.
+# The head line: a batch written at another head runs only when no Tests/ file, Sources/ file, package
+# file, or file of a mutant line changed since. Each refusal comes before the lock and the first mutant.
 commit() { git -C "$tmp/tree" add -A && git -C "$tmp/tree" -c user.name=t -c user.email=t@t commit -q -m "$1"; }
 head0="$(git -C "$tmp/tree" rev-parse HEAD)"
 mkdir -p "$tmp/tree/Tests"; echo test > "$tmp/tree/Tests/FooTests.swift"; commit 'add a test'
@@ -253,6 +253,19 @@ run "$tmp/tree" "$tmp/batch.sh"
 : > "$tmp/calls"; : > "$tmp/locks"
 run "$tmp/tree" "$tmp/batch.sh"
 [[ $code -eq 0 && "$(calls)" == killed ]] || fail "a changed file that no mutant names: exit $code, calls [$(calls)]: $out"
+# A batch of about 200 KB with the changed file on its first mutant line: refused, whatever its size.
+pad="$(printf '%02000d' 0)"
+{ echo "# head: $head3"; echo 'mutant Other/y.swift killed new log build test'
+  for _ in $(seq 100); do echo "mutant Sources/x.swift killed new log build test # $pad"; done; } > "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'Other/y.swift'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "a 200 KB batch with a changed mutant file: exit $code, calls $(wc -l < "$tmp/calls"): ${out:0:300}"
+# Package.swift and Package.resolved change the build, as a Sources/ file does.
+echo '// swift-tools-version:6.2' > "$tmp/tree/Package.swift"; echo '{}' > "$tmp/tree/Package.resolved"; commit 'pin a package'
+{ echo "# head: $head3"; echo 'mutant Sources/x.swift killed new log build test'; } > "$tmp/batch.sh"
+: > "$tmp/calls"; : > "$tmp/locks"
+run "$tmp/tree" "$tmp/batch.sh"
+[[ $code -eq 2 && "$out" == *'Package.swift'* && "$out" == *'Package.resolved'* && -z "$(calls)" && ! -s "$tmp/locks" ]] || fail "a Package.swift and Package.resolved change: exit $code, calls [$(calls)]: $out"
 
 batch killed
 sed -i '' 1d "$tmp/batch.sh"

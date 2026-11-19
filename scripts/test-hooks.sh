@@ -37,7 +37,12 @@
 # HOOK_CASES=<label pattern> reaches the test, which runs only the case blocks that match (the
 # header of .claude/hooks/git-guardrails.test.sh). With DIRIGIBLE_PUSH_CHECK=1 or
 # DIRIGIBLE_HOOKS_ALL=1 the script prints a message that names HOOK_CASES and exits 1, before the
-# key: a push check or a hooks pass runs every case, or fails.
+# key: a push check or a hooks pass runs every case, or fails. When the pattern does not match the
+# label guardrails-rules, and the work tree differs from the merge base of HEAD and origin/main in
+# .claude/hooks/git-guardrails.sh or scripts/lock-words.sh (the hook sources it), or there is no
+# merge base, the script adds |guardrails-rules to the pattern and prints that it did.
+# A test counts as failed when its output has a line that ends in ": command not found", also when
+# it exits 0. The summary names the test and the first such line.
 # scripts/test-hooks.test.sh tests it.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -52,6 +57,26 @@ find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exe
 if [[ -n ${HOOK_CASES:-} && ( ${DIRIGIBLE_PUSH_CHECK:-} == 1 || ${DIRIGIBLE_HOOKS_ALL:-} == 1 ) ]]; then
     echo "test-hooks: HOOK_CASES is set, and a push check or a hooks pass runs every hook case. Unset HOOK_CASES." >&2
     exit 1
+fi
+
+# A narrow run must still run the case block that the hook change can break: the block that tests
+# the rules that use lock-words.sh. A pattern that already matches the label is left as it is.
+if [[ -n ${HOOK_CASES:-} ]]; then
+    cases_pattern="^(${HOOK_CASES})\$"
+    if ! [[ guardrails-rules =~ $cases_pattern ]]; then
+        add_label=no
+        if base_commit="$(git merge-base HEAD origin/main 2>/dev/null)"; then
+            { git diff --name-only "$base_commit" --; git ls-files --others --exclude-standard; } \
+                | grep -qxE '\.claude/hooks/git-guardrails\.sh|scripts/lock-words\.sh' && add_label=yes
+        else
+            add_label=yes
+        fi
+        if [[ $add_label == yes ]]; then
+            HOOK_CASES="$HOOK_CASES|guardrails-rules"
+            export HOOK_CASES
+            echo "test-hooks: HOOK_CASES is now $HOOK_CASES: git-guardrails.sh or lock-words.sh changed, or HEAD has no merge base with origin/main"
+        fi
+    fi
 fi
 
 args=()
@@ -137,13 +162,17 @@ trap 'rm -rf "$logs" "$work"' EXIT
 failed=() n=0
 for t in "$@"; do
     n=$((n + 1))
-    "$t" 2>&1 | tee "$logs/$n.log" || failed+=("$n")
+    status=0
+    "$t" 2>&1 | tee "$logs/$n.log" || status=1
+    if [[ $status -ne 0 ]] || grep -qE ': command not found$' "$logs/$n.log"; then failed+=("$n"); fi
 done
 if [[ ${#failed[@]} -gt 0 ]]; then
     names=()
     for n in "${failed[@]}"; do names+=("${!n}"); done
     echo "test-hooks: ${#failed[@]} of $# failed: ${names[*]}"
     for n in "${failed[@]}"; do
+        line="$(grep -m1 -E ': command not found$' "$logs/$n.log" || true)"
+        [[ -z $line ]] || echo "test-hooks: ${!n} printed a command not found line: $line"
         echo "test-hooks: the last 40 lines of ${!n}:"
         tail -n 40 "$logs/$n.log"
     done

@@ -5,7 +5,9 @@
 # (C4), and a run from a key tree that fails on a read outside the key and leaves no git state
 # (C5), and a refusal of the whole list outside the push check, with no stamp reuse before it
 # (C6), and HOOK_CASES: no stamp and no reuse, and an exit 1 with a push check or a hooks pass (C10),
-# and a hook test that runs bash on /bin/bash whatever bash the PATH holds first.
+# and a hook test that runs bash on /bin/bash whatever bash the PATH holds first, and the label
+# guardrails-rules that a narrow HOOK_CASES run gets after a change of the hook, and a test whose
+# output has a line that ends in ": command not found" failing.
 # Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
 # xcodebuild, jq, sw_vers, and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
@@ -168,9 +170,66 @@ done
 new_repo
 printf '#!/bin/bash\nprintf "%%s" "${HOOK_CASES-unset}" > "$HOOKS_LOG.cases"\n' > "$repo/t/a.test.sh"
 commit cases-echo
+git -C "$repo" update-ref refs/remotes/origin/main HEAD
 run_with DIRIGIBLE_FULL_SUITE=1 -- 'HOOK_CASES=agent-clock|write-guard'
 [[ $code -eq 0 && "$(cat "$tmp/log.cases" 2>/dev/null)" == 'agent-clock|write-guard' ]] \
     || fail "(C10) make did not pass HOOK_CASES unchanged: code $code, value [$(cat "$tmp/log.cases" 2>&1)]: $(out)"
+
+# Label: a narrow HOOK_CASES run adds guardrails-rules when the work tree differs from the merge base
+# with origin/main in git-guardrails.sh or lock-words.sh (the hook sources lock-words.sh), and adds it
+# with no merge base. A stub test writes the HOOK_CASES that it gets.
+label_repo() { # [with-origin] <changed path>...
+    local origin=no p
+    [[ ${1:-} == with-origin ]] && { origin=yes; shift; }
+    new_repo
+    printf '#!/bin/bash\nprintf "%%s" "${HOOK_CASES-unset}" > "$HOOKS_LOG.cases"\n' > "$repo/t/a.test.sh"
+    commit cases-echo
+    [[ $origin == no ]] || git -C "$repo" update-ref refs/remotes/origin/main HEAD
+    for p in "$@"; do mkdir -p "$repo/$(dirname "$p")"; echo x >> "$repo/$p"; done
+    [[ $# -eq 0 ]] || commit change
+}
+cases_got() { # <HOOK_CASES value or -> : the value that the stub test got
+    if [[ $1 == - ]]; then run_with DIRIGIBLE_FULL_SUITE=1 --; else run_with DIRIGIBLE_FULL_SUITE=1 "HOOK_CASES=$1" --; fi
+    [[ $code -eq 0 ]] || { echo "exit $code: $(out)"; return; }
+    cat "$tmp/log.cases"
+}
+expect_cases() { # <name> <want> <HOOK_CASES value or -> : <changed paths>
+    local name="$1" want="$2" value="$3" got
+    got="$(cases_got "$value")"
+    [[ $got == "$want" ]] || fail "(label) $name: got [$got], want [$want]"
+}
+label_repo with-origin .claude/hooks/git-guardrails.sh
+expect_cases 'the hook changed' 'release-wait|guardrails-rules' release-wait
+expect_cases 'the label added once to a pattern that lists it' 'guardrails-rules|release-wait' 'guardrails-rules|release-wait'
+expect_cases 'a pattern that matches the label' 'guardrails-.*' 'guardrails-.*'
+expect_cases 'no HOOK_CASES' unset -
+label_repo with-origin scripts/lock-words.sh
+expect_cases 'only lock-words.sh changed' 'release-wait|guardrails-rules' release-wait
+label_repo with-origin docs/d2.md scripts/other.sh
+expect_cases 'only a doc and another script changed' 'release-wait' release-wait
+label_repo with-origin
+mkdir -p "$repo/.claude/hooks" && echo x >> "$repo/.claude/hooks/git-guardrails.sh"
+expect_cases 'an uncommitted hook change' 'release-wait|guardrails-rules' release-wait
+label_repo with-origin
+printf 'u\n' > "$repo/scripts/lock-words.sh"
+expect_cases 'an untracked lock-words.sh' 'release-wait|guardrails-rules' release-wait
+label_repo docs/d2.md
+expect_cases 'no merge base' 'release-wait|guardrails-rules' release-wait
+
+# Not found: a line that ends in ": command not found" fails the test that printed it, also when it
+# exits 0 (a hook test whose helper is missing runs on, and passes without the case that needed it).
+# The summary names the test and the line. A line "x not found" passes.
+new_repo
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\necho "line 3: nosuchtool: command not found"\n' > "$repo/t/a.test.sh"
+commit not-found
+run_with DIRIGIBLE_FULL_SUITE=1 --
+[[ $code -ne 0 && $(stamps) -eq 0 ]] && grep -q '^test-hooks: 1 of 2 failed: t/a.test.sh$' "$tmp/out" \
+    && grep -qF 'test-hooks: t/a.test.sh printed a command not found line: line 3: nosuchtool: command not found' "$tmp/out" \
+    || fail "(not-found) a test that exits 0 with a command not found line: code $code, stamps $(stamps): $(out)"
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\necho "nosuchtool not found"\n' > "$repo/t/a.test.sh"
+commit near-not-found
+run_with DIRIGIBLE_FULL_SUITE=1 --
+[[ $code -eq 0 && $(stamps) -eq 1 ]] || fail "(not-found) the near line 'x not found': code $code, stamps $(stamps): $(out)"
 
 # C2: after a change of each key input, each stub test runs again and no reuse line prints.
 # expect_rerun <name> <change function>: a pass, the change, then the next run.

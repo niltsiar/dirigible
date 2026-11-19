@@ -485,6 +485,10 @@ bench 'The median of `FooBenchmark` is at most 8 ms'
 pass 'a bench and a time value with median'
 bench 'The max of `FooBenchmark` is under 8 ms'
 pass 'a bench and a time value with max'
+bench '`FooBenchmark` at most 8 ms under `WITH_LOCK_MAX_HOLD` and `p95_LIMIT`'
+refuse 'a statistic word inside a name with _' "$BENCH_REFUSAL"
+bench 'The max_hold of `FooBenchmark` is under 8 ms'
+refuse 'max before _' "$BENCH_REFUSAL"
 bench 'The p99 of `make bench` is at most 8 ms'
 pass 'make bench with p99 and a time value'
 bench '`make bench` takes at most 2 s'

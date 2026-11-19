@@ -1,3 +1,4 @@
+import Accelerate
 import DirigibleCore
 import Foundation
 import Testing
@@ -27,7 +28,8 @@ extension MixPackage {
 
     /// `syncLag` of clip "C" to track "ref" in the span of `within` (nil: the default).
     func syncC(
-        within: Frames? = nil, progress: (Double) -> Void = { _ in }, open: @escaping MediaOpen = openMedia
+        within: Frames? = nil, progress: (Double) -> Void = { _ in }, open: @escaping MediaOpen = openMedia,
+        makeSetup: DFTSetupMake = vDSP_DFT_zrop_CreateSetup
     ) throws(SyncFailure) -> SyncResult {
         let span: Range<Frames>
         do { span = try session.syncSpan("C", to: "ref", within: within) } catch {
@@ -36,7 +38,7 @@ extension MixPackage {
         }
         return try syncLag(
             of: "C", to: "ref", in: session, package: url, span: span, progress: progress, isCancelled: { false },
-            open: open)
+            open: open, makeSetup: makeSetup)
     }
 }
 
@@ -112,6 +114,18 @@ struct SyncLagTests {
             #expect(SyncResult.spreadIsNotable(Frames(at20 + 1), rate: rate), "\(at20 + 1) frames at \(rate) Hz")
             #expect(!SyncResult.spreadIsNotable(.zero, rate: rate))
         }
+    }
+
+    /// No memory for a DFT setup of the coarse step, forward or inverse, is a read failure with ENOMEM.
+    @Test func noMemoryForTheCoarseSetupIsAReadFailure() throws {
+        let package = try syncPackage()
+        let inverseOnly: DFTSetupMake = { previous, length, direction in
+            direction == .INVERSE ? nil : vDSP_DFT_zrop_CreateSetup(previous, length, direction)
+        }
+        for make in [{ _, _, _ in nil }, inverseOnly] as [DFTSetupMake] {
+            #expect(throws: SyncFailure.read(POSIXError(.ENOMEM))) { try package.syncC(makeSetup: make) }
+        }
+        #expect(try package.syncC().lag == -240_000, "the package does not sync with a real setup")
     }
 
     /// No free descriptor at the open is a read failure with its errno, not a file fault.

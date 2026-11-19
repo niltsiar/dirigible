@@ -258,9 +258,10 @@ struct WaveformMatchTests {
         var clipDecimator = Decimator(factor: 24)
         var referenceDecimator = Decimator(factor: 24)
         let excerpt = clip.withUnsafeBufferPointer { clipDecimator.feed($0) }
-        let coarse = CoarseScores(
-            reference: reference.withUnsafeBufferPointer { referenceDecimator.feed($0) }, excerptLength: excerpt.count,
-            separation: 100)
+        let coarse = try #require(
+            CoarseScores(
+                reference: reference.withUnsafeBufferPointer { referenceDecimator.feed($0) },
+                excerptLength: excerpt.count, separation: 100))
         _ = coarse.match(excerpt)
         let over = coarse.scores.filter { $0 > 1.00001 || !$0.isFinite }.count
         #expect(over == 0, "\(over) scores over 1")

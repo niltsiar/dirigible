@@ -118,6 +118,43 @@ struct SyncToolTests {
         #expect(answer == ("within is a whole number of seconds, 1 or more.", true), "\(answer)")
     }
 
+    /// A package with clip `C` of `clip` frames at `start` on `t1` and clip `R` on `t2` from frame 0 to
+    /// `end`, at 48 kHz, with no audio file: a `within` refusal comes before any read.
+    static func spanPackage(clip: Int, start: Int, end: Int) throws -> LivePackage {
+        let package = try LivePackage()
+        var session = try Session(contentsOf: package.url)
+        for (file, track, id, from, length) in [("r", "t2", "R", 0, end), ("c", "t1", "C", start, clip)] {
+            try session.addFile(AudioFile(id: FileID(file), path: "\(file).wav", layout: .mono, length: Frames(length)))
+            try session.place(
+                Clip(id: ClipID(id), file: FileID(file), start: Frames(from), offset: 0, length: Frames(length)),
+                on: TrackID(track))
+        }
+        try session.write(to: package.url)
+        return package
+    }
+
+    /// Each `within` refusal names its true cause and the tool argument `within`, never `--within`. The
+    /// cap at 48 kHz is 399773184 frames (8328 s). A 1 h clip with 2400 s on each side has a largest
+    /// `within` of 2364 s. A clip 1 s under the cap with 1 s on each side has a largest `within` of 0.5 s,
+    /// so no whole second fits but the default does.
+    @Test func eachWithinRefusalNamesTheToolArgument() async throws {
+        let (rate, cap) = (Self.rate, 399_773_184)
+        let hour = try Self.spanPackage(clip: 3600 * rate, start: 2400 * rate, end: 8400 * rate)
+        let tight = try Self.spanPackage(clip: cap - rate, start: rate, end: cap + rate)
+        let before = try Session(contentsOf: tight.url)
+
+        let over = await closed(hour, within: 2365)
+        let underOneSecond = await closed(tight, within: 1)
+
+        #expect(over == ("The search span is over 8328 s. Use within 2364 or less for this clip.", true), "\(over)")
+        #expect(
+            underOneSecond == (
+                "The search span is over 8328 s, and the largest within for this clip is under 1 s. "
+                    + "Leave out within: the sync then searches the largest span that fits.", true
+            ), "\(underOneSecond)")
+        #expect(try Session(contentsOf: tight.url) == before)
+    }
+
     /// A clip of take audio that moves ends its text with the take sync line of decision 0061.
     @Test func aTakeClipGivesTheTakeSyncLine() async throws {
         let package = try Self.package(clip: 20, start: 20, reference: 60, copy: 0..<20, at: 10, take: true)

@@ -142,6 +142,38 @@ struct SyncCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// The command spells the argument `--within` in each `within` refusal: a value under 1 s, and a
+    /// clip 1 s under the cap at 48 kHz (399773184 frames, 8328 s) with 1 s on each side, whose largest
+    /// `within` is 0.5 s: no whole second fits, but the default does.
+    @Test func eachWithinRefusalNamesTheOption() async throws {
+        let cap = 399_773_184
+        var session = Session(sampleRate: Self.rate)
+        for (file, track, id, start, length) in [
+            ("r", "ref", "R", 0, cap + Self.rate), ("c", "guest", "C", Self.rate, cap - Self.rate),
+        ] {
+            try session.addFile(AudioFile(id: FileID(file), path: "\(file).wav", layout: .mono, length: Frames(length)))
+            try session.addTrack(TrackID(track), name: track, layout: .mono)
+            try session.place(
+                Clip(id: ClipID(id), file: FileID(file), start: Frames(start), offset: 0, length: Frames(length)),
+                on: TrackID(track))
+        }
+        let package = try TemporaryPackage(session)
+        let before = try package.xml()
+
+        let zero = try await package.run("clip", "sync", "PKG", "C", "--to", "ref", "--within", "0")
+        let one = try await package.run("clip", "sync", "PKG", "C", "--to", "ref", "--within", "1")
+
+        #expect(
+            zero.status == 64 && zero.stderr.contains("--within is a whole number of seconds, 1 or more."), "\(zero)")
+        #expect(
+            one
+                == CLIResult(
+                    status: 64, stdout: "",
+                    stderr: "Error: The search span is over 8328 s, and the largest --within for this clip is "
+                        + "under 1 s. Leave out --within: the sync then searches the largest span that fits.\n"))
+        #expect(try package.xml() == before)
+    }
+
     /// The text of a `within` over the cap names the cap of the rate of the session and the largest
     /// `within` of the clip. A 1 h clip at 44.1 kHz, with 2400 s on each side: the cap is 8309 s and
     /// the largest `within` is 2354 s, so 2355 exits 64 and 2354 goes on to the read.

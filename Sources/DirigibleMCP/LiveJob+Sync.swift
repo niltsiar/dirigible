@@ -20,7 +20,7 @@ func liveSync(
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (moved.lines + note).joined(separator: "\n"), isError: false)
         } catch {
-            throw SyncWork.refusal(error, in: studio.session)
+            throw work.refusal(error, in: studio.session)
         }
     } catch .studio(.syncCancelled) {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.

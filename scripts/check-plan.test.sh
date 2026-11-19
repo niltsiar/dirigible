@@ -13,6 +13,7 @@
 # Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
 # Check that a bench criterion with a time budget and no statistic word is refused.
+# Check that a backticked rg grader of a criterion that no listing slice copies to a - Graders: line is refused.
 # Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
 # with no criterion change row after the first phase 6 row.
 # Run by `make test-hooks`.
@@ -548,6 +549,63 @@ bench '`FooBenchmark` at most 8 ms'
 ROW_AT=2026-11-18T21:30 row 2 'plan written'
 refuse 'a run whose first row is at the bench statistic cutoff' "$BENCH_REFUSAL"
 unset ROW_AT
+
+# The graders rule (graders_cutoff, 2026-11-19T00:00): a backticked rg grader of a criterion is copied whole
+# to the "- Graders:" line of a slice that lists the criterion in its ### heading or its "- Criteria:" line.
+# gcase <criteria lines> [row time]: good() plus the criteria and a phase 2 row. glist <slice> <text>: the
+# text joins the ### heading of the slice. gadd <slice> <line>: the line follows the heading of the slice.
+gcase() { criteria "$1"; ROW_AT="${2:-2026-11-19T10:00}" row 2 'plan written'; }
+glist() { sed -i '' "s/^### $1 .*\$/& ($2)/" "$run/plan.md"; }
+gadd() { ADD="$2" awk -v h="### $1 " 'index($0, h) == 1 { print; print ""; print ENVIRON["ADD"]; next } { print }' "$run/plan.md" > "$run/plan.new" && mv "$run/plan.new" "$run/plan.md"; }
+GRADER="rg -c 'foo' a.md"
+GCRIT="- C1: foo is counted. \`$GRADER\` prints 1."
+gcase "$GCRIT"; glist S1 C1
+refuse 'a listed criterion with a rg grader and no Graders line' "criterion C1 has the grader \`$GRADER\`"
+refuse 'the refusal names the Graders line' '"- Graders:" line'
+gcase "$GCRIT"; glist S1 C1; gadd S1 "- Graders: \`$GRADER\`"
+pass 'the grader in the Graders line of the listing slice'
+gcase "$GCRIT"; glist S1 C1; glist S2 C1; gadd S2 "- Graders: \`$GRADER\`"
+pass 'two slices list the criterion and only one holds the grader'
+gcase "$GCRIT"; glist S1 C1; gadd S1 "- Graders: \`rg -c 'foo' a.md.bak\`"
+refuse 'a Graders line that holds only a longer grader' "criterion C1 has the grader \`$GRADER\`"
+gcase "$GCRIT"; glist S1 C1; gadd S2 "- Graders: \`$GRADER\`"
+refuse 'the grader in a slice that does not list the criterion' "criterion C1 has the grader \`$GRADER\`"
+gcase "$GCRIT"; glist S1 C1; gadd S1 "- Check: \`$GRADER\`"
+refuse 'the grader in a Check line only' "criterion C1 has the grader \`$GRADER\`"
+# A grader with backticks inside its quotes is one grader.
+NESTED="rg -c -F 'as type \`x\` (y)' f.md"
+gcase "- C1: nested. \`$NESTED\` prints 1."; glist S1 C1; gadd S1 "- Graders: \`$NESTED\`"
+pass 'a nested grader held whole'
+gcase "- C1: nested. \`$NESTED\` prints 1."; glist S1 C1; gadd S1 "- Graders: \`rg -c -F 'as type \`"
+refuse 'a nested grader held only as its first part' "criterion C1 has the grader \`$NESTED\`"
+gcase '- C1: one. `rg -c` prints a count.'; glist S1 C1
+pass 'a rg span with no pattern word is no grader'
+gcase "- C1: a case input \"$GRADER\" in double quotes."; glist S1 C1
+pass 'a case input in double quotes is no grader'
+gcase "- C1: foo. \`$GRADER\` prints 1."
+printf '\n## Criteria map\n\nC1 is proven by a.md.\n' >> "$run/plan.md"
+refuse 'a grader that only the Criteria map names' 'no slice lists C1'
+gcase $'- C1: a\n- C2: foo. `rg -c \'foo\' a.md` prints 1.\n- C3: b'; glist S1 'C1 to C3'
+refuse 'a range of the heading lists the criterion' 'criterion C2 has the grader'
+gcase $'- C1: a\n- C2: foo. `rg -c \'foo\' a.md` prints 1.\n- C3: b'; glist S1 'C1-C3'; gadd S1 "- Graders: \`$GRADER\`"
+pass 'a range with a hyphen and the grader held'
+gcase "$GCRIT"; gadd S1 '- Criteria: C1, C9'
+refuse 'a Criteria line lists the criterion' "criterion C1 has the grader \`$GRADER\`"
+gcase "$GCRIT"; gadd S1 '- Criteria: C1'; gadd S1 "- Graders: \`$GRADER\`"
+pass 'a Criteria line and a Graders line'
+gcase "$GCRIT" 2026-11-18T23:59; glist S1 C1
+pass 'a run whose first row is older than the graders cutoff'
+gcase "$GCRIT" 2026-11-19T00:00; glist S1 C1
+refuse 'a run whose first row is at the graders cutoff' "criterion C1 has the grader \`$GRADER\`"
+# The real forms: the C11 grader of upkeep-twentysecond sat only in its analysis, and the C14 grader of
+# marquee-select sat in a Negative control sentence. Each plan lists its criterion and runs no grader.
+gcase "- C11 (1547) \`scripts/eval/grade.py verdict\` prints \`below <ID>: old <p>/<r>, new <p>/<r>: rerun due\` in place of FAIL. \`rg -c -F 'pooled <id>' scripts/eval/grade.py\` prints nothing at the base and 1 or more after. The pass rule names it: \`rg -c 'below <id>: old' docs/workflow/evals.md\` prints nothing at the base and 1 after."
+glist S1 'a small-sample retention drop is rerun due, not a fail (item 1547; C11, C20)'
+refuse 'the C11 form of upkeep-twentysecond' "criterion C11 has the grader \`rg -c -F 'pooled <id>' scripts/eval/grade.py\`"
+gcase "- C14 The guide states the marquee. \`rg -c 'Shift-drag to make the selection larger' docs/guide.md\` prints nothing (base: 1, line 204). \`rg -c -i 'marquee' docs/guide.md\` prints 1 or more."
+glist S1 'the budget, the layer, and the window'; gadd S1 '- Criteria: C11, C12, C13, C14 (the guide part; the record part is S3).'
+gadd S1 "- Negative control: \`rg -c 'Shift-drag to make the selection larger' docs/guide.md\` prints 1 before the guide edit."
+refuse 'the C14 form of marquee-select' "criterion C14 has the grader \`rg -c 'Shift-drag to make the selection larger' docs/guide.md\`"
 
 # The decision number of a record that the plan makes. A fixture repo holds a copy of the script and
 # of wiki.py, and docs/decisions/0042-old.md on origin/main. The temp wiki holds the numbers.

@@ -104,6 +104,14 @@
 #   tolerance are no budget. The rule reads the current line only, so a criterion change that drops
 #   the bench or the budget passes. A run whose first decisions.tsv row is older than
 #   bench_stat_cutoff is not checked.
+# - A criterion line of the `## Acceptance criteria` section of analysis.md (its indented lines
+#   count) has each backticked rg grader copied whole to the `- Graders:` line of a slice that lists
+#   the ID. A grader is a span that starts with `rg ` and has a word after it that does not start
+#   with `-`; it ends at the next backtick outside a quoted argument, so a pattern with backticks in
+#   quotes stays whole. A slice lists an ID in its `###` heading or a `- Criteria:` line, alone or in
+#   a range (`C2 to C5`, `C2-C5`). The `## Criteria map` does not list. A criterion writes a case
+#   input in double quotes, so it is no grader. A run whose first decisions.tsv row is older than
+#   graders_cutoff is not checked. No check proves that a slice runs its graders.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -118,6 +126,8 @@ fixline_cutoff=2026-11-02T04:58
 quote_cutoff=2026-11-03T00:00
 # The same for the rule that a bench criterion with a time value names a statistic word.
 bench_stat_cutoff=2026-11-18T21:30
+# The same for the rule that a slice copies the rg graders of its criteria to a - Graders: line.
+graders_cutoff=2026-11-19T00:00
 
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
 # lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
@@ -429,6 +439,113 @@ else
                         print "analysis.md: criterion " id " names a bench and a time budget with no statistic word (p50, p90, p95, p99, median, or max); name the statistic that the bench measures over its span, for example \"p95 of FooBenchmark at most 8 ms\""
                         break
                     }
+            }' "$run/analysis.md")
+    fi
+    if [[ -f "$run/analysis.md" && -f "$run/plan.md" && ( -z "$start" || ! "$start" < "$graders_cutoff" ) ]]; then
+        while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" '
+            function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+            # parse(id): prefix gp, number gn, and lower-case suffix gs of a criterion ID.
+            function parse(id) {
+                gp = id; sub(/[0-9]+[a-z]*$/, "", gp)
+                gn = id; sub(/^[A-Z]+/, "", gn); gn += 0
+                gs = id; sub(/^[A-Z]+[0-9]+/, "", gs)
+            }
+            # graders(s, out): fill out[1..n] with each rg grader of s, and return n. A span opens at a
+            # backtick and starts with "rg ". It ends at the next backtick outside a quoted argument, or at
+            # the next backtick when a quote stays open. A span with no word after rg that does not start
+            # with "-" (rg -c) is no grader.
+            function graders(s, out,  n, len, i, j, c, q, t, k, w, m, ok) {
+                split("", out); n = 0; len = length(s); i = 1
+                while (i <= len) {
+                    if (substr(s, i, 1) != "`") { i++; continue }
+                    if (substr(s, i + 1, 3) != "rg ") {
+                        j = index(substr(s, i + 1), "`")
+                        if (!j) break
+                        i += j + 1; continue
+                    }
+                    q = ""; j = i + 1
+                    while (j <= len) {
+                        c = substr(s, j, 1)
+                        if (q != "") { if (c == q) q = "" }
+                        else if (c == sq || c == dq) q = c
+                        else if (c == "`") break
+                        j++
+                    }
+                    if (j > len) { j = index(substr(s, i + 1), "`"); if (!j) break; j += i }
+                    t = trim(substr(s, i + 1, j - i - 1)); i = j + 1
+                    k = split(substr(t, 3), w, /[[:space:]]+/); ok = 0
+                    for (m = 1; m <= k; m++) if (w[m] != "" && w[m] !~ /^-/) ok = 1
+                    if (ok) out[++n] = t
+                }
+                return n
+            }
+            # ranges(s): the ranges "C2 to C5" and "C2-C5" of the listing text of slice s.
+            function ranges(s,  rest, r, e, p, ln, lsf) {
+                rest = ltext[s]
+                while (match(rest, /[A-Z]+[0-9]+[a-z]*( to |-)[A-Z]+[0-9]+[a-z]*/)) {
+                    r = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+                    gsub(/ to |-/, " ", r); split(r, e, " ")
+                    parse(e[1]); p = gp; ln = gn; lsf = gs
+                    parse(e[2])
+                    if (p != gp) continue
+                    nr[s]++; rp[s, nr[s]] = p; lo[s, nr[s]] = ln; los[s, nr[s]] = lsf; hi[s, nr[s]] = gn; his[s, nr[s]] = gs
+                }
+            }
+            # lists(s, id): the ### heading or a "- Criteria:" line of slice s names id, alone or in a range.
+            function lists(s, id,  k) {
+                if (ltext[s] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) return 1
+                parse(id)
+                for (k = 1; k <= nr[s]; k++)
+                    if (rp[s, k] == gp && (gn > lo[s, k] || (gn == lo[s, k] && gs >= los[s, k])) && (gn < hi[s, k] || (gn == hi[s, k] && (his[s, k] == "" || gs <= his[s, k])))) return 1
+                return 0
+            }
+            BEGIN {
+                sq = "\047"; dq = "\""
+                while ((getline line < plan) > 0) {
+                    if (line ~ /^## /) { inslices = (line ~ /^## Slices([[:space:]].*)?$/); mode = ""; continue }
+                    if (!inslices) continue
+                    if (line ~ /^### /) { ns++; ltext[ns] = line; gline[ns] = ""; mode = ""; continue }
+                    if (!ns) continue
+                    if (line ~ /^- Criteria:/) { ltext[ns] = ltext[ns] "\n" line; mode = "c"; continue }
+                    if (line ~ /^- Graders:/) { gline[ns] = gline[ns] " " line; mode = "g"; continue }
+                    if (line ~ /^[[:space:]]+[^[:space:]]/ && mode == "c") { ltext[ns] = ltext[ns] "\n" line; continue }
+                    if (line ~ /^[[:space:]]+[^[:space:]]/ && mode == "g") { gline[ns] = gline[ns] " " line; continue }
+                    mode = ""
+                }
+                close(plan)
+                for (s = 1; s <= ns; s++) {
+                    ranges(s)
+                    n = graders(gline[s], g)
+                    for (m = 1; m <= n; m++) held[s, g[m]] = 1
+                }
+            }
+            /^## / { inside = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); cur = ""; next }
+            inside {
+                if ($0 ~ /^[[:space:]]*$/) next
+                if ($0 ~ /^[[:space:]]/) { if (cur != "") ctext[cur] = ctext[cur] " " $0; next }
+                cur = ""
+                if ($0 !~ /^(- |[0-9]+\. |\|)/) next
+                t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
+                id = substr(t, 1, RLENGTH)
+                if (id in ctext) next
+                cur = id; order[++no] = id; ctext[id] = $0
+            }
+            END {
+                fix = "copy the grader whole to the \"- Graders:\" line of a slice that lists the criterion, or write a case input in double quotes"
+                for (o = 1; o <= no; o++) {
+                    id = order[o]; n = graders(ctext[id], g)
+                    for (m = 1; m <= n; m++) {
+                        if ((id SUBSEP g[m]) in done) continue
+                        done[id, g[m]] = 1
+                        owners = 0; ok = 0
+                        for (s = 1; s <= ns; s++) if (lists(s, id)) { owners++; if ((s, g[m]) in held) ok = 1 }
+                        if (!owners)
+                            print "analysis.md: criterion " id " has the grader `" g[m] "`, and no slice lists " id " in its ### heading or its \"- Criteria:\" line; " fix
+                        else if (!ok)
+                            print "analysis.md: criterion " id " has the grader `" g[m] "`, and no slice that lists " id " holds it in a \"- Graders:\" line; " fix
+                    }
+                }
             }' "$run/analysis.md")
     fi
     # Cutoff 2026-10-24T10:00, the commit that added the Landings rule: a run that started earlier passes without it.

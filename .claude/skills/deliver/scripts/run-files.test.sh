@@ -519,7 +519,7 @@ p7_run p7-old 2026-10-01T10:00
 
 # A phase 6 row that reports a fix check needs a line in the ## Fix check of the last review-diff-<n>.md
 # for each Act on item that the row checks: a close row checks each item, another row checks the
-# <round>.<item> words that equal an item (an "a to b" range of one round expanded), else each item.
+# <round>.<item> words that equal an item (an "a to b" or "a-b" range of one round expanded), else each item.
 # A row that only says the fix check is still to come needs none. A criterion change row skips the check.
 fc_run() { # <name> <Act on item count> <Fix check lines or empty>: a run with a plan, dated now
   local d="$tmp/$1" i
@@ -569,8 +569,14 @@ done
 # A row that says the fix check is still to come, or that is no report of one, needs no line.
 for form in 'code gate round 1 verdict: 3 Act on, no critical; the lead runs the fix check' \
   'default: the work waits for the fix check' 'gate fix 1.2 committed before the fix check' \
-  'code gate closed in name only: the gate is not closed yet' 'Fix the Act-on item of code gate 1'; do
+  'code gate closed in name only: the gate is not closed yet' 'Fix the Act-on item of code gate 1' \
+  'fix check pending: gate fixes 1.1 committed' 'fix check of 1.1 to come after the build' 'fix check started' \
+  'code gate 1 fix check waits for the lock' 'L2 fix check next' 'fix check of 1.1-1.1 is pending'; do
   fc_accepted "the row '$form'" fc-forms "$form"
+done
+# A to-come word with a result word is a report.
+for form in 'fix check after the gate fix: 1.1 ok' 'fix check of 1.1 after the build: the fix holds' 'fix check pending; 1.1 fails'; do
+  fc_refused "the row '$form'" fc-forms "$form" 1.1
 done
 sed 's/^- C1: the meter moves\./- C1: the meter moves at 24 fps./' "$tmp/fc-forms/analysis.md" > "$tmp/fc-forms/analysis.new" && mv "$tmp/fc-forms/analysis.new" "$tmp/fc-forms/analysis.md"
 fc_accepted 'a criterion change row that names a fix check' fc-forms 'criterion change C1: old the meter moves, new the meter moves at 24 fps; fix check of 1.1'
@@ -595,6 +601,9 @@ fc_accepted 'fix check of 1.1 and 1.2' fc-three 'fix check of 1.1 and 1.2: ok'
 fc_run fc-range 3 "- 1.1 OK$FCL- 1.3 OK$FCL"
 fc_refused 'fix check of 1.1 to 1.3, with no line for 1.2' fc-range 'fix check of 1.1 to 1.3: ok' 1.2 1.3
 fc_accepted 'fix check of 1.3 on swift 6.2' fc-range 'fix check of 1.3 on swift 6.2: ok'
+fc_refused 'fix check of 1.1-1.3, with no line for 1.2' fc-range 'fix check of 1.1-1.3: ok' 1.2 1.3
+fc_refused 'fix check of 1.1 - 1.3, with no line for 1.2' fc-range 'fix check of 1.1 - 1.3: ok' 1.2 1.3
+fc_accepted 'fix check of 1.1-1.1' fc-range 'fix check of 1.1-1.1: ok'
 
 # A line with no new failure part refuses a row that checks its item. A row that names another item passes.
 fc_run fc-parts 2 "- 1.1 OK$FCL- 1.2 OK\n"

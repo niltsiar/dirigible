@@ -10,10 +10,21 @@
 #   (scripts/check-changed.sh gives it to a local run that needs the whole list). Else the script
 #   prints the reason and exits 1, before the key and the stamp reuse. Before the first test, the
 #   script unsets BASE, FILTER, SINCE, CHECK_RISK, HOOK_TESTS, MAKEFLAGS, MFLAGS, MAKELEVEL,
-#   GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE, and each variable that starts with WITH_LOCK_ or
-#   DIRIGIBLE_ (make and the caller put them in the environment of each recipe), so no hook test
-#   reads the context of its caller. PATH and HOME stay. A test that needs one of them sets it
-#   itself.
+#   GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE, HOOK_JOBS, HOOK_JOBS_PROBE, and each variable that
+#   starts with WITH_LOCK_ or DIRIGIBLE_ (make and the caller put them in the environment of each
+#   recipe), so no hook test reads the context of its caller. PATH and HOME stay, and so does
+#   HOOK_CASES (below). A test that needs one of them sets it itself.
+# Jobs: while the caller holds the build lock (DIRIGIBLE_BUILD_LOCK equals the pid in the lock
+#   folder of the git common dir), the script runs HOOK_JOBS tests at a time, else ncpu / 2 (at
+#   least 1). With no lock it runs 1 test at a time, and a HOOK_JOBS over 1 prints a line that says
+#   so: a lock-free call must not load the machine. HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock
+#   (a probe of the 4-job load). A HOOK_JOBS that is not a whole number of 1 or more exits 2, before
+#   the key. The job count is no part of the key. Each job slot has its own clone of the key
+#   commit, and each test runs in the process group of the script, with SIGINT at its default. The
+#   script prints "test-hooks: start <test>" at the start of a test, and the output of each test
+#   whole, in list order, after "test-hooks: <test> <passed|FAILED> in <s> s". The last line is
+#   "test-hooks: <N> tests in <s> s, <J> jobs". TERM or INT prints "test-hooks: stopped while
+#   <test> ran" and the last 20 lines of the log of each running test, and stops each of them.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
 # versions, and the date: a pass is good for one day. The tests run `bash` as /bin/bash (a link first
@@ -50,9 +61,33 @@ common="$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1
 stamp="$common/dirigible-hooks-stamp"
 sha="$(git rev-parse HEAD)" || exit 1
 today="$(date +%F)"
-# A killed run (no trap) leaves its key tree: remove each one over one hour old. A run takes about
-# 10 min, so the run of another worktree keeps its tree.
+# A killed run (no trap) leaves its key tree: remove each one over one hour old. A serial pass takes
+# about 47 min on an 8-core Mac and a pass in jobs less, so the run of another worktree keeps its
+# tree.
 find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exec rm -rf {} +
+
+# The job count. The variables are read here: the unset of the caller context below removes them.
+if [[ -n ${HOOK_JOBS+x} && ! $HOOK_JOBS =~ ^[1-9][0-9]*$ ]]; then
+    echo "test-hooks: HOOK_JOBS must be a whole number of 1 or more, not '$HOOK_JOBS'" >&2
+    exit 2
+fi
+holds_lock=no
+if [[ -n ${DIRIGIBLE_BUILD_LOCK:-} && "$(cat "$common/dirigible-build.lock/pid" 2>/dev/null)" == "$DIRIGIBLE_BUILD_LOCK" ]]; then
+    holds_lock=yes
+fi
+njobs=1
+if [[ $holds_lock == yes || ${HOOK_JOBS_PROBE:-} == 1 ]]; then
+    if [[ -n ${HOOK_JOBS+x} ]]; then
+        njobs=$HOOK_JOBS
+    elif [[ $holds_lock == yes ]]; then
+        ncpu="$(sysctl -n hw.ncpu 2>/dev/null)"
+        [[ $ncpu =~ ^[0-9]+$ ]] || { echo "test-hooks: sysctl -n hw.ncpu gave no number; set HOOK_JOBS" >&2; exit 1; }
+        njobs=$((ncpu / 2))
+        [[ $njobs -ge 1 ]] || njobs=1
+    fi
+elif [[ -n ${HOOK_JOBS+x} && $HOOK_JOBS -gt 1 ]]; then
+    echo "test-hooks: HOOK_JOBS=$HOOK_JOBS needs the build lock; 1 job"
+fi
 
 if [[ -n ${HOOK_CASES:-} && ( ${DIRIGIBLE_PUSH_CHECK:-} == 1 || ${DIRIGIBLE_HOOKS_ALL:-} == 1 ) ]]; then
     echo "test-hooks: HOOK_CASES is set, and a push check or a hooks pass runs every hook case. Unset HOOK_CASES." >&2
@@ -138,44 +173,115 @@ if [[ -z $reason ]] && grep -q "^$key " "$stamp" 2>/dev/null; then
     exit 0
 fi
 # The key and the stamp are read: remove the context of the caller before the clone and the tests.
-unset BASE FILTER SINCE CHECK_RISK HOOK_TESTS MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+unset BASE FILTER SINCE CHECK_RISK HOOK_TESTS MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE HOOK_JOBS HOOK_JOBS_PROBE
 for v in $(compgen -v WITH_LOCK_) $(compgen -v DIRIGIBLE_); do unset "$v"; done
 # A commit of the key tree, so the checkout has a clean status.
 keycommit="$(GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t \
     git commit-tree "$tree" -m key)" || exit 1
-git clone -q --shared --no-checkout "$common" "$work/tree" \
-    && git -C "$work/tree" sparse-checkout set --no-cone '/*' '!/Sources/' '!/Tests/' '!/docs/' '!/README.md' \
-        $(sed 's|^|/|' <<< "$floor") \
-    && git -C "$work/tree" checkout -q --detach "$keycommit" || exit 1
-cd "$work/tree" || exit 1
-# The key holds only the existence of a floor path, so a test that reads floor content fails.
-find $floor -type f | while IFS= read -r f; do : > "$f"; done
+tests=("$@")
+total=$#
+echo "test-hooks: $total tests, $njobs jobs"
+# One clone for each job slot, so two tests that run at once never share a work tree or a git dir.
+slots=$((njobs < total ? njobs : total))
+[[ $slots -ge 1 ]] || slots=1
+for s in $(seq "$slots"); do
+    git clone -q --shared --no-checkout "$common" "$work/tree$s" \
+        && git -C "$work/tree$s" sparse-checkout set --no-cone '/*' '!/Sources/' '!/Tests/' '!/docs/' '!/README.md' \
+            $(sed 's|^|/|' <<< "$floor") \
+        && git -C "$work/tree$s" checkout -q --detach "$keycommit" || exit 1
+    # The key holds only the existence of a floor path, so a test that reads floor content fails.
+    (cd "$work/tree$s" && find $floor -type f | while IFS= read -r f; do : > "$f"; done)
+done
 # A hook test calls bash by name, and the first bash on the PATH can be a newer one than the 3.2
 # of macOS. The tests must run on /bin/bash.
 mkdir "$work/bin" && ln -s /bin/bash "$work/bin/bash" || exit 1
 export PATH="$work/bin:$PATH"
+command -v perl > /dev/null || { echo "test-hooks: perl is missing; the runner needs it to start each test with SIGINT at its default" >&2; exit 1; }
 
-# The output of each test goes to the log of the caller and to a file, so the summary can repeat
-# the end of each failed test.
+# The output of each test goes to a file of its own, and the runner prints it whole in list order.
 logs="$(mktemp -d)" || exit 1
 trap 'rm -rf "$logs" "$work"' EXIT
-failed=() n=0
-for t in "$@"; do
-    n=$((n + 1))
-    status=0
-    "$t" 2>&1 | tee "$logs/$n.log" || status=1
-    if [[ $status -ne 0 ]] || grep -qE ': command not found$' "$logs/$n.log"; then failed+=("$n"); fi
+# The free job slots: a finished job writes its slot number to this fifo, and the runner reads one
+# to start the next test. The runner holds the fifo open for read and write, so a write never blocks.
+mkfifo "$logs/slots" && exec 9<> "$logs/slots" || exit 1
+pids=()
+kill_tree() {
+    local child
+    for child in $(pgrep -P "$1" 2> /dev/null); do kill_tree "$child"; done
+    kill -TERM "$1" 2> /dev/null
+}
+# launch <test index> <slot>: start one test in the clone of the slot, in the process group of the
+# runner, so a TERM or a KILL to the group reaches it. A job that the shell starts in the
+# background gets SIGINT ignored, and a test would inherit that: perl puts the default back.
+launch() {
+    local i=$1 slot=$2
+    echo "test-hooks: start ${tests[i]}"
+    : > "$logs/$i.log"
+    (
+        begin=$SECONDS status=0
+        cd "$work/tree$slot" \
+            && perl -e '$SIG{INT} = $SIG{QUIT} = "DEFAULT"; exec @ARGV or die "exec $ARGV[0]: $!\n"' "${tests[i]}" \
+                > "$logs/$i.log" 2>&1 9>&- || status=$?
+        echo $((SECONDS - begin)) > "$logs/$i.time"
+        echo "$status" > "$logs/$i.status"
+        echo "$slot" >&9
+    ) &
+    pids[i]=$!
+}
+# A signal: name each test that still runs, show the end of its log, and stop it.
+stop() {
+    trap '' INT TERM
+    local i
+    for ((i = 0; i < next; i++)); do
+        [[ -e "$logs/$i.status" ]] && continue
+        echo "test-hooks: stopped while ${tests[i]} ran"
+        tail -n 20 "$logs/$i.log"
+        kill_tree "${pids[i]}"
+    done
+    exit "$1"
+}
+failed=() next=0 printed=0
+run_start=$SECONDS
+for s in $(seq "$slots"); do echo "$s" >&9; done
+signaled=0
+trap 'signaled=130' INT
+trap 'signaled=143' TERM
+# A trap runs inside a read that waits, and the alarm of the limit of that read can cut the trap
+# short: a trap only sets the variable, and the loop calls stop after each read. The limit of 1 s
+# also bounds the time to see the signal.
+while [[ $printed -lt $total ]]; do
+    got=1
+    read -r -t 1 -u 9 slot || got=0
+    [[ $signaled -eq 0 ]] || stop "$signaled"
+    if [[ $got -eq 1 && $next -lt $total ]]; then
+        launch "$next" "$slot"
+        next=$((next + 1))
+    fi
+    while [[ $printed -lt $total && -e "$logs/$printed.status" ]]; do
+        word=passed
+        if [[ "$(cat "$logs/$printed.status")" -ne 0 ]] || grep -qE ': command not found$' "$logs/$printed.log"; then
+            failed+=("$printed")
+            word=FAILED
+        fi
+        echo "test-hooks: ${tests[printed]} $word in $(cat "$logs/$printed.time") s"
+        cat "$logs/$printed.log"
+        printed=$((printed + 1))
+    done
 done
+trap 'exit 130' INT
+trap 'exit 143' TERM
+time_line="test-hooks: $total tests in $((SECONDS - run_start)) s, $njobs jobs"
 if [[ ${#failed[@]} -gt 0 ]]; then
     names=()
-    for n in "${failed[@]}"; do names+=("${!n}"); done
-    echo "test-hooks: ${#failed[@]} of $# failed: ${names[*]}"
-    for n in "${failed[@]}"; do
-        line="$(grep -m1 -E ': command not found$' "$logs/$n.log" || true)"
-        [[ -z $line ]] || echo "test-hooks: ${!n} printed a command not found line: $line"
-        echo "test-hooks: the last 40 lines of ${!n}:"
-        tail -n 40 "$logs/$n.log"
+    for i in "${failed[@]}"; do names+=("${tests[i]}"); done
+    echo "test-hooks: ${#failed[@]} of $total failed: ${names[*]}"
+    for i in "${failed[@]}"; do
+        line="$(grep -m1 -E ': command not found$' "$logs/$i.log" || true)"
+        [[ -z $line ]] || echo "test-hooks: ${tests[i]} printed a command not found line: $line"
+        echo "test-hooks: the last 40 lines of ${tests[i]}:"
+        tail -n 40 "$logs/$i.log"
     done
+    echo "$time_line"
     exit 1
 fi
 if [[ -n $reason ]]; then
@@ -185,3 +291,4 @@ else
     { grep " $today\$" "$stamp" 2>/dev/null; echo "$key $sha $today"; } > "$stamp.new" && mv "$stamp.new" "$stamp"
     echo "test-hooks: wrote $key"
 fi
+echo "$time_line"

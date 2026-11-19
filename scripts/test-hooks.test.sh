@@ -13,7 +13,8 @@
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 # A make value of an outer run (make test-hooks) must not reach the stub make.
-unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE SINCE DIRIGIBLE_PUSH_CHECK DIRIGIBLE_HOOKS_ALL
+unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE SINCE DIRIGIBLE_PUSH_CHECK DIRIGIBLE_HOOKS_ALL \
+    HOOK_CASES HOOK_JOBS HOOK_JOBS_PROBE
 # The whole list runs only with a switch. The cases of C1 to C5 run it, so they hold the switch of a
 # person; the cases of C6 take it away.
 export DIRIGIBLE_FULL_SUITE=1
@@ -28,6 +29,7 @@ printf '#!/bin/bash\necho "Xcode 26.3"\n' > "$tmp/bin/xcodebuild"
 printf '#!/bin/bash\necho "jq-${FAKE_JQ}"\n' > "$tmp/bin/jq"
 printf '#!/bin/bash\necho "ProductVersion: 15.6"\n' > "$tmp/bin/sw_vers"
 printf '#!/bin/bash\n[[ "$*" == +%%F ]] || { echo "fake date: $*" >&2; exit 2; }\necho "$FAKE_DATE"\n' > "$tmp/bin/date"
+printf '#!/bin/bash\n[[ "$*" == "-n hw.ncpu" ]] || { echo "fake sysctl: $*" >&2; exit 2; }\necho "$FAKE_NCPU"\n' > "$tmp/bin/sysctl"
 chmod +x "$tmp/bin/"*
 export PATH="$tmp/bin:$PATH"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -58,7 +60,7 @@ new_repo() {
         echo x > "$repo/$f"
     done
     commit init
-    export FAKE_SWIFT=6.2.4 FAKE_JQ=1.7.1 FAKE_DATE=2026-10-12
+    export FAKE_SWIFT=6.2.4 FAKE_JQ=1.7.1 FAKE_DATE=2026-10-12 FAKE_NCPU=8
 }
 commit() { git -C "$repo" add -A && git -C "$repo" commit -qm "$1"; }
 # run [make arguments]: make test-hooks in the stub repo. The output goes to $tmp/out, the exit
@@ -502,6 +504,205 @@ want="$(/bin/bash -c 'echo "$BASH_VERSION"')"
 code=$?
 [[ $code -eq 0 && $(ran) -eq 2 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
     || fail "PATH bash: another PATH bash did not reuse the pass: code $code, ran $(ran): $(out)"
+
+# Jobs: under the build lock the runner runs up to ncpu / 2 tests at a time. The cases fake the lock
+# (a lock folder with a pid file in the git dir, and the same value in DIRIGIBLE_BUILD_LOCK) and
+# sysctl (FAKE_NCPU).
+lock_value=4242
+fake_lock() { mkdir -p "$repo/.git/dirigible-build.lock" && echo "$lock_value" > "$repo/.git/dirigible-build.lock/pid"; }
+# pair_stub <name> <other>: a stub test that records its clone, writes its mark, and waits up to
+# HOOKS_WAIT tenths of a second for the mark of the other test, which it fails without.
+pair_stub() {
+    cat <<'STUB' | sed "s/NAME/$1/g; s/OTHER/$2/g"
+#!/bin/bash
+echo NAME >> "$HOOKS_LOG"
+git rev-parse --show-toplevel > "$HOOKS_MARKS/top-NAME"
+git rev-parse --path-format=absolute --git-common-dir > "$HOOKS_MARKS/common-NAME"
+touch "$HOOKS_MARKS/NAME"
+for _ in $(seq "$HOOKS_WAIT"); do [[ -e "$HOOKS_MARKS/OTHER" ]] && exit 0; sleep 0.1; done
+exit 1
+STUB
+}
+pair_repo() {
+    new_repo
+    pair_stub a b > "$repo/t/a.test.sh"
+    pair_stub b a > "$repo/t/b.test.sh"
+    commit pair
+    rm -rf "$tmp/marks" && mkdir "$tmp/marks"
+}
+locked=(DIRIGIBLE_BUILD_LOCK="$lock_value" DIRIGIBLE_FULL_SUITE=1)
+marks=(HOOKS_MARKS="$tmp/marks")
+
+# Jobs C1: two tests that wait for the mark of each other pass with 2 jobs, and one job fails the
+# first of them.
+pair_repo; fake_lock
+run_with "${locked[@]}" "${marks[@]}" HOOK_JOBS=2 HOOKS_WAIT=150 --
+[[ $code -eq 0 && $(ran) -eq 2 ]] || fail "(jobs C1) two tests at 2 jobs did not run at once: code $code, ran $(ran): $(out)"
+pair_repo; fake_lock
+run_with "${locked[@]}" "${marks[@]}" HOOK_JOBS=1 HOOKS_WAIT=20 --
+[[ $code -ne 0 ]] && grep -q '^test-hooks: 1 of 2 failed: t/a.test.sh$' "$tmp/out" \
+    || fail "(jobs C1) two tests at 1 job: code $code: $(out)"
+
+# Jobs C2: the job count. expect_jobs <name> <want> <lock: held|other|none|novar> <env word>...
+jobs_line() { sed -n 's/^test-hooks: [0-9]* tests, \([0-9]*\) jobs$/\1/p' "$tmp/out"; }
+expect_jobs() {
+    local name="$1" want="$2" mode="$3"
+    shift 3
+    new_repo
+    local lockenv=("DIRIGIBLE_BUILD_LOCK=$lock_value" DIRIGIBLE_FULL_SUITE=1)
+    case "$mode" in
+        held) fake_lock ;;
+        other) fake_lock; lockenv=("DIRIGIBLE_BUILD_LOCK=$((lock_value + 1))" DIRIGIBLE_FULL_SUITE=1) ;;
+        none) ;;
+        novar) fake_lock; lockenv=(DIRIGIBLE_FULL_SUITE=1) ;;
+    esac
+    run_with "${lockenv[@]}" "$@" --
+    [[ $code -eq 0 && "$(jobs_line)" == "$want" ]] || fail "(jobs C2) $name: want $want jobs: code $code, got [$(jobs_line)]: $(out)"
+}
+expect_jobs 'lock held, 8 cpus' 4 held
+expect_jobs 'lock held, 1 cpu' 1 held FAKE_NCPU=1
+expect_jobs 'lock held, 3 cpus' 1 held FAKE_NCPU=3
+expect_jobs 'a pid that is not the lock pid' 1 other
+expect_jobs 'no lock folder' 1 none
+expect_jobs 'no lock variable' 1 novar
+expect_jobs 'HOOK_JOBS=3 under the lock' 3 held HOOK_JOBS=3
+expect_jobs 'HOOK_JOBS=1 under the lock' 1 held HOOK_JOBS=1
+expect_jobs 'HOOK_JOBS=3 with no lock' 1 none HOOK_JOBS=3
+grep -qxF 'test-hooks: HOOK_JOBS=3 needs the build lock; 1 job' "$tmp/out" \
+    || fail "(jobs C2) HOOK_JOBS=3 with no lock: no needs-the-lock line: $(out)"
+expect_jobs 'HOOK_JOBS=3 with the probe override and no lock' 3 none HOOK_JOBS=3 HOOK_JOBS_PROBE=1
+for bad in 0 x 01 -1 2.5 ''; do
+    new_repo; fake_lock
+    run_with "${locked[@]}" "HOOK_JOBS=$bad" --
+    [[ $code -eq 2 && $(ran) -eq 0 && $(stamps) -eq 0 ]] && grep -q 'HOOK_JOBS' "$tmp/out" \
+        || fail "(jobs C2) HOOK_JOBS='$bad' did not exit 2 with a message: code $code, ran $(ran): $(out)"
+done
+
+# Jobs C3: each test prints a start line at once. The output of a test comes as one block after its
+# status line, in list order, also when the second test ends first.
+new_repo; fake_lock
+printf '#!/bin/bash\nfor _ in $(seq 150); do [[ -e "$HOOKS_MARKS/b-end" ]] && break; sleep 0.1; done\necho a-out-1\necho a-out-2\n' > "$repo/t/a.test.sh"
+printf '#!/bin/bash\necho b-out-1\necho b-out-2\ntouch "$HOOKS_MARKS/b-end"\n' > "$repo/t/b.test.sh"
+commit order
+rm -rf "$tmp/marks" && mkdir "$tmp/marks"
+run_with "${locked[@]}" "${marks[@]}" HOOK_JOBS=2 --
+got="$(grep -E '^(test-hooks: (start|t/)|[ab]-out)' "$tmp/out" | sed 's/ in [0-9]* s$/ in S s/' | tr '\n' '|')"
+want='test-hooks: start t/a.test.sh|test-hooks: start t/b.test.sh|test-hooks: t/a.test.sh passed in S s|a-out-1|a-out-2|test-hooks: t/b.test.sh passed in S s|b-out-1|b-out-2|'
+[[ $code -eq 0 && $got == "$want" ]] || fail "(jobs C3) the order of the lines: code $code, got [$got]"
+tail -n 1 "$tmp/out" | grep -qE '^test-hooks: 2 tests in [0-9]+ s, 2 jobs$' || fail "(jobs C3) the last line is not the time line: $(tail -n 1 "$tmp/out")"
+
+# Jobs C4: the summary and the exit status are those of one job: with 3 tests at 2 jobs, a red
+# second test and a third test that prints a command not found line exit 1, name both in list order,
+# print the last 40 lines of each, and write no stamp.
+new_repo; fake_lock
+printf '#!/bin/bash\necho b >> "$HOOKS_LOG"\nfor i in $(seq 50); do echo "b line $i"; done\nexit 1\n' > "$repo/t/b.test.sh"
+printf '#!/bin/bash\necho c >> "$HOOKS_LOG"\nfor i in $(seq 49); do echo "c line $i"; done\necho "line 3: nosuchtool: command not found"\n' > "$repo/t/c.test.sh"
+chmod +x "$repo/t/c.test.sh"
+printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh \\\n\tt/c.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
+commit three-red
+run_with "${locked[@]}" HOOK_JOBS=2 --
+[[ $code -ne 0 && $(stamps) -eq 0 ]] && grep -qx 'test-hooks: 2 of 3 failed: t/b.test.sh t/c.test.sh' "$tmp/out" \
+    && grep -qxF 'test-hooks: t/c.test.sh printed a command not found line: line 3: nosuchtool: command not found' "$tmp/out" \
+    || fail "(jobs C4) two red tests at 2 jobs: code $code, stamps $(stamps): $(out)"
+sed -n '/^test-hooks: 2 of 3 failed/,$p' "$tmp/out" > "$tmp/tail"
+grep -qx 'b line 50' "$tmp/tail" && grep -qx 'b line 11' "$tmp/tail" && ! grep -qx 'b line 10' "$tmp/tail" \
+    && grep -qx 'c line 49' "$tmp/tail" && grep -qx 'c line 11' "$tmp/tail" && ! grep -qx 'c line 10' "$tmp/tail" \
+    || fail "(jobs C4) the last 40 lines of each red test: $(tr '\n' '|' < "$tmp/tail")"
+
+# Jobs C5: TERM stops both running tests: the stopped line and the last lines of each test print,
+# no test process stays, no key tree stays, and the exit is 143. A TERM to the process group and a
+# TERM to the script alone give the same result.
+stop_case() { # <name> <group|script>
+    local name="$1" target="$2" s
+    new_repo; fake_lock
+    for n in a b; do
+        printf '#!/bin/bash\necho %s-line\nsleep 120 &\necho $! > "$HOOKS_MARKS/%s.sleep"\ntouch "$HOOKS_MARKS/%s"\nwait\n' "$n" "$n" "$n" > "$repo/t/$n.test.sh"
+    done
+    commit hang
+    rm -rf "$tmp/marks" && mkdir "$tmp/marks"
+    git -C "$repo" config --list --show-origin > "$tmp/config-before"
+    git -C "$repo" worktree list > "$tmp/worktrees-before"
+    set -m
+    (cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" HOOKS_MARKS="$tmp/marks" DIRIGIBLE_BUILD_LOCK="$lock_value" HOOK_JOBS=2 \
+        exec scripts/test-hooks.sh t/a.test.sh t/b.test.sh) > "$tmp/out" 2>&1 &
+    pid=$!
+    set +m
+    for _ in $(seq 300); do [[ -e "$tmp/marks/a" && -e "$tmp/marks/b" ]] && break; sleep 0.1; done
+    [[ -e "$tmp/marks/a" && -e "$tmp/marks/b" ]] || { fail "($name) both tests did not start in 30 s"; kill -KILL -- "-$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return; }
+    grep -qx 'test-hooks: start t/a.test.sh' "$tmp/out" && grep -qx 'test-hooks: start t/b.test.sh' "$tmp/out" \
+        || fail "($name) no start line of each test before the signal: $(out)"
+    if [[ $target == group ]]; then kill -TERM -- "-$pid" 2>/dev/null; else kill -TERM "$pid" 2>/dev/null; fi
+    for _ in $(seq 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    if kill -0 "$pid" 2>/dev/null; then
+        fail "($name) the script did not end in 10 s after the signal"
+        kill -KILL -- "-$pid" 2>/dev/null
+    fi
+    wait "$pid" 2>/dev/null
+    local rc=$?
+    [[ $rc -eq 143 ]] || fail "($name) exit $rc, want 143"
+    for n in a b; do
+        s="$(cat "$tmp/marks/$n.sleep" 2>/dev/null)"
+        if [[ -n $s ]] && kill -0 "$s" 2>/dev/null; then fail "($name) the sleep of test $n is alive"; kill -KILL "$s" 2>/dev/null; fi
+        grep -qx "test-hooks: stopped while t/$n.test.sh ran" "$tmp/out" && grep -qx "$n-line" "$tmp/out" \
+            || fail "($name) no stopped line or log line of test $n: $(out)"
+    done
+    same_state "$name"
+}
+stop_case '(jobs C5) a TERM to the process group' group
+stop_case '(jobs C5) a TERM to the script alone' script
+
+# Jobs C6: two tests that run at the same time run in two clones of the key commit, both in the
+# folder of the run and neither the repo.
+pair_repo; fake_lock
+run_with "${locked[@]}" "${marks[@]}" HOOK_JOBS=2 HOOKS_WAIT=150 --
+physical="$(cd "$repo" && pwd -P)"
+top_a="$(cat "$tmp/marks/top-a" 2>/dev/null)" top_b="$(cat "$tmp/marks/top-b" 2>/dev/null)"
+common_a="$(cat "$tmp/marks/common-a" 2>/dev/null)" common_b="$(cat "$tmp/marks/common-b" 2>/dev/null)"
+[[ $code -eq 0 && -n $top_a && $top_a != "$top_b" && $top_a == "$physical"/.git/dirigible-hooks-tree.*/* \
+    && $top_b == "$physical"/.git/dirigible-hooks-tree.*/* ]] \
+    || fail "(jobs C6) the two tests did not run in two clones of the run: code $code, [$top_a] [$top_b]: $(out)"
+[[ -n $common_a && $common_a != "$common_b" && $common_a != "$physical/.git" && $common_b != "$physical/.git" ]] \
+    || fail "(jobs C6) a clone shares the git dir of the repo or of the other clone: [$common_a] [$common_b]"
+
+# Jobs C7: the job count is no part of the key, a red pass at 2 jobs writes no stamp, and 5 tests at
+# 4 jobs each run once.
+new_repo; fake_lock
+run_with "${locked[@]}" HOOK_JOBS=1 --
+run_with "${locked[@]}" HOOK_JOBS=4 --
+[[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 1 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
+    || fail "(jobs C7) a pass at 4 jobs after a pass at 1 job did not reuse it: code $code, ran $(ran): $(out)"
+new_repo; fake_lock
+printf '#!/bin/bash\necho b >> "$HOOKS_LOG"\nexit 1\n' > "$repo/t/b.test.sh"
+commit red
+run_with "${locked[@]}" HOOK_JOBS=2 --
+[[ $code -ne 0 && $(ran) -eq 2 && $(stamps) -eq 0 ]] || fail "(jobs C7) a red pass at 2 jobs: code $code, ran $(ran), stamps $(stamps): $(out)"
+new_repo; fake_lock
+for n in c d e; do
+    printf '#!/bin/bash\necho %s >> "$HOOKS_LOG"\n' "$n" > "$repo/t/$n.test.sh"
+    chmod +x "$repo/t/$n.test.sh"
+done
+printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh \\\n\tt/c.test.sh \\\n\tt/d.test.sh \\\n\tt/e.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
+commit five-tests
+run_with "${locked[@]}" HOOK_JOBS=4 --
+[[ $code -eq 0 && $(ran) -eq 5 && "$(sort "$tmp/log" | tr '\n' ' ')" == 'a b c d e ' ]] \
+    || fail "(jobs C7) 5 tests at 4 jobs did not run each once: code $code, log [$(sort "$tmp/log" 2>&1 | tr '\n' ' ')]: $(out)"
+
+# Jobs C19: a hook test sees neither HOOK_JOBS nor HOOK_JOBS_PROBE of the caller.
+new_repo; fake_lock
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\necho "${HOOK_JOBS-unset} ${HOOK_JOBS_PROBE-unset}" > "$HOOKS_LOG.jobs"\n' > "$repo/t/a.test.sh"
+commit jobs-env
+run_with "${locked[@]}" HOOK_JOBS=2 HOOK_JOBS_PROBE=1 --
+[[ $code -eq 0 && "$(cat "$tmp/log.jobs" 2>/dev/null)" == 'unset unset' ]] \
+    || fail "(jobs C19) a hook test read HOOK_JOBS or HOOK_JOBS_PROBE: code $code, got [$(cat "$tmp/log.jobs" 2>&1)]: $(out)"
+
+# Jobs: a job starts with SIGINT at its default, as a test in the foreground does, so a test that
+# signals its own child with INT (set -m, as with-lock.test.sh) sees the child die with 130.
+new_repo; fake_lock
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\nset -m\nsh -c '\''kill -INT $$; echo survived'\'' > /dev/null &\nwait $!\necho $? > "$HOOKS_LOG.int"\n' > "$repo/t/a.test.sh"
+commit int-child
+run_with "${locked[@]}" HOOK_JOBS=2 --
+[[ $code -eq 0 && "$(cat "$tmp/log.int" 2>/dev/null)" == 130 ]] \
+    || fail "(jobs INT) a child of a job test ignored INT: code $code, got [$(cat "$tmp/log.int" 2>&1)]: $(out)"
 
 [[ $failures -eq 0 ]] || { echo "$failures failure(s)"; exit 1; }
 echo "test-hooks.test.sh: all passed"

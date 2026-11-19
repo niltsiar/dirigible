@@ -126,10 +126,13 @@
 #   a range (`C2 to C5`, `C2-C5`). The `## Criteria map` does not list. A criterion writes a case
 #   input in double quotes, so it is no grader. A run whose first decisions.tsv row is older than
 #   graders_cutoff is not checked. No check proves that a slice runs its graders.
-# - A review-diff-<n>.md file with the line `review: lead` needs that line in review-plan-1.md, and
-#   `scripts/check-changed.sh origin/main`, run in the run tree, must print `review: lead`. The run tree is
-#   the worktree of the branch of the last `- Branch:` line of run.md, so the rule reads the run diff from any
-#   caller tree. It fails with no such tree and with no changed path there. It runs in each mode.
+# - A review-diff-<n>.md file with the line `review: lead <commit>` needs the line `review: lead` in
+#   review-plan-1.md, and `scripts/check-changed.sh origin/main`, run at <commit> in a detached worktree of the
+#   run tree, must print `review: lead`. <commit> is the commit that the code gate reviewed, so a later commit
+#   (the Phase 7 states, screenshots) does not change the verdict. A lead line with no commit, or with a commit
+#   that the run tree lacks, fails. The run tree is the worktree of the branch of the last `- Branch:` line of
+#   run.md, so the rule reads the run diff from any caller tree. It fails with no such tree and with no
+#   changed path there. It runs in each mode.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -1012,7 +1015,7 @@ else
 fi
 lead_diff=""
 for file in "$run"/review-diff-*.md; do
-    [[ "${file##*/}" =~ ^review-diff-[0-9]+\.md$ ]] && grep -qx 'review: lead' "$file" && { lead_diff="${file##*/}"; break; }
+    [[ "${file##*/}" =~ ^review-diff-[0-9]+\.md$ ]] && grep -qE '^review: lead( |$)' "$file" && { lead_diff="${file##*/}"; break; }
 done
 if [[ -n "$lead_diff" ]]; then
     grep -qx 'review: lead' "$run/review-plan-1.md" 2>/dev/null ||
@@ -1022,10 +1025,21 @@ if [[ -n "$lead_diff" ]]; then
     [[ -z "$branch" ]] || tree="$(git -C "$(dirname "$0")/.." worktree list --porcelain 2>/dev/null | awk -v b="refs/heads/$branch" '$1 == "worktree" { w = substr($0, 10) } $1 == "branch" && $2 == b { print w; exit }' || true)"
     if [[ -z "$tree" ]]; then
         say "$lead_diff has the line review: lead, and no worktree holds the branch '$branch' of the last - Branch: line of run.md; the rule needs the run tree"
-    elif ! got="$(cd "$tree" && "$(cd "$(dirname "$0")" && pwd)/check-changed.sh" origin/main 2>&1)"; then
-        say "$lead_diff has the line review: lead, and check-changed.sh origin/main failed in $tree: $got"
-    elif ! grep -qx 'review: lead' <<<"$got"; then
-        say "$lead_diff has the line review: lead, and check-changed.sh origin/main in $tree prints $(grep '^review:' <<<"$got" || echo 'no review line'); ask for a panel review or fix the line"
+    else
+        gate="$(grep -m1 -xE 'review: lead [0-9a-f]{7,40}' "$run/$lead_diff" | cut -d' ' -f3 || true)"
+        if [[ -z "$gate" ]] || ! git -C "$tree" rev-parse -q --verify "$gate^{commit}" >/dev/null 2>&1; then
+            say "$lead_diff has the line review: lead with no gate commit that the run tree holds; write review: lead <commit> with the commit that the code gate reviewed"
+        else
+            gate_tree="$(mktemp -d)"
+            if ! git -C "$tree" worktree add -q --detach "$gate_tree" "$gate" >/dev/null 2>&1; then
+                say "$lead_diff has the line review: lead $gate, and git cannot check out the gate commit in $tree"
+            elif ! got="$(cd "$gate_tree" && "$(cd "$(dirname "$0")" && pwd)/check-changed.sh" origin/main 2>&1)"; then
+                say "$lead_diff has the line review: lead, and check-changed.sh origin/main failed at the gate commit $gate: $got"
+            elif ! grep -qx 'review: lead' <<<"$got"; then
+                say "$lead_diff has the line review: lead, and check-changed.sh origin/main at the gate commit $gate prints $(grep '^review:' <<<"$got" || echo 'no review line'); ask for a panel review or fix the line"
+            fi
+            git -C "$tree" worktree remove --force "$gate_tree" >/dev/null 2>&1 || rm -rf "$gate_tree"
+        fi
     fi
 fi
 # 2026-10-05, the commit that added the field rule: an older review file has no fields.

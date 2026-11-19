@@ -130,8 +130,8 @@ struct SessionVersionTests {
     }
 
     /// From 12 on, `fileVersion` is the largest version of the present features. A
-    /// repair origin (14), a pre-roll take, a follow track, a ride point, and a voice match, alone
-    /// and together, write the larger constant and read back equal.
+    /// repair origin (14), a pre-roll take, a follow track, a ride point, a voice match, and a drift
+    /// link, alone and together, write the larger constant and read back equal.
     @Test func fileVersionIsTheMaxOfThePresentFeatures() throws {
         let repaired = try files.renderedBeforeSource(try files.allRepairs())
         var ridden = repaired
@@ -145,9 +145,17 @@ struct SessionVersionTests {
         try riddenFollowed.setFollowTrack(true, tracks: ["r"])
         var matched = riddenFollowed
         try matched.setMatch(["r": VoiceMatchTests.match(VoiceMatchTests.flat)])
+        let link = DriftOrigin(
+            source: "z", offset: 0, ratio: try #require(DriftRatio(1 / (1 + 50e-6))), addedGain: .zero)
+        let driftFile = AudioFile(id: "z drift", path: "z drift.wav", layout: .mono, length: 999_000, drift: link)
+        var drifted = repaired
+        try drifted.addFile(driftFile)
+        var matchedDrifted = matched
+        try matchedDrifted.addFile(driftFile)
         let cases: [(Session, Int)] = [
             (repaired, 14), (ridden, rideSessionVersion), (followed, followSessionVersion),
             (riddenFollowed, rideSessionVersion), (matched, matchSessionVersion),
+            (drifted, driftSessionVersion), (matchedDrifted, driftSessionVersion),
             (try withTake(repaired, preRoll: true), preRollSessionVersion),
             (try withTake(followed, preRoll: true), followSessionVersion),
             (try withTake(ridden, preRoll: true), rideSessionVersion),
@@ -158,6 +166,6 @@ struct SessionVersionTests {
             #expect(try Session(xml: try session.checkedData()) == session)
         }
         #expect(rideSessionVersion > followSessionVersion && matchSessionVersion > rideSessionVersion)
-        #expect(sessionVersion == matchSessionVersion)
+        #expect(driftSessionVersion > matchSessionVersion && sessionVersion == driftSessionVersion)
     }
 }

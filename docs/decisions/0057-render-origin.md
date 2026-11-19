@@ -7,6 +7,7 @@
 - Amended: 2026-10-28, run `2026-10-13-render-denoise`, landing 2 (see 0054). D9: an origin with hum holds `<hum hz>` (50 or 60) before `<noise>`, and `session.xml` is version 13 when an origin holds hum. The reader refuses `<hum>` in a file of version 12 or lower, and `hz` other than 50 and 60.
 - Amended: 2026-10-29, run `2026-10-27-repair-set` (see 0064 D6). D4: the render places each requested kind on its own. A kind with a level gets its new value in that level. A kind with no level joins the lowest level whose kept kinds (not removed, not moved to another level) hold a later kind of the chain. With no such level, it goes in one new level on top, which each such kind of the request shares. So one request can change two levels, with one undo entry. The renders start at the lowest level that holds a set or removed kind, or that a kind joins. A clip is unchanged when each rebuilt level equals its stored level, for each kind: declip, rumble, and deess read only file samples, as noise and hum do.
 - Amended: 2026-11-17, run `2026-10-14-voice-match` (see 0074 D4). D9: a voice match has no origin element. It is `<match>` in `<track>`.
+- Amended: 2026-11-19, run `2026-11-19-waveform-drift` (see 0077). A drift-corrected file has a drift link and no origin, so it is the root of a render chain. D7: the holders follow a drift link too, and `Session.removeFile` refuses a drift source. D11: a drift fix copies the words of the file that the clip plays into the new file once, through the time map of the link.
 
 ## Context
 

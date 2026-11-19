@@ -56,3 +56,24 @@ extension RenderOrigin {
             addedGain: gain)
     }
 }
+
+extension DriftOrigin {
+    /// The `<drift source offset ratio gain/>` element of the `<file>` element `file` from
+    /// `driftSessionVersion` on (decision 0077 D4), or nil when the file has none. It refuses two
+    /// elements, and a ratio or a gain outside its type. `Session.setDriftLinks` checks each other rule.
+    init?(file: XMLElement, version: Int) throws(SessionFileError) {
+        let list = file.sessionElements("drift")
+        guard let node = list.first else { return nil }
+        guard list.count == 1 else { throw .invalidValue(element: "drift", attribute: "count") }
+        guard version >= driftSessionVersion else { throw .invalidValue(element: "drift", attribute: "version") }
+        guard let ratio = DriftRatio(try node.value("ratio")) else {
+            throw .invalidValue(element: "drift", attribute: "ratio")
+        }
+        guard let gain = Gain(dB: try node.value("gain")) else {
+            throw .invalidValue(element: "drift", attribute: "gain")
+        }
+        self.init(
+            source: FileID(try node.string("source")), offset: try node.frames("offset"), ratio: ratio,
+            addedGain: gain)
+    }
+}

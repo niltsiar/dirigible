@@ -27,6 +27,7 @@
 - Amended: 2026-11-07, run `2026-10-28-timeline-edits` (see 0073). `session.xml` is version 16 when a track has `follow="true"`. A file of version 15 or lower with a track `follow` is refused.
 - Amended: 2026-11-08, run `2026-10-14-leveler` (see 0060). `session.xml` is version 17 when a clip has a ride point: one `<rides>` element after `<files>` holds each distinct ride list once, and each clip names its list with `ride`. From 12 on, the version is the largest version of the present features. A file of version 16 or lower with `<rides>` or `ride` is refused.
 - Amended: 2026-11-17, run `2026-10-14-voice-match` (see 0074 D4). `session.xml` is version 18 when a track has a voice match (`<match>`). A file of version 17 or lower with `<match>` is refused.
+- Amended: 2026-11-19, run `2026-11-19-waveform-drift` (see 0077 D4). `session.xml` is version 19 when a file has a drift link (`<drift>`). A file of version 18 or lower with `<drift>` is refused.
 
 ## Context
 

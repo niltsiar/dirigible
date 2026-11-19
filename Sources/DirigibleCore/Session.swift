@@ -60,6 +60,7 @@ public struct Session: Hashable, Sendable {
         guard file.length.isInRange else { throw .frameOutOfRange }
         if let capture = file.capture, captures[capture] == nil { throw .unknownCapture(capture) }
         if let origin = file.origin { try check(origin, of: file) }
+        if let drift = file.drift { try check(drift, of: file) }
         files[file.id] = file
     }
 
@@ -85,12 +86,27 @@ public struct Session: Hashable, Sendable {
         self = copy
     }
 
+    /// Sets the drift links after all files and origins, so the file order of `session.xml` does not
+    /// matter (decision 0077 D4). It refuses each link that `addFile` refuses. A throw changes nothing.
+    mutating func setDriftLinks(_ links: [FileID: DriftOrigin]) throws(SessionError) {
+        var copy = self
+        for (id, link) in links {
+            guard copy.files[id] != nil else { throw .unknownFile(id) }
+            copy.files[id]?.drift = link
+        }
+        for file in copy.files.values {
+            if let link = file.drift { try copy.check(link, of: file) }
+        }
+        self = copy
+    }
+
     /// Removes the file record and the transcript words of the file, and a transcript with no word
-    /// left (decision 0055). It refuses a file that a clip uses or that an origin names (decision 0057).
+    /// left (decision 0055). It refuses a file that a clip uses or that an origin or a drift link
+    /// names (decisions 0057 and 0077).
     public mutating func removeFile(_ id: FileID) throws(SessionError) {
         guard files[id] != nil else { throw .unknownFile(id) }
         guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
-        if let named = files.values.filter({ $0.origin?.source == id }).map(\.id).min() {
+        if let named = files.values.filter({ $0.linkedSource == id }).map(\.id).min() {
             throw .fileIsSource(id, of: named)
         }
         files[id] = nil
@@ -227,7 +243,8 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
-    /// version of the present features: `matchSessionVersion` with a voice match (decision 0074),
+    /// version of the present features: `driftSessionVersion` with a drift link (decision 0077),
+    /// `matchSessionVersion` with a voice match (decision 0074),
     /// `rideSessionVersion` with a ride point, `followSessionVersion`
     /// with a follow track (decision 0073), `preRollSessionVersion` with a pre-roll `<recording>`, 14
     /// with a repair effect in a file origin (decision 0064), 13 with a hum removal in a file origin
@@ -239,6 +256,7 @@ public struct Session: Hashable, Sendable {
     /// else 1.
     public var fileVersion: Int {
         let features = [
+            files.values.contains { $0.drift != nil } ? driftSessionVersion : nil,
             tracks.contains { $0.match != nil } ? matchSessionVersion : nil,
             tracks.contains { $0.clips.contains { !$0.ride.isEmpty } } ? rideSessionVersion : nil,
             tracks.contains(where: \.isFollowTrack) ? followSessionVersion : nil,

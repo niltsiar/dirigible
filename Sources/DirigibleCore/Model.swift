@@ -191,10 +191,13 @@ public struct AudioFile: Identifiable, Hashable, Sendable {
     public var capture: CaptureID?
     /// Nil for a recorded, imported, pasted, or split file (decision 0057).
     public var origin: RenderOrigin?
+    /// Nil for a file that no drift fix made (decision 0077). A file has an origin or a drift link,
+    /// never both.
+    public var drift: DriftOrigin?
 
     public init(
         id: FileID, path: String, layout: ChannelLayout, length: Frames, capture: CaptureID? = nil,
-        origin: RenderOrigin? = nil
+        origin: RenderOrigin? = nil, drift: DriftOrigin? = nil
     ) {
         self.id = id
         self.path = path
@@ -202,7 +205,12 @@ public struct AudioFile: Identifiable, Hashable, Sendable {
         self.length = length
         self.capture = capture
         self.origin = origin
+        self.drift = drift
     }
+
+    /// The source of the origin or of the drift link: one step of the chain that the holders follow
+    /// (decisions 0057 D7 and 0077 D2).
+    public var linkedSource: FileID? { origin?.source ?? drift?.source }
 
     /// A file that finalize made: its capture ID equals its file ID (decision 0061). Only such a
     /// file has a take time.

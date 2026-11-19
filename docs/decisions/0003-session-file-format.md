@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-11-19, run `2026-11-19-waveform-drift` (see 0077 D4). From version 19, a `<file>` can hold one `<drift source offset ratio gain/>` element. A file with no drift link writes no element.
 - Amended: 2026-11-17, run `2026-11-04-boundary-fuzz`. The reader refuses a package XML file with an element depth over 64, or a file on which the parser pass stops. A file with an attribute value over the parser limit no longer opens (see Rules).
 - Amended: 2026-11-17, run `2026-10-14-voice-match` (see 0074 D4). From version 18, a track can hold one `<match amount reference curve target>` element, with `bypassed="true"` on a bypassed match. A track with no match writes no element.
 - Amended: 2026-11-16, run `2026-10-28-package-boundary`. The reader refuses a package XML file with a DTD or another encoding, and a package item that is a link or not of its kind (see Rules).

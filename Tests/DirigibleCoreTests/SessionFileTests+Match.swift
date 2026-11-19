@@ -72,7 +72,7 @@ extension SessionFileTests {
         let data = try matchedSession().checkedData()
         let text = String(decoding: data, as: UTF8.self)
 
-        #expect(matchSessionVersion == rideSessionVersion + 1 && sessionVersion == matchSessionVersion)
+        #expect(matchSessionVersion == rideSessionVersion + 1)
         #expect(text.contains(#"version="\#(matchSessionVersion)""#), "\(text)")
         #expect(throws: SessionFileError.unsupportedVersion(matchSessionVersion)) {
             try Session(xml: data, newest: matchSessionVersion - 1)

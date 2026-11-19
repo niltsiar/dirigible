@@ -1,7 +1,8 @@
 # 0077. Drift fit: a drift-corrected file keeps a link to its source, apart from the render chain
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-19
+- Accepted: 2026-11-19, after the plan gates (2 rounds) of run `2026-11-19-waveform-drift`.
 - Amends: 0076 (Sync to track gets a drift option; the sentence "The drift correction of F74 amends this record, 0057 (an origin kind for the drift correction), and 0024" is done by this record), 0003 (a `<file>` can hold one `<drift>` element), 0024 (`session.xml` version 19, `driftSessionVersion`, with a drift link), 0057 (a drift-corrected file is the root of a render chain; D7 holders keep a drift source; D11 copies the words of the source into the drift file once, through the time map), 0047 (a drift source is held), 0011 and 0041 (`dirigible clip sync --drift`, the `clip_sync` argument `drift`), 0040 (the resample uses `ClipConversion`, the one conversion of finalize and import, with a source rate that is not a whole number).
 
 ## Context

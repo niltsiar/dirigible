@@ -18,8 +18,8 @@ extension ClipCommand {
                 the session allows exits 64 with the largest --within for the clip. The first line is \
                 "moved <clip> by <+|-><seconds> s (<frames> frames), match <score>". Then "the lag changes \
                 by <ms> ms across the clip" when the lag changes along the clip by over 20 ms, or "the \
-                drift was not measured: only one part of the clip matched", then "cut <seconds> s at the \
-                head". The command moves the whole clip by one lag and does not correct a drift. With --json, \
+                drift was not measured: the clip is shorter than 60 s", or "the drift was not measured: \
+                only one part of the clip matched", then "cut <seconds> s at the head". The command moves the whole clip by one lag and does not correct a drift. With --json, \
                 one line with clip, frames, seconds, match, spread, and headCut; spread and headCut are in \
                 frames, and spread is null when the drift was not measured. Exit 64 when --within is not a \
                 whole number of seconds from 1, or is over the longest search, or the clip is longer than \

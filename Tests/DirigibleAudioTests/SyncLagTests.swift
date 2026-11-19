@@ -48,7 +48,7 @@ struct SyncLagTests {
         let result = try syncPackage().syncC()
         #expect(result.lag == -240_000)
         #expect((0.99...1.01).contains(result.score.peak), "\(result.score)")
-        #expect(result.spread == nil, "a 30 s clip has one excerpt")
+        #expect(result.drift == .clipTooShort, "a 30 s clip has one excerpt")
     }
 
     @Test func anUnrelatedReferenceIsNoMatch() throws {

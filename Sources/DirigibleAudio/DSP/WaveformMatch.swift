@@ -1,4 +1,5 @@
 import Accelerate
+import DirigibleCore
 
 /// The score of the best lag of a waveform match (F74, **Match rule**).
 public struct MatchScore: Hashable, Sendable {
@@ -15,9 +16,8 @@ public struct MatchScore: Hashable, Sendable {
 
 /// The result of `waveformMatch`.
 enum WaveformMatch: Hashable, Sendable {
-    /// `lag` is the reference frame of clip frame 0, `spread` the largest minus the smallest lag of
-    /// the excerpts that match, or nil when fewer than 2 excerpts match: then the drift is not measured.
-    case match(lag: Int, score: MatchScore, spread: Int?)
+    /// `lag` is the reference frame of clip frame 0.
+    case match(lag: Int, score: MatchScore, drift: SyncDrift)
     case noMatch(best: MatchScore)
     /// No memory for the DFT setups of the coarse step.
     case noMemory
@@ -275,6 +275,9 @@ func waveformMatch<Failure: Error>(
     guard !matches.isEmpty else { return .noMatch(best: best ?? MatchScore(peak: 0, ratio: 0)) }
     let sorted = matches.sorted { $0.lag < $1.lag }
     let median = sorted[(sorted.count - 1) / 2]
-    let spread = sorted.count < 2 ? nil : sorted[sorted.count - 1].lag - sorted[0].lag
-    return .match(lag: median.lag, score: median.score, spread: spread)
+    let drift: SyncDrift =
+        ranges.count < 2
+        ? .clipTooShort
+        : sorted.count < 2 ? .onePartMatched : .spread(Frames(sorted[sorted.count - 1].lag - sorted[0].lag))
+    return .match(lag: median.lag, score: median.score, drift: drift)
 }

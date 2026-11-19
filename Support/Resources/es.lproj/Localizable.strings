@@ -943,6 +943,7 @@
 "banner.sync.match" = "Puntuación de coincidencia: %.2f.";
 "banner.sync.spread" = "El desfase cambia %lld ms a lo largo del clip.";
 "banner.sync.not.measured" = "No se midió la deriva: solo una parte del clip coincidió.";
+"banner.sync.too.short" = "No se midió la deriva: el clip dura menos de 60 s.";
 "banner.sync.head.cut" = "Se cortaron %@ del inicio del clip, porque pasó a antes del inicio de la sesión.";
 "banner.sync.no.match" = "Sin coincidencia: %@ no se encontró en %@.";
 "banner.sync.choose" = "Elegir otra pista…";

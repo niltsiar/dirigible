@@ -122,10 +122,10 @@ struct WaveformMatchTests {
     @Test func anExactCopyGivesItsLagAndAPeakOfOne() {
         let result = match(
             clip, in: reference(seconds: 150, rate: rate, holding: clip.map { 0.5 * $0 }, at: 1_788_000), rate: rate)
-        guard case .match(let lag, let score, let spread) = result else { return #expect(Bool(false), "\(result)") }
+        guard case .match(let lag, let score, let drift) = result else { return #expect(Bool(false), "\(result)") }
         #expect(lag == 1_788_000)
         #expect((0.99...1.01).contains(score.peak), "\(score)")
-        #expect(spread == 0)
+        #expect(drift == .spread(.zero))
     }
 
     @Test(arguments: [(1_788_000, 48), (1_788_007, 2)])
@@ -178,19 +178,19 @@ struct WaveformMatchTests {
                 }
                 return out
             })
-        guard case .match(let found, _, let spread) = result else { return #expect(Bool(false), "\(result)") }
-        #expect(spread.map(spreads.contains) == true, "spread \(String(describing: spread)) frames")
+        guard case .match(let found, _, .spread(let spread)) = result else { return #expect(Bool(false), "\(result)") }
+        #expect(spreads.contains(spread.count), "spread \(spread.count) frames")
         #expect(abs(found - lag) <= Int(Double(length) * (ratio - 1)) + 48, "lag \(found)")
     }
 
     /// C8: the reference holds only the first third of the clip, so 1 of the 3 excerpts matches.
-    @Test func oneMatchedExcerptGivesNoSpread() {
+    @Test func oneMatchedExcerptOfThreeSaysSo() {
         let firstThird = Array(clip[0..<30 * rate])
         let result = match(
             clip, in: reference(seconds: 150, rate: rate, holding: firstThird, at: 1_788_000), rate: rate)
-        guard case .match(let lag, _, let spread) = result else { return #expect(Bool(false), "\(result)") }
+        guard case .match(let lag, _, let drift) = result else { return #expect(Bool(false), "\(result)") }
         #expect(lag == 1_788_000)
-        #expect(spread == nil, "spread \(String(describing: spread))")
+        #expect(drift == .onePartMatched, "\(drift)")
     }
 
     @Test func aSessionAt44100FindsTheExactLag() {

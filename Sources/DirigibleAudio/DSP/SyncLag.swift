@@ -8,13 +8,22 @@ public struct SyncResult: Hashable, Sendable {
     /// The move of the clip start in session frames.
     public let lag: Frames
     public let score: MatchScore
-    /// The largest minus the smallest lag of the excerpts that match, or nil when fewer than 2
-    /// match: then the drift was not measured. Never 0 in place of nil.
-    public let spread: Frames?
+    public let drift: SyncDrift
 
     /// True when `spread` is over 20 ms at `rate`: then each result text gives the lag change
     /// (decision 0076, **Surface**).
     public static func spreadIsNotable(_ spread: Frames, rate: Int) -> Bool { spread.count * 1000 > 20 * rate }
+}
+
+/// The spread of the excerpt lags of a sync, or why the drift was not measured (decision 0076,
+/// **Excerpts**).
+public enum SyncDrift: Hashable, Sendable {
+    /// The largest minus the smallest lag of the 2 or 3 excerpts that match.
+    case spread(Frames)
+    /// The clip is under 60 s, so it has one excerpt.
+    case clipTooShort
+    /// The clip has 3 excerpts and only one matched.
+    case onePartMatched
 }
 
 /// Why `syncLag` gives no lag (decision 0076).
@@ -102,9 +111,8 @@ func syncLag(
         referenceFrames: { range throws(SyncFailure) in try frames(referenceReader, span.lowerBound, range) },
         makeSetup: makeSetup)
     switch match {
-    case .match(let lag, let score, let spread):
-        return SyncResult(
-            lag: span.lowerBound + Frames(lag) - target.start, score: score, spread: spread.map { Frames($0) })
+    case .match(let lag, let score, let drift):
+        return SyncResult(lag: span.lowerBound + Frames(lag) - target.start, score: score, drift: drift)
     case .noMatch(let best):
         throw .noMatch(best: best)
     case .noMemory:

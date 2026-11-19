@@ -271,4 +271,31 @@ import Testing
         }
         await model.close()
     }
+
+    /// Reduce Noise on a studio that became busy while the sheet was open (an agent level or an agent clip
+    /// render) shows the busy alert, closes the sheet, changes no clip, and leaves the other job running.
+    @Test func reduceNoiseOnABusyStudioShowsTheBusyAlert() async throws {
+        let (model, studio, _) = try await open()
+        let before = studio.session
+        model.timeline.selection = set("c1", "c3")
+        for importing in [false, true] {
+            let name = importing ? "an agent clip render" : "an agent level"
+            model.run(.reduceNoise)
+            let draft = try #require(model.denoiseDraft, "\(name): the item opened no sheet")
+            let flags = ImportFlags()
+            studio.transport =
+                importing ? .importing(ImportRun(name: "agent", kind: .clipRender, flags: flags)) : .leveling
+
+            model.applyDenoise(draft)
+            await until("the render ends") { model.importJob == nil }
+
+            #expect(model.alert == .error(.busy), "\(name): \(String(describing: model.alert))")
+            #expect(model.denoiseDraft == nil && model.denoiseReport == nil, "\(name): the sheet or a report shows")
+            #expect(studio.session == before, "\(name): the apply changed the session")
+            #expect(flags.isCancelled == false, "\(name): the apply cancelled the other job")
+            studio.transport = .idle
+            model.alert = nil
+        }
+        await model.close()
+    }
 }

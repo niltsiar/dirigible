@@ -932,7 +932,7 @@
 "sheet.sync.title" = "Clip mit Spur synchronisieren";
 "sheet.sync.reference" = "Referenzspur";
 "sheet.sync.row" = "%@ (%@)";
-"sheet.sync.span" = "Durchsucht %lld Minuten vor und nach dem Clip.";
+"sheet.sync.span" = "Durchsucht %@ vor und nach dem Clip.";
 "sheet.sync.no.call" = "Keine Anrufspur: Die erste Spur mit Ton wird gewählt.";
 "sheet.sync.apply" = "Synchronisieren";
 "banner.sync.earlier" = "Der Clip wurde um %@ nach vorn verschoben.";

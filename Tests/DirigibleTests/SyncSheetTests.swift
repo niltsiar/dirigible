@@ -151,7 +151,8 @@ import Testing
         let (model, studio, _) = try await open()
         let draft = try #require(SyncDraft(clip: "C", in: studio.session))
         #expect(
-            draft.spanLine(in: studio.session, text: englishText) == "Searches 30 minutes before and after the clip.")
+            draft.spanLine(in: studio.session, locale: Self.us, text: englishText)
+                == "Searches 30 minutes before and after the clip.")
         await model.close()
 
         let (long, longStudio, _) = try await open { session in
@@ -167,9 +168,35 @@ import Testing
         }
         let clamped = try #require(SyncDraft(clip: "L", in: longStudio.session))
         #expect(
-            clamped.spanLine(in: longStudio.session, text: englishText)
+            clamped.spanLine(in: longStudio.session, locale: Self.us, text: englishText)
                 == "Searches 24 minutes before and after the clip.")
         await long.close()
+    }
+
+    /// C19: a span under 1 minute shows in whole seconds, and a longer span in whole minutes, rounded
+    /// down. One unit is singular. A clip at the span cap can get a `within` of 0.
+    @Test func theSpanTextGivesSecondsUnderAMinuteAndTheSingularOfOne() throws {
+        let spanish = try stringsTable("es")
+        let rate = 48_000
+        let cases: [(frames: Int, english: String, spanish: String)] = [
+            (0, "0 seconds", "0 segundos"),
+            (rate, "1 second", "1 segundo"),
+            (60 * rate - 1, "59 seconds", "59 segundos"),
+            (60 * rate, "1 minute", "1 minuto"),
+            (120 * rate - 1, "1 minute", "1 minuto"),
+            (120 * rate, "2 minutes", "2 minutos"),
+            (1_800 * rate, "30 minutes", "30 minutos"),
+        ]
+        for (frames, english, spanishSpan) in cases {
+            let within = Frames(frames)
+            #expect(
+                syncSpanText(within: within, rate: rate, locale: Self.us, text: englishText)
+                    == "Searches \(english) before and after the clip.")
+            #expect(
+                syncSpanText(within: within, rate: rate, locale: Locale(identifier: "es_ES")) {
+                    spanish[$0.rawValue] ?? $0.rawValue
+                } == "Busca \(spanishSpan) antes y después del clip.")
+        }
     }
 
     /// C19: the no-call-track line shows with no app route, and not with one.

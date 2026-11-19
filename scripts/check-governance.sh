@@ -56,8 +56,11 @@
 #   `pooled <ID>: ...: PASS` line of the same file: a rerun in the same folder replaces its rerun-due.txt
 #   and writes that line when the pooled verdict passes. A `below` line or a `pooled <ID>: ...: FAIL`
 #   line also clears when another eval* folder of the run, at another commit (logs/build-b.commit) and
-#   with scores.tsv newer than that rerun-due.txt, passes the below clause of the ID with at least the
-#   runs of the line in each set (a docs fix: run.sh refuses the old folder at a new commit).
+#   with scores.tsv newer than that rerun-due.txt, has at least the runs of the line in each set and
+#   passes the ID by the pooled rule of grade.py (a docs fix: run.sh refuses the old folder at a new
+#   commit). The pooled rule grades a rerun due ID on the bound of its counts: new passes over old passes
+#   minus 2, or, with 12 or more runs in the smaller set, old minus new at or under 2 x sqrt(k x p x
+#   (1 - p)), k the runs of both sets and p the pooled pass rate.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -359,7 +362,7 @@ if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
 fi
 # A rerun due ID is no fail yet, but the land waits for its pooled verdict: the same folder after a
 # rerun with a new tag (the folder replaces its rerun-due.txt), or a later eval* folder: with rows of a
-# policy ID, or, after a docs fix, at another commit with a full-size below pass of a below or pooled ID.
+# policy ID, or, after a docs fix, at another commit with a full-size pooled pass of a below or pooled ID.
 # run.sh refuses a rerun in the same folder at another commit.
 runs_re='old [0-9]+/([0-9]+), new [0-9]+/([0-9]+)'
 background='as a background run (AGENTS.md, Commands); a subagent returns to the lead'
@@ -381,7 +384,7 @@ if [[ -n "$run" ]]; then
             fi
             old_runs=6 new_runs=6
             [[ "$rest" =~ $runs_re ]] && old_runs="${BASH_REMATCH[1]}" new_runs="${BASH_REMATCH[2]}"
-            # The below clause of grade.py verdict on the later folder: new passes over old passes minus 2.
+            # The pooled rule of grade.py verdict on the later folder: the below clause, or the bound at 12 runs.
             for scores in "$run"/eval*/scores.tsv; do
                 later="$(dirname "$scores")"
                 [[ "$later" != "$folder" && "$scores" -nt "$due" && -s "$later/logs/build-b.commit" ]] || continue
@@ -389,7 +392,10 @@ if [[ -n "$run" ]]; then
                 awk -F'\t' -v id="$id" -v ro="$old_runs" -v rn="$new_runs" '
                     $2 == id && $4 == "a" { oa++; op += ($6 == "PASS") }
                     $2 == id && $4 == "b" { nb++; np += ($6 == "PASS") }
-                    END { exit !(oa >= ro && nb >= rn && np > op - 2) }' "$scores" && { cleared=1; break; }
+                    END {
+                        k = oa + nb; p = k ? (op + np) / k : 0
+                        exit !(oa >= ro && nb >= rn && (np > op - 2 || (oa >= 12 && nb >= 12 && op - np <= 2 * sqrt(k * p * (1 - p)))))
+                    }' "$scores" && { cleared=1; break; }
             done
             [[ -z "$cleared" ]] || continue
             fail=1

@@ -483,6 +483,8 @@ due_file below-near-fail ''
 verdict_case below-holdout 0 'below H6: old 6/6, new 3/6: FAIL' 'holdout fail H6: no changed text' 'verdict: PASS'
 due_file below-holdout ''
 { sc t E5 retention old 6 6; sc t E5 retention new 3 6; sc u E5 retention old 6 6; sc u E5 retention new 6 6; } > "$tmp/rows"
+# A first verdict keeps the below clause at 12 runs, so 12/12 against 9/12 fails. The pooled line of a
+# rerun due ID with the same counts passes inside the bound (pooled-recovered-three below).
 verdict_case below-twelve 1 'below E5: old 12/12, new 9/12: FAIL' 'verdict: FAIL'
 due_file below-twelve ''
 # A rerun in the same folder (a new tag) reads the old rerun-due.txt. For each ID of an old below or

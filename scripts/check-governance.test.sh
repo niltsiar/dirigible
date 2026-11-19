@@ -640,9 +640,10 @@ gov_out "$tmp/run"
 # A below line (a small-sample retention drop) clears through a pooled PASS line of its own folder:
 # grade.py verdict writes pooled <ID>: ...: PASS or FAIL when a rerun with a new tag pools the data.
 # A below line or a pooled FAIL line also clears after a docs fix: a later eval* folder at another
-# commit (logs/build-b.commit), newer than the line, whose own below clause passes the ID (new passes
-# over old passes minus 2) with at least the runs of the line in each set. A later folder with fewer
-# runs, at the same commit, or with a below fail does not clear it, and absence is no pass.
+# commit (logs/build-b.commit), newer than the line, with at least the runs of the line in each set,
+# whose counts pass by the pooled rule of grade.py: new passes over old passes minus 2, or, with 12 or
+# more runs in the smaller set, old minus new at or under 2 x sqrt(k x p x (1 - p)). A later folder
+# with fewer runs, at the same commit, or with a fail by that rule does not clear it, and absence is no pass.
 # scored <folder> <commit> <ID> <old passes> <old runs> <new passes> <new runs>: the scores.tsv rows
 # of set a and set b, and the commit stamp of the folder.
 scored() {
@@ -664,7 +665,7 @@ pass 'a below line and a docs fix in a new eval folder with a full-size below pa
 scored eval-2 bbb E5 3 3 3 3; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 refuse 'a below line and a new eval folder with fewer runs' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
 scored eval-2 bbb E5 6 6 4 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
-refuse 'a below line and a new eval folder whose below clause fails' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
+refuse 'a below line and a new eval folder with 6/6 against 4/6, inside the bound but under 12 runs' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
 scored eval-2 aaa E5 6 6 6 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 refuse 'a below line and a later eval folder at the same commit' 'eval-1/rerun-due.txt: E5 is rerun due' "$tmp/run"
 scored eval-2 bbb E5 6 6 6 6; stamp 202512312323 "$tmp/run/eval-2/scores.tsv"
@@ -680,6 +681,10 @@ scored eval-2 bbb E5 6 6 6 6; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 refuse 'a pooled line that fails and a new eval folder with fewer runs' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
 scored eval-2 bbb E5 12 12 12 12; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 pass 'a pooled line that fails and a docs fix in a new eval folder with a full-size below pass' "$tmp/run"
+scored eval-2 bbb E5 12 12 10 12; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+pass 'a pooled line that fails and a docs fix in a new eval folder with 12/12 against 10/12, inside the bound 2.7' "$tmp/run"
+scored eval-2 bbb E5 12 12 6 12; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a pooled line that fails and a docs fix in a new eval folder with 12/12 against 6/12, past the bound 4.2' 'eval-1/rerun-due.txt: E5 failed the pooled verdict' "$tmp/run"
 new_repo; due eval-1 'below E7: old 6/6, new 3/6: rerun due' 'pooled E5: old 9/12, new 9/12: PASS' 'policy E40: new 1/3: rerun due'; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
 rows eval-2 E40; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 gov_out "$tmp/run"

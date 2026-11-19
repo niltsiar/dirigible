@@ -69,6 +69,11 @@ hw() {
     for t in $hook_list; do
       if [[ $t == "$p" || $t == "${p%.*}.test.sh" ]] || grep -qF -- "$b" "$repo/$t" 2> /dev/null; then found+=" $t"; fi
     done
+    # An unlisted test on disk that names the basename: each listed test that runs it by its name.
+    while IFS= read -r u; do
+      [[ -n $u ]] && ! grep -qxF -- "$u" <<<"$hook_list" && grep -qF -- "$b" "$repo/$u" || continue
+      for t in $hook_list; do grep -qE "bash \".*/${u##*/}\"" "$repo/$t" 2> /dev/null && found+=" $t"; done
+    done < <(cd "$repo" && find scripts .claude -name '*.test.sh' -type f 2> /dev/null | sort)
     [[ -n $found ]] || return 0
     all+="$found"
   done
@@ -179,7 +184,8 @@ got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fa
 # The HOOK_TESTS word. A local run with check-fast names the hook tests that the changed paths
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
 # <name>.sh or <name>.py, the guardrails test for a hook, settings, or .githooks path, and each
-# entry whose text names the basename of a changed tooling path. A changed path of class tooling
+# entry whose text names the basename of a changed tooling path, and each entry that runs, with a
+# bash "<path>/<file>.test.sh" call, a test that is not in the list and names that basename. A changed path of class tooling
 # or build with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
 # list with no word. A path of class comments, or of class bundle with no test, needs none. The HOOK_TESTS word never comes before the push.
 # word_of [--push]: the HOOK_TESTS word of the paths on stdin, or nothing.
@@ -198,6 +204,33 @@ expect 'a script with a test, before the push' "$(out tooling check-fast no)" --
 has_test scripts/run-checks.sh scripts/check-changed.test.sh
 has_test .claude/hooks/agent-guard.sh .claude/hooks/git-guardrails.test.sh
 has_test .claude/settings.json .claude/hooks/git-guardrails.test.sh
+# Nested runners: a listed test runs an unlisted test with bash "<path>/<file>.test.sh", and the
+# unlisted test names the changed path, so the listed test is the one that make can run. Three path
+# forms of the repo: the dirname of $0, a here variable, and the dirname of a script variable. The
+# fixture lists r, s, and t; u, v, w, and q are not in the list; q is run by no listed test.
+nested_word() { # <path>: the targets line of the fixture for one changed path
+  (cd "$tmp/n" && "$tmp/n/scripts/check-changed.sh" --paths <<<"$1") | sed -n 's/^targets: //p'
+}
+rm -rf "$tmp/n"
+mkdir -p "$tmp/n/scripts"
+git -C "$tmp/n" init -q
+cp "$script" "$repo/scripts/swift-suites.sh" "$tmp/n/scripts/"
+printf 'HOOK_TESTS = \\\n\tscripts/r.test.sh \\\n\tscripts/s.test.sh \\\n\tscripts/t.test.sh\n' > "$tmp/n/Makefile"
+printf '#!/bin/bash\nbash "$(dirname "$0")/u.test.sh"\n' > "$tmp/n/scripts/r.test.sh"
+printf '#!/bin/bash\nhere="$(cd "$(dirname "$0")" && pwd)"\nbash "$here/v.test.sh"\n' > "$tmp/n/scripts/s.test.sh"
+printf '#!/bin/bash\nscript=scripts/x\nout="$(bash "$(dirname "$script")/w.test.sh" 2>&1)"\n' > "$tmp/n/scripts/t.test.sh"
+printf '#!/bin/bash\necho xu.sh\n' > "$tmp/n/scripts/u.test.sh"
+printf '#!/bin/bash\necho xv.sh\n' > "$tmp/n/scripts/v.test.sh"
+printf '#!/bin/bash\necho xw.sh\n' > "$tmp/n/scripts/w.test.sh"
+printf '#!/bin/bash\necho xq.sh\n' > "$tmp/n/scripts/q.test.sh"
+for pair in 'xu.sh:r' 'xv.sh:s' 'xw.sh:t'; do
+  [[ "$(nested_word "scripts/${pair%%:*}")" == "check-fast HOOK_TESTS=scripts/${pair##*:}.test.sh" ]] \
+    || fail "a nested runner: scripts/${pair%%:*} gives [$(nested_word "scripts/${pair%%:*}")], want HOOK_TESTS=scripts/${pair##*:}.test.sh"
+done
+# Near cases: an unlisted test that no listed test runs adds nothing, and a path that no test names
+# still gives the whole-list word.
+[[ "$(nested_word scripts/xq.sh)" == "check-fast${all_hooks}" ]] || fail "an unlisted test that no listed test runs: got [$(nested_word scripts/xq.sh)]"
+[[ "$(nested_word scripts/nothing.sh)" == "check-fast${all_hooks}" ]] || fail "a path that no test names: got [$(nested_word scripts/nothing.sh)]"
 has_test .githooks/pre-commit .claude/hooks/git-guardrails.test.sh
 has_test .githooks/pre-push scripts/land.test.sh
 plan_test="scripts/check-pl""an.test.sh"

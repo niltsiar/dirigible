@@ -60,6 +60,95 @@ func syncLag(
     progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen,
     makeSetup: DFTSetupMake = vDSP_DFT_zrop_CreateSetup
 ) throws(SyncFailure) -> SyncResult {
+    let read = try syncRead(
+        of: clip, to: track, in: session, package: package, span: span, progress: progress,
+        isCancelled: isCancelled, open: open)
+    return try read.result(isCancelled: isCancelled, makeSetup: makeSetup)
+}
+
+/// The read that `syncLag` and `driftMeasure` share (decision 0076, **Streamed read**; decision
+/// 0077, D6): the 50 ms levels of the clip and the 2 kHz reference of the span, from one stream of
+/// each, and the readers of the reads at the session rate.
+struct SyncRead {
+    let clipStart: Frames
+    let clipLength: Int
+    let span: Range<Frames>
+    let rate: Int
+    /// Window w holds the mean square of clip frames from w x `levelWindow`.
+    let windowMeanSquares: [Float]
+    let reference2k: [Float]
+    let clipReader: MixReader
+    let referenceReader: MixReader
+
+    /// The frames of one 50 ms level window.
+    static func levelWindow(rate: Int) -> Int { max(1, rate / 20) }
+
+    var levelWindow: Int { Self.levelWindow(rate: rate) }
+    var spanLength: Int { span.upperBound.count - span.lowerBound.count }
+
+    /// The mono frames of clip `range`, from the clip start.
+    func clipFrames(_ range: Range<Int>) throws(SyncFailure) -> [Float] {
+        try renderMono(
+            clipReader, clipStart + Frames(range.lowerBound)..<clipStart + Frames(range.upperBound), rate: rate)
+    }
+
+    /// The mono frames of reference `range`, from the span start.
+    func referenceFrames(_ range: Range<Int>) throws(SyncFailure) -> [Float] {
+        try renderMono(
+            referenceReader, span.lowerBound + Frames(range.lowerBound)..<span.lowerBound + Frames(range.upperBound),
+            rate: rate)
+    }
+
+    /// The move of the clip start when reference frame `lag` of the span plays clip frame 0.
+    func move(_ lag: Int) -> Frames { span.lowerBound + Frames(lag) - clipStart }
+
+    /// The reference frame of the span that plays clip frame 0 after a move of the clip start by `move`.
+    func lag(_ move: Frames) -> Int { (clipStart + move - span.lowerBound).count }
+
+    /// The match of decision 0076 on the excerpts of the clip. `isCancelled` is read before each fine read.
+    func result(isCancelled: () -> Bool, makeSetup: DFTSetupMake) throws(SyncFailure) -> SyncResult {
+        let match = try waveformMatch(
+            clipLength: clipLength, windowMeanSquares: windowMeanSquares, rate: rate, reference2k: reference2k,
+            referenceLength: spanLength,
+            clipFrames: { range throws(SyncFailure) in
+                if isCancelled() { throw .cancelled }
+                return try clipFrames(range)
+            },
+            referenceFrames: { range throws(SyncFailure) in
+                if isCancelled() { throw .cancelled }
+                return try referenceFrames(range)
+            },
+            makeSetup: makeSetup)
+        switch match {
+        case .match(let lag, let score, let drift):
+            return SyncResult(lag: move(lag), score: score, drift: drift)
+        case .noMatch(let best):
+            throw .noMatch(best: best)
+        case .noMemory:
+            throw .read(POSIXError(.ENOMEM))
+        }
+    }
+}
+
+/// The readers of a sync: the clip alone on its track, and the mix of `track`, both in
+/// `Session.syncSource`.
+func syncReaders(
+    of clip: ClipID, to track: TrackID, in session: Session, package: URL, open: @escaping MediaOpen
+) -> (clip: MixReader, reference: MixReader) {
+    guard let (_, home) = session.clip(clip) else { preconditionFailure("syncSpan checks the clip") }
+    let read = session.syncSource(clip)
+    let chunk = LevelSeries.window(rate: session.sampleRate).count * 20
+    return (
+        MixReader(package: package, session: read, tracks: [home], open: open, span: chunk),
+        MixReader(package: package, session: read, tracks: [track], open: open, span: chunk)
+    )
+}
+
+/// The files check and the two streams of a sync. `progress` goes from 0 to 1 over the streams.
+func syncRead(
+    of clip: ClipID, to track: TrackID, in session: Session, package: URL, span: Range<Frames>,
+    progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen
+) throws(SyncFailure) -> SyncRead {
     guard let (target, home) = session.clip(clip) else { preconditionFailure("syncSpan checks the clip") }
     let read = session.syncSource(clip)
     let spanLength = span.upperBound.count - span.lowerBound.count
@@ -72,11 +161,10 @@ func syncLag(
     }
     try refuse(faults)
     let rate = session.sampleRate
-    let chunk = LevelSeries.window(rate: rate).count * 20
     let clipShare = Double(target.length.count) / Double(max(1, target.length.count + spanLength))
-    let clipReader = MixReader(package: package, session: read, tracks: [home], open: open, span: chunk)
-    let referenceReader = MixReader(package: package, session: read, tracks: [track], open: open, span: chunk)
-    let window = max(1, rate / 20)
+    let (clipReader, referenceReader) = syncReaders(
+        of: clip, to: track, in: session, package: package, open: open)
+    let window = SyncRead.levelWindow(rate: rate)
     var (squares, sum, filled): ([Float], Double, Int) = ([], 0, 0)
     squares.reserveCapacity(target.length.count / window + 1)
     try scanMono(
@@ -100,24 +188,10 @@ func syncLag(
         referenceReader, rate: rate, end: read.end, range: span,
         progress: { progress(clipShare + $0 * (1 - clipShare)) }, isCancelled: isCancelled,
         sink: { samples in reference2k += decimator.feed(samples) })
-    func frames(_ reader: MixReader, _ start: Frames, _ range: Range<Int>) throws(SyncFailure) -> [Float] {
-        if isCancelled() { throw .cancelled }
-        return try renderMono(reader, start + Frames(range.lowerBound)..<start + Frames(range.upperBound), rate: rate)
-    }
-    let match = try waveformMatch(
-        clipLength: target.length.count, windowMeanSquares: squares, rate: rate, reference2k: reference2k,
-        referenceLength: spanLength,
-        clipFrames: { range throws(SyncFailure) in try frames(clipReader, target.start, range) },
-        referenceFrames: { range throws(SyncFailure) in try frames(referenceReader, span.lowerBound, range) },
-        makeSetup: makeSetup)
-    switch match {
-    case .match(let lag, let score, let drift):
-        return SyncResult(lag: span.lowerBound + Frames(lag) - target.start, score: score, drift: drift)
-    case .noMatch(let best):
-        throw .noMatch(best: best)
-    case .noMemory:
-        throw .read(POSIXError(.ENOMEM))
-    }
+    return SyncRead(
+        clipStart: target.start, clipLength: target.length.count, span: span, rate: rate,
+        windowMeanSquares: squares, reference2k: reference2k, clipReader: clipReader,
+        referenceReader: referenceReader)
 }
 
 /// Refuses the first missing or unreadable file of `faults`; a short file reads what exists.
@@ -152,7 +226,7 @@ private func scanMono(
 }
 
 /// The mono mix of `range` at the session rate, then the faults of the read.
-private func renderMono(_ reader: MixReader, _ range: Range<Frames>, rate: Int) throws(SyncFailure) -> [Float] {
+func renderMono(_ reader: MixReader, _ range: Range<Frames>, rate: Int) throws(SyncFailure) -> [Float] {
     let count = range.upperBound.count - range.lowerBound.count
     guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 2),
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count))

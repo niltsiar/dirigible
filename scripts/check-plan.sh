@@ -917,7 +917,6 @@ else
                                 }
                             }
                         }')
-                rm -rf "$gtmp"
             fi
         fi
     fi

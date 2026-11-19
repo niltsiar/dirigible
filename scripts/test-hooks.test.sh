@@ -391,6 +391,22 @@ run
     || fail "stamp of today only: [$(tr '\n' '|' < "$stamp")]"
 rm -rf "$repo/.git/dirigible-hooks-tree.new"
 
+# The sweep keeps an old key tree folder whose pid file names a live process (a long run of another
+# call) and removes one whose pid is dead.
+new_repo
+sleep 60 & live_pid=$!
+true & dead_pid=$!
+wait "$dead_pid"
+mkdir "$repo/.git/dirigible-hooks-tree.live" "$repo/.git/dirigible-hooks-tree.dead"
+echo "$live_pid" > "$repo/.git/dirigible-hooks-tree.live/pid"
+echo "$dead_pid" > "$repo/.git/dirigible-hooks-tree.dead/pid"
+touch -t "$(/bin/date -v-2H +%Y%m%d%H%M)" "$repo/.git/dirigible-hooks-tree.live" "$repo/.git/dirigible-hooks-tree.dead"
+run
+kill "$live_pid" 2>/dev/null
+[[ $code -eq 0 && -d "$repo/.git/dirigible-hooks-tree.live" && ! -e "$repo/.git/dirigible-hooks-tree.dead" ]] \
+    || fail "sweep pid: code $code, folders [$(ls -d "$repo/.git/dirigible-hooks-tree."* 2>/dev/null | xargs)]: $(out)"
+rm -rf "$repo/.git/dirigible-hooks-tree.live"
+
 # C5: the key holds only the existence of a floor path, so each floor file is empty in the key
 # tree. A test that reads floor content fails on a clean tree and writes no stamp.
 new_repo

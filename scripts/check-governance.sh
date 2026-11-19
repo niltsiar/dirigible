@@ -285,7 +285,7 @@ if [[ -n "$run" && -f "$run/run.md" ]]; then
     [[ -n "$branch" ]] || branch="$(grep '^- Branch:' "$run/run.md" | tail -n 1 | sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' || true)"
     if [[ -z "$line" ]]; then
         if [[ "$branch" =~ ^(feat|fix|perf)/ ]] \
-            && git diff --name-only "$base...HEAD" | grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)'; then
+            && grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)' <<<"$(git diff --name-only "$base...HEAD")"; then
             echo "check-governance: this branch changes app code and run.md has no '- Lands:' line; name the F-IDs of this land in - Lands: of run.md, or write - Lands: none" >&2
             fail=1
         fi
@@ -302,7 +302,7 @@ if [[ -n "$run" && -f "$run/run.md" ]]; then
             fail=1
         fi
         if [[ "$value" == none && "$branch" == feat/* ]] \
-            && git diff --name-only "$base...HEAD" | grep -q '^Sources/'; then
+            && grep -q '^Sources/' <<<"$(git diff --name-only "$base...HEAD")"; then
             echo "check-governance: a feat/ landing that changes Sources/ writes - Lands: none; scripts/tag-release.sh needs a done row in features.md for the run number, so name at least one F-ID in - Lands:" >&2
             fail=1
         fi

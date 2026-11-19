@@ -41,15 +41,9 @@ struct TranscriptImportShown: Equatable {
     let press: Int
 }
 
-/// The banner of the last duck that found no speech or did not read a speech file, and the
-/// session revision after it.
-struct DuckReportShown: Equatable {
-    let banner: WindowBanner
-    let revision: Int
-}
-
-/// The banner of the last sync, and the session revision after it.
-struct SyncReportShown: Equatable {
+/// The banner of the last duck, Match Voice, or sync, and the session revision at its end: the next
+/// change of the session hides it.
+struct ToolBannerShown: Equatable {
     let banner: WindowBanner
     let revision: Int
 }

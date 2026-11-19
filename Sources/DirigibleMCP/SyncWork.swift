@@ -33,8 +33,8 @@ package struct SyncWork: Sendable {
         let headCut: Frames
         let sampleRate: Int
 
-        /// A spread over this many milliseconds gets its own line.
-        static let spreadLineOver = 20
+        /// A spread over this many milliseconds gets its own line, and its own sentence in the app banner.
+        package static let spreadLineOver = 20
 
         /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, then the spread line (the drift was not
         /// measured, or the lag changes by more than 20 ms), then `cut 6.000 s at the head` after a head cut.
@@ -120,10 +120,10 @@ package struct SyncWork: Sendable {
             throw .studio(StudioError(error))
         }
         guard !isCancelled() else { throw .studio(.syncCancelled) }
-        var moved = session
         let cut: Frames
-        do throws(SessionError) { cut = try moved.sync(clip, by: result.lag) } catch { throw .studio(.session(error)) }
-        session = moved
+        do throws(SessionError) { cut = try session.sync(clip, by: result.lag) } catch {
+            throw .studio(.session(error))
+        }
         return Moved(clip: clip, result: result, headCut: cut, sampleRate: session.sampleRate)
     }
 

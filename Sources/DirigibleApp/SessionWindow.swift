@@ -143,7 +143,7 @@ import SwiftUI
     var matchingTracks: Set<TrackID> = []
     var matchProgress: Double?
     /// The banner of the last Match Voice, at its session revision.
-    var voiceMatchReport: VoiceMatchReportShown?
+    var voiceMatchReport: ToolBannerShown?
     @ObservationIgnored var matchPresses = 0
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
@@ -153,7 +153,7 @@ import SwiftUI
     /// window runs, so an agent sync shows no bar.
     var syncProgress: Double?
     /// The banner of the last sync, at its session revision.
-    var syncReport: SyncReportShown?
+    var syncReport: ToolBannerShown?
     @ObservationIgnored var syncPresses = 0
     /// The values of the Go to Take Time sheet while it shows (decision 0061).
     var takeTimeDraft: TakeTimeDraft?
@@ -162,7 +162,7 @@ import SwiftUI
     var duckProgress: Double?
     /// The banner of the last duck with no speech or with a speech file that did not read. The
     /// next duck and the next take start remove it; the banner shows only at its session revision.
-    var duckReport: DuckReportShown?
+    var duckReport: ToolBannerShown?
     /// The list of File > Remove Unused Files while its sheet shows (decision 0047).
     var unusedFiles: UnusedFiles?
     /// The last Remove Unused Files, for its banners at its session revision.

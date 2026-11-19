@@ -61,10 +61,11 @@ common="$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1
 stamp="$common/dirigible-hooks-stamp"
 sha="$(git rev-parse HEAD)" || exit 1
 today="$(date +%F)"
-# A killed run (no trap) leaves its key tree: remove each one over one hour old. A serial pass takes
-# about 47 min on an 8-core Mac and a pass in jobs less, so the run of another worktree keeps its
-# tree.
-find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exec rm -rf {} +
+# A killed run (no trap) leaves its key tree: remove each one over one hour old, unless the pid in
+# its pid file is alive. A serial pass takes about 47 min on an 8-core Mac, longer under load.
+while IFS= read -r old; do
+    kill -0 "$(cat "$old/pid" 2>/dev/null)" 2>/dev/null || rm -rf "$old"
+done < <(find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60)
 
 # The job count. The variables are read here: the unset of the caller context below removes them.
 if [[ -n ${HOOK_JOBS+x} && ! $HOOK_JOBS =~ ^[1-9][0-9]*$ ]]; then
@@ -145,6 +146,7 @@ fi
 # sandbox allows each write.
 work="$(mktemp -d "$common/dirigible-hooks-tree.XXXXXX")" || exit 1
 trap 'rm -rf "$work"' EXIT
+echo $$ > "$work/pid"
 trap 'exit 130' INT
 trap 'exit 143' TERM
 # git rev-parse --git-path returns GIT_INDEX_FILE when it is set, so read the path of the real

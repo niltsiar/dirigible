@@ -125,7 +125,6 @@ struct SessionView: View {
                 }
                 syncSheet(studio)
             }
-            // Tools > Sync Clip to Track... (decision 0076). Only its buttons close it.
             // Tools > Reduce Noise... (decision 0054). Only its buttons close it.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.denoiseDraft != nil }, set: { _ in })) {

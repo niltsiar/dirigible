@@ -59,13 +59,6 @@ struct VoiceMatchResult: Equatable {
     let cut: Double
 }
 
-/// The banner of the last Match Voice, a result or a refusal, and the session revision at its
-/// end: the next change of the session hides it.
-struct VoiceMatchReportShown: Equatable {
-    let banner: WindowBanner
-    let revision: Int
-}
-
 extension L10n {
     /// "+4.2 dB", or "0.0 dB". `text` gives the value of a key, so a test can read a table.
     static func matchDecibels(
@@ -137,14 +130,14 @@ extension SessionWindow {
             matchPresses += 1
             let result = VoiceMatchResult(
                 tracks: matches.count, boost: extremes.map(\.boost).max() ?? 0, cut: extremes.map(\.cut).min() ?? 0)
-            voiceMatchReport = VoiceMatchReportShown(
+            voiceMatchReport = ToolBannerShown(
                 banner: .voiceMatched(result, press: matchPresses), revision: studio.sessionRevision)
         } catch {
             switch error {
             case .matchCancelled: chrome?.announce(L10n.matchCanceled.text, .medium)
             case .tooLittleVoice, .noTargetTrack, .rangeOutsideReference, .matchRead, .matchFault:
                 matchPresses += 1
-                voiceMatchReport = VoiceMatchReportShown(
+                voiceMatchReport = ToolBannerShown(
                     banner: .voiceMatchRefused(L10n.message(for: error, session: studio.session), press: matchPresses),
                     revision: studio.sessionRevision)
             default: alert = .error(error)

@@ -161,12 +161,12 @@ extension SessionWindow {
             ) { [weak self] fraction in self?.duckProgress = fraction }
             if !result.unread.isEmpty {
                 let banner = WindowBanner.duckUnread(paths(result.unread), press: duckPresses)
-                duckReport = DuckReportShown(banner: banner, revision: studio.sessionRevision)
+                duckReport = ToolBannerShown(banner: banner, revision: studio.sessionRevision)
             }
         } catch .duckCancelled {
             // The banner Cancel: the user asked for it, so no alert.
         } catch .session(.noSpeech(_, let threshold, let unread)) {
-            duckReport = DuckReportShown(
+            duckReport = ToolBannerShown(
                 banner: .duckNoSpeech(threshold: threshold, unread: paths(unread), press: duckPresses),
                 revision: studio.sessionRevision)
         } catch {

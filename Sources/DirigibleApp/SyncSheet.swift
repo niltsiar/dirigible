@@ -1,5 +1,6 @@
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import DirigibleTimeline
 import SwiftUI
 
@@ -66,9 +67,6 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
 /// What a sync did, for its result banner (decision 0076): the lag with its direction, the match score,
 /// the spread of the excerpt lags (nil: the drift was not measured), and the head that the move cut.
 struct SyncMoved: Equatable {
-    /// A spread over this many milliseconds gets its own sentence, as the line of `dirigible clip sync`.
-    static let spreadSentenceOver = 20
-
     let lag: Frames
     let peak: Double
     let spread: Frames?
@@ -89,7 +87,7 @@ struct SyncMoved: Equatable {
         var sentences = [format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))]
         sentences.append(format(.bannerSyncMatch, peak))
         if let spread {
-            if spread.count * 1000 > Self.spreadSentenceOver * rate {
+            if spread.count * 1000 > SyncWork.Moved.spreadLineOver * rate {
                 let milliseconds = Int((Double(spread.count) * 1000 / Double(rate)).rounded())
                 sentences.append(format(.bannerSyncSpread, milliseconds))
             }
@@ -221,14 +219,14 @@ extension SessionWindow {
                 [weak self] fraction in self?.syncProgress = fraction
             }
             let moved = SyncMoved(result, headCut: headCut, rate: session.sampleRate)
-            syncReport = SyncReportShown(
+            syncReport = ToolBannerShown(
                 banner: .syncMoved(moved, revision: studio.sessionRevision, press: syncPresses),
                 revision: studio.sessionRevision)
             revealSyncedClip(draft.clip, in: studio)
         } catch .syncCancelled {
             // The banner Cancel: the user asked for it, so no alert.
         } catch .syncNoMatch {
-            syncReport = SyncReportShown(
+            syncReport = ToolBannerShown(
                 banner: .syncNoMatch(
                     clip: draft.clip, clipName: session.name(of: clip), trackName: track.name, press: syncPresses),
                 revision: studio.sessionRevision)

@@ -60,11 +60,13 @@ extension SessionWindow {
     }
 
     /// Repair of the sheet: closes it and renders the clips with the checked repairs, with the values
-    /// kept for the next open. At the end, a banner names the level drop of a de-clip.
+    /// kept for the next open. At the end, a banner names the level drop of a de-clip. Another error
+    /// shows the alert, also the busy refusal of a studio that started another job while the sheet
+    /// was open.
     func applyRepair(_ draft: RepairDraft) {
-        guard importJob == nil, let studio = idleStudio, let request = draft.request, !draft.clips.isEmpty else {
-            return
-        }
+        guard importJob == nil, case .open(let studio) = phase, let request = draft.request,
+            !draft.clips.isEmpty
+        else { return }
         cancelRepair()
         draft.remember(in: app?.defaults)
         render(draft.clips, request: request, studio: studio, canceled: .repairCanceled) {

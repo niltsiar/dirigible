@@ -63,9 +63,10 @@ extension SessionWindow {
     }
 
     /// Reduce Noise of the sheet: closes it and renders the clips that the treatment accepts, with
-    /// the values of the sheet kept for the next open (see `render`).
+    /// the values of the sheet kept for the next open (see `render`). Another error shows the alert,
+    /// also the busy refusal of a studio that started another job while the sheet was open.
     func applyDenoise(_ draft: DenoiseDraft) {
-        guard importJob == nil, let studio = idleStudio, let request = draft.request else { return }
+        guard importJob == nil, case .open(let studio) = phase, let request = draft.request else { return }
         let clips = draft.accepted(in: studio.session)
         guard !clips.isEmpty else { return }
         cancelDenoise()

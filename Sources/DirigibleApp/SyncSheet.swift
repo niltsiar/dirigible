@@ -223,11 +223,12 @@ extension SessionWindow {
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
     /// undo entry (decision 0076). A match shows the result banner, with Undo only when the clip moved,
     /// and the view scrolls only when the new place is out of view. No match shows a banner that changes
-    /// nothing. The banner Cancel shows nothing; another error shows the alert.
+    /// nothing. The banner Cancel shows nothing; another error shows the alert, also the busy refusal
+    /// of a studio that started another job while the sheet was open.
     func sync(_ draft: SyncDraft) async {
         syncDraft = nil
         syncReport = nil
-        guard let studio = idleStudio else { return }
+        guard case .open(let studio) = phase else { return }
         let session = studio.session
         guard let clip = session.clip(draft.clip)?.clip, let track = session.track(draft.reference) else { return }
         syncPresses += 1

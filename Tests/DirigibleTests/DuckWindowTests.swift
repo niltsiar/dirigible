@@ -118,6 +118,25 @@ import Testing
         await model.close()
     }
 
+    /// Apply on a studio that became busy while the sheet was open (an agent job) shows the busy alert,
+    /// ducks nothing, and leaves the other job running.
+    @Test func applyOnABusyStudioShowsTheBusyAlert() async throws {
+        let (model, studio) = try await open()
+        let before = studio.session
+        model.run(.duck)
+        let draft = try #require(model.duckDraft, "the item opened no sheet")
+        studio.transport = .leveling
+
+        await model.duck(draft)
+
+        #expect(model.alert == .error(.busy), "\(String(describing: model.alert))")
+        #expect(model.duckReport == nil && model.duckProgress == nil && studio.transport == .leveling)
+        #expect(studio.session == before, "the duck changed the session")
+        studio.transport = .idle
+        model.alert = nil
+        await model.close()
+    }
+
     /// A 60 s package with speech on t1 (dialogue) over the whole session. The tracks t2 (music)
     /// and t3 get exactly `clips`: (track, ID, start second, end second).
     func openSixty(in name: String, clips: [(TrackID, ClipID, Int, Int)]) async throws -> (SessionWindow, Studio) {

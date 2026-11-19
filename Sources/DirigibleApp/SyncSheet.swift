@@ -64,17 +64,19 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
 }
 
 /// What a sync did, for its result banner (decision 0076): the lag with its direction, the match score,
-/// the spread of the excerpt lags or why the drift was not measured, and the head that the move cut.
+/// the spread of the excerpt lags or why the drift was not measured, the head that the move cut, and
+/// the names of the other clips that it cut.
 struct SyncMoved: Equatable {
     let lag: Frames
     let peak: Double
     let drift: SyncDrift
     let headCut: Frames
+    let replaced: [String]
     let rate: Int
 
     /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
     /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence with its
-    /// cause, and the head cut. `text` gives the value of a key.
+    /// cause, the head cut, and the other clips that the move cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: locale, arguments: arguments)
@@ -99,13 +101,21 @@ struct SyncMoved: Equatable {
         case .onePartMatched: sentences.append(format(.bannerSyncNotMeasured))
         }
         if headCut > .zero { sentences.append(format(.bannerSyncHeadCut, duration(headCut))) }
+        if !replaced.isEmpty {
+            sentences.append(format(.bannerSyncReplaced, replaced.formatted(.list(type: .and).locale(locale))))
+        }
         return sentences.joined(separator: " ")
     }
 }
 
 extension SyncMoved {
-    init(_ result: SyncResult, headCut: Frames, rate: Int) {
-        self.init(lag: result.lag, peak: Double(result.score.peak), drift: result.drift, headCut: headCut, rate: rate)
+    /// The banner of `result` and `cut`, with the names of the cut clips in `before`, the session before
+    /// the move: the move can remove a clip.
+    init(_ result: SyncResult, cut: SyncCut, before: Session) {
+        let names = cut.replaced.map { id in before.clip(id).map { before.name(of: $0.clip) } ?? id.rawValue }
+        self.init(
+            lag: result.lag, peak: Double(result.score.peak), drift: result.drift, headCut: cut.head, replaced: names,
+            rate: before.sampleRate)
     }
 }
 
@@ -220,10 +230,10 @@ extension SessionWindow {
         defer { syncProgress = nil }
         let before = studio.sessionRevision
         do throws(StudioError) {
-            let (result, headCut) = try await studio.syncClip(draft.clip, to: draft.reference) {
+            let (result, cut) = try await studio.syncClip(draft.clip, to: draft.reference) {
                 [weak self] fraction in self?.syncProgress = fraction
             }
-            let moved = SyncMoved(result, headCut: headCut, rate: session.sampleRate)
+            let moved = SyncMoved(result, cut: cut, before: session)
             let revision = studio.sessionRevision
             syncReport = ToolBannerShown(
                 banner: .syncMoved(moved, revision: revision == before ? nil : revision, press: syncPresses),

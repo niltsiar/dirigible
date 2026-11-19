@@ -19,13 +19,15 @@ extension ClipCommand {
                 "moved <clip> by <+|-><seconds> s (<frames> frames), match <score>". Then "the lag changes \
                 by <ms> ms across the clip" when the lag changes along the clip by over 20 ms, or "the \
                 drift was not measured: the clip is shorter than 60 s", or "the drift was not measured: \
-                only one part of the clip matched", then "cut <seconds> s at the head". The command moves the whole clip by one lag and does not correct a drift. With --json, \
-                one line with clip, frames, seconds, match, spread, and headCut; spread and headCut are in \
-                frames, and spread is null when the drift was not measured. Exit 64 when --within is not a \
-                whole number of seconds from 1, or is over the longest search, or the clip is longer than \
-                the longest span. Exit 1 when the clip or the track is unknown, the track is the track of \
-                the clip or has no audio near the clip, or the audio of the clip is not on the track: then \
-                nothing changes. Exit 2 when an audio file is missing or unreadable, a file cannot open, or \
+                only one part of the clip matched", then "cut <seconds> s at the head", then "replaced \
+                audio of <clip>, <clip>" with each other clip that the move cut. The command moves the whole \
+                clip by one lag and does not correct a drift. With --json, one line with clip, frames, \
+                seconds, match, spread, headCut, and replaced; spread and headCut are in frames, spread is \
+                null when the drift was not measured, and replaced lists the IDs of the cut clips. Exit 64 \
+                when --within is not a whole number of seconds from 1, or is over the longest search, or the \
+                clip is longer than the longest span. Exit 1 when the clip or the track is unknown, the \
+                track is the track of the clip or has no audio near the clip, or the audio of the clip is not \
+                on the track: then nothing changes. Exit 2 when an audio file is missing or unreadable, a file cannot open, or \
                 the package cannot be read or written, is locked, or has a take that is not finalized. \
                 Control-C leaves the package as it was and exits 130.
                 """)

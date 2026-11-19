@@ -25,11 +25,11 @@ struct SessionSyncTests {
         let before = session
 
         var moved = session
-        #expect(try moved.sync("C", by: 96_000) == .zero)
+        #expect(try moved.sync("C", by: 96_000) == SyncCut(head: .zero, replaced: []))
         #expect(moved.clip("C")?.clip == Self.clip("C", start: 288_000, length: 960_000, offset: 48_000))
 
         var cut = session
-        #expect(try cut.sync("C", by: -480_000) == 288_000)
+        #expect(try cut.sync("C", by: -480_000) == SyncCut(head: 288_000, replaced: []))
         #expect(cut.clip("C")?.clip == Self.clip("C", start: 0, length: 672_000, offset: 336_000))
         #expect(cut.track("b") == before.track("b"), "another track changed")
 
@@ -40,6 +40,28 @@ struct SessionSyncTests {
             #expect(throws: SessionError.frameOutOfRange) { _ = try short.sync("S", by: -480_000) }
             #expect(short == unchanged)
         }
+    }
+
+    /// Two adjacent parts A (0 to 10 s) and B (10 to 20 s) and a clip E (40 to 45 s) on track a, and
+    /// O on track b. The sync of A by 5 s cuts the head of B; by 10 s it covers B, which goes; by
+    /// 32 s it cuts E and not B; a move into empty space cuts nothing. Clips on track b never count.
+    @Test func aMoveNamesEachOtherClipThatItCuts() throws {
+        let second = 48_000
+        var session = try Self.session()
+        try session.place(Self.clip("A", start: 0, length: 10 * second), on: "a")
+        try session.place(Self.clip("B", start: 10 * second, length: 10 * second), on: "a")
+        try session.place(Self.clip("E", start: 40 * second, length: 5 * second), on: "a")
+        try session.place(Self.clip("O", start: 0, length: 60 * second), on: "b")
+
+        for (lag, replaced) in [(5, ["B"]), (10, ["B"]), (32, ["E"]), (50, [])] as [(Int, [ClipID])] {
+            var moved = session
+            #expect(
+                try moved.sync("A", by: Frames(lag * second)) == SyncCut(head: .zero, replaced: replaced),
+                "lag \(lag) s")
+        }
+        var covered = session
+        _ = try covered.sync("A", by: Frames(10 * second))
+        #expect(covered.clip("B") == nil, "B is under A")
     }
 
     /// The call preset (Host, then Guest on the app route) plus an imported guest file gives

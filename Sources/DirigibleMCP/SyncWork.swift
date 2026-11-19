@@ -34,16 +34,16 @@ package struct SyncWork: Sendable {
     let within: Int?
     let front: Front
 
-    /// What a sync did: the lag, the score, and the spread of the read, and the head that the move cut.
+    /// What a sync did: the lag, the score, and the drift of the read, and what the move cut.
     package struct Moved: Sendable {
         let clip: ClipID
         let result: SyncResult
-        let headCut: Frames
+        let cut: SyncCut
         let sampleRate: Int
 
         /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, then the drift line (the lag changes by
         /// more than 20 ms, or the drift was not measured and why), then `cut 6.000 s at the head` after a
-        /// head cut.
+        /// head cut, then `replaced audio of B, D` with the other clips that the move cut.
         package var lines: [String] {
             let (lag, rate) = (result.lag.count, sampleRate)
             let seconds = String(format: "%.3f", abs(Double(lag)) / Double(rate))
@@ -58,12 +58,15 @@ package struct SyncWork: Sendable {
             case .clipTooShort: lines.append("the drift was not measured: the clip is shorter than 60 s")
             case .onePartMatched: lines.append("the drift was not measured: only one part of the clip matched")
             }
-            if headCut > .zero { lines.append("cut \(TakeWork.seconds(headCut.count, rate)) s at the head") }
+            if cut.head > .zero { lines.append("cut \(TakeWork.seconds(cut.head.count, rate)) s at the head") }
+            if !cut.replaced.isEmpty {
+                lines.append("replaced audio of \(cut.replaced.map(\.rawValue).joined(separator: ", "))")
+            }
             return lines
         }
 
-        /// The object of `--json` on one line: `spread` and `headCut` in frames, and `spread` null when
-        /// the drift was not measured.
+        /// The object of `--json` on one line: `spread` and `headCut` in frames, `spread` null when the
+        /// drift was not measured, and `replaced` the IDs of the other clips that the move cut.
         package var json: String {
             // The decimal text keeps `0.98` and `1.234` as they are: a Double would print 0.97999999999999998.
             let seconds = String(format: "%.3f", Double(result.lag.count) / Double(sampleRate))
@@ -71,9 +74,10 @@ package struct SyncWork: Sendable {
             let object: [String: Any] = [
                 "clip": clip.rawValue, "frames": result.lag.count, "seconds": NSDecimalNumber(string: seconds),
                 "match": NSDecimalNumber(string: String(format: "%.2f", result.score.peak)),
-                "spread": spread.map { $0.count } ?? NSNull(), "headCut": headCut.count,
+                "spread": spread.map { $0.count } ?? NSNull(), "headCut": cut.head.count,
+                "replaced": cut.replaced.map(\.rawValue),
             ]
-            // The object holds only strings, numbers, and null, so the encode does not fail.
+            // The object holds only strings, numbers, an array of strings, and null, so the encode does not fail.
             let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
             return String(decoding: data, as: UTF8.self)
         }
@@ -137,11 +141,11 @@ package struct SyncWork: Sendable {
             throw .studio(StudioError(error))
         }
         guard !isCancelled() else { throw .studio(.syncCancelled) }
-        let cut: Frames
+        let cut: SyncCut
         do throws(SessionError) { cut = try session.sync(clip, by: result.lag) } catch {
             throw .studio(.session(error))
         }
-        return Moved(clip: clip, result: result, headCut: cut, sampleRate: session.sampleRate)
+        return Moved(clip: clip, result: result, cut: cut, sampleRate: session.sampleRate)
     }
 
     /// The job of a tool call on the files, under the package lock. A sync that moves nothing writes

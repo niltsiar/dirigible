@@ -5,7 +5,7 @@ extension Studio {
     /// Sync Clip to Track (decision 0076, **Job**): reads the lag of `clip` on `track` with
     /// `syncLag` through `runReadJob` on `.syncing`, then moves the clip by it with `Session.sync`
     /// as one undo entry with `agent`. `within` nil is the default span, clamped to the cap. It
-    /// returns the result of the read and the head cut of the move. The errors of
+    /// returns the result of the read and the cut of the move. The errors of
     /// `Session.syncSpan` throw before a read; no match throws `.syncNoMatch`, a missing or
     /// unreadable file `.syncFile`, a read errno `.syncRead`, and a cancel `.syncCancelled`. Each
     /// throw changes nothing.
@@ -13,7 +13,7 @@ extension Studio {
     public func syncClip(
         _ clip: ClipID, to track: TrackID, within: Frames? = nil, agent: AgentName? = nil,
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
-    ) async throws(StudioError) -> (SyncResult, headCut: Frames) {
+    ) async throws(StudioError) -> (SyncResult, cut: SyncCut) {
         try checkIdle()
         let span: Range<Frames>
         do throws(SessionError) { span = try session.syncSpan(clip, to: track, within: within) } catch {
@@ -29,7 +29,7 @@ extension Studio {
                 var moved = session
                 do throws(SessionError) {
                     let cut = try moved.sync(clip, by: result.lag)
-                    return (moved, (result, headCut: cut))
+                    return (moved, (result, cut: cut))
                 } catch {
                     throw .session(error)
                 }

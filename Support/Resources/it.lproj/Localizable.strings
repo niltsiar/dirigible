@@ -927,7 +927,7 @@
 "error.sync.unreadable" = "Dirigible non può sincronizzare il clip. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";
 "error.sync.same.track" = "La traccia di riferimento è la traccia del clip. Scegli un’altra traccia.";
 "error.sync.no.reference" = "La traccia di riferimento non ha audio vicino al clip. Scegli un’altra traccia.";
-"error.sync.too.long" = "Il clip è troppo lungo da sincronizzare. Dividilo, poi sincronizza ogni parte.";
+"error.sync.too.long" = "Il clip è troppo lungo da sincronizzare. Dividilo, trascina ogni parte su una traccia a sé, poi sincronizza ogni parte.";
 "menu.tools.sync" = "Sincronizza clip con traccia…";
 "sheet.sync.title" = "Sincronizza clip con traccia";
 "sheet.sync.reference" = "Traccia di riferimento";
@@ -945,6 +945,7 @@
 "banner.sync.not.measured" = "La deriva non è stata misurata: solo una parte del clip corrisponde.";
 "banner.sync.too.short" = "La deriva non è stata misurata: il clip dura meno di 60 s.";
 "banner.sync.head.cut" = "Inizio del clip tagliato di %@, perché è passato prima dell’inizio della sessione.";
+"banner.sync.replaced" = "Lo spostamento ha sostituito l’audio di %@.";
 "banner.sync.no.match" = "Nessuna corrispondenza: %@ non è stato trovato su %@.";
 "banner.sync.choose" = "Scegli un’altra traccia…";
 "banner.sync.undo" = "Annulla";

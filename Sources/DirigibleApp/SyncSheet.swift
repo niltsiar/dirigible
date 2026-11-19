@@ -64,17 +64,17 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
 }
 
 /// What a sync did, for its result banner (decision 0076): the lag with its direction, the match score,
-/// the spread of the excerpt lags (nil: the drift was not measured), and the head that the move cut.
+/// the spread of the excerpt lags or why the drift was not measured, and the head that the move cut.
 struct SyncMoved: Equatable {
     let lag: Frames
     let peak: Double
-    let spread: Frames?
+    let drift: SyncDrift
     let headCut: Frames
     let rate: Int
 
     /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
-    /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence, and
-    /// the head cut. `text` gives the value of a key.
+    /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence with its
+    /// cause, and the head cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: locale, arguments: arguments)
@@ -90,13 +90,13 @@ struct SyncMoved: Equatable {
                 : format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))
         ]
         sentences.append(format(.bannerSyncMatch, peak))
-        if let spread {
-            if SyncResult.spreadIsNotable(spread, rate: rate) {
-                let milliseconds = Int((Double(spread.count) * 1000 / Double(rate)).rounded())
-                sentences.append(format(.bannerSyncSpread, milliseconds))
-            }
-        } else {
-            sentences.append(format(.bannerSyncNotMeasured))
+        switch drift {
+        case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):
+            let milliseconds = Int((Double(spread.count) * 1000 / Double(rate)).rounded())
+            sentences.append(format(.bannerSyncSpread, milliseconds))
+        case .spread: break
+        case .clipTooShort: sentences.append(format(.bannerSyncTooShort))
+        case .onePartMatched: sentences.append(format(.bannerSyncNotMeasured))
         }
         if headCut > .zero { sentences.append(format(.bannerSyncHeadCut, duration(headCut))) }
         return sentences.joined(separator: " ")
@@ -105,7 +105,7 @@ struct SyncMoved: Equatable {
 
 extension SyncMoved {
     init(_ result: SyncResult, headCut: Frames, rate: Int) {
-        self.init(lag: result.lag, peak: Double(result.score.peak), spread: result.spread, headCut: headCut, rate: rate)
+        self.init(lag: result.lag, peak: Double(result.score.peak), drift: result.drift, headCut: headCut, rate: rate)
     }
 }
 

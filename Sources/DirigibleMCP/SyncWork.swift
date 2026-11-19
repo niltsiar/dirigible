@@ -33,8 +33,9 @@ package struct SyncWork: Sendable {
         let headCut: Frames
         let sampleRate: Int
 
-        /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, then the spread line (the drift was not
-        /// measured, or the lag changes by more than 20 ms), then `cut 6.000 s at the head` after a head cut.
+        /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, then the drift line (the lag changes by
+        /// more than 20 ms, or the drift was not measured and why), then `cut 6.000 s at the head` after a
+        /// head cut.
         package var lines: [String] {
             let (lag, rate) = (result.lag.count, sampleRate)
             let seconds = String(format: "%.3f", abs(Double(lag)) / Double(rate))
@@ -42,12 +43,12 @@ package struct SyncWork: Sendable {
                 "moved \(clip) by \(lag < 0 ? "-" : "+")\(seconds) s (\(lag) frames), "
                     + "match \(String(format: "%.2f", result.score.peak))"
             ]
-            if let spread = result.spread {
-                if SyncResult.spreadIsNotable(spread, rate: rate) {
-                    lines.append("the lag changes by \(TakeWork.milliseconds(spread.count, rate)) ms across the clip")
-                }
-            } else {
-                lines.append("the drift was not measured: only one part of the clip matched")
+            switch result.drift {
+            case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):
+                lines.append("the lag changes by \(TakeWork.milliseconds(spread.count, rate)) ms across the clip")
+            case .spread: break
+            case .clipTooShort: lines.append("the drift was not measured: the clip is shorter than 60 s")
+            case .onePartMatched: lines.append("the drift was not measured: only one part of the clip matched")
             }
             if headCut > .zero { lines.append("cut \(TakeWork.seconds(headCut.count, rate)) s at the head") }
             return lines
@@ -58,10 +59,11 @@ package struct SyncWork: Sendable {
         package var json: String {
             // The decimal text keeps `0.98` and `1.234` as they are: a Double would print 0.97999999999999998.
             let seconds = String(format: "%.3f", Double(result.lag.count) / Double(sampleRate))
+            let spread: Frames? = if case .spread(let spread) = result.drift { spread } else { nil }
             let object: [String: Any] = [
                 "clip": clip.rawValue, "frames": result.lag.count, "seconds": NSDecimalNumber(string: seconds),
                 "match": NSDecimalNumber(string: String(format: "%.2f", result.score.peak)),
-                "spread": result.spread.map { $0.count } ?? NSNull(), "headCut": headCut.count,
+                "spread": spread.map { $0.count } ?? NSNull(), "headCut": headCut.count,
             ]
             // The object holds only strings, numbers, and null, so the encode does not fail.
             let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()

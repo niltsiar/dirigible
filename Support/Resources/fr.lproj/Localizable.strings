@@ -943,6 +943,7 @@
 "banner.sync.match" = "Score de correspondance : %.2f.";
 "banner.sync.spread" = "Le décalage varie de %lld ms le long du clip.";
 "banner.sync.not.measured" = "La dérive n’a pas été mesurée : une seule partie du clip correspond.";
+"banner.sync.too.short" = "La dérive n’a pas été mesurée : le clip dure moins de 60 s.";
 "banner.sync.head.cut" = "Début du clip coupé de %@, car il est passé avant le début de la session.";
 "banner.sync.no.match" = "Aucune correspondance : %@ est introuvable sur %@.";
 "banner.sync.choose" = "Choisir une autre piste…";

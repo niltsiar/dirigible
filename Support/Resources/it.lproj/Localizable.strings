@@ -943,6 +943,7 @@
 "banner.sync.match" = "Punteggio di corrispondenza: %.2f.";
 "banner.sync.spread" = "Lo sfasamento cambia di %lld ms lungo il clip.";
 "banner.sync.not.measured" = "La deriva non è stata misurata: solo una parte del clip corrisponde.";
+"banner.sync.too.short" = "La deriva non è stata misurata: il clip dura meno di 60 s.";
 "banner.sync.head.cut" = "Inizio del clip tagliato di %@, perché è passato prima dell’inizio della sessione.";
 "banner.sync.no.match" = "Nessuna corrispondenza: %@ non è stato trovato su %@.";
 "banner.sync.choose" = "Scegli un’altra traccia…";

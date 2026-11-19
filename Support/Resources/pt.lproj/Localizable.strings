@@ -943,6 +943,7 @@
 "banner.sync.match" = "Pontuação da correspondência: %.2f.";
 "banner.sync.spread" = "O deslocamento muda %lld ms ao longo do clipe.";
 "banner.sync.not.measured" = "A deriva não foi medida: só uma parte do clipe correspondeu.";
+"banner.sync.too.short" = "A deriva não foi medida: o clipe tem menos de 60 s.";
 "banner.sync.head.cut" = "O início do clipe foi cortado em %@, porque ele passou para antes do início da sessão.";
 "banner.sync.no.match" = "Sem correspondência: %@ não foi encontrado em %@.";
 "banner.sync.choose" = "Escolher Outra Pista…";

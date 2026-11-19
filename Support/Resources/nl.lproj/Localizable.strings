@@ -943,6 +943,7 @@
 "banner.sync.match" = "Overeenkomstscore: %.2f.";
 "banner.sync.spread" = "De vertraging verandert met %lld ms over de clip.";
 "banner.sync.not.measured" = "De drift is niet gemeten: slechts één deel van de clip kwam overeen.";
+"banner.sync.too.short" = "De drift is niet gemeten: de clip is korter dan 60 s.";
 "banner.sync.head.cut" = "Het begin van de clip is %@ ingekort, omdat de clip voor het begin van de sessie kwam.";
 "banner.sync.no.match" = "Geen overeenkomst: %@ is niet gevonden op %@.";
 "banner.sync.choose" = "Kies een ander spoor…";

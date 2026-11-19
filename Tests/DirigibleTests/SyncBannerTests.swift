@@ -24,9 +24,8 @@ import Testing
         return (model, studio)
     }
 
-    func moved(lag: Int, peak: Double = 0.98, spread: Int? = 0, headCut: Int = 0) -> SyncMoved {
-        SyncMoved(
-            lag: Frames(lag), peak: peak, spread: spread.map { Frames($0) }, headCut: Frames(headCut), rate: 48_000)
+    func moved(lag: Int, peak: Double = 0.98, drift: SyncDrift = .spread(0), headCut: Int = 0) -> SyncMoved {
+        SyncMoved(lag: Frames(lag), peak: peak, drift: drift, headCut: Frames(headCut), rate: 48_000)
     }
 
     func text(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
@@ -46,19 +45,23 @@ import Testing
             "59.96 s rounds up to the minute")
     }
 
-    /// C20: the match sentence follows, then the lag change line over 20 ms, or the not-measured line,
-    /// then the head cut line.
+    /// C20: the match sentence follows, then the lag change line over 20 ms, or the not-measured line
+    /// with its cause, then the head cut line.
     @Test func theMatchTheSpreadAndTheHeadCutFollow() {
         #expect(text(moved(lag: -163_200)) == "Moved the clip 3.4 s earlier. Match score: 0.98.")
         #expect(
-            text(moved(lag: -163_200, spread: 2_880))
+            text(moved(lag: -163_200, drift: .spread(2_880)))
                 == "Moved the clip 3.4 s earlier. Match score: 0.98. The lag changes by 60 ms across the clip.")
         #expect(
-            text(moved(lag: -163_200, spread: 960))
+            text(moved(lag: -163_200, drift: .spread(960)))
                 == "Moved the clip 3.4 s earlier. Match score: 0.98.", "a spread of 20 ms or less has no line")
         #expect(
-            text(moved(lag: -163_200, spread: nil))
+            text(moved(lag: -163_200, drift: .onePartMatched))
                 == "Moved the clip 3.4 s earlier. Match score: 0.98. The drift was not measured: only one part of the clip matched."
+        )
+        #expect(
+            text(moved(lag: -163_200, drift: .clipTooShort))
+                == "Moved the clip 3.4 s earlier. Match score: 0.98. The drift was not measured: the clip is shorter than 60 s."
         )
         #expect(
             text(moved(lag: -163_200, headCut: 288_000))

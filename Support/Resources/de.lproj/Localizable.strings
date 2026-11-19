@@ -943,6 +943,7 @@
 "banner.sync.match" = "Übereinstimmung: %.2f.";
 "banner.sync.spread" = "Der Versatz ändert sich um %lld ms über den Clip.";
 "banner.sync.not.measured" = "Der Drift wurde nicht gemessen: Nur ein Teil des Clips stimmte überein.";
+"banner.sync.too.short" = "Der Drift wurde nicht gemessen: Der Clip ist kürzer als 60 s.";
 "banner.sync.head.cut" = "%@ vom Anfang des Clips wurden abgeschnitten, weil er vor den Anfang der Session verschoben wurde.";
 "banner.sync.no.match" = "Keine Übereinstimmung: %@ wurde auf %@ nicht gefunden.";
 "banner.sync.choose" = "Andere Spur wählen …";

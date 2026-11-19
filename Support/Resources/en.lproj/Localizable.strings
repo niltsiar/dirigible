@@ -943,6 +943,7 @@
 "banner.sync.match" = "Match score: %.2f.";
 "banner.sync.spread" = "The lag changes by %lld ms across the clip.";
 "banner.sync.not.measured" = "The drift was not measured: only one part of the clip matched.";
+"banner.sync.too.short" = "The drift was not measured: the clip is shorter than 60 s.";
 "banner.sync.head.cut" = "Cut %@ from the start of the clip, because it moved before the start of the session.";
 "banner.sync.no.match" = "No match: %@ was not found on %@.";
 "banner.sync.choose" = "Choose Another Track…";

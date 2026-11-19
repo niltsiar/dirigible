@@ -176,7 +176,7 @@ struct SyncToolTests {
             return
         }
         let expected =
-            "moved C by -10.000 s (-480000 frames), match #\nthe drift was not measured: only one part of the clip matched"
+            "moved C by -10.000 s (-480000 frames), match #\nthe drift was not measured: the clip is shorter than 60 s"
         #expect(Self.unscored(text) == expected, "\(text)")
         let values = sent.progress(token: 1)
         #expect(!values.isEmpty && zip(values, values.dropFirst()).allSatisfy { $0 < $1 }, "\(values)")
@@ -186,31 +186,35 @@ struct SyncToolTests {
         await studio.settle()
     }
 
-    /// The lines of a result: the spread line shows over 20 ms and not at 20 ms, and is the not-measured
-    /// text for a nil spread; a positive lag has its sign, and a head cut ends the text.
-    @Test func theLinesFollowTheSpreadAndTheCut() {
-        func lines(lag: Int, spread: Int?, cut: Int = 0) -> [String] {
-            let result = SyncResult(
-                lag: Frames(lag), score: MatchScore(peak: 0.984, ratio: 9), spread: spread.map { Frames($0) })
+    /// The lines of a result: the spread line shows over 20 ms and not at 20 ms, and a drift that was
+    /// not measured gives its cause; a positive lag has its sign, and a head cut ends the text.
+    @Test func theLinesFollowTheDriftAndTheCut() {
+        func lines(lag: Int, drift: SyncDrift, cut: Int = 0) -> [String] {
+            let result = SyncResult(lag: Frames(lag), score: MatchScore(peak: 0.984, ratio: 9), drift: drift)
             return SyncWork.Moved(clip: "C", result: result, headCut: Frames(cut), sampleRate: 48_000).lines
         }
         let first = "moved C by +1.234 s (59232 frames), match 0.98"
-        #expect(lines(lag: 59_232, spread: 960) == [first])
-        #expect(lines(lag: 59_232, spread: 961) == [first, "the lag changes by 20 ms across the clip"])
-        #expect(lines(lag: 59_232, spread: 2_208) == [first, "the lag changes by 46 ms across the clip"])
+        #expect(lines(lag: 59_232, drift: .spread(960)) == [first])
+        #expect(lines(lag: 59_232, drift: .spread(961)) == [first, "the lag changes by 20 ms across the clip"])
+        #expect(lines(lag: 59_232, drift: .spread(2_208)) == [first, "the lag changes by 46 ms across the clip"])
         #expect(
-            lines(lag: -1, spread: nil, cut: 288_000) == [
+            lines(lag: 59_232, drift: .clipTooShort) == [
+                first, "the drift was not measured: the clip is shorter than 60 s",
+            ])
+        #expect(
+            lines(lag: -1, drift: .onePartMatched, cut: 288_000) == [
                 "moved C by -0.000 s (-1 frames), match 0.98",
                 "the drift was not measured: only one part of the clip matched", "cut 6.000 s at the head",
             ])
     }
 
     /// The JSON has the lag in frames and seconds, the spread and the head cut in frames, and null for
-    /// a spread that was not measured.
+    /// a spread that was not measured, for each cause.
     @Test func theJsonKeepsANilSpreadAsNull() {
         let score = MatchScore(peak: 0.984, ratio: 9)
-        let measured = SyncResult(lag: 59_232, score: score, spread: 2_208)
-        let unknown = SyncResult(lag: -240_000, score: score, spread: nil)
+        let measured = SyncResult(lag: 59_232, score: score, drift: .spread(2_208))
+        let unknown = SyncResult(lag: -240_000, score: score, drift: .onePartMatched)
+        let short = SyncResult(lag: -240_000, score: score, drift: .clipTooShort)
 
         #expect(
             SyncWork.Moved(clip: "C", result: measured, headCut: 0, sampleRate: 48_000).json
@@ -218,6 +222,9 @@ struct SyncToolTests {
         #expect(
             SyncWork.Moved(clip: "C", result: unknown, headCut: 288_000, sampleRate: 48_000).json
                 == #"{"clip":"C","frames":-240000,"headCut":288000,"match":0.98,"seconds":-5,"spread":null}"#)
+        #expect(
+            SyncWork.Moved(clip: "C", result: short, headCut: 0, sampleRate: 48_000).json
+                == #"{"clip":"C","frames":-240000,"headCut":0,"match":0.98,"seconds":-5,"spread":null}"#)
     }
 
     /// The tool description and the skill line say what the tool does and its one-lag limit, and quote

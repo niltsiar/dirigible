@@ -116,6 +116,22 @@ struct SyncLagTests {
         }
     }
 
+    /// At each rate, a span at `Session.syncSpanCap` and the longest excerpt (a clip just under 60 s)
+    /// fit one coarse FFT of 2^24 points. `CoarseScores` takes the power of 2 at or over the coarse
+    /// reference plus the coarse excerpt, and the decimation gives at most ceil(N / f) samples of N frames.
+    @Test(arguments: [
+        1, 1_999, 3_999, 8_000, 11_025, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 176_400, 192_000,
+    ])
+    func theSpanCapFitsTheCoarseFFTOfTheMatch(rate: Int) throws {
+        let factor = matchFactor(rate: rate)
+        func coarse(_ frames: Int) -> Int { (frames + factor - 1) / factor }
+        let excerpts = excerptRanges(
+            clipLength: 60 * rate - 1, windowMeanSquares: [], window: max(1, rate / 20), rate: rate)
+        let longest = try #require(excerpts.map(\.count).max())
+        let points = coarse(Session(sampleRate: rate).syncSpanCap.count) + coarse(longest)
+        #expect(points <= 1 << 24, "\(points) points at \(rate) Hz")
+    }
+
     /// No memory for a DFT setup of the coarse step, forward or inverse, is a read failure with ENOMEM.
     @Test func noMemoryForTheCoarseSetupIsAReadFailure() throws {
         let package = try syncPackage()

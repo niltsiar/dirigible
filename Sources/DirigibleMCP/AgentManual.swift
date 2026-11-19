@@ -187,11 +187,9 @@ package enum AgentManual {
     /// What Sync Clip takes (decision 0076). In the skill only: the manual has no room under its 6000
     /// characters.
     static let syncLine =
-        "`clip_sync` moves a clip onto its audio on another track, for a recording with no shared clock, such as "
-        + "a guest file and the call track: `clip`, `to` (the reference track), and `within` (seconds on each "
-        + "side, 1800 by default). It moves the whole clip by one lag and changes no audio file. The text says "
-        + "\"the lag changes by <ms> ms across the clip\" when the lag changes along the clip: it does not "
-        + "correct a drift. No match is an error and changes nothing."
+        "`clip_sync` moves a clip onto its audio on another track, for a recording with no shared clock: `clip`, "
+        + "`to` (the reference track), and `within` (seconds on each side, 1800 by default). It moves the whole "
+        + "clip by one lag and does not correct a drift."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =

@@ -73,7 +73,7 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 
 - **Intent:** the paragraph from step 2.
 - **Panel:** for each lens, the findings raised and the findings that survived; a holdout that a lens proposes appears only as its ID, and its key line goes only to `holdout-keys.md`, because `scripts/check-eval-keys.sh` refuses a copy.
-- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>, <weight>)`, then the description, why it matters, Invariant, and Siblings.
+- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>, <weight>)`, then the description, why it matters, Invariant, and Siblings; at the code gate, also Criteria.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.
 - **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.

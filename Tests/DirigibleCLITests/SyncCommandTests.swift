@@ -109,7 +109,9 @@ struct SyncCommandTests {
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any], "\(result)")
         #expect(result.status == 0 && result.stdout.hasSuffix("}\n") && result.stdout.filter { $0 == "\n" }.count == 1)
-        #expect(Set(object.keys) == ["clip", "frames", "seconds", "match", "spread", "headCut"], "\(object)")
+        #expect(
+            Set(object.keys) == ["clip", "frames", "seconds", "match", "spread", "headCut", "replaced"], "\(object)")
+        #expect(object["replaced"] as? [String] == [], "replaced: \(String(describing: object["replaced"]))")
         #expect(object["clip"] as? String == "C" && object["frames"] as? Int == -960_000)
         #expect(object["seconds"] as? Double == -20 && object["headCut"] as? Int == 0)
         #expect(object["spread"] is NSNull, "spread: \(String(describing: object["spread"]))")

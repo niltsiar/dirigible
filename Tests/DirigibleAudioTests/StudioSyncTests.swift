@@ -33,9 +33,9 @@ struct StudioSyncTests {
         }
         let before = studio.session
 
-        let (result, headCut) = try await studio.syncClip("C", to: "ref", agent: Self.agent)
+        let (result, cut) = try await studio.syncClip("C", to: "ref", agent: Self.agent)
 
-        #expect(result.lag == -240_000 && headCut == .zero)
+        #expect(result.lag == -240_000 && cut == SyncCut(head: .zero, replaced: ["K"]), "\(cut)")
         let moved = try #require(studio.session.clip("C")?.clip)
         #expect(moved.start == 1_440_000, "start \(moved.start)")
         #expect(moved.offset == .zero && moved.length == 1_440_000 && moved.gain == Gain(dB: -3)!)

@@ -929,6 +929,7 @@ enum L10n: String, CaseIterable {
     case bannerSyncNotMeasured = "banner.sync.not.measured"
     case bannerSyncTooShort = "banner.sync.too.short"
     case bannerSyncHeadCut = "banner.sync.head.cut"
+    case bannerSyncReplaced = "banner.sync.replaced"
     case bannerSyncNoMatch = "banner.sync.no.match"
     case bannerSyncChoose = "banner.sync.choose"
     case bannerSyncUndo = "banner.sync.undo"

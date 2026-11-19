@@ -927,7 +927,7 @@
 "error.sync.unreadable" = "Dirigible cannot sync the clip. The audio file “%@” did not read. Check the disk and try again.";
 "error.sync.same.track" = "The reference track is the track of the clip. Choose another track.";
 "error.sync.no.reference" = "The reference track has no audio near the clip. Choose another track.";
-"error.sync.too.long" = "The clip is too long to sync. Split it, then sync each part.";
+"error.sync.too.long" = "The clip is too long to sync. Split it, drag each part to its own track, then sync each part.";
 "menu.tools.sync" = "Sync Clip to Track…";
 "sheet.sync.title" = "Sync Clip to Track";
 "sheet.sync.reference" = "Reference Track";
@@ -945,6 +945,7 @@
 "banner.sync.not.measured" = "The drift was not measured: only one part of the clip matched.";
 "banner.sync.too.short" = "The drift was not measured: the clip is shorter than 60 s.";
 "banner.sync.head.cut" = "Cut %@ from the start of the clip, because it moved before the start of the session.";
+"banner.sync.replaced" = "The move replaced audio of %@.";
 "banner.sync.no.match" = "No match: %@ was not found on %@.";
 "banner.sync.choose" = "Choose Another Track…";
 "banner.sync.undo" = "Undo";

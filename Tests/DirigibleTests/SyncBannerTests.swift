@@ -24,8 +24,11 @@ import Testing
         return (model, studio)
     }
 
-    func moved(lag: Int, peak: Double = 0.98, drift: SyncDrift = .spread(0), headCut: Int = 0) -> SyncMoved {
-        SyncMoved(lag: Frames(lag), peak: peak, drift: drift, headCut: Frames(headCut), rate: 48_000)
+    func moved(
+        lag: Int, peak: Double = 0.98, drift: SyncDrift = .spread(0), headCut: Int = 0, replaced: [String] = []
+    ) -> SyncMoved {
+        SyncMoved(
+            lag: Frames(lag), peak: peak, drift: drift, headCut: Frames(headCut), replaced: replaced, rate: 48_000)
     }
 
     func text(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
@@ -67,6 +70,30 @@ import Testing
             text(moved(lag: -163_200, headCut: 288_000))
                 == "Moved the clip 3.4 s earlier. Match score: 0.98. Cut 6.0 s from the start of the clip, because it moved before the start of the session."
         )
+        #expect(
+            text(moved(lag: -163_200, replaced: ["Part 2"]))
+                == "Moved the clip 3.4 s earlier. Match score: 0.98. The move replaced audio of Part 2.")
+        #expect(
+            text(moved(lag: -163_200, replaced: ["Part 2", "Music"]))
+                == "Moved the clip 3.4 s earlier. Match score: 0.98. The move replaced audio of Part 2 and Music.")
+    }
+
+    /// C20: the banner names the clip that the move cuts, with its name from before the move. Clip `N`
+    /// (file `r`, 23 to 30 s on Host) is under the new place of `C` (20 to 28 s).
+    @Test func theBannerNamesTheClipThatTheMoveCuts() async throws {
+        let url = try await syncWindowPackage(in: folder.url, neighbor: true)
+        let (model, studio, _, _) = try await openLanes(app, url)
+
+        await model.sync(try #require(SyncDraft(clip: "C", in: studio.session)))
+
+        guard case .syncMoved(let moved, _, _) = try #require(model.syncReport?.banner) else {
+            Issue.record("no result banner: \(String(describing: model.syncReport))")
+            return
+        }
+        #expect(moved.replaced == ["r"], "\(moved)")
+        #expect(text(moved).hasSuffix(" The move replaced audio of r."), "\(text(moved))")
+        #expect(studio.session.clip("N")?.clip.range == Frames(28 * 48_000)..<Frames(30 * 48_000))
+        await model.close()
     }
 
     /// C20: the banner is info with Undo, it stays through a selection change and a play, and an edit

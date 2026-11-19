@@ -927,7 +927,7 @@
 "error.sync.unreadable" = "Dirigible kann den Clip nicht synchronisieren. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
 "error.sync.same.track" = "Die Referenzspur ist die Spur des Clips. Wähle eine andere Spur aus.";
 "error.sync.no.reference" = "Die Referenzspur hat keinen Ton in der Nähe des Clips. Wähle eine andere Spur aus.";
-"error.sync.too.long" = "Der Clip ist zu lang zum Synchronisieren. Teile ihn und synchronisiere dann jeden Teil.";
+"error.sync.too.long" = "Der Clip ist zu lang zum Synchronisieren. Teile ihn, ziehe jeden Teil auf eine eigene Spur und synchronisiere dann jeden Teil.";
 "menu.tools.sync" = "Clip mit Spur synchronisieren …";
 "sheet.sync.title" = "Clip mit Spur synchronisieren";
 "sheet.sync.reference" = "Referenzspur";
@@ -945,6 +945,7 @@
 "banner.sync.not.measured" = "Der Drift wurde nicht gemessen: Nur ein Teil des Clips stimmte überein.";
 "banner.sync.too.short" = "Der Drift wurde nicht gemessen: Der Clip ist kürzer als 60 s.";
 "banner.sync.head.cut" = "%@ vom Anfang des Clips wurden abgeschnitten, weil er vor den Anfang der Session verschoben wurde.";
+"banner.sync.replaced" = "Die Verschiebung hat Audio von %@ ersetzt.";
 "banner.sync.no.match" = "Keine Übereinstimmung: %@ wurde auf %@ nicht gefunden.";
 "banner.sync.choose" = "Andere Spur wählen …";
 "banner.sync.undo" = "Widerrufen";

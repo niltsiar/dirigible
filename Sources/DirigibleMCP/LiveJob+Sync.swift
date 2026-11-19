@@ -13,10 +13,9 @@ func liveSync(
     do throws(SyncRefusal) {
         let within = try work.withinFrames(rate: studio.session.sampleRate)
         do throws(StudioError) {
-            let (result, headCut) = try await studio.syncClip(
+            let (result, cut) = try await studio.syncClip(
                 work.clip, to: work.track, within: within, agent: call.agent, progress: report)
-            let moved = SyncWork.Moved(
-                clip: work.clip, result: result, headCut: headCut, sampleRate: studio.session.sampleRate)
+            let moved = SyncWork.Moved(clip: work.clip, result: result, cut: cut, sampleRate: studio.session.sampleRate)
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (moved.lines + note).joined(separator: "\n"), isError: false)
         } catch {

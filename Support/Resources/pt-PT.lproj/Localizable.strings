@@ -927,7 +927,7 @@
 "error.sync.unreadable" = "O Dirigible não pode sincronizar o clipe. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
 "error.sync.same.track" = "A faixa de referência é a faixa do clipe. Escolha outra faixa.";
 "error.sync.no.reference" = "A faixa de referência não tem áudio perto do clipe. Escolha outra faixa.";
-"error.sync.too.long" = "O clipe é demasiado longo para sincronizar. Divida-o e depois sincronize cada parte.";
+"error.sync.too.long" = "O clipe é demasiado longo para sincronizar. Divida-o, arraste cada parte para uma faixa própria e depois sincronize cada parte.";
 "menu.tools.sync" = "Sincronizar clipe com faixa…";
 "sheet.sync.title" = "Sincronizar clipe com faixa";
 "sheet.sync.reference" = "Faixa de referência";
@@ -945,6 +945,7 @@
 "banner.sync.not.measured" = "A deriva não foi medida: só uma parte do clipe correspondeu.";
 "banner.sync.too.short" = "A deriva não foi medida: o clipe tem menos de 60 s.";
 "banner.sync.head.cut" = "O início do clipe foi cortado em %@, porque passou para antes do início da sessão.";
+"banner.sync.replaced" = "A deslocação substituiu áudio de %@.";
 "banner.sync.no.match" = "Sem correspondência: %@ não foi encontrado em %@.";
 "banner.sync.choose" = "Escolher outra faixa…";
 "banner.sync.undo" = "Desfazer";

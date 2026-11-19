@@ -11,9 +11,10 @@ import Testing
 /// A package for the sync tests of the app, at 48 kHz: track t1 "Host" holds clip "C" (file `c`, 8 s) at
 /// `clipStart` s, and track t2 "Guest" holds clip "R" (file `r`, 40 s of stepped noise). The audio of
 /// `c` is `r` from 20 s at half gain, so a sync moves C to 20 s. With `unrelated`, `r` is other noise
-/// and no sync matches. Both tracks route to channel 1 of `duo`. Each call makes a new package.
+/// and no sync matches. With `neighbor`, t1 also holds clip "N" (file `r`, 7 s) at 23 s. Both tracks
+/// route to channel 1 of `duo`. Each call makes a new package.
 @concurrent nonisolated func syncWindowPackage(
-    in folder: URL, clipStart: Int = 5, unrelated: Bool = false
+    in folder: URL, clipStart: Int = 5, unrelated: Bool = false, neighbor: Bool = false
 ) async throws -> URL {
     let rate = 48_000
     func noise(seed: UInt64, seconds: Int) -> [Float] {
@@ -50,6 +51,10 @@ import Testing
     try session.place(
         Clip(id: "C", file: "c", start: Frames(clipStart * rate), offset: 0, length: Frames(8 * rate)), on: "t1")
     try session.place(Clip(id: "R", file: "r", start: 0, offset: 0, length: Frames(40 * rate)), on: "t2")
+    if neighbor {
+        try session.place(
+            Clip(id: "N", file: "r", start: Frames(23 * rate), offset: 0, length: Frames(7 * rate)), on: "t1")
+    }
     try session.write(to: url)
     return url
 }

@@ -1,5 +1,14 @@
 import Foundation
 
+/// What a sync move cut (decision 0076): the frames of the head of the clip under frame 0, and each
+/// other clip on its track that its new place cut or removed, in track order.
+public struct SyncCut: Hashable, Sendable {
+    public let head: Frames
+    public let replaced: [ClipID]
+
+    public init(head: Frames, replaced: [ClipID]) { (self.head, self.replaced) = (head, replaced) }
+}
+
 extension Session {
     /// The search distance on each side of the clip when a sync names none: 1800 s (decision 0076).
     public var defaultSyncWithin: Frames { Frames(1800 * sampleRate) }
@@ -58,18 +67,24 @@ extension Session {
 
     /// Moves `clip` by `lag` with the rules of `nudge`: it keeps its ID, and the clips under its
     /// new range on its track are cut. A new start under frame 0 first cuts the head of the clip
-    /// to frame 0; the result is the frames cut. A new end at or under frame 0 throws
-    /// `.frameOutOfRange`. A throw changes nothing.
-    public mutating func sync(_ clip: ClipID, by lag: Frames) throws(SessionError) -> Frames {
-        guard let (found, _) = self.clip(clip) else { throw .unknownClip(clip) }
+    /// to frame 0. The result is the head cut and the other clips that changed. A new end at or
+    /// under frame 0 throws `.frameOutOfRange`. A throw changes nothing.
+    public mutating func sync(_ clip: ClipID, by lag: Frames) throws(SessionError) -> SyncCut {
+        guard let (found, home) = self.clip(clip) else { throw .unknownClip(clip) }
         guard lag >= .zero - .limit, lag <= .limit else { throw .frameOutOfRange }
         guard found.end + lag > .zero else { throw .frameOutOfRange }
         let cut = max(.zero, .zero - (found.start + lag))
         var copy = self
         if cut > .zero { try copy.trim(clip, to: found.start + cut..<found.end) }
         try copy.nudge([clip], by: lag)
+        // A fade that a join loses is no cut: only a clip that lost frames counts.
+        let others = track(home)?.clips.filter { $0.id != clip } ?? []
+        let replaced = others.filter { old in
+            guard let new = copy.clip(old.id)?.clip else { return true }
+            return new.range != old.range || new.offset != old.offset
+        }.map(\.id)
         self = copy
-        return cut
+        return SyncCut(head: cut, replaced: replaced)
     }
 
     /// The session that a sync reads: mute and solo off, and only `clip` on its track.

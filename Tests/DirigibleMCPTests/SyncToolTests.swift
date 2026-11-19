@@ -155,6 +155,20 @@ struct SyncToolTests {
         #expect(try Session(contentsOf: tight.url) == before)
     }
 
+    /// The text names each other clip that the move cuts: clip `D` (0 to 15 s on `t1`) is under the new
+    /// place of `C` (10 to 100 s), so the move cuts its tail.
+    @Test func theTextNamesTheClipThatTheMoveCuts() async throws {
+        let package = try Self.package(clip: 90, start: 30, reference: 150, copy: 0..<90, at: 10)
+        var session = try Session(contentsOf: package.url)
+        try session.place(Clip(id: "D", file: "c", start: 0, offset: 0, length: Frames(15 * Self.rate)), on: "t1")
+        try session.write(to: package.url)
+
+        let answer = await closed(package)
+
+        #expect(!answer.isError && answer.text.hasSuffix("\nreplaced audio of D"), "\(answer)")
+        #expect(try Session(contentsOf: package.url).clip("D")?.clip.range == 0..<Frames(10 * Self.rate))
+    }
+
     /// A clip of take audio that moves ends its text with the take sync line of decision 0061.
     @Test func aTakeClipGivesTheTakeSyncLine() async throws {
         let package = try Self.package(clip: 20, start: 20, reference: 60, copy: 0..<20, at: 10, take: true)
@@ -228,7 +242,9 @@ struct SyncToolTests {
     @Test func theLinesFollowTheDriftAndTheCut() {
         func lines(lag: Int, drift: SyncDrift, cut: Int = 0) -> [String] {
             let result = SyncResult(lag: Frames(lag), score: MatchScore(peak: 0.984, ratio: 9), drift: drift)
-            return SyncWork.Moved(clip: "C", result: result, headCut: Frames(cut), sampleRate: 48_000).lines
+            return SyncWork.Moved(
+                clip: "C", result: result, cut: SyncCut(head: Frames(cut), replaced: []), sampleRate: 48_000
+            ).lines
         }
         let first = "moved C by +1.234 s (59232 frames), match 0.98"
         #expect(lines(lag: 59_232, drift: .spread(960)) == [first])
@@ -254,14 +270,20 @@ struct SyncToolTests {
         let short = SyncResult(lag: -240_000, score: score, drift: .clipTooShort)
 
         #expect(
-            SyncWork.Moved(clip: "C", result: measured, headCut: 0, sampleRate: 48_000).json
-                == #"{"clip":"C","frames":59232,"headCut":0,"match":0.98,"seconds":1.234,"spread":2208}"#)
+            SyncWork.Moved(
+                clip: "C", result: measured, cut: SyncCut(head: 0, replaced: ["B", "D"]), sampleRate: 48_000
+            )
+            .json
+                == #"{"clip":"C","frames":59232,"headCut":0,"match":0.98,"replaced":["B","D"],"seconds":1.234,"spread":2208}"#
+        )
         #expect(
-            SyncWork.Moved(clip: "C", result: unknown, headCut: 288_000, sampleRate: 48_000).json
-                == #"{"clip":"C","frames":-240000,"headCut":288000,"match":0.98,"seconds":-5,"spread":null}"#)
+            SyncWork.Moved(clip: "C", result: unknown, cut: SyncCut(head: 288_000, replaced: []), sampleRate: 48_000)
+                .json
+                == #"{"clip":"C","frames":-240000,"headCut":288000,"match":0.98,"replaced":[],"seconds":-5,"spread":null}"#
+        )
         #expect(
-            SyncWork.Moved(clip: "C", result: short, headCut: 0, sampleRate: 48_000).json
-                == #"{"clip":"C","frames":-240000,"headCut":0,"match":0.98,"seconds":-5,"spread":null}"#)
+            SyncWork.Moved(clip: "C", result: short, cut: SyncCut(head: 0, replaced: []), sampleRate: 48_000).json
+                == #"{"clip":"C","frames":-240000,"headCut":0,"match":0.98,"replaced":[],"seconds":-5,"spread":null}"#)
     }
 
     /// The tool description and the skill line say what the tool does and its one-lag limit, and quote

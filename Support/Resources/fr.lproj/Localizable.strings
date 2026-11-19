@@ -927,7 +927,7 @@
 "error.sync.unreadable" = "Dirigible ne peut pas synchroniser le clip. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";
 "error.sync.same.track" = "La piste de référence est la piste du clip. Choisissez une autre piste.";
 "error.sync.no.reference" = "La piste de référence n’a pas d’audio près du clip. Choisissez une autre piste.";
-"error.sync.too.long" = "Le clip est trop long pour être synchronisé. Divisez-le, puis synchronisez chaque partie.";
+"error.sync.too.long" = "Le clip est trop long pour être synchronisé. Divisez-le, faites glisser chaque partie sur sa propre piste, puis synchronisez chaque partie.";
 "menu.tools.sync" = "Synchroniser le clip sur une piste…";
 "sheet.sync.title" = "Synchroniser le clip sur une piste";
 "sheet.sync.reference" = "Piste de référence";
@@ -945,6 +945,7 @@
 "banner.sync.not.measured" = "La dérive n’a pas été mesurée : une seule partie du clip correspond.";
 "banner.sync.too.short" = "La dérive n’a pas été mesurée : le clip dure moins de 60 s.";
 "banner.sync.head.cut" = "Début du clip coupé de %@, car il est passé avant le début de la session.";
+"banner.sync.replaced" = "Le déplacement a remplacé l’audio de %@.";
 "banner.sync.no.match" = "Aucune correspondance : %@ est introuvable sur %@.";
 "banner.sync.choose" = "Choisir une autre piste…";
 "banner.sync.undo" = "Annuler";

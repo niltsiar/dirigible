@@ -73,6 +73,9 @@ floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources
 # The shared guard list: the guards that each session shares (the build lock script, its word
 # lists, the hooks). A change to one gives `risk: yes`. A path that ends in / is a folder.
 shared_guards="scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/"
+# The close and quit files of the Safety section that the floor does not hold: a change to one gets a
+# panel review. check-changed.test.sh fails when git does not track one.
+safety_paths="Sources/DirigibleApp/SessionWindow+Close.swift Sources/DirigibleApp/SessionWindow+Delegate.swift Sources/DirigibleApp/AppDelegate+Quit.swift Sources/DirigibleApp/AppDelegate.swift"
 
 class_of() {
     local f
@@ -518,10 +521,7 @@ review_line() {
         esac
     done <<<"$paths"
     while IFS= read -r p; do
-        case "$p" in
-            Sources/DirigibleApp/SessionWindow+Close.swift | Sources/DirigibleApp/SessionWindow+Delegate.swift | \
-                Sources/DirigibleApp/AppDelegate+Quit.swift | Sources/DirigibleApp/AppDelegate.swift) echo "panel (safety)"; return ;;
-        esac
+        [[ " $safety_paths " != *" $p "* ]] || { echo "panel (safety)"; return; }
     done <<<"$paths"
     (($(grep -c . <<<"$paths" || true) <= 6)) || { echo "panel (paths)"; return; }
     if [[ -n "$from" ]]; then

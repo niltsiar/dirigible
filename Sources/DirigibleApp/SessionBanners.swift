@@ -66,7 +66,7 @@ struct WindowBanners: View {
                     .disabled(!model.canUndoAgentEdit(revision: revision))
                     Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
                 }
-            } else if case .syncMoved(_, let revision, _) = banner {
+            } else if case .syncMoved(_, let revision?, _) = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerSyncUndo.key) { model.undoAgentEdit(revision: revision) }
                         .disabled(!model.canUndoAgentEdit(revision: revision))

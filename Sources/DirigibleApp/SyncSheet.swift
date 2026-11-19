@@ -32,11 +32,10 @@ struct SyncDraft: Equatable {
         }
     }
 
-    /// "Searches 30 minutes before and after the clip.": the `within` of the sync in whole minutes,
-    /// rounded down. Nil when the clip cannot sync.
-    func spanLine(in session: Session, text: (L10n) -> String = { $0.text }) -> String? {
+    /// The `syncSpanText` of the `within` that the sync uses. Nil when the clip cannot sync.
+    func spanLine(in session: Session, locale: Locale = .current, text: (L10n) -> String = { $0.text }) -> String? {
         guard let within = try? session.syncWithin(clip) else { return nil }
-        return String(format: text(.sheetSyncSpan), within.count / session.sampleRate / 60)
+        return syncSpanText(within: within, rate: session.sampleRate, locale: locale, text: text)
     }
 
     /// The line for a session with no track on an app route, where the default reference is the first
@@ -106,6 +105,16 @@ extension SyncMoved {
     init(_ result: SyncResult, headCut: Frames, rate: Int) {
         self.init(lag: result.lag, peak: Double(result.score.peak), spread: result.spread, headCut: headCut, rate: rate)
     }
+}
+
+/// "Searches 30 minutes before and after the clip.": `within` in whole minutes, or in whole seconds
+/// under 1 minute, rounded down. No plural form (0010); Foundation gives the unit.
+func syncSpanText(within: Frames, rate: Int, locale: Locale, text: (L10n) -> String = { $0.text }) -> String {
+    let seconds = within.count / rate
+    let (span, unit): (Duration, Duration.UnitsFormatStyle.Unit) =
+        seconds < 60 ? (.seconds(seconds), .seconds) : (.seconds(seconds / 60 * 60), .minutes)
+    let style = Duration.UnitsFormatStyle(allowedUnits: [unit], width: .wide).locale(locale)
+    return String(format: text(.sheetSyncSpan), locale: locale, span.formatted(style))
 }
 
 /// "No match: <clip> was not found on <track>.", with the lane label of the clip.

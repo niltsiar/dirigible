@@ -932,7 +932,7 @@
 "sheet.sync.title" = "Synchroniseer clip met spoor";
 "sheet.sync.reference" = "Referentiespoor";
 "sheet.sync.row" = "%@ (%@)";
-"sheet.sync.span" = "Zoekt %lld minuten voor en na de clip.";
+"sheet.sync.span" = "Zoekt %@ voor en na de clip.";
 "sheet.sync.no.call" = "Geen gesprekspoor: het eerste spoor met audio wordt gekozen.";
 "sheet.sync.apply" = "Synchroniseer";
 "banner.sync.earlier" = "De clip is %@ eerder gezet.";

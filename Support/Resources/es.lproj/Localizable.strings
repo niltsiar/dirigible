@@ -932,7 +932,7 @@
 "sheet.sync.title" = "Sincronizar clip con pista";
 "sheet.sync.reference" = "Pista de referencia";
 "sheet.sync.row" = "%@ (%@)";
-"sheet.sync.span" = "Busca %lld minutos antes y después del clip.";
+"sheet.sync.span" = "Busca %@ antes y después del clip.";
 "sheet.sync.no.call" = "Ninguna pista de llamada: se elige la primera pista con audio.";
 "sheet.sync.apply" = "Sincronizar";
 "banner.sync.earlier" = "El clip se adelantó %@.";

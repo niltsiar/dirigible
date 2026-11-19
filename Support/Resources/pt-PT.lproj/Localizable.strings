@@ -932,7 +932,7 @@
 "sheet.sync.title" = "Sincronizar clipe com faixa";
 "sheet.sync.reference" = "Faixa de referência";
 "sheet.sync.row" = "%@ (%@)";
-"sheet.sync.span" = "Procura %lld minutos antes e depois do clipe.";
+"sheet.sync.span" = "Procura %@ antes e depois do clipe.";
 "sheet.sync.no.call" = "Sem faixa de chamada: é escolhida a primeira faixa com áudio.";
 "sheet.sync.apply" = "Sincronizar";
 "banner.sync.earlier" = "O clipe foi adiantado %@.";

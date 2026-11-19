@@ -932,7 +932,7 @@
 "sheet.sync.title" = "Sync Clip to Track";
 "sheet.sync.reference" = "Reference Track";
 "sheet.sync.row" = "%@ (%@)";
-"sheet.sync.span" = "Searches %lld minutes before and after the clip.";
+"sheet.sync.span" = "Searches %@ before and after the clip.";
 "sheet.sync.no.call" = "No call track: the first track with audio is chosen.";
 "sheet.sync.apply" = "Sync";
 "banner.sync.earlier" = "Moved the clip %@ earlier.";

@@ -169,6 +169,19 @@ struct SyncToolTests {
         #expect(try Session(contentsOf: package.url).clip("D")?.clip.range == 0..<Frames(10 * Self.rate))
     }
 
+    /// A clip that is already on its audio has a lag of 0: the text says so and never says moved, and
+    /// `session.xml` keeps its bytes.
+    @Test func aClipInPlaceIsAlreadyInSyncAndNothingChanges() async throws {
+        let package = try Self.package(clip: 20, start: 10, reference: 60, copy: 0..<20, at: 10)
+        let before = try Data(contentsOf: package.url.appending(path: "session.xml"))
+
+        let answer = await closed(package)
+
+        let text = "C is already in sync, match #\nthe drift was not measured: the clip is shorter than 60 s"
+        #expect(!answer.isError && Self.unscored(answer.text) == text, "\(answer)")
+        #expect(try Data(contentsOf: package.url.appending(path: "session.xml")) == before)
+    }
+
     /// A clip of take audio that moves ends its text with the take sync line of decision 0061.
     @Test func aTakeClipGivesTheTakeSyncLine() async throws {
         let package = try Self.package(clip: 20, start: 20, reference: 60, copy: 0..<20, at: 10, take: true)
@@ -251,6 +264,10 @@ struct SyncToolTests {
         #expect(lines(lag: 59_232, drift: .spread(961)) == [first, "the lag changes by 20 ms across the clip"])
         #expect(lines(lag: 59_232, drift: .spread(2_208)) == [first, "the lag changes by 46 ms across the clip"])
         #expect(
+            lines(lag: 0, drift: .spread(2_208)) == [
+                "C is already in sync, match 0.98", "the lag changes by 46 ms across the clip",
+            ])
+        #expect(
             lines(lag: 59_232, drift: .clipTooShort) == [
                 first, "the drift was not measured: the clip is shorter than 60 s",
             ])
@@ -291,9 +308,10 @@ struct SyncToolTests {
     @Test func theAgentTextsQuoteNoResultLine() throws {
         let tool = try #require(Tool.all.first { $0.name == "clip_sync" })
         for (name, text) in [("description", tool.description), ("syncLine", AgentManual.syncLine)] {
-            let quoted = ["moved <clip>", "the lag changes by", "the drift was not measured", "at the head"].filter {
-                text.contains($0)
-            }
+            let quoted = [
+                "moved <clip>", "the lag changes by", "the drift was not measured", "at the head", "replaced audio of",
+                "already in sync",
+            ].filter { text.contains($0) }
             #expect(quoted.isEmpty, "the \(name) quotes \(quoted)")
             #expect(text.contains("one lag") && text.contains("does not correct a drift"), "\(name): \(text)")
         }

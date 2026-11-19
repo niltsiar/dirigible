@@ -19,7 +19,12 @@ enum WaveformMatch: Hashable, Sendable {
     /// the excerpts that match, or nil when fewer than 2 excerpts match: then the drift is not measured.
     case match(lag: Int, score: MatchScore, spread: Int?)
     case noMatch(best: MatchScore)
+    /// No memory for the DFT setups of the coarse step.
+    case noMemory
 }
+
+/// The make of a DFT setup, `vDSP_DFT_zrop_CreateSetup` but in a test, which gives nil for no memory.
+typealias DFTSetupMake = (vDSP_DFT_Setup?, vDSP_Length, vDSP_DFT_Direction) -> vDSP_DFT_Setup?
 
 /// The decimation factor of the coarse step: floor(rate / 2000), so 24 at 48 kHz and 22 at 44.1 kHz.
 /// A coarse lag converts to frames by this factor, with no rounded rate.
@@ -77,11 +82,16 @@ final class CoarseScores {
     private var values: [Float]
 
     /// `separation`: the positions of 50 ms at the coarse rate, which the ratio leaves out around the peak.
-    init(reference: [Float], excerptLength: Int, separation: Int) {
+    /// Nil when `makeSetup` gives no setup: no memory.
+    init?(
+        reference: [Float], excerptLength: Int, separation: Int, makeSetup: DFTSetupMake = vDSP_DFT_zrop_CreateSetup
+    ) {
         let length = 1 << max(1, Int.bitWidth - (reference.count + excerptLength - 1).leadingZeroBitCount)
-        guard let forwardSetup = vDSP_DFT_zrop_CreateSetup(nil, vDSP_Length(length), .FORWARD),
-            let inverseSetup = vDSP_DFT_zrop_CreateSetup(forwardSetup, vDSP_Length(length), .INVERSE)
-        else { fatalError("vDSP has no DFT setup of \(length) points") }
+        guard let forwardSetup = makeSetup(nil, vDSP_Length(length), .FORWARD) else { return nil }
+        guard let inverseSetup = makeSetup(forwardSetup, vDSP_Length(length), .INVERSE) else {
+            vDSP_DFT_DestroySetup(forwardSetup)
+            return nil
+        }
         (self.forwardSetup, self.inverseSetup, self.length) = (forwardSetup, inverseSetup, length)
         (self.excerptLength, self.separation) = (excerptLength, separation)
         positions = max(0, reference.count - excerptLength + 1)
@@ -234,7 +244,8 @@ func excerptRanges(clipLength: Int, windowMeanSquares: [Float], window: Int, rat
 /// a window of 2 coarse frames on each side. The lag is the lower median of their lags.
 func waveformMatch<Failure: Error>(
     clipLength: Int, windowMeanSquares: [Float], rate: Int, reference2k: [Float], referenceLength: Int,
-    clipFrames: (Range<Int>) throws(Failure) -> [Float], referenceFrames: (Range<Int>) throws(Failure) -> [Float]
+    clipFrames: (Range<Int>) throws(Failure) -> [Float], referenceFrames: (Range<Int>) throws(Failure) -> [Float],
+    makeSetup: DFTSetupMake = vDSP_DFT_zrop_CreateSetup
 ) throws(Failure) -> WaveformMatch {
     let factor = matchFactor(rate: rate)
     let window = max(1, rate / 20)
@@ -246,7 +257,10 @@ func waveformMatch<Failure: Error>(
     }
     guard !excerpts[0].isEmpty else { return .noMatch(best: MatchScore(peak: 0, ratio: 0)) }
     let separation = Int((Double(rate) / Double(factor) / 20).rounded())
-    let coarse = CoarseScores(reference: reference2k, excerptLength: excerpts[0].count, separation: separation)
+    guard
+        let coarse = CoarseScores(
+            reference: reference2k, excerptLength: excerpts[0].count, separation: separation, makeSetup: makeSetup)
+    else { return .noMemory }
     var (matches, best): ([(lag: Int, score: MatchScore)], MatchScore?) = ([], nil)
     for (range, excerpt) in zip(ranges, excerpts) {
         let (position, score) = coarse.match(excerpt)

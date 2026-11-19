@@ -44,10 +44,12 @@ public func syncLag(
         isCancelled: isCancelled, open: openMedia)
 }
 
-/// `syncLag` with the open of each file, so that a test gives one that fails.
+/// `syncLag` with the open of each file and the make of each DFT setup, so that a test gives one that
+/// fails.
 func syncLag(
     of clip: ClipID, to track: TrackID, in session: Session, package: URL, span: Range<Frames>,
-    progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen
+    progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen,
+    makeSetup: DFTSetupMake = vDSP_DFT_zrop_CreateSetup
 ) throws(SyncFailure) -> SyncResult {
     guard let (target, home) = session.clip(clip) else { preconditionFailure("syncSpan checks the clip") }
     let read = session.syncSource(clip)
@@ -97,13 +99,16 @@ func syncLag(
         clipLength: target.length.count, windowMeanSquares: squares, rate: rate, reference2k: reference2k,
         referenceLength: spanLength,
         clipFrames: { range throws(SyncFailure) in try frames(clipReader, target.start, range) },
-        referenceFrames: { range throws(SyncFailure) in try frames(referenceReader, span.lowerBound, range) })
+        referenceFrames: { range throws(SyncFailure) in try frames(referenceReader, span.lowerBound, range) },
+        makeSetup: makeSetup)
     switch match {
     case .match(let lag, let score, let spread):
         return SyncResult(
             lag: span.lowerBound + Frames(lag) - target.start, score: score, spread: spread.map { Frames($0) })
     case .noMatch(let best):
         throw .noMatch(best: best)
+    case .noMemory:
+        throw .read(POSIXError(.ENOMEM))
     }
 }
 

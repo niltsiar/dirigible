@@ -545,6 +545,24 @@ When no silence meets the settings, the tab says so and names the quietest level
 
 An AI agent does the same with the tool `silence_edit` and the command `dirigible silence-edit` (see [The dirigible tool](#the-dirigible-tool)).
 
+### Sync a clip to a track
+
+Choose **Tools > Sync Clip to Track** (Option-Command-G) to move a clip to the place where its audio matches another track. Use it for a recording that you made on another device, for example a guest on their own recorder, and a track that holds the same talk, for example the call track. The command is also in the menu of the right-click on a clip.
+
+![The sheet Sync Clip to Track: the pop-up Reference Track with Guest (Dialogue), the line that the search covers 30 minutes before and after the clip, and the buttons Cancel and Sync.](images/screenshot-sync.png)
+
+1. Select one clip. The command is off with no clip, with two or more clips, and with a range. It is also off when no other track has a clip near the clip, and during a take, an import, or another job.
+2. Choose the command. The pop-up **Reference Track** lists the other tracks, each with its role: "Guest (Dialogue)". It starts on the first other track that has a call app as its source and holds a clip near the clip. When no such track exists, it starts on the first other track that holds a clip there. With no call track in the session, the sheet says "No call track: the first track with audio is chosen."
+3. Click **Sync**. With a reference that has no clip near the clip, the sheet says why and **Sync** is off.
+
+Dirigible searches for the audio of the clip in the reference track, 30 minutes before and after the clip (less for a very long clip, and the line under the pop-up shows the time that the search uses).
+
+When the audio matches, the clip moves and a banner says by how much: "Moved the clip 25.0 s later. Match score: 1.00." The banner says "earlier" or "later" and never gives a sign. When the lag of the parts of the clip differs by more than 20 ms, the banner adds "The lag changes by 46 ms across the clip." When only one part of the clip matched, it says that the drift was not measured. When the move puts the start of the clip before the start of the session, Dirigible cuts that head and the banner says how much it cut. The clip keeps its name, its gain, and its selection, and the playhead does not move. The view scrolls only when the clip leaves the view: then it shows the new start of the clip. Click **Undo** in the banner to put the clip back in one step. The banner goes at the next change of the session.
+
+When the audio does not match, a warning banner says "No match: clip was not found on Guest." and nothing changes. Click **Choose Another Track** to open the sheet again for the same clip. A sync is one step in the undo history.
+
+In Terminal, `dirigible clip sync <package> <clip> --to <track>` does the same, and an agent uses the tool `clip_sync`.
+
 ## Add markers and chapters
 
 A marker is a flag in the time ruler. A chapter is a marker for a new part of the episode.
@@ -1121,6 +1139,7 @@ The **Tools** menu (**Herramientas**).
 | **Remove Level Over Time** | **Quitar nivelación en el tiempo** | - |
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
 | **Find Silences** | **Buscar silencios** | - |
+| **Sync Clip to Track** | **Sincronizar clip con pista** | Option-Command-G |
 | **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |
 | **Reduce Noise** | **Reducir ruido** | None |
 | **Repair Sound** | **Reparar sonido** | None |

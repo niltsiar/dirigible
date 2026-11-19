@@ -86,6 +86,8 @@ enum TimelineCommand: Hashable, CaseIterable {
     /// Track > Match Voice > Use as Voice Reference and the same item of the clip menu (decision 0074).
     case useAsVoiceReference
     case findSilences
+    /// Tools > Sync Clip to Track... and the same item of the clip menu (decision 0076).
+    case syncClip
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -138,6 +140,8 @@ enum TimelineCommand: Hashable, CaseIterable {
         case .duck: false
         // Find Silences has no key: a rare command, as Duck Music Under Speech.
         case .findSilences: false
+        // A text field does nothing with Option-Command-G (decision 0076).
+        case .syncClip: false
         // A text field does nothing with Shift-Command-D, so the key splits the stereo clips of the
         // selection with the focus in a track name field, as Insert does with Command-I.
         case .splitStereo: false
@@ -310,6 +314,7 @@ extension SessionWindow {
         case .removeLevelOverTime: removeLevelOverTime()
         case .duck: startDuck()
         case .findSilences: Task { await findSilences() }
+        case .syncClip: startSync()
         case .splitStereo: splitStereo()
         case .reduceNoise: reduceNoise()
         case .repairSound: repairSound()

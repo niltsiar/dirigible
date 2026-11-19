@@ -61,7 +61,8 @@ extension SessionWindow {
     /// Duck Music Under Speech, Export, and Go to Take Time are off while one shows. An alert is
     /// not in it: Export is on while the alert of a failed export shows (criterion 28).
     var dialogShowing: Bool {
-        takeTimeDraft != nil || exportStep != nil || duckDraft != nil || denoiseDraft != nil || repairDraft != nil
+        takeTimeDraft != nil || exportStep != nil || duckDraft != nil || syncDraft != nil || denoiseDraft != nil
+            || repairDraft != nil
             || transcribe.draft != nil || unusedFiles != nil
             || studio?.exportProgress != nil
     }
@@ -98,6 +99,7 @@ extension SessionWindow {
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
         case .duck: !dialogShowing && isOn(.autoLevel)
         case .findSilences: canFindSilences
+        case .syncClip: syncTarget != nil
         case .splitStereo:
             canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
         case .reduceNoise, .repairSound, .levelOverTime:

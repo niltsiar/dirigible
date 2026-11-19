@@ -147,6 +147,14 @@ import SwiftUI
     @ObservationIgnored var matchPresses = 0
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
+    /// The values of the Sync Clip to Track sheet while it shows (decision 0076).
+    var syncDraft: SyncDraft?
+    /// The fraction of the sync of this window while it runs, for its banner. Nil: no sync of this
+    /// window runs, so an agent sync shows no bar.
+    var syncProgress: Double?
+    /// The banner of the last sync, at its session revision.
+    var syncReport: SyncReportShown?
+    @ObservationIgnored var syncPresses = 0
     /// The values of the Go to Take Time sheet while it shows (decision 0061).
     var takeTimeDraft: TakeTimeDraft?
     /// The fraction of the duck of this window while it runs, for its banner. Nil: no duck of

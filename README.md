@@ -27,6 +27,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take. Level Over Time evens out the level of speech inside a clip with a gain layer that Remove Level Over Time takes away.
 - Give each track a role (dialogue, music, or effects), then lower the music under the speech with Tools > Duck Music Under Speech, in one undo step.
 - Find the long silences with Tools > Find Silences, then shorten, mute, or mark each one from a list, in one undo step. An AI agent does the same with `silence_edit`.
+- Move a clip that you recorded on another device to the place where its audio matches a track, with Tools > Sync Clip to Track (Option-Command-G), in one undo step. An AI agent does the same with `clip_sync`.
 - Replace a selected range with the copy (Edit > Replace, Shift-Command-V), or fill it with the copy again and again, for example with room tone (Edit > Paste to Fill Selection, Option-Command-V).
 - Split a stereo clip into two mono tracks with Tools > Split Stereo to Mono (Shift-Command-D), then cut, level, and mute each voice alone.
 - Take background noise or mains hum out of a clip with Tools > Reduce Noise, and listen to a preview first. It makes a new file for the clip, and Tools > Restore Original Audio (Shift-Command-O) puts the old file back at any time.

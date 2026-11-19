@@ -18,7 +18,7 @@ extension TimelineCommand {
             .cutSelectedTracks, .split, .nudgeLeft, .nudgeRight, .fade, .heal, .closeGaps, .rollToPlayhead, .slipLeft,
             .slipRight, .addGainPoint, .removeTrack, .muteTracks, .soloTracks, .raiseVolume, .lowerVolume,
             .resetVolume, .autoLevel, .autoLevelPerTrack, .levelOverTime, .removeLevelOverTime, .duck, .splitStereo,
-            .reduceNoise, .repairSound, .restoreOriginal, .transcribe, .useAsVoiceReference:
+            .reduceNoise, .repairSound, .restoreOriginal, .transcribe, .useAsVoiceReference, .syncClip:
             .beep
         case .zoomIn, .zoomOut, .zoomToSession, .zoomToSelection, .zoomBack, .zoomForward, .pagePrevious, .pageNext,
             .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .waveformZoomIn, .waveformZoomOut,

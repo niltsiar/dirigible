@@ -124,6 +124,20 @@ public struct GainEnvelope: Hashable, Sendable {
         Self.fitted(points.map { (frame: ($0.frame + shift).count, dB: $0.gain.dB) }, fileLength: fileLength)
     }
 
+    /// The envelope of a clip that moves to a drift-corrected file (decision 0077 D9): `map` gives
+    /// the new file frame of an old file frame, can give a frame outside the new file, and never
+    /// decreases. Of two points on one new frame, the first stays. The edge rule applies at the
+    /// edges of the new file, which is `fileLength` long.
+    func mapped(_ map: (Frames) -> Int, fileLength: Frames) -> GainEnvelope {
+        var corners: [(frame: Int, dB: Double)] = []
+        for point in points {
+            let frame = map(point.frame)
+            if let last = corners.last, last.frame >= frame { continue }
+            corners.append((frame, point.gain.dB))
+        }
+        return Self.fitted(corners, fileLength: fileLength)
+    }
+
     /// The ride layer of a step curve (`dB`, one gain for each step): Douglas-Peucker on
     /// (step centre frame, dB), with each kept gain rounded to 0.01 dB. A run splits when a step of
     /// it is more than `tolerance` dB from the line through the rounded gains of its two ends, so

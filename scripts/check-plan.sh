@@ -1010,8 +1010,6 @@ else
         done
     fi
 fi
-# The lead review path: a review-diff-<n>.md with the line `review: lead` needs the same line in
-# review-plan-1.md, and a `review: lead` line of scripts/check-changed.sh origin/main in the run tree.
 lead_diff=""
 for file in "$run"/review-diff-*.md; do
     [[ "${file##*/}" =~ ^review-diff-[0-9]+\.md$ ]] && grep -qx 'review: lead' "$file" && { lead_diff="${file##*/}"; break; }

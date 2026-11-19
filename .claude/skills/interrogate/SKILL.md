@@ -58,7 +58,7 @@ Read `references/reviewer-prompt.md` when the Workflow tool is not available: it
 
 ## Step 5: Lead judgment
 
-You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator. Read `references/lead-judgment.md` when you judge the findings and when you close a gate: it holds the filters, the Invariant and Siblings fields, the rounds, and the fix check.
+You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator. Read `references/lead-judgment.md` when you judge the findings and when you close a gate: it holds the filters, the Invariant, Siblings, and Criteria fields, the rounds, and the fix check.
 
 Put every finding in one bucket, with its lens and one line of rationale:
 

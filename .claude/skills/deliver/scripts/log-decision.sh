@@ -35,8 +35,9 @@
 # not `not closed`). A close row checks each item. Another row checks the <round>.<item> words that are an
 # item (`1.1 to 1.3` and `1.1-1.3` are a range of one round); a word that is no item (`1.5 s`) counts for
 # nothing; no item named means each item. A row is no report when a to-come word (pending, to come, waits,
-# started, next, after) follows `fix check` or its `of` part, and the row has no result word (ok, pass,
-# holds, fails, corrected).
+# started, next, after) follows `fix check`, its `of` part, a colon, or item words (`1.1 to 1.9`), and no
+# clause of the row (split at `;` and a sentence end) with `fix check` or an item has a result word (ok,
+# pass, holds, fails, corrected).
 # A row of a run folder with a run.md that enters phase 5, 6, or 7 (the last row of decisions.tsv
 # has another phase, and the header row counts as none) also needs a passing
 # scripts/check-eval-keys.sh against origin/main: each evals.md key that the branch of the last
@@ -250,7 +251,7 @@ fi
 # change row, which that check refuses, so it skips the check. A row that reports a fix check also
 # needs the Fix check line of each item that it checks (the header gives the words that make a report).
 gate_fix_form='^(lead )?((l[0-9]+[a-z]? )?code gate[^:;]{0,30}|[lg][0-9]+[a-z]?) fix check([^a-z]|$)'
-to_come_form='fix check( of( [a-z0-9.,-]+){1,8})? (is |are )?(pending|to come|waits|started|next|after)([^a-z]|$)'
+to_come_form='fix check( of( [a-z0-9.,-]+){1,8})?:?( ([0-9]+\.[0-9]+(-[0-9]+\.[0-9]+)?|to|and|-),?)*:? (is |are )?(pending|to come|waits|started|next|after)([^a-z]|$)'
 result_form='(^|[^a-z])(ok|pass(es|ed)?|holds?|held|fail(s|ed)?|corrected)([^a-z]|$)'
 # fix_check_items <run folder> <decision>: the <round>.<item> words of the decision that are an Act on item
 # of a review-diff-<n>.md, a range "a.b to a.c" or "a.b-a.c" of one round expanded, in one line.
@@ -283,19 +284,29 @@ fix_check_items() {
             for (k in named) printf "%s ", k
         }'
 }
-# fix_check_report <decision>: prints close for a row that closes the code gate, report for another row that
-# reports a fix check, and nothing for any other row.
+# fix_check_result <run folder> <decision>: true when a clause of the decision (split at ; and at a sentence end)
+# has a result word and `fix check` or an Act on item, so a result about the gate in another clause is none.
+fix_check_result() {
+    local clause
+    while IFS= read -r clause; do
+        [[ "$clause" =~ $result_form ]] || continue
+        [[ "$clause" == *"fix check"* || -n "$(fix_check_items "$1" "$clause")" ]] && return 0
+    done < <(awk '{ gsub(/;|\. /, "\n"); print }' <<<"$2")
+    return 1
+}
+# fix_check_report <run folder> <decision>: prints close for a row that closes the code gate, report for another
+# row that reports a fix check, and nothing for any other row.
 fix_check_report() {
     local d
-    d="$(lower "$1")"
+    d="$(lower "$2")"
     if [[ "$d" =~ $code_close_form && ! "$d" =~ $not_closed ]]; then echo close
-    elif [[ "$d" =~ $to_come_form && ! "$d" =~ $result_form ]]; then return 0
+    elif [[ "$d" =~ $to_come_form ]] && ! fix_check_result "$1" "$d"; then return 0
     elif [[ "$d" == "fix check"* || "$d" == *"fix check of"* || "$d" =~ $gate_fix_form ]]; then echo report
     fi
 }
 fix_check="" fix_items="" fix_hint=""
 if [[ "$1" == 6 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]]; then
-    case "$(fix_check_report "$2")" in
+    case "$(fix_check_report "${file%/*}" "$2")" in
         close) fix_check=1 ;;
         report) fix_check=1 fix_items="$(fix_check_items "${file%/*}" "$2")" ;;
     esac

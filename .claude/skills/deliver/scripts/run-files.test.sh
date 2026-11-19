@@ -560,7 +560,7 @@ fc_accepted 'the audit-5 fix check row with the line of item 1.1' fc-a5 "$a5_row
 
 # Each form of a row that reports a fix check, and each close form, is refused while item 1.1 has no line.
 fc_run fc-forms 1 ''
-for form in 'fix check: the gate fix holds' 'Fix check of the gate fix: ok' 'the lead ran the fix check of 1.1: ok' \
+for form in 'fix check: the gate fix holds' 'fix check 1.1 to 1.9: all hold' 'Fix check of the gate fix: ok' 'the lead ran the fix check of 1.1: ok' \
   'code gate 1 fix check: ok' 'code gate round 1 fix check: ok' 'L2 code gate 1 fix check: ok' 'lead code gate 1 fix check: ok' \
   'G1 fix check: ok' 'L2 fix check: ok' 'code gate closed: the fix check passed' 'code gate round 2 closed' \
   'code gate L1 closed after the fix check' 'close the code gate' 'default: code gate closed'; do
@@ -571,10 +571,12 @@ for form in 'code gate round 1 verdict: 3 Act on, no critical; the lead runs the
   'default: the work waits for the fix check' 'gate fix 1.2 committed before the fix check' \
   'code gate closed in name only: the gate is not closed yet' 'Fix the Act-on item of code gate 1' \
   'fix check pending: gate fixes 1.1 committed' 'fix check of 1.1 to come after the build' 'fix check started' \
-  'code gate 1 fix check waits for the lock' 'L2 fix check next' 'fix check of 1.1-1.1 is pending'; do
+  'code gate 1 fix check waits for the lock' 'L2 fix check next' 'fix check of 1.1-1.1 is pending' \
+  'fix check: pending' 'fix check 1.1 to 1.9 pending' 'fix check 1.3 to come' \
+  'fix check of round 1 waits; the gate passes after it'; do
   fc_accepted "the row '$form'" fc-forms "$form"
 done
-# A to-come word with a result word is a report.
+# A to-come word with a result word in the fix check clause, or in a clause that names an item, is a report.
 for form in 'fix check after the gate fix: 1.1 ok' 'fix check of 1.1 after the build: the fix holds' 'fix check pending; 1.1 fails'; do
   fc_refused "the row '$form'" fc-forms "$form" 1.1
 done

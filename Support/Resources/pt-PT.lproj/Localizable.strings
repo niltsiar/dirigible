@@ -921,6 +921,7 @@
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Intervalo predefinido da forma de onda";
 "take.syncing" = "A sincronizar o clipe";
+"drift.banner" = "A corrigir a deriva de “%@”…";
 "error.sync.no.match" = "Sem correspondência: o áudio do clipe não foi encontrado na faixa.";
 "error.sync.read" = "O Dirigible não pode sincronizar o clipe. Não foi possível ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
 "error.sync.missing" = "O Dirigible não pode sincronizar o clipe. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";

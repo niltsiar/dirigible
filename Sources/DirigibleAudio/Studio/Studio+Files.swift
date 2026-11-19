@@ -74,17 +74,18 @@ extension Studio {
     }
 
     /// The pool paths of `clipboard` when it is of this package (decision 0042): a paste can
-    /// still use them. Also the path of each file of the origin chain of each record, from the pool
-    /// now, so Restore Original of a pasted clip finds its sources (decision 0057).
+    /// still use them. Also the path of each file of the chain of each record, one origin or drift
+    /// link at each level, from the pool now, so Restore Original of a pasted clip finds its
+    /// sources (decision 0057) and a pasted drift link keeps its source (decision 0077 D2).
     private func keptFiles(_ clipboard: Clipboard?) -> [String] {
         guard let clipboard, PackageID.same(clipboard.origin, identity) else { return [] }
         var paths: [String] = []
         for record in clipboard.excerpt.files.values {
             paths.append(record.path)
-            var next = record.origin
-            while let origin = next, let source = session.files[origin.source] {
+            var next = record.linkedSource
+            while let id = next, let source = session.files[id] {
                 paths.append(source.path)
-                next = source.origin
+                next = source.linkedSource
             }
         }
         return paths

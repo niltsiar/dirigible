@@ -303,6 +303,7 @@ extension ImportRun {
         case .paste: L10n.pasteBanner.format(name)
         case .split: L10n.splitBanner.text
         case .clipRender: L10n.denoiseBanner.text
+        case .drift: L10n.driftBanner.format(name)
         }
     }
 }

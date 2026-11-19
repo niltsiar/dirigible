@@ -921,6 +921,7 @@
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Default waveform range";
 "take.syncing" = "Syncing clip";
+"drift.banner" = "Correcting the drift of “%@”…";
 "error.sync.no.match" = "No match: the clip audio was not found on the track.";
 "error.sync.read" = "Dirigible cannot sync the clip. An audio file did not read (error %lld). No clip changed.";
 "error.sync.missing" = "Dirigible cannot sync the clip. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";

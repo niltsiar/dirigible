@@ -921,6 +921,7 @@
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Standard-Wellenformbereich";
 "take.syncing" = "Clip wird synchronisiert";
+"drift.banner" = "Drift von „%@“ wird korrigiert …";
 "error.sync.no.match" = "Keine Übereinstimmung: Der Ton des Clips wurde auf der Spur nicht gefunden.";
 "error.sync.read" = "Dirigible kann den Clip nicht synchronisieren. Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
 "error.sync.missing" = "Dirigible kann den Clip nicht synchronisieren. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";

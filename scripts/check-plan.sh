@@ -50,10 +50,18 @@
 #   origin/main..<the branch of the last `- Branch:` line of run.md> whose author time is at or after the
 #   minute of the first phase 6 row) that removes a double-quoted text of a criterion line of analysis.md,
 #   when no fix commit adds a line that holds the text, needs a decisions.tsv row from the first phase 6
-#   row on whose decision starts with `criterion change` and names the ID as a whole word. A quote in a
-#   backtick span is not read. A text that is empty, or that starts or ends with a space, is a fragment
-#   of a nested quote and is skipped. A branch that git does not know fails. A run whose first
-#   decisions.tsv row is older than quote_cutoff needs none.
+#   row on whose decision starts with `criterion change` and names the ID as a whole word. A text that is
+#   empty, or that starts or ends with a space, is a fragment of a nested quote and is skipped. A branch
+#   that git does not know fails. A run whose first decisions.tsv row is older than quote_cutoff needs none.
+#   The same holds for the pattern of each backticked rg grader of a criterion line (the grader reader of
+#   the graders rule below), when the first decisions.tsv row is at or after graders_cutoff: a fix commit
+#   that removes a line that the pattern matches, from a file that the command names (each file when it
+#   names none), needs the row when no fix commit adds such a line to such a file. The words of the first
+#   rg command up to a word that starts with |, ;, &, <, or > are its patterns (-e values, else the first
+#   word that is no flag) and its files, folders, and globs. rg itself matches the lines of the commits,
+#   without their - or + marker, with the flags -F (also in a bundle such as -Fc, and --fixed-strings), -i,
+#   -s, -S, -w, -x, and -P of the grader: a grader with -F matches a literal, one without -F a regex of
+#   the Rust dialect (\d, \b, (?i)). A pattern that rg cannot read matches nothing. rg must be on the PATH.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -63,6 +71,12 @@
 #   up to the next Invariant, Siblings, or Fix field; the first non-empty next line when the colon ends
 #   its line); a review file older than
 #   none_cutoff keeps a bare none.
+# - Each numbered item under `## Act on` of a review-diff-<n>.md file of a run whose first decisions.tsv
+#   row is at or after graders_cutoff also has a `Criteria` field: the IDs of the criteria whose value
+#   the fix moves, or none, as the `Criteria:` field of a plan gate change. A nit tagged
+#   `no behavior change` needs none. With CHECK_PLAN_AT_PHASE7=1, each ID needs a decisions.tsv row
+#   from the first phase 6 row on whose decision starts with `criterion change` and names the ID as a
+#   whole word. A review-plan-<n>.md file and a run with no decisions.tsv row are not checked.
 # - Before the first phase 4 row only: each Swift path under Sources/ or Tests/ of a slice `- Check:`
 #   line that has the check-sizes.sh limit minus 20 lines or more at origin/main, and that
 #   scripts/check-sizes.allow at origin/main does not list, needs a `- Split:` line in that slice
@@ -126,8 +140,143 @@ fixline_cutoff=2026-11-02T04:58
 quote_cutoff=2026-11-03T00:00
 # The same for the rule that a bench criterion with a time value names a statistic word.
 bench_stat_cutoff=2026-11-18T21:30
-# The same for the rule that a slice copies the rg graders of its criteria to a - Graders: line.
+# The same for the rule that a slice copies the rg graders of its criteria to a - Graders: line, for the
+# rg graders of the phase 7 quote rule, and for the Criteria: field of a code gate Act on item.
 graders_cutoff=2026-11-19T00:00
+
+# The awk functions that read the criteria of analysis.md and the rg graders of a criterion line; the
+# slice rule and the phase 7 quote rule share them. A program is "$rg_awk" followed by its own text.
+rg_awk='
+function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+# criteria(file): fill order[1..no] with the ID of each criterion line of the ## Acceptance criteria
+# section of file, and ctext[id] with its line and its indented lines.
+function criteria(file,  line, inside, cur, t, id) {
+    while ((getline line < file) > 0) {
+        if (line ~ /^## /) { inside = (line ~ /^## Acceptance criteria[[:space:]]*$/); cur = ""; continue }
+        if (!inside || line ~ /^[[:space:]]*$/) continue
+        if (line ~ /^[[:space:]]/) { if (cur != "") ctext[cur] = ctext[cur] " " line; continue }
+        cur = ""
+        if (line !~ /^(- |[0-9]+\. |\|)/) continue
+        t = line; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+        if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) continue
+        id = substr(t, 1, RLENGTH)
+        if (id in ctext) continue
+        cur = id; order[++no] = id; ctext[id] = line
+    }
+    close(file)
+}
+# graders(s, out): fill out[1..n] with each rg grader of s, and return n. A span opens at a
+# backtick and starts with "rg ". It ends at the next backtick outside a quoted argument, or at
+# the next backtick when a quote stays open. A span with no word after rg that does not start
+# with "-" (rg -c) is no grader.
+function graders(s, out,  n, len, i, j, c, q, t, k, w, m, ok) {
+    split("", out); n = 0; len = length(s); i = 1
+    while (i <= len) {
+        if (substr(s, i, 1) != "`") { i++; continue }
+        if (substr(s, i + 1, 3) != "rg ") {
+            j = index(substr(s, i + 1), "`")
+            if (!j) break
+            i += j + 1; continue
+        }
+        q = ""; j = i + 1
+        while (j <= len) {
+            c = substr(s, j, 1)
+            if (q != "") { if (c == q) q = "" }
+            else if (c == "\047" || c == "\"") q = c
+            else if (c == "`") break
+            j++
+        }
+        if (j > len) { j = index(substr(s, i + 1), "`"); if (!j) break; j += i }
+        t = trim(substr(s, i + 1, j - i - 1)); i = j + 1
+        k = split(substr(t, 3), w, /[[:space:]]+/); ok = 0
+        for (m = 1; m <= k; m++) if (w[m] != "" && w[m] !~ /^-/) ok = 1
+        if (ok) out[++n] = t
+    }
+    return n
+}
+# words(s, w): split s into shell words in w[1..n] (quotes and backslashes removed), and return n.
+function words(s, w,  n, len, i, c, q, cur, has, x) {
+    split("", w); n = 0; len = length(s); q = ""; cur = ""; has = 0
+    for (i = 1; i <= len; i++) {
+        c = substr(s, i, 1)
+        if (q == "\047") { if (c == q) q = ""; else cur = cur c; continue }
+        if (q == "\"") {
+            x = substr(s, i + 1, 1)
+            if (c == "\"") q = ""
+            else if (c == "\\" && x != "" && index("\"\\$`", x)) { cur = cur x; i++ }
+            else cur = cur c
+            continue
+        }
+        if (c == "\047" || c == "\"") { q = c; has = 1; continue }
+        if (c == "\\") { cur = cur substr(s, i + 1, 1); i++; has = 1; continue }
+        if (c ~ /[[:space:]]/) { if (has) w[++n] = cur; cur = ""; has = 0; continue }
+        cur = cur c; has = 1
+    }
+    if (has) w[++n] = cur
+    return n
+}
+# shq(s): s as one single-quoted shell word.
+function shq(s,  out, j) {
+    out = ""
+    while ((j = index(s, "\047")) > 0) { out = out substr(s, 1, j - 1) "\047\\\047\047"; s = substr(s, j + 1) }
+    return "\047" out s "\047"
+}
+# rgread(cmd): read the first rg command of cmd. It sets rgpat[1..rgnp] (the patterns: -e values, else the
+# first word that is no flag), rgpath[1..rgnq] (the file words, up to a word that starts with |, ;, &, <,
+# or >), and rgopts (the flags that change what matches, written as rg gets them: -F -i -s -S -w -x -P).
+function rgread(cmd,  w, n, i, x, k, ch, val, dd, pos, npos, long) {
+    n = words(cmd, w); rgnp = 0; rgnq = 0; rgopts = ""; dd = 0; npos = 0; split("", pos)
+    for (i = 2; i <= n; i++) {
+        x = w[i]
+        if (!dd && x ~ /^([0-9]?>|[|;&<])/) break
+        if (dd || x !~ /^-./) { pos[++npos] = x; continue }
+        if (x == "--") { dd = 1; continue }
+        if (x ~ /^--/) {
+            long = x; val = ""
+            if (index(x, "=")) { long = substr(x, 1, index(x, "=") - 1); val = substr(x, index(x, "=") + 1) }
+            if (long == "--fixed-strings") rgopts = rgopts " -F"
+            else if (long == "--ignore-case") rgopts = rgopts " -i"
+            else if (long == "--case-sensitive") rgopts = rgopts " -s"
+            else if (long == "--smart-case") rgopts = rgopts " -S"
+            else if (long == "--word-regexp") rgopts = rgopts " -w"
+            else if (long == "--line-regexp") rgopts = rgopts " -x"
+            else if (long == "--pcre2") rgopts = rgopts " -P"
+            else if (long ~ /^--(regexp|glob|iglob|type|type-not|type-add|max-count|after-context|before-context|context|max-depth|maxdepth|replace|threads|file|encoding|sort|sortr|max-columns|colors|pre|pre-glob|engine|path-separator|ignore-file|max-filesize|dfa-size-limit|regex-size-limit|context-separator|field-context-separator|field-match-separator|hyperlink-format|generate)$/) {
+                if (val == "" && !index(x, "=")) val = w[++i]
+                if (long == "--regexp") rgpat[++rgnp] = val
+            }
+            continue
+        }
+        for (k = 2; k <= length(x); k++) {
+            ch = substr(x, k, 1)
+            if (ch == "F" || ch == "i" || ch == "s" || ch == "S" || ch == "w" || ch == "x" || ch == "P") rgopts = rgopts " -" ch
+            else if (index("efgtTABCmjMEdr", ch)) {
+                val = substr(x, k + 1)
+                if (val == "") val = w[++i]
+                if (ch == "e") rgpat[++rgnp] = val
+                break
+            }
+        }
+    }
+    k = 1
+    if (!rgnp && npos) rgpat[++rgnp] = pos[k++]
+    for (; k <= npos; k++) { x = pos[k]; sub(/^\.\//, "", x); sub(/\/+$/, "", x); if (x != "" && x != ".") rgpath[++rgnq] = x }
+}
+# named(file, p): file is the file, a file under the folder, or a match of the glob p.
+function named(file, p,  g, j, c) {
+    if (file == p || index(file, p "/") == 1) return 1
+    if (p !~ /[*?]/) return 0
+    g = ""
+    for (j = 1; j <= length(p); j++) {
+        c = substr(p, j, 1)
+        if (c == "*") { if (substr(p, j + 1, 1) == "*") { g = g ".*"; j++ } else g = g "[^/]*" }
+        else if (c == "?") g = g "[^/]"
+        else if (index(".+()[]{}^$|\\", c)) g = g "\\" c
+        else g = g c
+    }
+    return file ~ ("^" g "$")
+}
+'
 
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
 # lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
@@ -442,42 +591,12 @@ else
             }' "$run/analysis.md")
     fi
     if [[ -f "$run/analysis.md" && -f "$run/plan.md" && ( -z "$start" || ! "$start" < "$graders_cutoff" ) ]]; then
-        while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" '
-            function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+        while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" -v analysis="$run/analysis.md" "$rg_awk"'
             # parse(id): prefix gp, number gn, and lower-case suffix gs of a criterion ID.
             function parse(id) {
                 gp = id; sub(/[0-9]+[a-z]*$/, "", gp)
                 gn = id; sub(/^[A-Z]+/, "", gn); gn += 0
                 gs = id; sub(/^[A-Z]+[0-9]+/, "", gs)
-            }
-            # graders(s, out): fill out[1..n] with each rg grader of s, and return n. A span opens at a
-            # backtick and starts with "rg ". It ends at the next backtick outside a quoted argument, or at
-            # the next backtick when a quote stays open. A span with no word after rg that does not start
-            # with "-" (rg -c) is no grader.
-            function graders(s, out,  n, len, i, j, c, q, t, k, w, m, ok) {
-                split("", out); n = 0; len = length(s); i = 1
-                while (i <= len) {
-                    if (substr(s, i, 1) != "`") { i++; continue }
-                    if (substr(s, i + 1, 3) != "rg ") {
-                        j = index(substr(s, i + 1), "`")
-                        if (!j) break
-                        i += j + 1; continue
-                    }
-                    q = ""; j = i + 1
-                    while (j <= len) {
-                        c = substr(s, j, 1)
-                        if (q != "") { if (c == q) q = "" }
-                        else if (c == sq || c == dq) q = c
-                        else if (c == "`") break
-                        j++
-                    }
-                    if (j > len) { j = index(substr(s, i + 1), "`"); if (!j) break; j += i }
-                    t = trim(substr(s, i + 1, j - i - 1)); i = j + 1
-                    k = split(substr(t, 3), w, /[[:space:]]+/); ok = 0
-                    for (m = 1; m <= k; m++) if (w[m] != "" && w[m] !~ /^-/) ok = 1
-                    if (ok) out[++n] = t
-                }
-                return n
             }
             # ranges(s): the ranges "C2 to C5" and "C2-C5" of the listing text of slice s.
             function ranges(s,  rest, r, e, p, ln, lsf) {
@@ -500,7 +619,6 @@ else
                 return 0
             }
             BEGIN {
-                sq = "\047"; dq = "\""
                 while ((getline line < plan) > 0) {
                     if (line ~ /^## /) { inslices = (line ~ /^## Slices([[:space:]].*)?$/); mode = ""; continue }
                     if (!inslices) continue
@@ -518,21 +636,8 @@ else
                     n = graders(gline[s], g)
                     for (m = 1; m <= n; m++) held[s, g[m]] = 1
                 }
-            }
-            /^## / { inside = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); cur = ""; next }
-            inside {
-                if ($0 ~ /^[[:space:]]*$/) next
-                if ($0 ~ /^[[:space:]]/) { if (cur != "") ctext[cur] = ctext[cur] " " $0; next }
-                cur = ""
-                if ($0 !~ /^(- |[0-9]+\. |\|)/) next
-                t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
-                if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
-                id = substr(t, 1, RLENGTH)
-                if (id in ctext) next
-                cur = id; order[++no] = id; ctext[id] = $0
-            }
-            END {
-                fix = "copy the grader whole to the \"- Graders:\" line of a slice that lists the criterion, or write a case input in double quotes"
+                criteria(analysis)
+                fix ="copy the grader whole to the \"- Graders:\" line of a slice that lists the criterion, or write a case input in double quotes"
                 for (o = 1; o <= no; o++) {
                     id = order[o]; n = graders(ctext[id], g)
                     for (m = 1; m <= n; m++) {
@@ -546,7 +651,7 @@ else
                             print "analysis.md: criterion " id " has the grader `" g[m] "`, and no slice that lists " id " holds it in a \"- Graders:\" line; " fix
                     }
                 }
-            }' "$run/analysis.md")
+            }')
     fi
     # Cutoff 2026-10-24T10:00, the commit that added the Landings rule: a run that started earlier passes without it.
     if [[ -z "$start" || ! "$start" < 2026-10-24T10:00 ]]; then
@@ -695,6 +800,13 @@ else
                 say "run.md: the last - Branch: line names '$branch', and the repo $root has no such branch; write the run branch on a new - Branch: line"
             else
                 since="$(date -j -f %Y-%m-%dT%H:%M:%S "$first6:00" +%s)"
+                # The grader reading writes the removed and the added lines of each file of each fix commit to
+                # files of gtmp, and lets rg match them.
+                gon=0 have_rg=0
+                [[ "$start" < "$graders_cutoff" ]] || gon=1
+                ! command -v rg > /dev/null || have_rg=1
+                gtmp="$(mktemp -d)"
+                trap 'rm -rf "$gtmp"' EXIT
                 # The awk reads a "commit <short hash>" line, then the -U0 diff of that commit, for each fix commit.
                 while IFS= read -r msg; do say "$msg"; done < <(
                     while read -r hash short at; do
@@ -702,7 +814,45 @@ else
                         echo "commit $short"
                         git -C "$root" show --format= --no-color -U0 "$hash"
                     done < <(git -C "$root" log --no-merges --format='%H %h %at' "origin/main..$branch") |
-                        awk -v rows="$run/decisions.tsv" -v analysis="$run/analysis.md" -v run="$run" '
+                        awk -v rows="$run/decisions.tsv" -v analysis="$run/analysis.md" -v run="$run" -v gtmp="$gtmp" -v gon="$gon" -v have_rg="$have_rg" "$rg_awk"'
+                        # pair(h, p): the number of the pair of fix commit h and file p, for the lines of the grader reading.
+                        function pair(h, p,  key) {
+                            key = h SUBSEP p
+                            if (!(key in pk)) { pk[key] = ++npair; ph[npair] = h; pp[npair] = p }
+                            return pk[key]
+                        }
+                        # first_match(files): the lowest pair number of the files (names r<n> or a<n> in gtmp) that
+                        # the first rg command of cmd matches; 0 when none, and when rg cannot read the pattern.
+                        function first_match(files, pats,  cmd, f, k, low) {
+                            cmd = "rg -l --no-config --no-messages" rgopts pats " -- " files " 2>/dev/null"
+                            low = 0
+                            while ((cmd | getline f) > 0) { k = substr(f, length(gtmp) + 3) + 0; if (!low || k < low) low = k }
+                            close(cmd)
+                            return low
+                        }
+                        # removed_by(cmd): the fix commit that removes a line that the pattern of the first rg command
+                        # of cmd matches, in a file that the command names, when no fix commit adds such a line.
+                        function removed_by(cmd,  i, k, rfiles, afiles, pats, low, ok) {
+                            rgread(cmd)
+                            if (!rgnp) return ""
+                            for (i = 1; i <= rgnp; i++) pats = pats " -e " shq(rgpat[i])
+                            for (k = 1; k <= npair; k++) {
+                                ok = !rgnq
+                                for (i = 1; i <= rgnq && !ok; i++) if (named(pp[k], rgpath[i])) ok = 1
+                                if (!ok) continue
+                                if (k in rbuf) rfiles = rfiles " " shq(gtmp "/r" k)
+                                if (k in abuf) afiles = afiles " " shq(gtmp "/a" k)
+                            }
+                            if (rfiles == "") return ""
+                            if (!have_rg) {
+                                if (!told_rg++) print "analysis.md: the grader rule of the quote check needs rg on the PATH; install ripgrep"
+                                return ""
+                            }
+                            low = first_match(rfiles, pats)
+                            if (!low) return ""
+                            if (afiles != "" && first_match(afiles, pats)) return ""
+                            return ph[low]
+                        }
                         # texts(line): the double-quoted texts of line outside backtick spans, in q[1..n].
                         function texts(line,  n, c, j, t) {
                             n = 0
@@ -716,11 +866,13 @@ else
                             return n
                         }
                         /^commit / { h = $2; hunk = 0; next }
-                        /^diff --git / { hunk = 0; next }
+                        /^diff --git / { hunk = 0; path = $0; sub(/^.* b\//, "", path); next }
                         /^@@/ { hunk = 1; next }
-                        hunk && /^-/ { rl[++nr] = substr($0, 2); rh[nr] = h; next }
-                        hunk && /^\+/ { al[++na] = substr($0, 2) }
+                        hunk && /^-/ { rl[++nr] = substr($0, 2); rh[nr] = h; if (gon) { k = pair(h, path); rbuf[k] = rbuf[k] rl[nr] "\n" }; next }
+                        hunk && /^\+/ { al[++na] = substr($0, 2); if (gon) { k = pair(h, path); abuf[k] = abuf[k] al[na] "\n" } }
                         END {
+                            for (k in rbuf) { printf "%s", rbuf[k] > (gtmp "/r" k); close(gtmp "/r" k) }
+                            for (k in abuf) { printf "%s", abuf[k] > (gtmp "/a" k); close(gtmp "/a" k) }
                             while ((getline line < rows) > 0) {
                                 split(line, c, "\t")
                                 if (c[2] == "6") seen6 = 1
@@ -747,7 +899,25 @@ else
                                     break
                                 }
                             }
+                            if (!gon) exit
+                            close(analysis)
+                            criteria(analysis)
+                            for (o = 1; o <= no; o++) {
+                                id = order[o]
+                                covered = 0
+                                for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) covered = 1
+                                if (covered || id in told) continue
+                                n = graders(ctext[id], gl)
+                                for (g = 1; g <= n; g++) {
+                                    by = removed_by(gl[g])
+                                    if (by == "") continue
+                                    told[id] = 1
+                                    print "analysis.md: criterion " id " has the grader `" gl[g] "`, and fix commit " by " removes a line with its pattern; edit the criterion in analysis.md first, then log it with .claude/skills/deliver/scripts/log-decision.sh " run " --from <file>: line 1 6, line 2 criterion change " id ": old ..., new ..., then the why, the evidence, and the result"
+                                    break
+                                }
+                            }
                         }')
+                rm -rf "$gtmp"
             fi
         fi
     fi
@@ -859,7 +1029,41 @@ for review in "$run"/review-*.md; do
             }
             END { if (fix && !act) print file ": has ## Fix check and no ## Act on heading; write ## Act on with a numbered item for each finding, or None. (lead-judgment.md) (a review file from before the rule: do not edit it)" }' "$review")
     fi
-    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) -v nonerule=$((mtime >= none_cutoff)) '
+    # A code gate round file of a run that started at or after graders_cutoff has a Criteria field in each Act on item.
+    critrule=0
+    if [[ "${review##*/}" =~ ^review-diff-[0-9]+\.md$ && -n "${start-}" && ! "${start-}" < "$graders_cutoff" ]]; then critrule=1; fi
+    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) -v nonerule=$((mtime >= none_cutoff)) -v critrule="$critrule" -v phase7="${CHECK_PLAN_AT_PHASE7:+1}" -v rows="$run/decisions.tsv" -v run="$run" '
+        # crit <what>: the Criteria field of text names a criterion ID or none (its value is the rest of its line,
+        # or the first non-empty next line when the colon ends the line, up to the next field). At phase 7,
+        # each ID needs a criterion change row from the first phase 6 row on.
+        function crit(what,  n, lines, i, j, rest, id, found, k) {
+            if (text !~ "Criteria[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:") {
+                print file ": " what " has no Criteria field; write Criteria: <IDs separated by commas> or Criteria: none"
+                return
+            }
+            n = split(text, lines, "\n")
+            for (i = 1; i <= n; i++) {
+                if (!match(lines[i], "Criteria[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:")) continue
+                rest = substr(lines[i], RSTART + RLENGTH)
+                sub(/^[-*[:space:]]+/, "", rest)
+                for (j = i + 1; rest == "" && j <= n; j++) { rest = lines[j]; sub(/^[-*[:space:]]+/, "", rest) }
+                if (match(rest, /(^|[^A-Za-z])(Invariant|Siblings|Fix)[*[:space:]]*(\([^)]*\))?[*[:space:]]*:/)) rest = substr(rest, 1, RSTART - 1)
+                break
+            }
+            if (tolower(rest) ~ /^none([^a-z]|$)/) return
+            if (!match(rest, /[A-Z]+[0-9]+[a-z]*/)) {
+                print file ": " what " has a Criteria field with no criterion ID and no none; write Criteria: <IDs separated by commas> or Criteria: none"
+                return
+            }
+            if (!phase7) return
+            while (match(rest, /[A-Z]+[0-9]+[a-z]*/)) {
+                id = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+                found = 0
+                for (k = 1; k <= nchanges; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) found = 1
+                if (!found)
+                    print file ": " what " has Criteria: " id ", and no criterion change row for " id " follows the first phase 6 row; edit the criterion in analysis.md first, then log it with .claude/skills/deliver/scripts/log-decision.sh " run " --from <file>: line 1 6, line 2 criterion change " id ": old ..., new ..., then the why, the evidence, and the result"
+            }
+        }
         # missing <what>: print each field that text does not have, and a Siblings field that says
         # none with no search in its value (the text after its colon, or the first non-empty next line
         # when the colon ends the line, up to the next field).
@@ -894,7 +1098,7 @@ for review in "$run"/review-*.md; do
             return t ~ /\(nit[^a-z]/ && t ~ /(^|[^a-z])taken([^a-z]|$)/
         }
         function close_item() {
-            if (item && !skip) missing("Act on item " item)
+            if (item && !skip) { missing("Act on item " item); if (critrule) crit("Act on item " item) }
             if (note && !skip && taken()) missing("Consider item " note)
             item = note = ""
         }
@@ -902,7 +1106,14 @@ for review in "$run"/review-*.md; do
             if (inside == "act" && other && !numbered) print file ": ## Act on has no numbered item (a review file from before the rule: do not edit it)"
             inside = numbered = other = 0
         }
-        BEGIN { field[1] = "Invariant"; field[2] = "Siblings" }
+        BEGIN {
+            field[1] = "Invariant"; field[2] = "Siblings"
+            while (phase7 && (getline line < rows) > 0) {
+                split(line, c, "\t")
+                if (c[2] == "6") seen6 = 1
+                if (seen6 && tolower(c[3]) ~ /^criterion change/) changes[++nchanges] = c[3]
+            }
+        }
         /^## / {
             close_item(); close_section(); notes = 0
             inside = $0 ~ /^## Act on/ ? "act" : nitrule && $0 ~ /^## Consider/ ? "consider" : ""

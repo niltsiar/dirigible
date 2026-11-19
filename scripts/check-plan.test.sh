@@ -15,7 +15,9 @@
 # Check that a bench criterion with a time budget and no statistic word is refused.
 # Check that a backticked rg grader of a criterion that no listing slice copies to a - Graders: line is refused.
 # Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
-# with no criterion change row after the first phase 6 row.
+# with no criterion change row after the first phase 6 row, and the same for the pattern of a backticked
+# rg grader (read as rg reads it) in the files that its command names.
+# Check that a code gate Act on item has a Criteria: field, and at phase 7 a criterion change row for each ID.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -252,12 +254,13 @@ pass 'a review file older than none_cutoff keeps a bare none'
 
 # The fixture item comes from the one owner of the format: the Act on line of the interrogate
 # ## Output format. A change of that line that this test cannot parse, or that check-plan.sh
-# does not read, fails here.
+# does not read, fails here. The two fields of every gate end the line, or end its text before a
+# semicolon (the field of the code gate only follows it).
 format="$(dirname "$script")/../.claude/skills/interrogate/SKILL.md"
 act_on="$(awk '/^## /{ s = $0; next } s == "## Output format" && /^- \*\*Act on:\*\*/' "$format")"
 tag="$(grep -oE '`\([^`]*\)`' <<<"$act_on" | head -n 1 | tr -d '`')"
 fields=()
-while IFS= read -r f; do fields+=("$f"); done < <(sed -n 's/.*, then \(.*\)\.$/\1/p' <<<"$act_on" | grep -oE '\b[A-Z][a-z]+\b')
+while IFS= read -r f; do fields+=("$f"); done < <(sed -n 's/.*, then \([^;]*\)[;.].*$/\1/p' <<<"$act_on" | grep -oE '\b[A-Z][a-z]+\b')
 if [[ "$tag" != *"<severity>"* || ${#fields[@]} -ne 2 ]]; then
   fail "the Act on line of $format: no tag with <severity>, or not two field names: $act_on"
 else
@@ -1003,7 +1006,9 @@ mkdir -p "$p7/scripts"
 cp "$script" "$p7/scripts/"
 p7git() { git -C "$p7" -c core.hooksPath=/dev/null -c commit.gpgsign=false "$@"; }
 printf 'the old message text\na gone text\nAct on nits stop the gate.\nkeep\n' > "$p7/f"
-p7git init -q && p7git add f && p7git commit -q -m base && p7git update-ref refs/remotes/origin/main HEAD
+printf -- '- foo\nat the merge base here\nas type `x` (y)\n12 items\nd+ items\n' > "$p7/lead.md"
+printf 'TDD-053\tre-run at the merge base\n' > "$p7/rules.tsv"
+p7git init -q && p7git add f lead.md rules.tsv && p7git commit -q -m base && p7git update-ref refs/remotes/origin/main HEAD
 p7branch() { p7git checkout -q -f -B chore/fixture refs/remotes/origin/main || fail 'p7 branch'; }
 # p7commit <author time> <file> <text>: write <text> (printf %b) to <file> and commit it on the branch.
 p7commit() {
@@ -1076,8 +1081,137 @@ p7branch
 p7commit 2026-11-03T12:30:00 f 'the old message text\na gone text\nAct on items stop the gate.\nkeep\n'
 p7run 2026-11-03T10:00; p7rows
 pass 'a fix commit that removes a fragment of a nested quote'
+
+# The rg graders of a criterion (graders_cutoff, 2026-11-19T00:00): a fix commit that removes a line that the
+# pattern of a backticked rg grader matches, in a file that the command names (each file when it names none),
+# needs the same row, when no fix commit adds such a line to such a file. rg itself reads the pattern:
+# a grader with -F matches a literal, one without -F a regex, each on the line with its marker removed.
+# p7drop <author time> <file> <line>: commit <file> without the lines that equal <line>.
+# p7append <author time> <file> <line>: commit <file> with <line> added at its end.
+p7drop() {
+  awk -v d="$3" '$0 != d' "$p7/$2" > "$p7/$2.new" && mv "$p7/$2.new" "$p7/$2" \
+    && p7git add -- "$2" && GIT_AUTHOR_DATE="$1" p7git commit -q -m "drop from $2" || fail "p7 drop $2"
+}
+p7append() {
+  printf '%s\n' "$3" >> "$p7/$2"
+  p7git add -- "$2" && GIT_AUTHOR_DATE="$1" p7git commit -q -m "add to $2" || fail "p7 append $2"
+}
+# g3run <grader> [first row time]: criterion C8 has the backticked grader, slice S1 lists C8 and holds the grader.
+g3run() {
+  good
+  printf -- '- Branch: chore/fixture\n' > "$run/run.md"
+  printf '\n## Acceptance criteria\n\n- C8: The text stays. `%s` prints 1.\n' "$1" >> "$run/analysis.md"
+  names 'C8'; glist S1 C8; gadd S1 "- Graders: \`$1\`"
+  ROW_AT="${2:-2026-11-19T10:00}" row 2 'plan written'
+  ROW_AT=2026-11-19T11:00 row 4 'implement'; ROW_AT=2026-11-19T12:00 row 6 'code gate'
+}
+# g3 <refuse|pass> <name> <grader> <line> [first row time]: a fix commit drops <line> from lead.md.
+g3() {
+  p7branch; p7drop 2026-11-19T12:30:00 lead.md "$4"
+  g3run "$3" "${5:-}"
+  if [[ $1 == refuse ]]; then refuse "$2" "criterion C8 has the grader \`$3\`, and fix commit"; else pass "$2"; fi
+}
+MB='at the merge base here'
+g3 refuse 'C8 form: the phrase leaves lead.md and stays in rules.tsv' "rg -c 'at the merge base' lead.md" "$MB"
+refuse 'the refusal names the removing commit' "fix commit $(p7git log -1 --format=%h) removes a line with its pattern"
+refuse 'the refusal gives the --from form of the row' "log-decision.sh $run --from <file>: line 1 6, line 2 criterion change C8: old ..., new ..."
+ROW_AT=2026-11-19T12:40 row 6 'criterion change C8: old keep, new keep'
+pass 'a criterion change row after the first phase 6 row'
+g3 refuse 'the phrase leaves lead.md again' "rg -c 'at the merge base' lead.md" "$MB"
+ROW_AT=2026-11-19T11:30 row 4 'criterion change C8: old keep, new keep'
+sort -o "$run/decisions.tsv" "$run/decisions.tsv"
+refuse 'a criterion change row before the first phase 6 row' "criterion C8 has the grader"
+p7append 2026-11-19T12:31:00 lead.md "$MB, back"
+pass 'a later fix commit adds a line with the pattern back to the named file'
+g3 pass 'a fix commit that removes another line' "rg -c 'at the merge base' lead.md" '12 items'
+p7branch; p7drop 2026-11-19T11:30:00 lead.md "$MB"; g3run "rg -c 'at the merge base' lead.md"
+pass 'a slice commit before the first phase 6 row'
+g3 pass 'a run whose first row is older than the graders cutoff' "rg -c 'at the merge base' lead.md" "$MB" 2026-11-18T23:59
+g3 refuse 'a pattern with backticks inside its quotes' "rg -c -F 'as type \`x\` (y)' lead.md" 'as type `x` (y)'
+# The files that the command names.
+g3 pass 'a grader that names another file' "rg -c 'at the merge base' rules.tsv" "$MB"
+g3 refuse 'a grader that names no file' "rg -c 'at the merge base'" "$MB"
+g3 refuse 'a grader that names a folder' "rg -c 'at the merge base' ." "$MB"
+g3 refuse 'a grader that names a glob' "rg -c 'at the merge base' '*.md'" "$MB"
+g3 pass 'a glob that does not match' "rg -c 'at the merge base' '*.tsv'" "$MB"
+g3 refuse 'a pattern that follows -e' "rg -c -e 'at the merge base' lead.md" "$MB"
+g3 refuse 'a file word after a flag' "rg -c 'at the merge base' -i lead.md" "$MB"
+g3 refuse 'the first rg of a pipe' "rg 'at the merge base' lead.md | rg -c 'x'" "$MB"
+g3 pass 'the second rg of a pipe reads standard input' "rg 'zzz' lead.md | rg -c 'at the merge base'" "$MB"
+g3 pass 'a file word after a redirect is no file' "rg -c 'at the merge base' rules.tsv > lead.md" "$MB"
+# -F matches a literal and no -F a regex, each on the line without its marker: the line "- foo" holds
+# "^- foo" as a regex only.
+g3 refuse 'a regex grader with ^ on the removed line' "rg -c '^- foo' lead.md" '- foo'
+g3 pass 'the same pattern with -F is a literal' "rg -c -F '^- foo' lead.md" '- foo'
+g3 pass 'the bundled -Fc' "rg -Fc '^- foo' lead.md" '- foo'
+g3 pass 'the bundled -cF' "rg -cF '^- foo' lead.md" '- foo'
+g3 pass 'the long --fixed-strings' "rg --fixed-strings '^- foo' lead.md" '- foo'
+g3 refuse 'the bundled -Fc on a literal that the line holds' "rg -Fc 'at the merge base' lead.md" "$MB"
+g3 refuse 'the long --fixed-strings on a literal that the line holds' "rg --fixed-strings 'at the merge base' lead.md" "$MB"
+g3 refuse 'a regex grader with a dot' "rg -c 'at the m.rge base' lead.md" "$MB"
+g3 pass 'a dot is a literal with -F' "rg -c -F 'at the m.rge base' lead.md" "$MB"
+g3 refuse '-i matches another case' "rg -ci 'AT THE MERGE BASE' lead.md" "$MB"
+g3 pass 'no -i keeps the case' "rg -c 'AT THE MERGE BASE' lead.md" "$MB"
+# Forms of the Rust regex dialect: rg reads them, so a line that the form does not match is no false refusal.
+g3 refuse 'the form \d' "rg -c '\\d+ items' lead.md" '12 items'
+g3 pass 'the form \d does not match the letter d' "rg -c '\\d+ items' lead.md" 'd+ items'
+g3 refuse 'the form \b' "rg -c '\\bmerge\\b' lead.md" "$MB"
+g3 pass 'the form \b does not match inside a word' "rg -c '\\berge\\b' lead.md" "$MB"
+g3 refuse 'the form (?i)' "rg -c '(?i)AT THE MERGE' lead.md" "$MB"
+g3 pass 'a regex that rg cannot read matches nothing' "rg -c '(' lead.md" "$MB"
+if ! PATH=/usr/bin:/bin command -v rg > /dev/null; then
+  p7branch; p7drop 2026-11-19T12:30:00 lead.md "$MB"; g3run "rg -c 'at the merge base' lead.md"
+  PATH=/usr/bin:/bin refuse 'rg is not on the PATH' 'needs rg on the PATH'
+fi
 unset CHECK_PLAN_AT_PHASE7
 script="$saved_script"
+
+# The Criteria: field of an Act on item of a review-diff-<n>.md file (graders_cutoff): the IDs that the fix
+# moves, or none. At the first phase 7 row (CHECK_PLAN_AT_PHASE7=1), each ID needs a criterion change row
+# after the first phase 6 row. A review-plan file, and a run whose first row is older, need no field.
+# crun <item tail> [first row time]: a run with one Act on item that has Invariant, Siblings, the tail,
+# and a Fix check line.
+crun() {
+  good
+  printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: i.\n   Siblings: s.\n%s\n\n## Fix check\n\n- 1.1 OK; %s\n' "$1" "$NF" > "$run/review-diff-1.md"
+  ROW_AT="${2:-2026-11-19T10:00}" row 2 'plan written'
+  ROW_AT=2026-11-19T11:00 row 4 'implement'; ROW_AT=2026-11-19T12:00 row 6 'code gate'
+}
+crun ''
+refuse 'a review-diff Act on item with no Criteria field' 'review-diff-1.md: Act on item 1 has no Criteria field'
+refuse 'the refusal names the format' 'Criteria: <IDs separated by commas> or Criteria: none'
+crun '   Criteria: none'
+pass 'Criteria: none'
+CHECK_PLAN_AT_PHASE7=1 pass 'Criteria: none at the first phase 7 row'
+crun '   - **Criteria:** none'
+pass 'a bold Criteria field'
+crun '   Criteria: soon'
+refuse 'a Criteria field with no ID and no none' 'Act on item 1 has a Criteria field with no criterion ID and no none'
+crun '   Criteria: C9'
+pass 'Criteria: C9 at the land check'
+CHECK_PLAN_AT_PHASE7=1 refuse 'Criteria: C9 at phase 7, with no row' 'review-diff-1.md: Act on item 1 has Criteria: C9, and no criterion change row for C9 follows the first phase 6 row'
+CHECK_PLAN_AT_PHASE7=1 refuse 'the refusal gives the --from form of the row' "log-decision.sh $run --from <file>: line 1 6, line 2 criterion change C9: old ..., new ..."
+ROW_AT=2026-11-19T12:40 row 6 'criterion change C9: old 24, new 25'
+CHECK_PLAN_AT_PHASE7=1 pass 'Criteria: C9 with a phase 6 row'
+crun '   Criteria: C9'; ROW_AT=2026-11-19T11:30 row 4 'criterion change C9: old 24, new 25'
+sort -o "$run/decisions.tsv" "$run/decisions.tsv"
+CHECK_PLAN_AT_PHASE7=1 refuse 'Criteria: C9 with a row before the first phase 6 row' 'no criterion change row for C9'
+crun '   Criteria: C9, C10'; ROW_AT=2026-11-19T12:40 row 6 'criterion change C9: old 24, new 25'
+CHECK_PLAN_AT_PHASE7=1 refuse 'Criteria: C9, C10 with a row for C9 only' 'no criterion change row for C10'
+out="$(CHECK_PLAN_AT_PHASE7=1 "$script" "$run" 2>&1)"
+[[ "$out" != *'no criterion change row for C9'* ]] || fail "a row for C9 is found: $out"
+crun '   Criteria: C9'; ROW_AT=2026-11-19T12:40 row 6 'criterion change C90: old 24, new 25'
+CHECK_PLAN_AT_PHASE7=1 refuse 'a row for C90 is no row for C9' 'no criterion change row for C9'
+crun ''; mv "$run/review-diff-1.md" "$run/review-plan-1.md"
+sed -i '' 's/^## Fix check/## Dismissed/' "$run/review-plan-1.md"
+pass 'a review-plan Act on item with no Criteria field'
+crun '' 2026-11-18T23:59
+pass 'a run whose first row is older than the graders cutoff'
+crun ''; printf '\n2. (nit, x; no behavior change) A nit.\n3. (warning, x) Another.\n   Invariant: i.\n   Siblings: s.\n   Criteria: none\n' > "$tmp/more"
+awk -v more="$tmp/more" '/^## Fix check/ { while ((getline l < more) > 0) print l; print "" } { print }' "$run/review-diff-1.md" > "$tmp/r.md" && mv "$tmp/r.md" "$run/review-diff-1.md"
+refuse 'the first item has no field, the nit and the third item are fine' 'Act on item 1 has no Criteria field'
+out="$("$script" "$run" 2>&1)"
+[[ "$out" != *'Act on item 2'* && "$out" != *'Act on item 3'* ]] || fail "only item 1 lacks the field: $out"
 
 # CHECK_PLAN_FIX_CHECK=1 (log-decision.sh, for a phase 6 row that reports a fix check) runs the Fix check
 # line rule of the code gate: a line for each Act on item, or for each item of CHECK_PLAN_FIX_ITEMS
@@ -1087,7 +1221,7 @@ script="$saved_script"
 # that defers its control to logs/c1.log after S1.
 fcrun() {
   good; ROW_AT="$(date +%FT%R)" row 2 'plan written'
-  printf '## Act on\n\n%s\n\n## Fix check\n\n%s\n' "$ACT2" "$1" > "$run/review-diff-1.md"
+  printf '## Act on\n\n%s\n\n## Fix check\n\n%s\n' "${ACT2//Siblings: s./Siblings: s. Criteria: none.}" "$1" > "$run/review-diff-1.md"
   printf '## Act on\n\n%s\n\n## Fix check\n\n- 1.1 OK; %s control: logs/c1.log after S1\n' "$ACT" "$NF" > "$run/review-plan-1.md"
 }
 export CHECK_PLAN_FIX_CHECK=1

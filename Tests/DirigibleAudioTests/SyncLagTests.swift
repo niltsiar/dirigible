@@ -105,6 +105,15 @@ struct SyncLagTests {
         #expect(throws: SyncFailure.file("r", .missing)) { try package.syncC() }
     }
 
+    /// A spread over 20 ms is notable and 20 ms is not, at 48 kHz and at 44.1 kHz.
+    @Test func aSpreadOver20MillisecondsIsNotable() {
+        for (rate, at20) in [(48_000, 960), (44_100, 882)] {
+            #expect(!SyncResult.spreadIsNotable(Frames(at20), rate: rate), "\(at20) frames at \(rate) Hz")
+            #expect(SyncResult.spreadIsNotable(Frames(at20 + 1), rate: rate), "\(at20 + 1) frames at \(rate) Hz")
+            #expect(!SyncResult.spreadIsNotable(.zero, rate: rate))
+        }
+    }
+
     /// No free descriptor at the open is a read failure with its errno, not a file fault.
     @Test func noFreeDescriptorIsAReadFailure() throws {
         let package = try syncPackage()

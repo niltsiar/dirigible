@@ -40,8 +40,9 @@ struct SessionDriftTests {
     }
 
     /// D11: `addFile` and `addDriftFile` refuse a source with a capture (a take file and a split half
-    /// of a take), a file with an origin and a drift link, and a last frame past the source. The
-    /// session does not change. The bound length on a plain source passes (control).
+    /// of a take), a source with a drift link, a file with an origin and a drift link, and a last
+    /// frame past the source. The session does not change. The bound length on a plain source, and
+    /// the same link to "guest drift" after its drift link is removed, pass (controls).
     @Test func eachBadDriftLinkIsRefusedInMemory() throws {
         var session = Session(sampleRate: 48_000)
         try session.addCapture(
@@ -53,6 +54,10 @@ struct SessionDriftTests {
         try session.addFile(
             AudioFile(id: "half", path: "half.wav", layout: .mono, length: 14_400_000, capture: CaptureID("take")))
         try session.addFile(AudioFile(id: "guest", path: "guest.wav", layout: .mono, length: 28_800_000))
+        let corrected = { (drift: DriftOrigin?) in
+            AudioFile(id: "guest drift", path: "guest drift.wav", layout: .mono, length: 28_700_000, drift: drift)
+        }
+        try session.addFile(corrected(try Self.link("guest")))
         #expect(session.files["take"]?.isTakeFile == true && session.files["half"]?.isTakeFile == false)
         let before = session
         let worked = try Self.link("guest", ratio: 1 / 1.0001)
@@ -63,6 +68,7 @@ struct SessionDriftTests {
         let added: [(String, AudioFile)] = [
             ("take file", file(1_000, nil, try Self.link("take"))),
             ("split half", file(1_000, nil, try Self.link("half"))),
+            ("drift link", file(1_000, nil, try Self.link("guest drift"))),
             ("origin and drift", file(1_000, noise, try Self.link("guest"))),
             ("last frame", file(28_802_882, nil, worked)),
         ]
@@ -71,7 +77,7 @@ struct SessionDriftTests {
         }
         let made: [(String, Frames, DriftOrigin)] = [
             ("take file", 1_000, try Self.link("take")), ("split half", 1_000, try Self.link("half")),
-            ("last frame", 28_802_882, worked),
+            ("drift link", 1_000, try Self.link("guest drift")), ("last frame", 28_802_882, worked),
         ]
         for (name, length, link) in made {
             #expect(throws: SessionError.invalidOrigin("x"), "addDriftFile: \(name)") {
@@ -80,6 +86,10 @@ struct SessionDriftTests {
         }
         #expect(session == before)
 
+        var unlinked = session
+        try unlinked.removeFile("guest drift")
+        try unlinked.addFile(corrected(nil))
+        try unlinked.addFile(file(1_000, nil, try Self.link("guest drift")))
         var plain = session
         try plain.addFile(file(28_802_881, nil, worked))
         try session.addDriftFile(stem: "x", length: 28_802_881, drift: worked, wordsFrom: "guest")

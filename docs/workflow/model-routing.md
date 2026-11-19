@@ -30,8 +30,8 @@ Any free model can get repo text and train on it: the project goes open source (
 
 | Job | Model | Claude step | Use |
 |---|---|---|---|
-| Extra review lens at a gate | `deepseek flash`, then `beam` at variant `high` | always | Beside the Claude lenses |
-| Extra review lens at a gate | Antigravity `gemini argon` | always | Beside the row above and the Claude lenses |
+| Extra review lens at a gate | `deepseek flash`, then `beam` at variant `high` | not at a `review: lead` code gate | Beside the Claude lenses |
+| Extra review lens at a gate | Antigravity `gemini argon` | not at a `review: lead` code gate | Beside the row above and the Claude lenses |
 | Translation check | `beam`, then Antigravity `gemini flash` | no result | A result replaces the Claude check |
 | First read of a red push-check log | `beam`, then Antigravity `gemini flash` | no result | A result replaces the first read of the lead |
 | Second opinion on the panel findings | `beam` at variant `high` | always | Beside the skeptic |

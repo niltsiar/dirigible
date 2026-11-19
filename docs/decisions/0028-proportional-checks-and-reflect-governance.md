@@ -30,6 +30,7 @@
 - Amended: 2026-11-01 (run `2026-11-01-upkeep-eleventh`, wiki item 1393). A local check whose changed paths need no hook test runs `make static` in place of `check-fast`. `scripts/check-changed.sh` holds which paths need a hook test.
 - Amended: 2026-11-06 (run `2026-11-06-upkeep-e38-runner-risk-floor`, wiki item 1600, user decision). A change to a guard that each session shares (the build lock script, its word lists, and the Claude Code hooks) gives `risk: yes`, also a change of only comment lines. It keeps its class, so its targets do not change. `scripts/check-changed.sh` holds the shared guard list. The refusal of a rerun with no `Sources/` or `Tests/` change and the push `test-slow-push` key on class `sources-risk`, not on this risk. `scripts/run-checks.sh` reads only the `risk:` line, so it also reruns a failed Swift test of a shared guard branch 1 time at most.
 - Amended: 2026-11-14 (run `2026-11-14-upkeep-twentieth`, wiki item 1726). A local check of a changed source prints a fourth line `filter:` with the suite names of its tests. The slice FILTER is those names plus the tests of the slice. A FILTER that does not cover each name fails before the build lock: `scripts/check-changed.sh` refuses it with exit 3, and `scripts/with-lock.sh` passes that exit 3 on. The FILTER rule of the Decision section stays as the record.
+- Amended: 2026-11-19 (run `2026-11-19-light-reviews-lock`, user request for lighter reviews of small fixes). A small run with `risk: no` and `review: lead` gets one class lens at the plan gate and one lead review at the code gate, with no Workflow call, skeptic, or free lens. The lead answers the fix check questions. `scripts/check-changed.sh` prints the `review:` line, and `scripts/check-plan.sh` checks the round files.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -63,7 +64,8 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 | Run | Review panel |
 |---|---|
-| Small: `risk: no` | Amended 2026-10-19. Plan gate and code gate: 1 round of at most two lenses that match the classes, and no `code-review`. Round 2 only on a critical item. Each Act-on item gets the fix check, critical or not. One subagent runs Phases 1-2, and one runs Phase 4 after the plan gate; the lead runs both gates. |
+| Small: `risk: no`, other | Amended 2026-10-19. Plan gate and code gate: 1 round of at most two lenses that match the classes, and no `code-review`. Round 2 only on a critical item. Each Act-on item gets the fix check, critical or not. One subagent runs Phases 1-2, and one runs Phase 4 after the plan gate; the lead runs both gates. |
+| Small: `risk: no`, `review: lead` | Amended 2026-11-19. Plan gate: 1 round of 1 class lens. Code gate: one lead review with no Workflow call, no skeptic, and no free lens. A review of a `Sources/` or `Tests/` diff applies `code-quality-review.md` and Safety in `CODING_STANDARDS.md`. The lead answers the fix check questions. Each round file has the line `review: lead`. |
 | `risk: yes` | Amended 2026-10-15. Plan gate and code gate: 2 rounds at most, with the lenses of each class. Round 2 runs only on a critical item, and it is the convergence round only. At the code gate, `code-review` replaces the code-quality lens in round 1 only. |
 
 ### Word budgets

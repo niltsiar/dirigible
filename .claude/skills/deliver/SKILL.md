@@ -51,11 +51,12 @@ Fill `plan.md` with the Edit tool (`new-run.sh` made its skeleton):
 
 ### Checks by change class
 
-`scripts/check-changed.sh` prints `classes:`, `targets:`, `risk:`, and, for a changed source with tests, `filter:` (decision 0028). `make check-changed` runs the targets.
+`scripts/check-changed.sh` prints `classes:`, `targets:`, `risk:`, `review:`, and, for a changed source with tests, `filter:` (decision 0028). `make check-changed` runs the targets.
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
+| Small (`risk: no`) with `review: lead` | The lead runs the plan gate: 1 round of 1 class lens. The lead reviews the diff at the code gate alone: no Workflow call, no skeptic, no free lens. A lead review of a `Sources/` or `Tests/` diff applies `.claude/skills/interrogate/references/code-quality-review.md` and Safety in `CODING_STANDARDS.md`, and its round file names both. At both gates the lead answers the four fix check questions and writes each `## Fix check` line. The round file of each gate has the line `review: lead`; `scripts/check-plan.sh` checks it, and the code gate is a lead review only when the plan gate was one. |
+| Small (`risk: no`), other | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 A workflow upkeep run uses the doc lenses of interrogate Step 3 in place of one doc lens. This holds at the plan gate and the code gate, for `risk: no` and `risk: yes`.
@@ -85,9 +86,9 @@ Run the **deslop** skill in the last implementer agent. Phase 5 runs no test, an
 
 ## Phase 6: Code gate
 
-Before the gate, run `git fetch origin` and `scripts/check-changed.sh --overlap origin/main`, and read its lines: they are information and never stop the run. Then run `scripts/check-changed.sh origin/main`. When its classes or risk are higher than in the plan, go back to Phase 2 for the controls and the rounds, and log a row.
+Before the gate, run `git fetch origin` and `scripts/check-changed.sh --overlap origin/main`, and read its lines: they are information and never stop the run. Then run `scripts/check-changed.sh origin/main`: its `review:` line picks the row of the class table. When its classes, risk, or review are higher than in the plan, go back to Phase 2 for the controls and the rounds, and log a row.
 
-Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table.
+Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table. On `review: lead`, review the diff yourself.
 
 Run no push check at the gate. Phase 7 runs the one push check, after the last gate fix.
 

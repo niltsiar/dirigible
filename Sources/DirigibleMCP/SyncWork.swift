@@ -21,10 +21,18 @@ package enum SyncRefusal: Error {
 /// (decisions 0049 and 0076). It is the one owner of the argument rules, the steps on the files, and
 /// the texts of the command and the tool. In the app, `liveJob` runs `Studio.syncClip`.
 package struct SyncWork: Sendable {
+    /// The front end of a call: each one spells the `within` argument its own way.
+    package enum Front: Sendable {
+        case commandLine, tool
+
+        var withinName: String { self == .commandLine ? "--within" : "within" }
+    }
+
     let clip: ClipID
     let track: TrackID
     /// The search distance on each side of the clip in whole seconds, or nil for the default.
     let within: Int?
+    let front: Front
 
     /// What a sync did: the lag, the score, and the spread of the read, and the head that the move cut.
     package struct Moved: Sendable {
@@ -73,9 +81,12 @@ package struct SyncWork: Sendable {
 
     /// Checks the arguments: the text of a refusal, for exit 64 or a tool error. `within` is a whole
     /// number of seconds, 1 or more; the session checks the upper end.
-    package static func parse(clip: String, to track: String, within: Int?) -> Result<SyncWork, ToolError> {
-        if let within, within < 1 { return .failure(ToolError("within is a whole number of seconds, 1 or more.")) }
-        return .success(SyncWork(clip: ClipID(clip), track: TrackID(track), within: within))
+    package static func parse(clip: String, to track: String, within: Int?, front: Front) -> Result<SyncWork, ToolError>
+    {
+        if let within, within < 1 {
+            return .failure(ToolError("\(front.withinName) is a whole number of seconds, 1 or more."))
+        }
+        return .success(SyncWork(clip: ClipID(clip), track: TrackID(track), within: within, front: front))
     }
 
     /// `within` in frames at `rate`, or nil for the default. A value over 2^40 frames is a bad argument.
@@ -83,20 +94,27 @@ package struct SyncWork: Sendable {
         guard let within else { return nil }
         let most = Frames.limit.count / rate
         guard within <= most else {
-            throw .argument("within is over 2^40 frames at \(rate) Hz: give \(most) seconds or less.")
+            throw .argument("\(front.withinName) is over 2^40 frames at \(rate) Hz: give \(most) seconds or less.")
         }
         return Frames(within * rate)
     }
 
-    /// The refusal for `error` of a sync in `session`. The cap of the search span is in seconds of the
-    /// rate of the session, and the largest `within` is that of the clip.
-    static func refusal(_ error: StudioError, in session: Session) -> SyncRefusal {
+    /// The refusal for `error` of a sync in `session`, with the `within` spelling of the front end. The
+    /// cap of the search span is in seconds of the rate of the session, and the largest `within` is that
+    /// of the clip. A largest `within` under 1 s fits no whole second, but the default fits.
+    func refusal(_ error: StudioError, in session: Session) -> SyncRefusal {
         guard case .session(.syncSpanTooLong(let largest)) = error else { return .studio(error) }
-        let rate = session.sampleRate
-        guard largest.count >= rate else { return .argument(SessionError.syncSpanTooLong(maxWithin: .zero).message) }
-        return .argument(
-            "The search span is over \(session.syncSpanCap.count / rate) s. "
-                + "Use --within \(largest.count / rate) or less for this clip.")
+        let (rate, cap, name) = (session.sampleRate, session.syncSpanCap, front.withinName)
+        guard let found = session.clip(clip)?.clip, found.length <= cap else {
+            return .argument(SessionError.syncSpanTooLong(maxWithin: .zero).message)
+        }
+        let over = "The search span is over \(cap.count / rate) s"
+        guard largest.count >= rate else {
+            return .argument(
+                "\(over), and the largest \(name) for this clip is under 1 s. "
+                    + "Leave out \(name): the sync then searches the largest span that fits.")
+        }
+        return .argument("\(over). Use \(name) \(largest.count / rate) or less for this clip.")
     }
 
     /// The sync in `session`. A refusal, a read fault, no match, or a cancel keeps `session` as it was.
@@ -108,7 +126,7 @@ package struct SyncWork: Sendable {
         let within = try withinFrames(rate: session.sampleRate)
         let span: Range<Frames>
         do throws(SessionError) { span = try session.syncSpan(clip, to: track, within: within) } catch {
-            throw Self.refusal(.session(error), in: session)
+            throw refusal(.session(error), in: session)
         }
         let result: SyncResult
         do throws(SyncFailure) {

@@ -20,7 +20,7 @@ let syncTools = [
             + editCancelNote("no clip moves"),
         [clip, reference, within], batch: .alone
     ) { a throws(ToolError) in
-        switch SyncWork.parse(clip: try a[clip], to: try a[reference], within: try a[within]) {
+        switch SyncWork.parse(clip: try a[clip], to: try a[reference], within: try a[within], front: .tool) {
         case .success(let work): return .sync(work)
         case .failure(let error): throw error
         }

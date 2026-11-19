@@ -38,7 +38,7 @@ extension ClipCommand {
         @Flag(help: "Write one line of JSON in place of the text.") var json = false
 
         func work() throws(ValidationError) -> SyncWork {
-            switch SyncWork.parse(clip: clip, to: to, within: within) {
+            switch SyncWork.parse(clip: clip, to: to, within: within, front: .commandLine) {
             case .success(let work): return work
             case .failure(let error): throw ValidationError(error.message)
             }

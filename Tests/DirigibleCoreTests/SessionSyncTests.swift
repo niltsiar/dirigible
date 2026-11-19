@@ -71,7 +71,8 @@ struct SessionSyncTests {
         #expect(plain.defaultSyncReference(for: "unknown") == nil)
     }
 
-    /// The values of the cap probe of the run (`probes/cap/out-cap.txt`).
+    /// The values of the cap probe of the run (`probes/cap/out-cap.txt`), with the 44.1 kHz cap of
+    /// an excerpt of 120273 coarse samples (60 s at 2004.5 Hz).
     struct Cap: Sendable, CustomTestStringConvertible {
         let rate: Int
         let cap: Int
@@ -86,9 +87,23 @@ struct SessionSyncTests {
             rate: 48_000, cap: 399_773_184, noCut: (2364, 113_486_592), atZero: (4728, 226_973_184),
             clamp: (4728, 4729, 86_390_592)),
         Cap(
-            rate: 44_100, cap: 366_458_752, noCut: (2354, 103_849_376), atZero: (4709, 207_698_752),
-            clamp: (4709, 4710, 79_373_876)),
+            rate: 44_100, cap: 366_452_746, noCut: (2354, 103_846_373), atZero: (4709, 207_692_746),
+            clamp: (4709, 4710, 79_370_873)),
     ]
+
+    /// At each rate, the coarse FFT of a span at the cap and of the longest excerpt (a clip just under
+    /// 60 s) fits 2^24 points: n is the span samples plus the excerpt samples minus 1, and a decimation
+    /// by f = floor(rate / 2000) gives at most ceil(N / f) samples of N frames.
+    @Test(arguments: [
+        1, 1_999, 3_999, 8_000, 11_025, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 176_400, 192_000,
+    ])
+    func theCapAndTheLongestExcerptFitTheCoarseFFT(rate: Int) throws {
+        let factor = max(1, rate / 2000)
+        func coarse(_ frames: Int) -> Int { (frames + factor - 1) / factor }
+        let cap = try Self.session(rate: rate).syncSpanCap.count
+        let points = coarse(cap) + coarse(60 * rate - 1) - 1
+        #expect(points <= 1 << 24, "\(points) points at \(rate) Hz")
+    }
 
     /// A 1 h clip with no cut passes the largest whole-second `within` and is refused at one more
     /// second; so does a 1 h clip at frame 0. The default `within` keeps 1800 s up to the clamp

@@ -33,6 +33,7 @@ extension ChromeState {
         }
         if let shown = model.voiceMatchReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
+        if let shown = model.syncReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
             let moved = shown.report.moved.map(\.item.bytes)
             banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))

@@ -66,6 +66,16 @@ struct WindowBanners: View {
                     .disabled(!model.canUndoAgentEdit(revision: revision))
                     Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
                 }
+            } else if case .syncMoved(_, let revision, _) = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerSyncUndo.key) { model.undoAgentEdit(revision: revision) }
+                        .disabled(!model.canUndoAgentEdit(revision: revision))
+                }
+            } else if case .syncNoMatch(let clip, _, _, _) = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerSyncChoose.key) { model.chooseAnotherSyncTrack(for: clip) }
+                        .disabled(!model.canChooseAnotherSyncTrack(for: clip))
+                }
             } else if case .exportSetDone(let files, _, _, _) = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerExportSetShow.key) { model.showInFinder(files) }
@@ -173,7 +183,12 @@ struct TakeBanner: View {
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
         case .syncing:
-            BannerRow(kind: .info, text: L10n.takeSyncing.text) {
+            let text = L10n.takeSyncing.text
+            BannerRow(kind: .info, text: text) {
+                // An agent sync has no bar here: its progress goes to the agent (decision 0049).
+                if let progress = model.syncProgress {
+                    ProgressView(value: progress).frame(width: 160).accessibilityLabel(Text(verbatim: text))
+                }
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
         case .importing where model.importJob?.visible == false:

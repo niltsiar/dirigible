@@ -119,11 +119,18 @@ extension TimelineCommand {
     ]
 
     /// The Tools items (decision 0031).
-    static let toolItems = [
+    static let toolItems = levelItems + [syncItem]
+
+    /// The Auto Level items at the top of the Tools menu.
+    static let levelItems = [
         MenuItem(command: .autoLevel, title: .menuToolsLevel, key: "l", modifiers: .command),
         MenuItem(command: .autoLevelPerTrack, title: .menuToolsLevelTrack, key: "l", modifiers: [.command, .option]),
         MenuItem(command: .levelOverTime, title: .menuToolsLevelOverTime, key: "l", modifiers: [.command, .shift]),
     ]
+
+    /// Tools > Sync Clip to Track... has Option-Command-G, as Synchronize Clips of Final Cut Pro.
+    static let syncItem = MenuItem(
+        command: .syncClip, title: .menuToolsSyncClip, key: "g", modifiers: [.command, .option])
 
     /// Tools > Split Stereo to Mono (decision 0053): its own group at the end of the Tools menu.
     static let splitStereoItem = MenuItem(

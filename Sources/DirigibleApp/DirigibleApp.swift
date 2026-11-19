@@ -163,13 +163,14 @@ struct DirigibleApp: App {
                 // One Group: a commands builder takes at most 10 items.
                 Group {
                     CommandMenu(L10n.menuTools.key) {
-                        ForEach(TimelineCommand.toolItems, id: \.command) { item in menuButton(item) }
+                        ForEach(TimelineCommand.levelItems, id: \.command) { item in menuButton(item) }
                         Button(L10n.menuToolsRemoveLevelOverTime.key) { app.timeline(.removeLevelOverTime) }
                             .disabled(app.key?.isOn(.removeLevelOverTime) != true)
                         Divider()
                         Button(L10n.menuToolsDuck.key) { app.timeline(.duck) }.disabled(app.key?.isOn(.duck) != true)
                         Button(L10n.menuToolsSilences.key) { app.timeline(.findSilences) }
                             .disabled(app.key?.isOn(.findSilences) != true)
+                        menuButton(TimelineCommand.syncItem)
                         Divider()
                         let split = TimelineCommand.splitStereoItem
                         Button(split.title.key) { app.timeline(split.command) }

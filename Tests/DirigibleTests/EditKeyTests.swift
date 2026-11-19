@@ -59,7 +59,9 @@ import Testing
             TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "autoLevel l \(command)", "autoLevelPerTrack l \(EventModifiers([.command, .option]).rawValue)",
                 "levelOverTime l \(EventModifiers([.command, .shift]).rawValue)",
+                "syncClip g \(EventModifiers([.command, .option]).rawValue)",
             ])
+        #expect(TimelineCommand.menuItems[.syncClip]?.title == .menuToolsSyncClip)
         #expect(
             [TimelineCommand.splitStereoItem].map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
                 == ["splitStereo d \(EventModifiers([.command, .shift]).rawValue)"])

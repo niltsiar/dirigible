@@ -48,6 +48,12 @@ struct DuckReportShown: Equatable {
     let revision: Int
 }
 
+/// The banner of the last sync, and the session revision after it.
+struct SyncReportShown: Equatable {
+    let banner: WindowBanner
+    let revision: Int
+}
+
 /// A banner row of the window (decision 0023): a fact, then what to do.
 enum WindowBanner: Equatable {
     case playbackStopped(PlaybackStop)
@@ -108,6 +114,11 @@ enum WindowBanner: Equatable {
     case duckNoSpeech(threshold: Double, unread: [String], press: Int)
     /// A duck did not read the speech files of these paths, so the music stays up over them.
     case duckUnread([String], press: Int)
+    /// A Sync Clip to Track moved a clip (decision 0076). `revision` is the session revision of the move,
+    /// which its Undo button undoes. The press number makes a new key for each sync.
+    case syncMoved(SyncMoved, revision: Int, press: Int)
+    /// A sync found no match, so it changed nothing. The button opens the sheet again for `clip`.
+    case syncNoMatch(clip: ClipID, clipName: String, trackName: String, press: Int)
     /// A revision of `agent` moved part of the audio of `take`, so the take is out of sync with
     /// its recording from the timeline frame `from` at `rate` (decision 0061). Nil: the agent gave
     /// no name. `revision` is the session revision of the edit, which its Undo button undoes.
@@ -174,6 +185,8 @@ enum WindowBanner: Equatable {
         case .consentExpired: "consentExpired"
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
+        case .syncMoved(_, _, let press): "syncMoved.\(press)"
+        case .syncNoMatch(_, _, _, let press): "syncNoMatch.\(press)"
         case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
         case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
         case .noWordsFound(let press): "noWordsFound.\(press)"
@@ -185,11 +198,12 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused:
+            .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
+            .syncNoMatch:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime, .noWordsFound,
-            .exportSetDone, .rowsDeleted, .voiceMatched:
+            .exportSetDone, .rowsDeleted, .voiceMatched, .syncMoved:
             .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
@@ -229,6 +243,8 @@ enum WindowBanner: Equatable {
         case .duckNoSpeech(let threshold, let unread, let press):
             L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread, press: press).text
         case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
+        case .syncMoved(let moved, _, _): moved.text()
+        case .syncNoMatch(_, let clipName, let trackName, _): syncNoMatchText(clip: clipName, track: trackName)
         case .takeSyncBroken(let take, let from, let rate, let agent, _):
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
         case .transcriptionStopped: L10n.transcribeStopped.text
@@ -246,7 +262,7 @@ enum WindowBanner: Equatable {
             .levelReport, .noiseReduced, .soundRepaired, .leveledOverTime, .voiceMatched, .voiceMatchRefused,
             .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptionStopped, .noWordsFound:
+            .transcriptionStopped, .noWordsFound, .syncMoved, .syncNoMatch:
             .medium
         case .rowsDeleted: nil
         }

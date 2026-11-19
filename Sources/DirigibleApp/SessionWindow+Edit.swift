@@ -238,8 +238,8 @@ extension SessionWindow {
         }
     }
 
-    /// The Cancel of the level banner and of the duck banner: it ends the level or the duck of the
-    /// user or of an agent at its next block, with no change (decisions 0049 and 0060).
+    /// The Cancel of the level, duck, and sync banners: it ends the job of the user or of an agent at its
+    /// next block, with no change (decisions 0049, 0060, and 0076).
     func cancelReadJob() { studio?.cancelReadJob() }
 
     /// Remove Track: a track of a pending take gives its alert (decision 0012), and a track with

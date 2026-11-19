@@ -704,5 +704,15 @@ run_with "${locked[@]}" HOOK_JOBS=2 --
 [[ $code -eq 0 && "$(cat "$tmp/log.int" 2>/dev/null)" == 130 ]] \
     || fail "(jobs INT) a child of a job test ignored INT: code $code, got [$(cat "$tmp/log.int" 2>&1)]: $(out)"
 
+# Jobs: only a status of exactly 0 is a pass. The first test plants an empty status file for itself
+# (the file that a job creates before it writes the value) and runs on: the runner fails it.
+new_repo; fake_lock
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\nlog="$(lsof -p $$ -a -d 1 -Fn | sed -n "s/^n//p")"\n: > "${log/.log/.status}"\nsleep 3\n' > "$repo/t/a.test.sh"
+printf '#!/bin/bash\necho b >> "$HOOKS_LOG"\nsleep 5\n' > "$repo/t/b.test.sh"
+commit empty-status
+run_with "${locked[@]}" HOOK_JOBS=2 --
+[[ $code -ne 0 && $(stamps) -eq 0 ]] && grep -qx 'test-hooks: 1 of 2 failed: t/a.test.sh' "$tmp/out" \
+    || fail "(jobs status) an empty status file passed: code $code, stamps $(stamps): $(out)"
+
 [[ $failures -eq 0 ]] || { echo "$failures failure(s)"; exit 1; }
 echo "test-hooks.test.sh: all passed"

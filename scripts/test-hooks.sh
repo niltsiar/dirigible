@@ -222,8 +222,8 @@ launch() {
         cd "$work/tree$slot" \
             && perl -e '$SIG{INT} = $SIG{QUIT} = "DEFAULT"; exec @ARGV or die "exec $ARGV[0]: $!\n"' "${tests[i]}" \
                 > "$logs/$i.log" 2>&1 9>&- || status=$?
-        echo $((SECONDS - begin)) > "$logs/$i.time"
-        echo "$status" > "$logs/$i.status"
+        echo $((SECONDS - begin)) > "$logs/$i.time.new" && mv "$logs/$i.time.new" "$logs/$i.time"
+        echo "$status" > "$logs/$i.status.new" && mv "$logs/$i.status.new" "$logs/$i.status"
         echo "$slot" >&9
     ) &
     pids[i]=$!
@@ -259,7 +259,7 @@ while [[ $printed -lt $total ]]; do
     fi
     while [[ $printed -lt $total && -e "$logs/$printed.status" ]]; do
         word=passed
-        if [[ "$(cat "$logs/$printed.status")" -ne 0 ]] || grep -qE ': command not found$' "$logs/$printed.log"; then
+        if [[ "$(cat "$logs/$printed.status")" != 0 ]] || grep -qE ': command not found$' "$logs/$printed.log"; then
             failed+=("$printed")
             word=FAILED
         fi

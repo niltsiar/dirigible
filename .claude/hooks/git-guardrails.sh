@@ -1187,8 +1187,12 @@ if [[ "$chained" =~ $lock_gate ]]; then
   done <<< "$lock_segments"
 fi
 
-release_shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
-release_pre="(\{ |! |if |then |do |else |elif |while |until |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |$release_shell_c|[^[:space:]]*with-lock\.sh[\"']? )*"
+release_shell_q="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']"
+release_shell_c="$release_shell_q?"
+release_pre_words="\{ |! |if |then |do |else |elif |while |until |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |[^[:space:]]*with-lock\.sh[\"']? "
+release_pre="($release_pre_words|$release_shell_c)*"
+# release_body_re: a segment from its start to the quote mark of its first shell -c body.
+release_body_re="^[[:space:]]*($release_pre_words)*$release_shell_q"
 release_words_file="$(dirname "$0")/../../scripts/lock-words.sh" release_loaded=""
 # release_load: sources scripts/lock-words.sh once for each hook call (release_segments runs in one
 # subshell, and a script file can hold hundreds of lines); it fails when the file is missing.
@@ -1275,15 +1279,37 @@ release_expand() {
 release_long_cmd() {
   [[ "${rcmd[*]:-}" =~ $long_text_re ]] && long_words "${rcmd[@]}"
 }
+# release_body_long <shell -c body>: prints "long<TAB><command words>" for each command of the body that
+# release_long_cmd takes. The mask of the body keeps its own separators, so `make build && echo bench`
+# is two commands; a shell -c body inside it is read the same way.
+release_body_long() {
+  local masked kept="" seg off=0 start
+  masked="$(mask_quoted_data <<< "$1")" || return 0
+  [[ "$masked" =~ $long_text_re ]] || return 0
+  while IFS= read -r seg; do
+    start=$off off=$((off + ${#seg} + 1))
+    [[ "$seg" =~ $long_text_re ]] || continue
+    if [[ "$seg" =~ $release_body_re ]]; then
+      start=$((start + ${#BASH_REMATCH[0]} - 1))
+      [[ -n "$kept" ]] || kept="$(mask_quoted_data keep <<< "$1")" || return 0
+      bg_body "${kept:start}"
+      release_body_long "$body"
+    elif [[ "$seg" =~ ^[[:space:]]*($release_pre)(.*)$ ]]; then
+      release_cmd "${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+      release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
+    fi
+  done <<< "$(tr ';&|(`' '\n\n\n\n\n' <<< "$masked")"
+}
 release_assign_re='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*)+$'
 release_script_re='^([^[:space:]]*/)?(ba|z|da)?sh$'
 release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A-Za-z_][A-Za-z0-9_]*=(\"[^\"]*\"|'[^']*')[[:space:]]*\$)"
-# release_segments <masked text> [<dir> <depth>]: print "lock<TAB><segment>" or "bare<TAB><segment>"
+# release_segments <masked text> [<dir> <depth> <kept text>]: print "lock<TAB><segment>" or "bare<TAB><segment>"
 # for each release call of the text (release_call of scripts/lock-words.sh). Each segment of the chain
 # is read from its start after the prefix words (release_pre); a with-lock.sh word in the prefix gives
 # a lock call of the words after it, and a land.sh command word with no with-lock.sh a bare call. When
 # release_long is set, a segment whose command release_long_cmd takes (bare or after a with-lock.sh
-# word) prints "long<TAB><command words>". In a
+# word) prints "long<TAB><command words>"; with the kept text (mask_quoted_data keep of the same text),
+# release_body_long reads a shell -c body in place of its masked segment. In a
 # shell -c body (masked to one segment), each with-lock.sh word at a word start is a call too. A
 # segment whose command word is bash, sh, zsh, or dash with a file argument runs a script: the file
 # (a $NAME of an assignment or export of the chain put in, a relative path read from the last cd dir,
@@ -1294,14 +1320,15 @@ release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A
 # land.sh, or export word is read, and, when release_long is set, a segment that long_text_re of
 # lock-words.sh matches. The split uses tr: ${text//;/...} is too slow in bash 3.2 for a long script file.
 release_segments() {
-  local text="$1" rdir="${2:-}" depth="${3:-0}" seg prefix rest body head w i f
-  local release_exports=() rvars=() rw=() scripts=""
+  local text="$1" rdir="${2:-}" depth="${3:-0}" kept="${4:-}" seg prefix rest body head w i f fkept
+  local release_exports=() rvars=() rw=() scripts="" off=0 start seg_long
   # long: the text can hold a long holder. One match for the whole text keeps a long script file with no
   # long-holder word from a regex match for each line (hook latency, item 1222).
   local long=""
   [[ -n "$release_long" ]] && release_load && [[ "$text" =~ $long_text_re ]] && long=1
   text="$(tr ';&|(`' '\n\n\n\n\n' <<< "$text")"
   while IFS= read -r seg; do
+    start=$off off=$((off + ${#seg} + 1))
     ((depth == 0)) || [[ "$seg" == *with-lock.sh* || "$seg" == *land.sh* || "$seg" == *export* ]] ||
       { [[ -n "$long" ]] && [[ "$seg" =~ $long_text_re ]]; } || continue
     if [[ "$seg" =~ $release_assign_re ]]; then
@@ -1329,7 +1356,13 @@ release_segments() {
       release_cmd "$rest"
       [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
     fi
-    [[ -n "$long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
+    seg_long="$long"
+    if [[ -n "$long" && -n "$kept" && "$seg" =~ $long_text_re && "$seg" =~ $release_body_re ]]; then
+      bg_body "${kept:start+${#BASH_REMATCH[0]}-1}"
+      release_body_long "$body"
+      seg_long=""
+    fi
+    [[ -n "$seg_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     read -ra rw <<< "${rest//[\"\']/}"
     if [[ "${rw[0]:-}" == cd && -n "${rw[1]:-}" ]]; then
       rdir="$(sw_dir "$rdir" "$(release_expand "${rw[1]}")")"
@@ -1354,13 +1387,16 @@ release_segments() {
       release_env "$head"
       release_cmd "$body"
       [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
-      [[ -n "$long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
+      [[ -n "$seg_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     done
   done <<< "$text"
   while IFS=$'\t' read -r rdir f; do
     [[ -n "$f" ]] || continue
     body="$(mask_quoted_data < "$f")" || continue
-    release_segments "$body" "$rdir" 1
+    fkept=""
+    [[ -n "$release_long" ]] && release_load && [[ "$body" =~ $long_text_re && "$body" =~ $release_shell_q ]] &&
+      { fkept="$(mask_quoted_data keep < "$f")" || continue; }
+    release_segments "$body" "$rdir" 1 "$fkept"
   done <<< "$scripts"
 }
 release_found="" release_masked="" release_long=""
@@ -1373,7 +1409,8 @@ fi
 if [[ "$chained" == *with-lock.sh* || "$chained" == *land.sh* || -n "$release_long" || "$chained" =~ (^|[^A-Za-z0-9_.-])(ba|z|da)?sh[[:space:]] ]]; then
   release_masked="$lock_masked"
   [[ -n "$release_masked" ]] || release_masked="$(mask_quoted_data <<< "$chained")" || exit 2
-  release_found="$(release_segments "$release_masked" "$(plutil -extract cwd raw -o - "$input" 2> /dev/null)")"
+  # bg_kept: the keep mask that the background block sets when the text has a shell -c body.
+  release_found="$(release_segments "$release_masked" "$(plutil -extract cwd raw -o - "$input" 2> /dev/null)" 0 "${bg_kept:-}")"
 fi
 
 # A subagent never runs a lock wait with no limit: after a second exit 75 it writes the remaining

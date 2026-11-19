@@ -352,4 +352,25 @@ struct PasteAcrossTests {
                 == AudioFile(id: "take1-mic NR", path: "take1-mic NR.wav", layout: .mono, length: 48_000))
         #expect(clips == ["N@480000"] && session.clip("N@480000")?.clip.file == "take1-mic NR")
     }
+
+    /// D12 of run waveform-drift (decision 0077 D2): a paste into another package copies a
+    /// drift-corrected file as a plain file. The copy has no drift link, and the source file does not
+    /// come along. The clipboard record keeps the link.
+    @Test func aPasteIntoAnotherPackageDropsTheLink() throws {
+        let link = DriftOrigin(
+            source: "take2-mic", offset: 0, ratio: try #require(DriftRatio(1 / (1 + 100e-6))), addedGain: .zero)
+        try p.addFile("take2-mic drift", channels: [sine(seconds: 1, rate: 48_000, frequency: 220)], drift: link)
+        try p.session.place(Clip(id: "D", file: "take2-mic drift", start: 96_000, offset: 0, length: 48_000), on: "t2")
+        let excerpt = try p.session.excerpt(of: ["D"])
+        #expect(excerpt.files["take2-mic drift"]?.drift == link)
+
+        let (session, clips, _) = try paste(
+            Clipboard(excerpt, package: p.url, origin: PackageID(lockFileOf: p.url)), on: .tracks(["u1"]))
+
+        #expect(try names(q) == ["take1-mic.wav", "take2-mic drift.wav"], "one copy: the drift-corrected file")
+        #expect(
+            session.files["take2-mic drift"]
+                == AudioFile(id: "take2-mic drift", path: "take2-mic drift.wav", layout: .mono, length: 48_000))
+        #expect(clips == ["D@480000"] && session.clip("D@480000")?.clip.file == "take2-mic drift")
+    }
 }

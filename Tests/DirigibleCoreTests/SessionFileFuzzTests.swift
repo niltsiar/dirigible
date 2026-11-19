@@ -30,6 +30,10 @@ import Testing
         try session.addFile(AudioFile(id: "f3 NR", path: "f3 NR.wav", layout: .stereo, length: 48_000, origin: origin))
         try session.addFile(AudioFile(id: "fa", path: "a.wav", layout: .mono, length: 10_000))
         try session.addFile(AudioFile(id: "fb", path: "b.wav", layout: .mono, length: 10_000))
+        let drift = DriftOrigin(
+            source: "fb", offset: 500, ratio: try #require(DriftRatio(1 / (1 + 50e-6))),
+            addedGain: try #require(Gain(dB: 1.5)))
+        try session.addFile(AudioFile(id: "fb drift", path: "b drift.wav", layout: .mono, length: 9_000, drift: drift))
         try session.addTrack("t3", name: "Guest app", layout: .mono)
         try session.setRoute(.app(bundleID: "us.zoom.xos"), track: "t3")
         try session.place(Clip(id: "A", file: "fa", start: 1_000, offset: 1_000, length: 4_000), on: "t3")

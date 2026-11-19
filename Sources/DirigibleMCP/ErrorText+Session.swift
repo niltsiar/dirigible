@@ -15,7 +15,7 @@ extension SessionError {
         case .invalidCapture(let id):
             "capture \"\(id)\" has a sample time that is not finite or a rate that is not positive."
         case .fileInUse(let id): "file \"\(id)\" is used by a clip."
-        case .fileIsSource(let id, let file): "file \"\(id)\" is the source of rendered file \"\(file)\"."
+        case .fileIsSource(let id, let file): "file \"\(id)\" is the source of file \"\(file)\"."
         case .invalidOrigin(let id): "file \"\(id)\" has an origin that names no matching source range."
         case .trackInRecording(let id): "track \"\(id)\" is armed in the recording."
         case .layoutMismatch(let track, .file(let file)):

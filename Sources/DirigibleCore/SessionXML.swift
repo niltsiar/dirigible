@@ -104,6 +104,13 @@ extension Session {
                 ("length", file.length.description))
             if let capture = file.capture { add(("capture", capture.rawValue), to: node) }
             if let origin = file.origin { node.addChild(originElement(origin)) }
+            if let drift = file.drift {
+                // The shortest text that reads back to the same Double (decision 0077 D4).
+                node.addChild(
+                    element(
+                        "drift", ("source", drift.source.rawValue), ("offset", drift.offset.description),
+                        ("ratio", String(describing: drift.ratio.value)), ("gain", text(drift.addedGain.dB))))
+            }
             fileList.addChild(node)
         }
         root.addChild(fileList)

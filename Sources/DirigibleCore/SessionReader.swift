@@ -36,12 +36,14 @@ extension Session {
         for node in root.children("captures", "capture") { captures.append(try Capture(node)) }
         var files: [AudioFile] = []
         var origins: [FileID: RenderOrigin] = [:]
+        var drifts: [FileID: DriftOrigin] = [:]
         for node in root.children("files", "file") {
             let file = try AudioFile(node)
             files.append(file)
             let list = node.sessionElements("origin")
             guard list.count <= 1 else { throw .invalidValue(element: "origin", attribute: "count") }
             if let origin = list.first { origins[file.id] = try RenderOrigin(origin, version: version) }
+            if let drift = try DriftOrigin(file: node, version: version) { drifts[file.id] = drift }
         }
         var rides = try RideLists(root, version: version)
         var tracks: [ParsedTrack] = []
@@ -69,6 +71,7 @@ extension Session {
             for capture in captures { try addCapture(capture) }
             for file in files { try addFile(file) }
             try setOrigins(origins)
+            try setDriftLinks(drifts)
             for track in tracks {
                 try addTrack(track.id, name: track.name, layout: track.layout)
                 try setGain(track.gain, track: track.id)

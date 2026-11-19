@@ -15,9 +15,11 @@ public enum SessionError: Error, Hashable, Sendable {
     case captureInUse(CaptureID)
     case invalidCapture(CaptureID)
     case fileInUse(FileID)
-    /// The first file is the source of the origin of the second file (decision 0057).
+    /// The first file is the source of the origin or of the drift link of the second file (decisions
+    /// 0057 and 0077).
     case fileIsSource(FileID, of: FileID)
-    /// The origin of the file names no other file of the pool with its layout, or a range past it.
+    /// The origin or the drift link of the file names no other file of the pool with its layout, or
+    /// a range past it. A drift link also needs a source with no fault (`Session.driftSourceFault`).
     case invalidOrigin(FileID)
     case trackInRecording(TrackID)
     case layoutMismatch(TrackID, LayoutConflict)

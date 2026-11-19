@@ -213,6 +213,25 @@ import Testing
         }
     }
 
+    /// Sync on a studio that became busy while the sheet was open (an agent job) shows the busy alert,
+    /// moves nothing, keeps the selection, and leaves the other job running.
+    @Test func aSyncOnABusyStudioShowsTheBusyAlert() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = .clips(ClipSet("C"))
+        let before = studio.session
+        let draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        studio.transport = .leveling
+
+        await model.sync(draft)
+
+        #expect(model.alert == .error(.busy), "\(String(describing: model.alert))")
+        #expect(model.syncReport == nil && model.syncProgress == nil && studio.transport == .leveling)
+        #expect(studio.session == before && model.timeline.selection == .clips(ClipSet("C")))
+        studio.transport = .idle
+        model.alert = nil
+        await model.close()
+    }
+
     /// C20: a sync that is cancelled shows no banner and no alert.
     @Test func aCancelShowsNothing() async throws {
         let (model, studio) = try await open()

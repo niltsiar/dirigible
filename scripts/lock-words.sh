@@ -50,6 +50,9 @@ release_call() {
     [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
 }
 
+# long_text_re matches the text of each command that long_words takes, so a text with no match runs
+# no long holder.
+long_text_re='bench|mutation-pass|flake-monitor/loop|test-stress|land\.sh|make'
 # long_words <command word>...: succeeds when the words run a long holder: a release call
 # (release_call with no BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL of the environment, and not a
 # test-hooks goal that lock_make_words takes), bench.sh, bench-pairs.sh (not --compare or --lines,

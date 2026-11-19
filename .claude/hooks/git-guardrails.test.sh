@@ -2137,6 +2137,29 @@ done
 expect_release allow "$rw/live" "bash $tmp/rw-long/notes.sh" '' '' bg
 expect_release block "$rw/empty" "$M" '' a1
 release_has 'runs a with-lock.sh call with no wait limit in a subagent'
+# The release wait loads scripts/lock-words.sh at most once for each hook call (hook latency, item 1222),
+# and a call with no lock word never loads it: a hook copy whose lock-words.sh logs each load reads a
+# background script of 40 .sh lines and a mutation pass.
+lw="$tmp/lw-load"
+mkdir -p "$lw/.claude/hooks" "$lw/scripts"
+cp "$hook" "$lw/.claude/hooks/"
+{ echo 'echo load >> "$LW_LOG"'; cat "$(dirname "$0")/../../scripts/lock-words.sh"; } > "$lw/scripts/lock-words.sh"
+for ((i = 1; i <= 40; i++)); do echo "scripts/step-$i.sh --arg $i > log-$i.txt 2>&1"; done > "$lw/steps.sh"
+echo "$M" >> "$lw/steps.sh"
+hook_saved="$hook" hook="$lw/.claude/hooks/git-guardrails.sh"
+export LW_LOG="$lw/loads"
+# lw_case <block|allow> <records> <command> <most loads>
+lw_case() {
+  : > "$LW_LOG"
+  expect_release "$1" "$2" "$3" '' '' bg
+  (($(wc -l < "$LW_LOG") <= $4)) || { echo "FAIL: the hook loaded lock-words.sh $(wc -l < "$LW_LOG" | tr -d ' ') times, want $4 or fewer: $3"; failures=$((failures + 1)); }
+}
+lw_case block "$rw/live" "bash $lw/steps.sh > /x/p.log 2>&1" 1
+release_has 'Step: .claude/skills/deliver/scripts/mutation-pass.sh'
+lw_case allow "$rw/empty" "bash $lw/steps.sh > /x/p.log 2>&1" 1
+lw_case allow "$rw/live" 'ls -la /x/run' 0
+unset LW_LOG
+hook="$hook_saved"
 # A subagent bench passes in the foreground and in the background, beside its own live record and
 # beside the record of another agent.
 rw_rec "$rw/own" toolu_own 600 Agent toolu_own 'S3 slice agent'

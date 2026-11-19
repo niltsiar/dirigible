@@ -1,6 +1,5 @@
 import DirigibleAudio
 import DirigibleCore
-import DirigibleMCP
 import DirigibleTimeline
 import SwiftUI
 
@@ -92,7 +91,7 @@ struct SyncMoved: Equatable {
         ]
         sentences.append(format(.bannerSyncMatch, peak))
         if let spread {
-            if spread.count * 1000 > SyncWork.Moved.spreadLineOver * rate {
+            if SyncResult.spreadIsNotable(spread, rate: rate) {
                 let milliseconds = Int((Double(spread.count) * 1000 / Double(rate)).rounded())
                 sentences.append(format(.bannerSyncSpread, milliseconds))
             }

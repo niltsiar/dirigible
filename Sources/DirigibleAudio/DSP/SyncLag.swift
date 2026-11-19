@@ -11,6 +11,10 @@ public struct SyncResult: Hashable, Sendable {
     /// The largest minus the smallest lag of the excerpts that match, or nil when fewer than 2
     /// match: then the drift was not measured. Never 0 in place of nil.
     public let spread: Frames?
+
+    /// True when `spread` is over 20 ms at `rate`: then each result text gives the lag change
+    /// (decision 0076, **Surface**).
+    public static func spreadIsNotable(_ spread: Frames, rate: Int) -> Bool { spread.count * 1000 > 20 * rate }
 }
 
 /// Why `syncLag` gives no lag (decision 0076).

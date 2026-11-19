@@ -84,6 +84,7 @@ extension SessionFileTests {
         "source with a capture": .invalidSession(.invalidOrigin("guest drift")),
         "source with an origin": .invalidSession(.invalidOrigin("guest drift")),
         "source with a drift link": .invalidSession(.invalidOrigin("guest drift")),
+        "source with its drift link removed": nil,
         "another layout": .invalidSession(.invalidOrigin("guest drift")),
         "ratio nan": .invalidValue(element: "drift", attribute: "ratio"),
         "ratio 1.001": .invalidValue(element: "drift", attribute: "ratio"),
@@ -129,7 +130,14 @@ extension SessionFileTests {
         case "source is the file": set("source", "guest drift")
         case "source with a capture": set("source", "take")
         case "source with an origin": set("source", "guest NR")
-        case "source with a drift link": set("source", "guest drift 2")
+        case "source with a drift link", "source with its drift link removed":
+            // 28 600 000 frames end before the end of "guest drift 2", so the drift link is the only fault.
+            set("source", "guest drift 2")
+            target.attribute(forName: "length")?.stringValue = "28600000"
+            if change.hasSuffix("removed") {
+                let link = try file("guest drift 2").elements(forLocalName: "drift", uri: sessionNamespace).first
+                try #require(link).detach()
+            }
         case "another layout": target.attribute(forName: "channels")?.stringValue = "2"
         case "last frame past the source": workedExample("28802882")
         case "last frame on the source end": workedExample("28802881")

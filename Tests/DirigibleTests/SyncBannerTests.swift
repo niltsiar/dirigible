@@ -179,7 +179,8 @@ import Testing
         await model.sync(draft)
 
         let banner = try #require(model.syncReport?.banner, "no banner")
-        #expect(banner == .syncNoMatch(clip: "C", clipName: "c", trackName: "Guest", press: 1), "\(banner)")
+        #expect(
+            banner == .syncNoMatch(clip: "C", track: "t2", clipName: "c", trackName: "Guest", press: 1), "\(banner)")
         #expect(banner.kind == .warning && model.alert == nil)
         #expect(
             syncNoMatchText(clip: "c", track: "Guest", text: englishText) == "No match: c was not found on Guest.")
@@ -188,21 +189,28 @@ import Testing
         await model.close()
     }
 
-    /// C21: the button of the banner opens the sheet again for the same clip, on the default track.
+    /// C21: the button of the banner opens the sheet again for the same clip, on a track other than the
+    /// track that found no match. With no other track near the clip, the sheet keeps that track.
     @Test func chooseAnotherTrackOpensTheSheetAgain() async throws {
-        let (model, studio) = try await open(unrelated: true)
-        model.timeline.selection = .clips(ClipSet("C"))
-        await model.sync(try #require(SyncDraft(clip: "C", in: studio.session)))
-        guard case .syncNoMatch(let clip, _, _, _) = try #require(model.syncReport?.banner) else {
-            Issue.record("no no-match banner")
-            return
+        for third in [true, false] {
+            let url = try await syncWindowPackage(in: folder.url, unrelated: true, third: third)
+            let (model, studio, _, _) = try await openLanes(app, url)
+            model.timeline.selection = .clips(ClipSet("C"))
+            let draft = try #require(SyncDraft(clip: "C", in: studio.session))
+            #expect(draft.reference == "t2", "third \(third): the default track")
+            await model.sync(draft)
+            guard case .syncNoMatch(let clip, let track, _, _, _) = try #require(model.syncReport?.banner) else {
+                Issue.record("third \(third): no no-match banner")
+                return
+            }
+            #expect(model.syncDraft == nil && track == "t2")
+
+            model.chooseAnotherSyncTrack(for: clip, after: track)
+
+            let again = try #require(model.syncDraft, "third \(third): no sheet")
+            #expect(again.clip == "C" && again.reference == (third ? "t3" : "t2"), "third \(third): \(again)")
+            await model.close()
         }
-        #expect(model.syncDraft == nil)
-
-        model.chooseAnotherSyncTrack(for: clip)
-
-        #expect(model.syncDraft?.clip == "C", "\(String(describing: model.syncDraft))")
-        await model.close()
     }
 
     /// C20: a sync that is cancelled shows no banner and no alert.

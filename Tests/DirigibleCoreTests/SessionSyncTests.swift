@@ -66,7 +66,7 @@ struct SessionSyncTests {
 
     /// The call preset (Host, then Guest on the app route) plus an imported guest file gives
     /// Guest; with no app route the first other track with a clip in the default span; with no
-    /// other clip there, nil.
+    /// other clip there, nil. An excluded track is never the result.
     @Test func theDefaultReferenceIsTheCallTrack() throws {
         let minute = 60 * 48_000
         var call = try Self.session(tracks: [])
@@ -77,6 +77,8 @@ struct SessionSyncTests {
         try call.place(Self.clip("Z", start: 0, length: 20 * minute), on: "guest")
         try call.place(Self.clip("G", start: 0, length: 19 * minute), on: "import")
         #expect(call.defaultSyncReference(for: "G") == "guest")
+        #expect(call.defaultSyncReference(for: "G", excluding: "guest") == "host", "the excluded call track")
+        #expect(call.defaultSyncReference(for: "G", excluding: "host") == "guest")
 
         var far = call
         try far.removeClips(["Z"])
@@ -90,6 +92,8 @@ struct SessionSyncTests {
         #expect(plain.defaultSyncReference(for: "G") == "b")
         try plain.place(Self.clip("A", start: 3 * minute, length: minute), on: "a")
         #expect(plain.defaultSyncReference(for: "G") == "a")
+        #expect(plain.defaultSyncReference(for: "G", excluding: "a") == "b")
+        #expect(plain.defaultSyncReference(for: "G", excluding: "b") == "a")
         #expect(plain.defaultSyncReference(for: "unknown") == nil)
     }
 

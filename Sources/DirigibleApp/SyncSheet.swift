@@ -16,10 +16,14 @@ struct SyncDraft: Equatable {
     let clip: ClipID
     var reference: TrackID
 
-    /// The sheet for `clip`, on the track of `Session.defaultSyncReference(for:)`. Nil when that is nil:
+    /// The sheet for `clip`, on the track of `Session.defaultSyncReference(for:)`, or after a sync on
+    /// `failed` that found no match, on the default track other than `failed` when one exists. Nil when
     /// no other track has a clip near the clip, so the popup would be empty.
-    init?(clip: ClipID, in session: Session) {
-        guard let reference = session.defaultSyncReference(for: clip) else { return nil }
+    init?(clip: ClipID, in session: Session, after failed: TrackID? = nil) {
+        guard
+            let reference = session.defaultSyncReference(for: clip, excluding: failed)
+                ?? session.defaultSyncReference(for: clip)
+        else { return nil }
         (self.clip, self.reference) = (clip, reference)
     }
 
@@ -202,17 +206,18 @@ extension SessionWindow {
         if let clip = syncTarget { openSyncSheet(for: clip) }
     }
 
-    /// The Choose Another Track button of the no-match banner: the sheet again for `clip`.
-    func chooseAnotherSyncTrack(for clip: ClipID) { openSyncSheet(for: clip) }
+    /// The Choose Another Track button of the no-match banner: the sheet again for `clip`, on a track
+    /// other than `failed` when one exists.
+    func chooseAnotherSyncTrack(for clip: ClipID, after failed: TrackID) { openSyncSheet(for: clip, after: failed) }
 
     func canChooseAnotherSyncTrack(for clip: ClipID) -> Bool {
         !dialogShowing && importJob == nil
             && idleStudio.map { SyncDraft(clip: clip, in: $0.session) != nil } == true
     }
 
-    private func openSyncSheet(for clip: ClipID) {
+    private func openSyncSheet(for clip: ClipID, after failed: TrackID? = nil) {
         guard canChooseAnotherSyncTrack(for: clip), let studio = idleStudio else { return }
-        syncDraft = SyncDraft(clip: clip, in: studio.session)
+        syncDraft = SyncDraft(clip: clip, in: studio.session, after: failed)
     }
 
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
@@ -244,7 +249,8 @@ extension SessionWindow {
         } catch .syncNoMatch {
             syncReport = ToolBannerShown(
                 banner: .syncNoMatch(
-                    clip: draft.clip, clipName: session.name(of: clip), trackName: track.name, press: syncPresses),
+                    clip: draft.clip, track: track.id, clipName: session.name(of: clip), trackName: track.name,
+                    press: syncPresses),
                 revision: studio.sessionRevision)
         } catch {
             alert = .error(error)

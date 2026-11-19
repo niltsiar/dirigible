@@ -1974,8 +1974,12 @@ expect_each_long held 'make check-changed BASE=origin/main' 'scripts/land.sh t x
   'scripts/bench-pairs.sh /x/main NavBench 3 /x/pairs' 'make bench FILTER=NavBench' 'make FILTER=NavBench bench' \
   '.claude/skills/deliver/scripts/mutation-pass.sh /x/wt /x/batch.txt' 'scripts/flake-monitor/loop.sh 10 FooTests' \
   'scripts/test-stress.sh --runs 1 /x/out'
+# A wrapper hides no long holder: long_words reads the command after a separator and after a wrapper
+# word. An argument of another command runs no holder.
+expect_each_long held 'scripts/probe.sh /x/p make bench FILTER=NavBench' "bash -c 'cd /x && make bench FILTER=NavBench'" \
+  'caffeinate -i scripts/bench.sh NavBench' 'scripts/probe.sh --no-audio /x/p scripts/bench-pairs.sh /x/main NavBench 3 /x/pairs'
 expect_each_long free 'scripts/bench-pairs.sh --compare /x/pairs' 'scripts/bench-pairs.sh --lines /x/b.log' 'make build' \
-  'make test-filter FILTER=ATests'
+  'make test-filter FILTER=ATests' 'rg -n scripts/bench.sh notes.txt' "bash -c 'make build && echo bench'"
 fi # test-rule
 
 # A release call waits while an agent whose brief names a lock step runs (AGT-152).
@@ -2135,6 +2139,12 @@ for i in "${!long_forms[@]}"; do
   expect_release allow "$rw/live" "${long_forms[i]}"
 done
 expect_release allow "$rw/live" "bash $tmp/rw-long/notes.sh" '' '' bg
+# A shell -c body in a script file splits at its own separators, also one level down.
+printf '%s\n' "bash -c 'make build && echo bench'" > "$tmp/rw-long/free-c.sh"
+printf '%s\n' "cd /x && bash -c \"echo a; bash -c 'cd /x && $M'\"" > "$tmp/rw-long/held-c.sh"
+expect_release allow "$rw/live" "bash $tmp/rw-long/free-c.sh" '' '' bg
+expect_release block "$rw/live" "bash $tmp/rw-long/held-c.sh" '' '' bg
+release_has 'Step: .claude/skills/deliver/scripts/mutation-pass.sh'
 expect_release block "$rw/empty" "$M" '' a1
 release_has 'runs a with-lock.sh call with no wait limit in a subagent'
 # The release wait loads scripts/lock-words.sh at most once for each hook call (hook latency, item 1222),

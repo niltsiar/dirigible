@@ -53,30 +53,58 @@ release_call() {
 # long_text_re matches the text of each command that long_words takes, so a text with no match runs
 # no long holder.
 long_text_re='bench|mutation-pass|flake-monitor/loop|test-stress|land\.sh|make'
-# long_words <command word>...: succeeds when the words run a long holder: a release call
-# (release_call with no BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL of the environment, and not a
+# long_words <command word>...: succeeds when a command of the words runs a long holder: a release
+# call (release_call with no BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL of the environment, and not a
 # test-hooks goal that lock_make_words takes), bench.sh, bench-pairs.sh (not --compare or --lines,
 # which take no lock), make with a bench or dmg goal, mutation-pass.sh, flake-monitor/loop.sh, or
-# test-stress.sh. Words before the command are skipped: env, nice, nohup, a shell word (bash, sh,
-# zsh, or dash, so bash <file> gives the file), an option or a number, and NAME=value.
+# test-stress.sh. A command starts at the first word, after a separator (&&, ||, |, &, ;, a lone (
+# or {, or a word that ends with ;, &, or |), and after a wrapper word: env, nice, nohup, command,
+# time, caffeinate, xcrun, a shell word (bash, sh, zsh, or dash), probe.sh with its folder, and an
+# option, a number, or NAME=value after them. So a wrapper or a shell -c body hides no long holder,
+# and an argument (rg -n bench.sh) runs none. A word loses its quote marks, a leading ( or {, and a
+# trailing ;, &, |, ), or }. Miss: a wrapper outside that list (xargs, sudo).
 long_words() {
-    local w
-    while [[ $# -gt 0 && ("${1##*/}" =~ ^(env|nice|nohup|command|time|bash|sh|zsh|dash|-.*|[0-9]+)$ || "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*=) ]]; do shift; done
-    w="${1:-}"
-    case "$w" in
-        */flake-monitor/loop.sh | flake-monitor/loop.sh) return 0 ;;
-    esac
-    case "${w##*/}" in
-        bench.sh | mutation-pass.sh | test-stress.sh | land.sh) return 0 ;;
-        bench-pairs.sh) [[ "${2:-}" != --compare && "${2:-}" != --lines ]]; return ;;
-        make) ;;
-        *) return 1 ;;
-    esac
-    for w in "${@:2}"; do [[ "$w" == bench || "$w" == dmg ]] && return 0; done
-    (
-        unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
-        ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]]; } && release_call "$@"
-    )
+    local raw w i j at=1 folder="" words=() ends=()
+    [[ $# -gt 0 ]] || return 1
+    for raw in "$@"; do
+        w="${raw//[\"\']/}"
+        while [[ "$w" == [\(\{]* ]]; do w="${w#?}"; done
+        while [[ "$w" == *[\;\&\|\)\}] ]]; do w="${w%?}"; done
+        words+=("$w")
+        if [[ -z "$w" || "$raw" == *[\;\&\|] ]]; then ends+=(1); else ends+=(0); fi
+    done
+    for ((i = 0; i < ${#words[@]}; i++)); do
+        w="${words[i]}"
+        if [[ $at == 1 && -n "$w" ]]; then
+            if [[ -n "$folder" && "$w" != -* ]]; then
+                folder=""
+            elif [[ "${w##*/}" =~ ^(env|nice|nohup|command|time|caffeinate|xcrun|bash|sh|zsh|dash|-.*|[0-9]+)$ || "$w" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                :
+            elif [[ "${w##*/}" == probe.sh ]]; then
+                folder=1
+            else
+                at=0
+                case "$w" in
+                    */flake-monitor/loop.sh | flake-monitor/loop.sh) return 0 ;;
+                esac
+                case "${w##*/}" in
+                    bench.sh | mutation-pass.sh | test-stress.sh | land.sh) return 0 ;;
+                    bench-pairs.sh) [[ "${words[i + 1]:-}" != --compare && "${words[i + 1]:-}" != --lines ]] && return 0 ;;
+                    make)
+                        # The make command: its words up to the end of the command.
+                        for ((j = i; j + 1 < ${#words[@]} && ends[j] == 0; j++)); do :; done
+                        for w in "${words[@]:i:j-i+1}"; do [[ "$w" == bench || "$w" == dmg ]] && return 0; done
+                        (
+                            unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
+                            ! { lock_make_words "${words[@]:i:j-i+1}" && [[ $lock_goal == test-hooks ]]; } && release_call "${words[@]:i:j-i+1}"
+                        ) && return 0
+                        ;;
+                esac
+            fi
+        fi
+        [[ ${ends[i]} == 0 ]] || { at=1 folder=""; }
+    done
+    return 1
 }
 
 # lock_make_words <command>: succeeds for make (any path) with no BASE in the environment or in

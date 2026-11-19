@@ -312,6 +312,14 @@ for p in $guards; do
   [[ -e "$repo/$p" ]] || fail "shared guard path $p does not exist; change the shared guard list in check-changed.sh"
 done
 
+# Safety path case: the lead review list holds the four close and quit files, and git tracks each one
+# (a hook test has only the floor paths of Sources/ in its work tree, so the list comes from git).
+safety="$(sed -n 's/^safety_paths="\(.*\)"$/\1/p' "$script")"
+[[ "$(wc -w <<<"$safety" | tr -d ' ')" == 4 ]] || fail "the safety path list [$safety] does not hold 4 paths"
+for p in $safety; do
+  [[ -n "$(git -C "$repo" ls-files -- "$p")" ]] || fail "safety path $p is not tracked; change safety_paths in check-changed.sh"
+done
+
 # Floor split files: a file <floor stem>+*.swift of a floor file is on the floor, so a split cannot leave it.
 # The list comes from git, not the work tree: make test-hooks checks out only the floor paths of Sources/.
 for p in $floor; do

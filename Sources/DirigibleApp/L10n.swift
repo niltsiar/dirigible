@@ -921,6 +921,7 @@ enum L10n: String, CaseIterable {
     case sheetSyncApply = "sheet.sync.apply"
     case bannerSyncEarlier = "banner.sync.earlier"
     case bannerSyncLater = "banner.sync.later"
+    case bannerSyncAlready = "banner.sync.already"
     case syncDurationMinutes = "sync.duration.minutes"
     case syncDurationSeconds = "sync.duration.seconds"
     case bannerSyncMatch = "banner.sync.match"

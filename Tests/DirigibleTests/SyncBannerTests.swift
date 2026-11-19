@@ -98,7 +98,7 @@ import Testing
         let draft = try #require(SyncDraft(clip: "C", in: studio.session))
         await model.sync(draft)
         #expect(studio.session.clip("C")?.clip.start == 960_000)
-        guard case .syncMoved(_, let revision, _) = try #require(model.syncReport?.banner) else {
+        guard case .syncMoved(_, let revision?, _) = try #require(model.syncReport?.banner) else {
             Issue.record("no result banner")
             return
         }
@@ -108,6 +108,34 @@ import Testing
 
         #expect(studio.session == before && !studio.canUndo, "the undo is not one step")
         #expect(ChromeState.reportBanners(model, studio).isEmpty)
+        await model.close()
+    }
+
+    /// C20: a second sync finds lag 0 and changes nothing. Its banner says that the clip is already in
+    /// sync and has no Undo, and one undo still puts back the first sync.
+    @Test func aSyncThatMovesNothingHasNoUndo() async throws {
+        let (model, studio) = try await open()
+        let before = studio.session
+        let draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        await model.sync(draft)
+        let (synced, revision) = (studio.session, studio.sessionRevision)
+        #expect(synced.clip("C")?.clip.start == 960_000 && studio.canUndo)
+
+        await model.sync(draft)
+
+        let banner = try #require(model.syncReport?.banner, "no banner after the second sync")
+        guard case .syncMoved(let result, let shown, _) = banner else {
+            Issue.record("not the result banner: \(banner)")
+            return
+        }
+        let undo: Int? = shown
+        #expect(result.lag == .zero && undo == nil, "the banner offers Undo: \(banner)")
+        #expect(text(result).hasPrefix("The clip is already in sync. Match score: "), "\(text(result))")
+        #expect(banner.kind == .info && model.alert == nil)
+        #expect(ChromeState.reportBanners(model, studio) == [banner])
+        #expect(studio.session == synced && studio.sessionRevision == revision, "the second sync changed the session")
+        model.undo()
+        #expect(studio.session == before && !studio.canUndo, "one undo did not put back the first sync")
         await model.close()
     }
 

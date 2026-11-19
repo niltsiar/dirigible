@@ -73,8 +73,9 @@ struct SyncMoved: Equatable {
     let headCut: Frames
     let rate: Int
 
-    /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), the match score, the
-    /// lag change or the not-measured sentence, and the head cut. `text` gives the value of a key.
+    /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
+    /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence, and
+    /// the head cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: locale, arguments: arguments)
@@ -84,7 +85,11 @@ struct SyncMoved: Equatable {
             let (minutes, seconds) = (tenths / 600, Double(tenths % 600) / 10)
             return minutes > 0 ? format(.syncDurationMinutes, minutes, seconds) : format(.syncDurationSeconds, seconds)
         }
-        var sentences = [format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))]
+        var sentences = [
+            lag == .zero
+                ? format(.bannerSyncAlready)
+                : format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))
+        ]
         sentences.append(format(.bannerSyncMatch, peak))
         if let spread {
             if spread.count * 1000 > SyncWork.Moved.spreadLineOver * rate {
@@ -202,9 +207,9 @@ extension SessionWindow {
     }
 
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
-    /// undo entry (decision 0076). A match shows the result banner with Undo, and the view scrolls only
-    /// when the new place is out of view. No match shows a banner that changes nothing. The banner Cancel
-    /// shows nothing; another error shows the alert.
+    /// undo entry (decision 0076). A match shows the result banner, with Undo only when the clip moved,
+    /// and the view scrolls only when the new place is out of view. No match shows a banner that changes
+    /// nothing. The banner Cancel shows nothing; another error shows the alert.
     func sync(_ draft: SyncDraft) async {
         syncDraft = nil
         syncReport = nil
@@ -214,14 +219,16 @@ extension SessionWindow {
         syncPresses += 1
         syncProgress = 0
         defer { syncProgress = nil }
+        let before = studio.sessionRevision
         do throws(StudioError) {
             let (result, headCut) = try await studio.syncClip(draft.clip, to: draft.reference) {
                 [weak self] fraction in self?.syncProgress = fraction
             }
             let moved = SyncMoved(result, headCut: headCut, rate: session.sampleRate)
+            let revision = studio.sessionRevision
             syncReport = ToolBannerShown(
-                banner: .syncMoved(moved, revision: studio.sessionRevision, press: syncPresses),
-                revision: studio.sessionRevision)
+                banner: .syncMoved(moved, revision: revision == before ? nil : revision, press: syncPresses),
+                revision: revision)
             revealSyncedClip(draft.clip, in: studio)
         } catch .syncCancelled {
             // The banner Cancel: the user asked for it, so no alert.

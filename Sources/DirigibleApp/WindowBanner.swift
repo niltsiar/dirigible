@@ -108,9 +108,10 @@ enum WindowBanner: Equatable {
     case duckNoSpeech(threshold: Double, unread: [String], press: Int)
     /// A duck did not read the speech files of these paths, so the music stays up over them.
     case duckUnread([String], press: Int)
-    /// A Sync Clip to Track moved a clip (decision 0076). `revision` is the session revision of the move,
-    /// which its Undo button undoes. The press number makes a new key for each sync.
-    case syncMoved(SyncMoved, revision: Int, press: Int)
+    /// A Sync Clip to Track found its match (decision 0076). `revision` is the session revision of the
+    /// move, which its Undo button undoes, or nil when the clip was already in place: then the banner
+    /// has no Undo. The press number makes a new key for each sync.
+    case syncMoved(SyncMoved, revision: Int?, press: Int)
     /// A sync found no match, so it changed nothing. The button opens the sheet again for `clip`.
     case syncNoMatch(clip: ClipID, clipName: String, trackName: String, press: Int)
     /// A revision of `agent` moved part of the audio of `take`, so the take is out of sync with

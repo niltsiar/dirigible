@@ -937,6 +937,7 @@
 "sheet.sync.apply" = "Sincronizar";
 "banner.sync.earlier" = "El clip se adelantó %@.";
 "banner.sync.later" = "El clip se retrasó %@.";
+"banner.sync.already" = "El clip ya está sincronizado.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
 "banner.sync.match" = "Puntuación de coincidencia: %.2f.";

@@ -69,6 +69,37 @@ import os
             await window.model.transcribe.task?.value
         }
 
+        /// C3 (b): Locate... or Choose Model File... on a studio that became busy while the panel was
+        /// open starts nothing: the busy alert shows, no words are added, and the other job keeps running.
+        @Test func pickedModelFileOnABusyStudioShowsTheBusyAlert() async throws {
+            let picks = Picks([])
+            let calls = EngineCalls(initialState: [])
+            let window = try await openFile(
+                { try Self.passing($0, ran: $0.appending(path: "ran")) }, picks: picks, engine: Self.recording(calls))
+            let before = window.studio.session
+            let request = TranscribeRequest(
+                track: "t2", trackName: "t2", language: .code("es"), choice: .code("es"), model: .catalog(.base))
+            for importing in [false, true] {
+                let name = importing ? "an agent clip render" : "an agent level"
+                let flags = ImportFlags()
+                window.studio.transport =
+                    importing ? .importing(ImportRun(name: "agent", kind: .clipRender, flags: flags)) : .leveling
+                let busy = window.studio.transport
+                picks.urls = [window.file]
+                picks.count = 0
+
+                await press(window, request, picks: picks)
+
+                #expect(window.model.alert == .error(.busy), "\(name): \(String(describing: window.model.alert))")
+                #expect(window.model.transcribe.job == nil && calls.withLock { $0 }.isEmpty, "\(name): a job ran")
+                #expect(spoken(window.studio).isEmpty && window.studio.session == before, "\(name): words added")
+                #expect(window.studio.transport == busy && flags.isCancelled == false, "\(name): the other job changed")
+                window.model.alert = nil
+            }
+            window.studio.transport = .idle
+            await window.model.close()
+        }
+
         /// C27: the no-data alert has the hint text and Choose Model File... (a). The button and a
         /// file that passes start one job with the same track and language, the helper runs once,
         /// and the file is kept (b). A Cancel in the panel starts no job and keeps no file (c).

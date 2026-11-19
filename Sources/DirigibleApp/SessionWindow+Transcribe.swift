@@ -127,7 +127,7 @@ extension SessionWindow {
 
     /// The Transcribe Again button of the stop banner.
     func transcribeAgain() {
-        guard case .stopped(let request, _, _) = transcribe.notice else { return }
+        guard canTranscribe, case .stopped(let request, _, _) = transcribe.notice else { return }
         start(request)
     }
 
@@ -138,8 +138,10 @@ extension SessionWindow {
         transcribe.task?.cancel()
     }
 
+    /// Starts the job of `request`. `Studio.transcribe` refuses a busy studio, also one that started
+    /// another job while the sheet or the model file panel was open. A busy studio shows the busy alert.
     func start(_ request: TranscribeRequest) {
-        guard canTranscribe, let studio = idleStudio else { return }
+        guard !dialogShowing, transcribe.job == nil, importJob == nil, case .open(let studio) = phase else { return }
         commitDrafts()
         transcribe.notice = nil
         // The download comes first, and a stalled download sends no progress: show it from the start.

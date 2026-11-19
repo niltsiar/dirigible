@@ -207,13 +207,33 @@ hook_list() {
     awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$(dirname "$0")/../Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . || true
 }
 
+# nested_runs <root> <list>: one line "<listed test> <unlisted test>" for each call
+# bash "<path>/<file>.test.sh" in a listed test whose <file> is a test of scripts/ or .claude/ that
+# the list does not name (a test with no Makefile line of its own, run by a listed one). Whatever the
+# path word is, the match takes the file name after its last slash: the word can hold quotes, as in
+# $(dirname "$0"), and a variable, as in $here.
+nested_runs() {
+    local root="$1" list="$2" unlisted t n u
+    unlisted="$(cd "$root" && { find scripts .claude -name '*.test.sh' -type f 2>/dev/null || true; } | { grep -vxFf <(echo "$list") || true; })"
+    [[ -n "$unlisted" ]] || return 0
+    for t in $list; do
+        while IFS= read -r n; do
+            for u in $unlisted; do
+                if [[ "${u##*/}" == "$n" ]]; then echo "$t $u"; fi
+            done
+        done < <(cd "$root" && { grep -sF 'bash "' "$t" || true; } | { grep -oE '/[A-Za-z0-9_.-]+\.test\.sh"' || true; } | sed 's|^/||; s|"$||')
+    done
+}
+
 # hook_tests <paths>: the hook tests that the changed paths need, in the order of HOOK_TESTS and
-# joined with commas. It prints "all" when a path of class tooling or build has no test, and nothing
-# when no path needs a hook test.
+# joined with commas. A test that names the basename of a changed path is needed, and so is each
+# listed test that runs, with bash "<path>/<file>.test.sh", an unlisted test that names it. It prints
+# "all" when a path of class tooling or build has no test, and nothing when no path needs a hook test.
 hook_tests() {
-    local root list p c t base hits all=" " out=""
+    local root list nested p c t base hits all=" " out="" runner inner
     root="$(cd "$(dirname "$0")/.." && pwd)"
     list="$(hook_list)"
+    nested="$(nested_runs "$root" "$list")"
     while IFS= read -r p; do
         [[ -n "$p" ]] || continue
         if comment_only "$p"; then c=comments; else c="$(class_of "$p")"; fi
@@ -226,6 +246,10 @@ hook_tests() {
         base="${p##*/}"
         # A basename that no test names is no failure: grep exits 1 with no match.
         while IFS= read -r t; do hits+="$t "; done < <(cd "$root" && grep -lsF -- "$base" $list || true)
+        while read -r runner inner; do
+            [[ -n "$runner" ]] || continue
+            grep -qsF -- "$base" "$root/$inner" && hits+="$runner "
+        done <<<"$nested"
         if [[ "$hits" == " " ]]; then
             [[ $c == bundle ]] || { echo all; return 0; }
             continue

@@ -75,6 +75,37 @@ import Testing
             studio.session.words(on: [track]).map(\.text)
         }
 
+        /// Transcribe on a studio that became busy while the sheet was open (an agent level or an agent
+        /// clip render) shows the busy alert, closes the sheet, adds no words, and leaves the other job running.
+        @Test func transcribeOnABusyStudioShowsTheBusyAlert() async throws {
+            let (model, studio) = try await open()
+            let before = studio.session
+            for importing in [false, true] {
+                let name = importing ? "an agent clip render" : "an agent level"
+                studio.transport = .idle
+                model.timeline.selection = .range(Marks(tracks: ["t2"]))
+                model.run(.transcribe)
+                var draft = try #require(model.transcribe.draft, "\(name): the item opened no sheet")
+                draft.language = .code("es")
+                let flags = ImportFlags()
+                studio.transport =
+                    importing ? .importing(ImportRun(name: "agent", kind: .clipRender, flags: flags)) : .leveling
+                let busy = studio.transport
+
+                model.startTranscribe(draft)
+                await until("the job ends") { model.transcribe.job == nil && model.transcribe.task == nil }
+
+                #expect(model.alert == .error(.busy), "\(name): \(String(describing: model.alert))")
+                #expect(model.transcribe.draft == nil, "\(name): the sheet shows")
+                #expect(spoken(studio).isEmpty && studio.session == before, "\(name): the start changed the session")
+                #expect(studio.transport == busy, "\(name): the start changed the other job")
+                #expect(flags.isCancelled == false, "\(name): the start cancelled the other job")
+                model.alert = nil
+            }
+            studio.transport = .idle
+            await model.close()
+        }
+
         /// C20: the item is on with an idle studio and a track. Control: a take, an open sheet, and
         /// a running job turn it off.
         @Test func menuStateForEachStartState() async throws {

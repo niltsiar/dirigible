@@ -41,15 +41,18 @@ package struct SyncWork: Sendable {
         let cut: SyncCut
         let sampleRate: Int
 
-        /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, then the drift line (the lag changes by
-        /// more than 20 ms, or the drift was not measured and why), then `cut 6.000 s at the head` after a
-        /// head cut, then `replaced audio of B, D` with the other clips that the move cut.
+        /// `moved <clip> by +1.234 s (59232 frames), match 0.98`, or `<clip> is already in sync, match 0.98`
+        /// for a lag of 0, which changes nothing; then the drift line (the lag changes by more than 20 ms, or
+        /// the drift was not measured and why), then `cut 6.000 s at the head` after a head cut, then
+        /// `replaced audio of B, D` with the other clips that the move cut.
         package var lines: [String] {
             let (lag, rate) = (result.lag.count, sampleRate)
             let seconds = String(format: "%.3f", abs(Double(lag)) / Double(rate))
+            let match = "match \(String(format: "%.2f", result.score.peak))"
             var lines = [
-                "moved \(clip) by \(lag < 0 ? "-" : "+")\(seconds) s (\(lag) frames), "
-                    + "match \(String(format: "%.2f", result.score.peak))"
+                lag == 0
+                    ? "\(clip) is already in sync, \(match)"
+                    : "moved \(clip) by \(lag < 0 ? "-" : "+")\(seconds) s (\(lag) frames), \(match)"
             ]
             switch result.drift {
             case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):

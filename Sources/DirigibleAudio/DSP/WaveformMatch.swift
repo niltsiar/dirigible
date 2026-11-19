@@ -30,6 +30,9 @@ typealias DFTSetupMake = (vDSP_DFT_Setup?, vDSP_Length, vDSP_DFT_Direction) -> v
 /// A coarse lag converts to frames by this factor, with no rounded rate.
 func matchFactor(rate: Int) -> Int { max(1, rate / 2000) }
 
+/// The coarse positions of 50 ms, which the ratio of the match rule leaves out around the peak.
+func matchSeparation(rate: Int) -> Int { Int((Double(rate) / Double(matchFactor(rate: rate)) / 20).rounded()) }
+
 /// A low-pass FIR at 0.4 of the coarse rate (a Blackman windowed sinc of 8 x `factor` + 1 taps) and
 /// a decimation by `factor`. It keeps the input that the next output needs, so the chunks of a stream
 /// give the samples of one call on the whole signal. Output k starts at input frame k x `factor`.
@@ -191,11 +194,11 @@ private func withSplit<Result>(
     }
 }
 
-/// The best full-overlap position of `excerpt` in `window`, both at the session rate: the largest
-/// normalized correlation, with the window energy as a sliding sum in Double.
-func fineShift(_ excerpt: [Float], in window: [Float]) -> Int {
+/// The best full-overlap position of `excerpt` in `window`, both at the session rate, and its score:
+/// the largest normalized correlation, with the window energy as a sliding sum in Double.
+func fineShift(_ excerpt: [Float], in window: [Float]) -> (shift: Int, peak: Double) {
     let count = window.count - excerpt.count + 1
-    guard count > 1 else { return 0 }
+    guard count > 1 else { return (0, 0) }
     let excerptEnergy = excerpt.reduce(0.0) { $0 + Double($1) * Double($1) }
     var energy = window.prefix(excerpt.count).reduce(0.0) { $0 + Double($1) * Double($1) }
     var (peak, best) = (-Double.infinity, 0)
@@ -211,7 +214,7 @@ func fineShift(_ excerpt: [Float], in window: [Float]) -> Int {
             }
         }
     }
-    return best
+    return (best, peak)
 }
 
 /// The clip ranges of the excerpts (F74, **Excerpts**): one range of the whole clip under 60 s;
@@ -220,20 +223,29 @@ func fineShift(_ excerpt: [Float], in window: [Float]) -> Int {
 func excerptRanges(clipLength: Int, windowMeanSquares: [Float], window: Int, rate: Int) -> [Range<Int>] {
     let length = 20 * rate
     guard clipLength >= 3 * length else { return [0..<clipLength] }
-    let span = length / window
     return (0..<3).map { third in
         let (low, high) = (third * clipLength / 3, (third + 1) * clipLength / 3)
-        let first = (low + window - 1) / window
-        let last = (high - length) / window
-        guard first <= last, last + span <= windowMeanSquares.count else { return high - length..<high }
-        var sum = windowMeanSquares[first..<first + span].reduce(0.0) { $0 + Double($1) }
-        var (best, start) = (sum, first)
-        for index in first..<last {
-            sum += Double(windowMeanSquares[index + span]) - Double(windowMeanSquares[index])
-            if sum > best { (best, start) = (sum, index + 1) }
-        }
-        return start * window..<start * window + length
+        return loudestRange(in: low..<high, length: length, windowMeanSquares: windowMeanSquares, window: window)
+            ?? high - length..<high
     }
+}
+
+/// The `length` frames in `bounds` that start at a window and have the largest sum of the window mean
+/// squares; the first of equal sums. Window w of `windowMeanSquares` starts at frame w x `window`.
+/// Nil when no such range fits.
+func loudestRange(in bounds: Range<Int>, length: Int, windowMeanSquares: [Float], window: Int) -> Range<Int>? {
+    guard bounds.count >= length else { return nil }
+    let span = length / window
+    let first = (bounds.lowerBound + window - 1) / window
+    let last = (bounds.upperBound - length) / window
+    guard first <= last, last + span <= windowMeanSquares.count else { return nil }
+    var sum = windowMeanSquares[first..<first + span].reduce(0.0) { $0 + Double($1) }
+    var (best, start) = (sum, first)
+    for index in first..<last {
+        sum += Double(windowMeanSquares[index + span]) - Double(windowMeanSquares[index])
+        if sum > best { (best, start) = (sum, index + 1) }
+    }
+    return start * window..<start * window + length
 }
 
 /// Matches a clip against a reference span (F74, **Match**). `clipFrames` and `referenceFrames` read
@@ -256,10 +268,10 @@ func waveformMatch<Failure: Error>(
         excerpts.append(try clipFrames(range).withUnsafeBufferPointer { decimator.feed($0) })
     }
     guard !excerpts[0].isEmpty else { return .noMatch(best: MatchScore(peak: 0, ratio: 0)) }
-    let separation = Int((Double(rate) / Double(factor) / 20).rounded())
     guard
         let coarse = CoarseScores(
-            reference: reference2k, excerptLength: excerpts[0].count, separation: separation, makeSetup: makeSetup)
+            reference: reference2k, excerptLength: excerpts[0].count, separation: matchSeparation(rate: rate),
+            makeSetup: makeSetup)
     else { return .noMemory }
     var (matches, best): ([(lag: Int, score: MatchScore)], MatchScore?) = ([], nil)
     for (range, excerpt) in zip(ranges, excerpts) {
@@ -269,7 +281,7 @@ func waveformMatch<Failure: Error>(
         let start = position * factor
         let low = max(0, start - 2 * factor)
         let high = min(referenceLength, start + range.count + 2 * factor)
-        let shift = fineShift(try clipFrames(range), in: try referenceFrames(low..<high))
+        let shift = fineShift(try clipFrames(range), in: try referenceFrames(low..<high)).shift
         matches.append((low + shift - range.lowerBound, score))
     }
     guard !matches.isEmpty else { return .noMatch(best: best ?? MatchScore(peak: 0, ratio: 0)) }

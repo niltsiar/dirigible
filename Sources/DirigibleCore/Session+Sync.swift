@@ -5,9 +5,14 @@ extension Session {
     public var defaultSyncWithin: Frames { Frames(1800 * sampleRate) }
 
     /// The longest search span of a sync after its cut to frame 0 and the session end:
-    /// (2^24 - 120000) x floor(rate / 2000) frames, so the coarse FFT of the span and of one 60 s
-    /// excerpt fits 2^24 samples (decision 0076, **Search span**).
-    public var syncSpanCap: Frames { Frames(((1 << 24) - 120_000) * max(1, sampleRate / 2000)) }
+    /// (2^24 - e) x f frames, with f = floor(rate / 2000) and e = ceil(60 x rate / f), the coarse
+    /// samples of the longest excerpt (a clip under 60 s). So the coarse FFT of the span and of that
+    /// excerpt fits 2^24 samples at each rate (decision 0076, **Search span**).
+    public var syncSpanCap: Frames {
+        let factor = max(1, sampleRate / 2000)
+        let excerpt = (60 * sampleRate + factor - 1) / factor
+        return Frames(((1 << 24) - excerpt) * factor)
+    }
 
     /// The `within` that a sync of `clip` uses (decision 0076, **Search span**). Nil gives
     /// `defaultSyncWithin`, clamped to the largest `within` whose cut span fits `syncSpanCap`.

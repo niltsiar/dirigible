@@ -83,8 +83,11 @@ enum TranscribeHint {
 extension SessionWindow {
     /// The item is off with a dialog, a job, an import, a pending take, a take, or no track.
     var canTranscribe: Bool {
-        !dialogShowing && transcribe.job == nil && canImport && idleStudio?.session.tracks.isEmpty == false
+        transcribeWindowFree && canImport && idleStudio?.session.tracks.isEmpty == false
     }
+
+    /// No dialog, no Transcribe job, and no import: the window rules of a Transcribe start.
+    var transcribeWindowFree: Bool { !dialogShowing && transcribe.job == nil && importJob == nil }
 
     /// Opens the sheet on `track`, else the first selected track, else the first track.
     func transcribeTrack(_ track: TrackID? = nil) {
@@ -141,7 +144,7 @@ extension SessionWindow {
     /// Starts the job of `request`. `Studio.transcribe` refuses a busy studio, also one that started
     /// another job while the sheet or the model file panel was open. A busy studio shows the busy alert.
     func start(_ request: TranscribeRequest) {
-        guard !dialogShowing, transcribe.job == nil, importJob == nil, case .open(let studio) = phase else { return }
+        guard transcribeWindowFree, case .open(let studio) = phase else { return }
         commitDrafts()
         transcribe.notice = nil
         // The download comes first, and a stalled download sends no progress: show it from the start.

@@ -18,6 +18,8 @@
 # with no criterion change row after the first phase 6 row, and the same for the pattern of a backticked
 # rg grader (read as rg reads it) in the files that its command names.
 # Check that a code gate Act on item has a Criteria: field, and at phase 7 a criterion change row for each ID.
+# Check that a review-diff-1.md with the line `review: lead` needs that line in review-plan-1.md and in the
+# check-changed.sh output of the run tree, also when check-plan.sh runs from another tree.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -1238,6 +1240,42 @@ CHECK_PLAN_AT_PHASE7=1 refuse 'PHASE7: the same deferred control' 'logs/c1.log'
 unset CHECK_PLAN_FIX_CHECK
 fcrun "- 1.1 OK; $NF"
 pass 'the land check with a missing line, no CHECK_PLAN_FIX_CHECK'
+
+# The lead review path: a review-diff-1.md with the line `review: lead` needs the line in review-plan-1.md and a
+# `review: lead` line of check-changed.sh origin/main in the run tree. The fixture repo holds the scripts on
+# origin/main, a run tree on feat/lead, and a second tree on feat/other with an empty diff.
+lrepo="$tmp/lead-repo" ltree="$tmp/lead-tree" lother="$tmp/lead-other" sdir="$(dirname "$script")"
+mkdir -p "$lrepo/scripts" "$lrepo/Sources/A" "$lrepo/.scratchpads/runs"
+cp "$sdir/check-plan.sh" "$sdir/check-changed.sh" "$sdir/swift-suites.sh" "$sdir/check-stamp.sh" "$lrepo/scripts/"
+cp "$sdir/../Makefile" "$lrepo/"
+seq 1 3 > "$lrepo/Sources/A/Base.swift"
+git -C "$lrepo" init -q -b main && git -C "$lrepo" add . \
+  && git -C "$lrepo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
+  && git -C "$lrepo" update-ref refs/remotes/origin/main HEAD \
+  && git -C "$lrepo" worktree add -q -b feat/lead "$ltree" \
+  && git -C "$lrepo" worktree add -q -b feat/other "$lother" || fail 'lead review fixture repo'
+saved_script="$script" saved_run="$run"
+script="$lrepo/scripts/check-plan.sh" run="$lrepo/.scratchpads/runs/2026-11-19-lead"
+# lead_run <line of review-plan-1.md> <changed lines of the run tree> [<branch of run.md>]
+lead_run() {
+  good
+  printf '# Run\n\n- Branch: %s\n' "${3:-feat/lead}" > "$run/run.md"
+  printf 'review: lead\n\n## Act on\n\nNone.\n' > "$run/review-diff-1.md"
+  printf '%s\n\n## Act on\n\nNone.\n' "$1" > "$run/review-plan-1.md"
+  seq 1 "$2" > "$ltree/Sources/A/Change.swift"
+}
+lead_run 'review: lead' 5
+pass 'a lead diff round file, a lead plan round file, and a small diff'
+lead_run 'review: panel' 5
+refuse 'a lead diff round file and a plan round file with no review: lead line' 'review-plan-1.md has none'
+lead_run 'review: lead' 201
+refuse 'a lead diff round file and a diff of 201 lines' 'panel (lines)'
+out="$("$lother/scripts/check-plan.sh" "$run" 2>&1)"
+code=$?
+[[ $code -eq 1 && "$out" == *'panel (lines)'* ]] || fail "the 201-line run tree, called from a tree with an empty diff: exit $code: $out"
+lead_run 'review: lead' 5 feat/none
+refuse 'a run.md branch with no worktree' 'no worktree holds the branch'
+script="$saved_script" run="$saved_run"
 
 out="$("$script" 2>&1)"
 code=$?

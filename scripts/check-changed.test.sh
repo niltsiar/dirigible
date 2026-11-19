@@ -24,6 +24,8 @@
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
 # the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
 # .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.
+# Check the line `review: lead` or `review: panel (<reason>)` of --paths and of a base run: each reason, the
+# limit of 200 changed lines with untracked files, and a binary file.
 # Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -50,9 +52,11 @@ printf 'guard ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"
 expect() {
   local name="$1" want="$2" got
   shift 2
-  got="$(cd "$e" && "$script" --paths "$@")" || { fail "$name: exit $?"; return; }
+  got="$(cd "$e" && "$script" --paths "$@" | norev)" || { fail "$name: exit $?"; return; }
   [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
 }
+# The cases of the three lines read output with no review line; the review cases below read that line only.
+norev() { sed '/^review: /d'; }
 out() { printf 'classes: %s\ntargets: %s\nrisk: %s' "$1" "$2" "$3"; }
 # The word of a local check-fast with no HOOK_TESTS word: test-hooks.sh runs the whole list for it.
 all_hooks=' DIRIGIBLE_HOOKS_ALL=1'
@@ -90,7 +94,7 @@ expect 'Makefile before the push' "$(out bundle 'check test-slow-push test-dmg' 
 expect 'Package.swift local' "$(out build check no)" <<<'Package.swift'
 expect 'Package.swift before the push' "$(out build check no)" --push <<<'Package.swift'
 # The sourcekit-lsp config changes no Swift build, so it is tooling and runs no Swift target.
-got="$(cd "$e" && "$script" --paths <<<'.sourcekit-lsp/config.json')"
+got="$(cd "$e" && "$script" --paths <<<'.sourcekit-lsp/config.json' | norev)"
 [[ "$(sed -n 1p <<<"$got")" == 'classes: tooling' && "$(sed -n 2p <<<"$got")" == 'targets: check-fast'* ]] ||
   fail "the sourcekit-lsp config: got [$got], want classes: tooling and a check-fast target"
 # AGT-145: background indexing stays off, so a test run builds nothing outside the lock. LSP_CONFIG
@@ -150,7 +154,7 @@ expect 'two PUSH_SKIP benches before the push' "$(out tests 'check test-slow-pus
 expect 'the Makefile and a PUSH_SKIP bench before the push' "$(out 'tests bundle' 'check test-slow-push test-dmg PUSH_RUN=LoudnessBenchmark' no)" --push \
   <<<$'Makefile\nTests/DirigibleAudioTests/LoudnessBenchmark.swift'
 # Outside a git repo there is no date, so the push runs the slow tests.
-got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outside a repo: exit $?"
+got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift' | norev)" || fail "outside a repo: exit $?"
 [[ "$got" == "$(out tests 'check test-slow-push' no)" ]] || fail "outside a repo: got [$got]"
 
 # FILTER: the tests of the slice in place of all tests. The other targets do not change.
@@ -267,6 +271,21 @@ for args in 'scripts/a.sh' '--push scripts/a.sh'; do
   grep -q 'usage:' "$tmp/paths.err" || fail "--paths $args: no usage line: $(cat "$tmp/paths.err")"
 done
 
+# The review line of --paths: lead for a small change of docs, comments, tests, and sources, else panel
+# with the first failed rule. The paths come from stdin.
+review_paths() {
+  local name="$1" want="$2" got
+  got="$(cd "$e" && "$script" --paths | sed -n 's/^review: //p')" || { fail "$name: exit $?"; return; }
+  [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
+}
+light=$'Sources/DirigibleApp/A.swift\nSources/DirigibleApp/B.swift\nSources/DirigibleCore/C.swift\nTests/DirigibleCoreTests/CTests.swift\nTests/DirigibleCoreTests/DTests.swift\ndocs/guide.md'
+review_paths 'review: 6 light paths' lead <<<"$light"
+review_paths 'review: 7 light paths' 'panel (paths)' <<<"$light"$'\nSources/DirigibleApp/G.swift'
+review_paths 'review: AGENTS.md' 'panel (workflow doc)' <<<'AGENTS.md'
+review_paths 'review: a scripts path' 'panel (classes)' <<<'scripts/b.sh'
+review_paths 'review: a Sources/DirigibleAudio path' 'panel (risk)' <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
+review_paths 'review: a close path' 'panel (safety)' <<<'Sources/DirigibleApp/SessionWindow+Close.swift'
+
 # A path of the shared guard list gives risk: yes, also for a change of only comment lines, and keeps its class and targets.
 # A name written whole in this file adds this test to the HOOK_TESTS word of that path, so three names are built from parts.
 clock_hook=".claude/hooks/agent-cl""ock.sh"
@@ -318,7 +337,7 @@ new_repo() {
   g add -A
   g commit -q -m base
 }
-run_in() { (cd "$tmp/r" && "$script" "$@"); }
+run_in() { (cd "$tmp/r" && "$script" "$@" | norev); }
 
 # No base: the changed file and the untracked file, not the committed file with no change.
 new_repo
@@ -578,7 +597,7 @@ partial_is() {
   local name="$1" want
   want="$(printf '%s\n%s' "$2" "$(out "$3" "$4" "$5")")"
   [[ -n "$2" ]] || want="$(out "$3" "$4" "$5")"
-  got="$(cd "$tmp/r" && env ${6:-} "$script" main)" || { fail "$name: exit $?"; return; }
+  got="$(cd "$tmp/r" && env ${6:-} "$script" main | norev)" || { fail "$name: exit $?"; return; }
   [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
 }
 partial_case
@@ -1417,6 +1436,46 @@ FAKE_FILTER=pass PATH="$tmp/bin:$PATH" make_case 'a partial stamp through make c
 word="RERUN=$(g rev-parse HEAD):fast:aFlake+slow:"
 [[ "$output" == *"targets: $word"* ]] || fail "a partial stamp through make check-changed: no word: $output"
 [[ "$(stamp_read)" == "$(g rev-parse HEAD) $word" ]] || fail "a partial stamp through make check-changed: stamp [$(stamp_read)]: $output"
+
+# The review line of a base run adds the changed lines (committed, working tree, and untracked files): 200
+# or fewer give lead, more give panel (lines). A binary file, tracked or untracked, gives panel (binary).
+# The git call that counts an untracked file exits 1 when the file differs, and the run still exits 0.
+# review_repo <committed lines> [<untracked lines>]: a branch with one Sources/ file of the first count.
+review_repo() {
+  new_repo
+  g switch -q -c feat/r
+  mkdir -p "$tmp/r/Sources/DirigibleApp"
+  seq 1 "$1" > "$tmp/r/Sources/DirigibleApp/Big.swift"
+  g add -A
+  g commit -q -m big
+  [[ -z "${2:-}" ]] || seq 1 "$2" > "$tmp/r/Sources/DirigibleApp/New.swift"
+}
+# review_base <name> <want>: the review line of run_in main, with exit 0.
+review_base() {
+  local got
+  got="$(cd "$tmp/r" && "$script" main | sed -n 's/^review: //p')" || { fail "$1: exit $?"; return; }
+  [[ "$got" == "$2" ]] || fail "$1: got [$got], want [$2]"
+}
+png='\x89PNG\r\n\x1a\n\0\0\0\rIHDR'
+review_repo 200
+review_base 'review: 200 changed lines' lead
+review_repo 201
+review_base 'review: 201 changed lines' 'panel (lines)'
+review_repo 195 5
+review_base 'review: 195 committed lines and 5 untracked lines' lead
+review_repo 195 6
+review_base 'review: 195 committed lines and 6 untracked lines' 'panel (lines)'
+review_repo 1
+printf "$png" > "$tmp/r/Sources/DirigibleApp/p.png"
+g add -A
+g commit -q -m png
+review_base 'review: a changed PNG' 'panel (binary)'
+review_repo 1
+printf "$png" > "$tmp/r/Sources/DirigibleApp/u.png"
+review_base 'review: an untracked PNG' 'panel (binary)'
+# The bare mode prints no review line.
+review_repo 1 1
+[[ -z "$(cd "$tmp/r" && FILTER=X "$script" 2> /dev/null | sed -n 's/^review: //p')" ]] || fail 'review: the bare mode prints a review line'
 
 [[ $failures -eq 0 ]] && echo "check-changed tests: all passed"
 exit $((failures > 0))

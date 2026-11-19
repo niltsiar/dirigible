@@ -36,6 +36,8 @@
 #          (<branch>): <files>` for each open PR of gh
 #          (--limit 200), or `overlap: none`. A gh that gives no answer in OVERLAP_GH_TIMEOUT seconds
 #          (default 20) gives `overlap: gh: no answer`. It runs no git fetch and takes no git lock.
+# The line `review: lead` or `review: panel (<reason>)` follows `risk:` in the --paths and base modes. It
+# says whether the code gate is a lead review (deliver class table); review_line has the rules.
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter, and the local target check becomes check-fast test-filter test-app (or static
@@ -499,6 +501,49 @@ while IFS= read -r p; do
     done
 done <<<"$paths"
 
+# review_line: `lead` or `panel (<reason>)`, with the first failed rule: risk, classes, workflow doc,
+# safety, paths, binary, lines. A lead review needs risk: no, only the classes docs, comments, tests, and
+# sources, no workflow doc, none of the four close and quit paths of the Safety section that the risk
+# floor does not hold, 6 paths or fewer, and, with a base, no binary file and 200 changed lines or fewer
+# (added plus deleted, from the merge base to the working tree, and the untracked files).
+review_line() {
+    local c p a d f n total=0 binary=no
+    [[ $risk == no ]] || { echo "panel (risk)"; return; }
+    for c in $classes; do
+        case "$c" in docs | comments | tests | sources) ;; *) echo "panel (classes)"; return ;; esac
+    done
+    while IFS= read -r p; do
+        case "$p" in
+            AGENTS.md | CLAUDE.md | CODING_STANDARDS.md | .claude/skills/*.md | .claude/agents/* | docs/workflow/*) echo "panel (workflow doc)"; return ;;
+        esac
+    done <<<"$paths"
+    while IFS= read -r p; do
+        case "$p" in
+            Sources/DirigibleApp/SessionWindow+Close.swift | Sources/DirigibleApp/SessionWindow+Delegate.swift | \
+                Sources/DirigibleApp/AppDelegate+Quit.swift | Sources/DirigibleApp/AppDelegate.swift) echo "panel (safety)"; return ;;
+        esac
+    done <<<"$paths"
+    (($(grep -c . <<<"$paths" || true) <= 6)) || { echo "panel (paths)"; return; }
+    if [[ -n "$from" ]]; then
+        while IFS=$'\t' read -r a d f; do
+            [[ -n "$f" ]] || continue
+            if [[ "$a" == - ]]; then binary=yes; else total=$((total + a + d)); fi
+        done < <(git diff --numstat --no-renames "$from")
+        while IFS= read -r f; do
+            [[ -n "$f" ]] || continue
+            # git diff --no-index exits 1 when the files differ.
+            n="$(git diff --no-index --numstat /dev/null "$f")" || [[ $? -eq 1 ]]
+            read -r a d _ <<<"$n"
+            if [[ "${a:-0}" == - ]]; then binary=yes; else total=$((total + ${a:-0} + ${d:-0})); fi
+        done <<<"$untracked"
+        [[ $binary == no ]] || { echo "panel (binary)"; return; }
+        ((total <= 200)) || { echo "panel (lines)"; return; }
+    fi
+    echo lead
+}
+review=""
+if [[ $mode == stdin || -n "$base" ]]; then review="$(review_line)"; fi
+
 # The newest pass stamp S of this base, and the partial stamp line that run-checks.sh appends
 # after a check whose only red targets were tests: '<P> <base commit> failed fast:<names>
 # slow:<names>'. This script is its only reader. It takes the last line of this base whose P is
@@ -619,6 +664,7 @@ fi
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"
 echo "risk: $risk"
+[[ -z $review ]] || echo "review: $review"
 [[ -z $default ]] || echo "filter: $default"
 if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && $needs_suite == yes ]]; then
     if [[ -n "$since_ref" ]]; then

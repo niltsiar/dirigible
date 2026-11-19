@@ -185,8 +185,8 @@ got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fa
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
 # <name>.sh or <name>.py, the guardrails test for a hook, settings, or .githooks path, and each
 # entry whose text names the basename of a changed tooling path, and each entry that runs, with a
-# bash "<path>/<file>.test.sh" call, a test that is not in the list and names that basename. A changed path of class tooling
-# or build with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
+# bash "<path>/<file>.test.sh" call, a test that is not in the list and names that basename. A
+# changed path of class tooling or build with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
 # list with no word. A path of class comments, or of class bundle with no test, needs none. The HOOK_TESTS word never comes before the push.
 # word_of [--push]: the HOOK_TESTS word of the paths on stdin, or nothing.
 word_of() { (cd "$e" && "$script" --paths "$@") | sed -n 's/^targets: .*HOOK_TESTS=\([^ ]*\).*/\1/p'; }

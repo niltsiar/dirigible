@@ -921,6 +921,7 @@
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Standaardbereik van de golfvorm";
 "take.syncing" = "Clip wordt gesynchroniseerd";
+"drift.banner" = "Drift van '%@' wordt gecorrigeerd…";
 "error.sync.no.match" = "Geen overeenkomst: de audio van de clip is niet gevonden op het spoor.";
 "error.sync.read" = "Dirigible kan de clip niet synchroniseren. Een audiobestand kon niet worden gelezen (fout %lld). Geen clip is gewijzigd.";
 "error.sync.missing" = "Dirigible kan de clip niet synchroniseren. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";

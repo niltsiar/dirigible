@@ -921,6 +921,7 @@
 "waveform.zoom.readout" = "%lld dB";
 "settings.waveform.range" = "Rango predeterminado de la forma de onda";
 "take.syncing" = "Sincronizando el clip";
+"drift.banner" = "Corrigiendo la deriva de «%@»…";
 "error.sync.no.match" = "Sin coincidencia: el audio del clip no se encontró en la pista.";
 "error.sync.read" = "Dirigible no puede sincronizar el clip. Un archivo de audio no se pudo leer (error %lld). Ningún clip cambió.";
 "error.sync.missing" = "Dirigible no puede sincronizar el clip. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";

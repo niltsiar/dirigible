@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Accepted: 2026-11-18, after the plan gates (2 rounds) of run `2026-10-28-waveform-sync`.
 - Amends: 0011 (`dirigible clip sync`), 0041 (the tool `clip_sync`), 0049 (a long job with progress and Cancel), 0051 (the agent manual names `clip_sync`), 0061 (a sync is an edit that can change a take sync state; no rule changes), 0063 (`clip_sync` reads files, so it is not a batch step: "sync" joins the list of work that a batch cannot hold). The drift correction of F74 amends this record, 0057 (an origin kind for the drift correction), and 0024 (the `session.xml` version of that kind).
+- Amended: 2026-11-19, run `2026-11-19-waveform-drift` (see 0077). Sync to track gets a drift option: `Studio.correctDrift` measures, fits, and resamples a clip of 5 min or more in one blocking run of kind `.drift`, as one undo entry. The drift is a link apart from the origin, not an origin kind. Without the option, a clip whose lag changes is aligned at its median lag only.
 
 ## Context
 

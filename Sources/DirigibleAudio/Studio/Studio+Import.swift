@@ -7,12 +7,12 @@ import os
 /// Hashable.
 public struct ImportRun: Hashable, Sendable {
     /// What the run converts or copies: a file (decision 0040), the clips of a paste from another
-    /// package (decision 0042), the stereo clips of a split (decision 0053), or the clips of a
-    /// clip render (decision 0054).
-    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender }
+    /// package (decision 0042), the stereo clips of a split (decision 0053), the clips of a clip
+    /// render (decision 0054), or a clip of a drift fix (decision 0077).
+    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender, drift }
 
-    /// The file name, the name of the source package of a paste, or the name of the package of a
-    /// split or a clip render.
+    /// The file name, the name of the source package of a paste, the name of the package of a
+    /// split or a clip render, or the name of the clip of a drift fix.
     public let name: String
     public let kind: Kind
     let flags: ImportFlags

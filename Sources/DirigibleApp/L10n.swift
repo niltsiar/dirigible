@@ -905,6 +905,7 @@ enum L10n: String, CaseIterable {
     case waveformZoomReadout = "waveform.zoom.readout"
     case settingsWaveformRange = "settings.waveform.range"
     case takeSyncing = "take.syncing"
+    case driftBanner = "drift.banner"
     case errorSyncNoMatch = "error.sync.no.match"
     case errorSyncRead = "error.sync.read"
     case errorSyncMissing = "error.sync.missing"

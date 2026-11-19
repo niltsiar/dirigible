@@ -33,8 +33,10 @@
 # check when its decision starts with `fix check`, has `fix check of`, has a code gate name or a landing label
 # (L2, G1) just before `fix check`, or closes the code gate (`code gate closed`, `close the code gate`, and
 # not `not closed`). A close row checks each item. Another row checks the <round>.<item> words that are an
-# item (`1.1 to 1.3` is a range of one round); a word that is no item (`1.5 s`) counts for nothing; no item
-# named means each item. A row that only says the fix check is still to come is no report.
+# item (`1.1 to 1.3` and `1.1-1.3` are a range of one round); a word that is no item (`1.5 s`) counts for
+# nothing; no item named means each item. A row is no report when a to-come word (pending, to come, waits,
+# started, next, after) follows `fix check` or its `of` part, and the row has no result word (ok, pass,
+# holds, fails, corrected).
 # A row of a run folder with a run.md that enters phase 5, 6, or 7 (the last row of decisions.tsv
 # has another phase, and the header row counts as none) also needs a passing
 # scripts/check-eval-keys.sh against origin/main: each evals.md key that the branch of the last
@@ -248,8 +250,10 @@ fi
 # change row, which that check refuses, so it skips the check. A row that reports a fix check also
 # needs the Fix check line of each item that it checks (the header gives the words that make a report).
 gate_fix_form='^(lead )?((l[0-9]+[a-z]? )?code gate[^:;]{0,30}|[lg][0-9]+[a-z]?) fix check([^a-z]|$)'
+to_come_form='fix check( of( [a-z0-9.,-]+){1,8})? (is |are )?(pending|to come|waits|started|next|after)([^a-z]|$)'
+result_form='(^|[^a-z])(ok|pass(es|ed)?|holds?|held|fail(s|ed)?|corrected)([^a-z]|$)'
 # fix_check_items <run folder> <decision>: the <round>.<item> words of the decision that are an Act on item
-# of a review-diff-<n>.md, a range "a.b to a.c" of one round expanded, in one line.
+# of a review-diff-<n>.md, a range "a.b to a.c" or "a.b-a.c" of one round expanded, in one line.
 fix_check_items() {
     local review round
     for review in "$1"/review-diff-*.md; do
@@ -259,7 +263,12 @@ fix_check_items() {
     done | DECISION="$2" awk '
         { item[$0] = 1 }
         END {
-            d = tolower(ENVIRON["DECISION"]); gsub(/[^[:alnum:]_.]/, " ", d)
+            d = tolower(ENVIRON["DECISION"])
+            while (match(d, /[0-9]+\.[0-9]+ ?- ?[0-9]+\.[0-9]+/)) {
+                s = substr(d, RSTART, RLENGTH); sub(/ ?- ?/, " to ", s)
+                d = substr(d, 1, RSTART - 1) s substr(d, RSTART + RLENGTH)
+            }
+            gsub(/[^[:alnum:]_.]/, " ", d)
             n = split(d, t, " ")
             for (i = 1; i <= n; i++) { w = t[i]; sub(/\.+$/, "", w); tok[i] = (w ~ /^[0-9]+\.[0-9]+$/) ? w : "" }
             for (i = 1; i <= n; i++) {
@@ -280,6 +289,7 @@ fix_check_report() {
     local d
     d="$(lower "$1")"
     if [[ "$d" =~ $code_close_form && ! "$d" =~ $not_closed ]]; then echo close
+    elif [[ "$d" =~ $to_come_form && ! "$d" =~ $result_form ]]; then return 0
     elif [[ "$d" == "fix check"* || "$d" == *"fix check of"* || "$d" =~ $gate_fix_form ]]; then echo report
     fi
 }

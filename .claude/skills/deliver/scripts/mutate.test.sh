@@ -254,11 +254,12 @@ check '4:WRONG FAILURE' 'a hang with no expect text' --expect 'expected a = 1' -
 check '0:killed (hang)' 'a hang after the expect text' --expect 'expected a = 1' --timeout 1 "$file" 'a = 1' 'a = 2' \
   "$tmp/log" "$build" "echo 'expected a = 1'; sleep 30 | cat"
 
-# Succeeds when the process <pid> ends in [tenths] tenths of a second (default 50). A killed
-# orphan stays a zombie until launchd reaps it. A zombie does not run, so it has ended.
+# Succeeds when the process <pid> ends in [tenths] tenths of a second (default 600, so 4 loaded jobs
+# do not fail it). A killed orphan stays a zombie until launchd reaps it. A zombie does not run,
+# so it has ended.
 ended() {
   local state
-  for _ in $(seq "${2:-50}"); do
+  for _ in $(seq "${2:-600}"); do
     state="$(ps -o stat= -p "$1" 2>/dev/null)"
     [[ -z "$state" || "$state" == Z* ]] && return 0
     sleep 0.1

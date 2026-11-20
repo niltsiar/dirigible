@@ -35,8 +35,8 @@ public struct StemPlan: Hashable, Sendable {
     public let noRoleSet: Bool
 }
 
-/// The file names of the role stems. The app gives the titles of its language; the CLI and the
-/// tools give `.english`.
+/// The file names of the role stems. A caller can give the titles of the user language; the CLI
+/// and the tools give `.english`.
 public struct StemTitles: Hashable, Sendable {
     public var dialogue: String
     public var music: String

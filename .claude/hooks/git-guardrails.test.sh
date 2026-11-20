@@ -26,7 +26,7 @@ failures=0
 # Build the hook input with plutil, the same tool the hook reads it with (no jq on macOS 14).
 input="$(mktemp)"
 tmp="$(mktemp -d)"
-trap 'rm -f "$input"; rm -rf "$tmp"' EXIT
+trap '[[ -z "${lock_member:-}" ]] || builtin kill "$lock_member" 2>/dev/null; rm -f "$input"; rm -rf "$tmp"' EXIT
 # The release-wait rule reads the records of live lock-step agents: the hooks pass and the push check run
 # this file, so the records of a real agent must not change a case.
 export DIRIGIBLE_LOCK_AGENTS="$tmp/lock-agents"
@@ -2800,7 +2800,7 @@ cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_dir_src/../../scripts/lock-
 wait "$lock_dead"
 # A dead group leader with a live member: kill -0 on the leader pid fails, kill -0 on -<leader> works.
 set -m
-( sleep 60 > /dev/null 2>&1 & echo $! > "$tmp/lock-member" ) &
+( sleep 3600 > /dev/null 2>&1 & echo $! > "$tmp/lock-member" ) &
 lock_leader=$!
 set +m
 wait "$lock_leader"
@@ -2908,6 +2908,7 @@ for state in dead-release-child dead-release-group; do
   expect_lock_brief block "$state" Agent prompt "$lock_step"
 done
 builtin kill "$lock_member" 2>/dev/null
+lock_member=
 expect_lock_brief block release Agent prompt "$lock_step"
 grep -qF 'Build lock: none' "$tmp/agent-err" && grep -qF 'scripts/with-lock.sh --builders' "$tmp/agent-err" && grep -qF 'check-changed BASE=origin/main' "$tmp/agent-err" ||
   { echo "FAIL: the lock-step message does not name the pass line, --builders, and the holder: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }

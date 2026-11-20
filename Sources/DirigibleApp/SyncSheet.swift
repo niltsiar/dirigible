@@ -121,10 +121,13 @@ struct SyncMoved: Equatable {
         sentences.append(format(.bannerSyncMatch, peak))
         func milliseconds(_ frames: Double) -> Double { frames * 1000 / Double(rate) }
         if case .corrected(let fix) = outcome {
+            let (ppm, across) = (fix.slope * 1e6, Int(milliseconds(abs(fix.across)).rounded()))
+            // One resample for each piece, as the CLI counts them; 2 or more needs no plural form (0010).
             sentences.append(
-                format(
-                    .bannerDriftCorrected, fix.slope * 1e6, Int(milliseconds(abs(fix.across)).rounded()),
-                    milliseconds(fix.worstResidual)))
+                fix.clips.count == 1
+                    ? format(.bannerDriftCorrected, ppm, across, milliseconds(fix.worstResidual))
+                    : format(.bannerDriftCorrectedPieces, ppm, across, fix.clips.count, milliseconds(fix.worstResidual))
+            )
             for split in fix.splits {
                 sentences.append(
                     format(.bannerDriftSplit, duration(split.clipFrame), duration(Frames(Int(split.pause.rounded())))))

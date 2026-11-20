@@ -953,6 +953,7 @@
 "sheet.sync.drift" = "Correggi deriva";
 "sheet.sync.drift.take" = "Una ripresa registra con il clock della sessione.";
 "banner.drift.corrected" = "Corretta una deriva di %+.1f ppm (%lld ms lungo il clip) con un solo ricampionamento. Lo sfasamento resta entro %.1f ms dalla retta.";
+"banner.drift.corrected.pieces" = "Corretta una deriva di %+.1f ppm (%lld ms lungo il clip) con %lld ricampionamenti. Lo sfasamento resta entro %.1f ms dalla retta.";
 "banner.drift.split" = "Clip diviso a %@ (la registrazione si è fermata per %@).";
 "banner.drift.not.corrected" = "La deriva non è stata corretta: %@.";
 "banner.drift.cause.too.short" = "il clip dura meno di 5 min";

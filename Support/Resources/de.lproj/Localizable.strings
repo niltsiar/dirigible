@@ -953,6 +953,7 @@
 "sheet.sync.drift" = "Drift korrigieren";
 "sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Sitzungsuhr.";
 "banner.drift.corrected" = "Drift von %+.1f ppm (%lld ms über den Clip) in einem Resampling korrigiert. Der Versatz bleibt innerhalb von %.1f ms der Linie.";
+"banner.drift.corrected.pieces" = "Drift von %+.1f ppm (%lld ms über den Clip) in %lld Resamplings korrigiert. Der Versatz bleibt innerhalb von %.1f ms der Linie.";
 "banner.drift.split" = "Clip bei %@ geteilt (die Aufnahme pausierte %@).";
 "banner.drift.not.corrected" = "Der Drift wurde nicht korrigiert: %@.";
 "banner.drift.cause.too.short" = "Der Clip ist kürzer als 5 min";

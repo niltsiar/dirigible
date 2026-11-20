@@ -40,6 +40,12 @@ extension L10n {
         case .exportParts(.stopped(let stop)):
             let count = stop.written.count + stop.remaining.count
             return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
+        case .exportStems(.folderNameTooLong): return startNameErrorLong.text
+        case .exportStems(.noStem): return errorExportWrite.format(Int(ENODATA))
+        case .exportStems(.notEnoughSpace): return errorExportDiskFull.text
+        case .exportStems(.stopped(let error)): return message(for: error)
+        case .exportStems(.publish(.exists)): return errorExportExists.text
+        case .exportStems(.publish(let error)): return message(for: error)
         case .audioImport(.session(let error)): return message(for: error, name: name)
         case .audioImport(let error): return message(for: error)
         case .importYielded(let file): return errorImportYielded.format(file)

@@ -99,6 +99,7 @@ extension StudioError {
         case .export: "export"
         case .exportYielded: "exportYielded"
         case .exportParts: "exportParts"
+        case .exportStems: "exportStems"
         case .audioImport: "audioImport"
         case .importYielded: "importYielded"
         case .paste: "paste"

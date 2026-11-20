@@ -61,7 +61,9 @@ public struct StemsResult: Hashable, Sendable {
     public let mixPeak: Float?
 }
 
-public enum ExportStemsError: Error, Sendable {
+public enum ExportStemsError: Error, Hashable, Sendable {
+    /// The folder name is over `stemFolderNameLimit`. No job started.
+    case folderNameTooLong
     /// No stem has a clip that sounds in the range. No folder was made.
     case noStem
     /// The stem files and `diskMargin` need `need` bytes, and the volume has `free`. No stem was

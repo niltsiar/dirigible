@@ -93,6 +93,13 @@ run
 [[ $code -eq 0 && $(ran) -eq 2 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
     || fail "same key: the second run did not reuse the pass: code $code, ran $(ran): $(out)"
 
+# Two passes never share a temporary stamp file: a dirigible-hooks-stamp.new folder that another
+# writer left does not stop the stamp write.
+new_repo
+mkdir "$stamp.new"
+run
+[[ $code -eq 0 && $(stamps) -eq 1 ]] || fail "a stamp.new folder: the pass wrote no stamp: code $code, stamps $(stamps): $(out)"
+
 # C6: the whole HOOK_TESTS list with no switch exits nonzero before any test, and the message names
 # make check-changed before DIRIGIBLE_FULL_SUITE=1.
 new_repo

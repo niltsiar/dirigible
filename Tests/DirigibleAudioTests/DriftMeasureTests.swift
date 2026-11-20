@@ -105,6 +105,14 @@ struct DriftMeasureTests {
         #expect(lengths.filter { $0 == full }.count == 2, "forward setup lengths \(lengths)")
     }
 
+    /// Wrong wins at boundaries 10 to 80 of 3, 2, 2, 2, 3, 4, 3, 2: the cut is the middle of the
+    /// longest run of boundaries with the fewest wrong wins, not the middle of the first and the last.
+    @Test func theCutIsInTheLongestRunOfFewestWrongWins() {
+        let lines: [Int?] = [0, nil, nil, 1, 1, 0, 0]
+        let winners = lines.enumerated().map { (center: 10 * ($0 + 1), line: $1) }
+        #expect(cutFrame(of: winners, high: 80) == 30)
+    }
+
     /// Continuous speech from clip second 320 to 341 through a 100 ms and a 20 s skip: the cut is
     /// within 50 ms of the pause point.
     @Test func theCutIsAtTheGapInContinuousSpeech() throws {

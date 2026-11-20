@@ -161,8 +161,9 @@ private let cutBlockSteps = 3000
 /// of `clip` against `track` (decision 0077, D8). Between the last point of a segment and the first
 /// point of the next, 200 ms sub-windows at 20 ms steps score the two lines at the session rate; a
 /// line wins a sub-window with the larger normalized correlation at its lag, when that is 0.5 or more.
-/// The cut is the step boundary with the fewest wins on the wrong side, and the middle of the tied
-/// boundaries, so a cut in silence falls inside the silence. `isCancelled` is read before each block.
+/// The cut is the step boundary with the fewest wins on the wrong side, and the middle of the longest
+/// run of adjacent tied boundaries, so a cut in silence falls inside the silence. `isCancelled` is
+/// read before each block.
 func driftCuts(
     of clip: ClipID, to track: TrackID, in session: Session, package: URL, fit: DriftFit,
     isCancelled: () -> Bool = { false }, open: @escaping MediaOpen = openMedia
@@ -203,24 +204,35 @@ func driftCuts(
                 winners.append((center, scores[line] >= cutWinScore ? line : nil))
             }
         }
-        // The wrong wins at boundary k: line 1 wins before it, and line 0 wins at or after it.
-        var wrong = winners.filter { $0.line == 0 }.count
-        var (fewest, tied) = (Int.max, (first: high, last: high))
-        for index in 0...winners.count {
-            let boundary = index < winners.count ? winners[index].center : high
-            if wrong < fewest {
-                fewest = wrong
-                tied = (boundary, boundary)
-            } else if wrong == fewest {
-                tied.last = boundary
-            }
-            if index < winners.count {
-                if winners[index].line == 0 { wrong -= 1 }
-                if winners[index].line == 1 { wrong += 1 }
-            }
-        }
-        return (tied.first + tied.last) / 2
+        return cutFrame(of: winners, high: high)
     }
+}
+
+/// The cut of `driftCuts` from the winning line of each sub-window center, in time order, and the
+/// last boundary `high`: the middle of the longest run of adjacent boundaries with the fewest wrong
+/// wins, the first such run on a tie.
+func cutFrame(of winners: [(center: Int, line: Int?)], high: Int) -> Int {
+    let boundaries = winners.map(\.center) + [high]
+    // The wrong wins at boundary k: line 1 wins before it, and line 0 wins at or after it.
+    var wrong = winners.filter { $0.line == 0 }.count
+    var counts: [Int] = []
+    for winner in winners {
+        counts.append(wrong)
+        if winner.line == 0 { wrong -= 1 }
+        if winner.line == 1 { wrong += 1 }
+    }
+    counts.append(wrong)
+    let fewest = counts.reduce(Int.max, min)
+    var (longest, start): (Range<Int>, Int?) = (0..<0, nil)
+    for index in 0...counts.count {
+        if index < counts.count, counts[index] == fewest {
+            start = start ?? index
+        } else if let first = start {
+            if index - first > longest.count { longest = first..<index }
+            start = nil
+        }
+    }
+    return (boundaries[longest.lowerBound] + boundaries[longest.upperBound - 1]) / 2
 }
 
 /// The mono mix of session frames `range`, with silence for the frames under frame 0.

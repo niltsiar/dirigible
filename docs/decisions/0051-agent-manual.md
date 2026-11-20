@@ -19,6 +19,7 @@
 - Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `silence_edit` is in the tool list only: the core and the whole text have no room.
 - Amended: 2026-11-06, run `2026-10-28-timeline-edits` (see 0011 and 0036). `clip_close_gaps`, `clip_roll`, and `clip_slip` are in the tool list only: the skill table takes their description from the tool table, and no recipe names them, because the core and the whole text have no room.
 - Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). The skill table names the tool `clip_sync` with the command `dirigible clip sync`. Its arguments and its one-lag limit are in the skill only (`AgentManual.syncLine`), with no result line: `dirigible help clip sync` gives those.
+- Amended: 2026-11-20, run `2026-10-28-stem-export` (see 0078). `export_stems` is in the tool list only: no recipe names it, because the core and the whole text have no room. The skill table names it with `dirigible export-stems`, and the skill role line names the role stems.
 
 ## Context
 

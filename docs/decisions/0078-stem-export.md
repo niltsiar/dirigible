@@ -1,0 +1,117 @@
+# 0078. Stem export: one file for each track or role, in a folder that appears whole
+
+- Status: accepted
+- Date: 2026-11-20
+- Amends: 0019 (a further public writer, `exportStems`, over the item loop and `exportMix`; a folder target; `ExportResult.samplePeak`), 0067 (the loop of `exportParts` becomes the item loop of `Render/ExportSet.swift`, which the stems use with their own stop rule, in the `ExportJob` handle; the name in front of `-<NN>-<title>` is the prefix in code and text), 0039 (stems follow the heard rule), 0060 (roles also group stems), 0011 and 0041 (`dirigible export-stems` and `export_stems`), 0049 (one more long tool), 0051 (`export_stems` in the tool list only), 0002 (`DirigibleCore/Stems.swift`, `DirigibleCore/FolderPublish.swift`, `DirigibleAudio/Render/ExportStems.swift`, `DirigibleAudio/Render/ExportSet.swift`, `DirigibleMCP/StemsWork.swift`), 0010 (the app gives the localized role names of the files). The presets-templates records use `FolderPublish.swift` and the item loop of this record.
+
+## Context
+
+F73 asks for one file for each track or each role, all from the same start (Release 7 item 1). A mixer or a second editor takes the files into another app and lines them up at 0.
+
+Grounding (run `2026-10-28-stem-export`: its analysis, `docs/research/stem-export.md`, probes P1 and P2, and its plan gates):
+
+- `exportMix` (0019) is the one public writer. It renders an `ExportSource` (a range and a track set) through `MixReader`, writes `.<name>.<UUID>.tmp` beside the target, holds an flock on it, and moves it with `moveNew` or `moveOver`. A failed or cancelled export leaves no file.
+- `MixReader` reads `Session.heardTracks(in:)` (0039) and adds the tracks linearly: clip gain, ride, track gain, fades, the envelope, and the voice match of a track. No bus or master effect exists. So the sum of the track mixes is the mix.
+- `Track.role` is `dialogue`, `music`, `effects`, or nil (0060, `session.xml` version 11).
+- Hindenburg PRO 2.04 has Export Tracks: one file for each track, of the selected tracks or all, inside the selection range. FCP 12.4 shares roles as separate files. Logic normalizes each file. Audacity leaves out muted and unsoloed tracks. No source confirms a shared start.
+- P1 (macOS 15.8.1): `renamex_np(RENAME_EXCL)` moves a folder onto a free name on APFS, and gives EEXIST onto an empty folder or a file. On exFAT it gives ENOTSUP onto a free name. There, `mkdir` of the target, then `rename(2)` of the folder over the empty claim, works. `rename(2)` onto a folder that is not empty gives ENOTEMPTY, and the item in it stays.
+- P2: `VOL_CAP_INT_RENAME_EXCL` is set on APFS and not set on exFAT and FAT32. On FAT32, `RENAME_EXCL` works although the bit is not set. On all three, `mkdir` onto a folder gives EEXIST, `rename(2)` over an empty claim works, a non-empty target gives ENOTEMPTY, and a rename of an empty folder over an empty folder inside the staging folder works. No probe covers SMB.
+- 0067 owns `exportParts`, the `ExportJob` handle (`ExportJob.task` as a `Task<Void, Never>`), and `exportNameLimit`, the longest target name with its extension that the temporary names of `exportMix` allow (209 bytes). Its stop rule keeps parts 1 to k-1. Its loop ran over the time parts of `exportPartTargets` and took no list of items. 0067 called the name in front of `-<NN>-<title>` the stem; the guide, the app label "Prefix:", and seven of the eight string tables call it the prefix.
+- The presets-templates run planned the folder publish (`FolderPublish.swift` in `DirigibleCore`: `stageFolder(for:kind:)`, `StagingFolder.publish()`, `discard()`) and the item loop (`Render/ExportSet.swift`, the 0067 loop over a list of items). Neither was on main when this record was made.
+
+Rubric: (1) every file starts at the range start and has the range length, and the files add up to the mix; (2) no partial set is ever visible, and no item of the user is replaced; (3) `exportMix` stays the one render-and-encode path (0019); (4) one owner of the argument rules and the texts for the command, the tool, and the app (0041, 0049); (5) a small public surface; (6) the app names the role files in the user language (0010).
+
+## Decision
+
+**Plan in `DirigibleCore`.** `Session.stemPlan(by:tracks:range:titles:limit:)` is a pure function. `Stem` and `StemPlan` have internal inits, so only `stemPlan` builds a plan. `limit` is the byte limit of a stem name with no extension; the writer passes `exportNameLimit` minus 5, so `DirigibleCore` holds no rule of the temporary names. It returns nil when no stem has a clip in the range, else a `StemPlan`: the range, the stems in session order, and the keys of the stems with no clip in the range (each is left out, with a note).
+
+```swift
+public enum StemGrouping: String, CaseIterable, Sendable { case track, role }
+public struct Stem: Hashable, Sendable {
+    public enum Key: Hashable, Sendable { case track(TrackID), role(Track.Role?) }
+    public let key: Key
+    public let tracks: Set<TrackID>   // heard tracks only, never empty
+    public let name: String           // the file name with no extension
+}
+public struct StemPlan: Hashable, Sendable {
+    public let range: Range<Frames>
+    public let stems: [Stem]          // at least one
+    public let empty: [Stem.Key]      // heard, but no clip sounds in the range
+    public let noRoleSet: Bool        // role grouping, and no heard track of the set has a role
+}
+public struct StemTitles: Hashable, Sendable { // the role file names; `.english` for the CLI and the tools
+    public var dialogue, music, effects, none: String
+}
+```
+
+- **Unit.** `track`: one stem for each heard track of the set. `role`: one stem for each role that a heard track of the set has, in the order dialogue, music, effects, then the stem of the heard tracks with no role. A role stem holds every heard track of the role. A track with no role is never moved to another role, so the stems add up to the mix.
+- **Heard rule.** A stem holds only heard tracks (`heardTracks(in:)`, 0039). A muted track, and a track that is not soloed while another track is, gives no stem. The export notes count them as today (`unheardCount`).
+- **Empty stem.** A stem with no clip that sounds in the range gives no file and one note line. A plan with no file is a refusal (exit 1), before the staging folder exists.
+- **No role set.** `--by role` on a set where no heard track has a role gives one stem (the no-role title), one note line, and exit 0.
+- **Names.** Track stems: a 1-based number with at least two digits (the width of the count of the stems with a file), a space, and the track name: `01 Host`. Role stems: the title of `StemTitles` (`Dialogue`, `Music`, `Effects`, `No Role` in English). In a name, `/`, `:`, and each control character become `-`, the white space at the ends goes, and a role title loses its leading dots; an empty result becomes the track ID. Each name is in Unicode NFC, and a name equal to an earlier one (NFC, case-insensitive) gets the suffix ` 2`, ` 3`, and so on, so no two stems clash in the folder. The name is cut at a character boundary to `limit` UTF-8 bytes (204 bytes), so the name with `.flac` fits `exportNameLimit`, and the temporary names of `exportMix` fit 255 bytes.
+
+**Writer in `DirigibleAudio`.** `exportStems(_:by:source:titles:options:to:package:progress:isCancelled:)` in `Render/ExportStems.swift`. It takes the plan inputs as an `ExportSource` (the checked range and track set of `exportMix`), not a plan, and calls `Session.stemPlan` on the session that it renders, so a mute or an edit after a caller precheck cannot give a stem of a track that is not heard. A caller uses `stemPlan` only for its precheck.
+
+```swift
+public enum StemFormat: Hashable, Sendable { case wav(BitDepth), flac(BitDepth) }
+public struct StemOptions: Hashable, Sendable { public var format: StemFormat; public var layout: ChannelLayout; public var rate: ExportRate }
+public struct StemFile: Hashable, Sendable { public let name: String; public let tracks: Set<TrackID>; public let samplePeak: Float }
+public struct StemsResult: Hashable, Sendable {
+    public let plan: StemPlan; public let files: [StemFile]; public let faults: [FileID: MediaFault]
+    public let mixPeak: Float?   // nil when the sum of the stem peaks is 1.0 or less: the mix cannot clip
+}
+public let stemFolderNameLimit = folderNameLimit(kind: "stems")  // 206 bytes
+public enum ExportStemsError: Error, Hashable, Sendable {
+    case folderNameTooLong                         // Studio.exportStems, before the job starts
+    case noStem                                    // no stem has a clip in the range; no folder was made
+    case notEnoughSpace(need: Int64, free: Int64)  // after stageFolder, before the first stem
+    case stopped(ExportError)                      // a stop or a failure of stem k; the staging folder is gone
+    case publish(SessionFileError)                 // stageFolder, the capability check, or the publish
+}
+public func exportStems(_ session: Session, by: StemGrouping, source: ExportSource, titles: StemTitles,
+    options: StemOptions, to folder: URL,
+    package: () throws(SessionFileError) -> URL, progress: (Double) -> Void, isCancelled: () -> Bool
+) throws(ExportStemsError) -> StemsResult
+```
+
+- **Formats.** WAV and FLAC only, as a type: no AAC, no MP3, no float CAF, so no encoder delay, no chapters, and no tags. No loudness target: one gain for each stem breaks the sum.
+- **Same start.** Each stem is an item of the item loop: `exportMix` of the source with the stem tracks, with `ExportOptions(format:layout:rate:)`, to a URL in the staging folder. Each file starts at the range start and has the range length; a file rate other than the session rate goes through the same converter with the same input length.
+- **Sum.** The stems add up to the mix when no sample of a stem or of the mix is over full scale: a WAV or FLAC file clips each sample at full scale. `ExportResult.samplePeak` (the sample peak of the rendered signal; the behavior of `exportMix` does not change) gives the peak of each stem. The command and the tool print one warning line for each stem whose peak is above 1.0, where the integer writer clips (a peak of exactly 1.0 gives no line). The mix peak: the sum of the stems is at most the sum of the stem peaks, so when that sum is 1.0 or less the mix cannot clip and `mixPeak` is nil; else a peak-only `MixReader` pass of the stem tracks at the session rate measures it. A mix peak above 1.0 gives one line that the stems do not add up to a mix export. The app done banner names the same stems and the mix line.
+- **Folder publish (`DirigibleCore/FolderPublish.swift`, made by this record).** The API of the presets draft, so the template copy uses it with no change: `public struct StagingFolder: ~Copyable` with `url`, `consuming publish() throws(SessionFileError)`, `consuming discard()`, and `checkPublish() throws(SessionFileError)`; `public func stageFolder(for target: URL, kind: String) throws(SessionFileError) -> StagingFolder`; `public func folderNameLimit(kind: String) -> Int`. It imports only Foundation. The kind is `stems` here and `template` for the template copy. The lock file opens with `O_EXLOCK`, so a sweep never sees a new lock file unlocked. A publish that throws removes the staging folder and the lock file, because `publish` consumes the value. A dropped `StagingFolder` closes its lock, so the next sweep removes it.
+- **Folder.** `ExportStems.swift` keeps only the stem parts: the staging names, the no-stem check, the space check, the stop rule, and the one publish; `FolderPublish.swift` does the rest. The target folder must not exist. The order before the first stem: the plan (no stem: no folder), `stageFolder(for:kind: "stems")` (the sweep, the lock file `.<name>.<UUID>.stems.lock` with an flock held for the run, and the empty staging folder `.<name>.<UUID>.stems` beside the target), the exists check of the target, the capability check, and the space check. A refusal after `stageFolder` calls `discard()`. The capability check (`checkPublish()`) reads `VOL_CAP_INT_RENAME_EXCL` of the volume with `getattrlist`; when the bit is not set, it renames an empty folder over an empty folder inside the staging folder, and a failure refuses the export with no stem rendered. After the last stem, the primitive publishes the folder with one rename: `renamex_np(RENAME_EXCL)`; on ENOTSUP or EPERM, `mkdir` of the target as the claim and `rename(2)` over the empty claim (P1, P2). An item at the target gives `.exists`; a claim that became non-empty stays, and so does its content. When the rename over the claim fails, the primitive removes its own empty claim before it throws. Then it flushes the parent folder and removes the lock file.
+- **Folder name limit.** The lock name `.<name>.<UUID>.stems.lock` is 49 bytes longer than the folder name, so the longest folder name is 206 bytes. `folderNameLimit(kind:)` in `FolderPublish.swift` computes it from the lock name (255 minus 44 minus the bytes of the kind), and `stemFolderNameLimit` is the one stem value. `StemsWork` refuses a longer `--out` folder name with exit 64, `Studio.exportStems` throws `.folderNameTooLong` before the job starts, and the app save panel refuses the name.
+- **Free space.** After `stageFolder` (the sweep is done, so a dead staging folder does not count) and before the first stem, the writer compares the bytes that the stems need (the WAV size of each stem with 4096 bytes of header, summed, plus `diskMargin` as the other space checks; a FLAC stem counts its WAV size as an upper bound) with the free bytes of the target volume. A need over the free bytes calls `discard()` and throws `.notEnoughSpace` with both numbers, and no stem renders. A volume that gives no free-byte value skips the check.
+- **Stop rule.** A stop (cancel, take, close) or a failure in stem k makes the item loop throw its stop with stems 1 to k-1 in the staging folder. The wrapper then removes the staging folder (only files that this run made) and the lock file and throws `.stopped`. So the target gets no stem. The 0067 rule for chapter parts keeps parts 1 to k-1 in the target folder; the stem rule keeps none, because a partial stem set is not useful to a mixer.
+- **Sweep.** Inside `stageFolder`, before the exists check and the space check, the primitive removes each `.<name>.<UUID>.stems` staging folder in the parent folder whose lock file it can lock, for any target name. For the same target only, it also removes a staging folder with no lock file and a lock file with no staging folder (a crash between the publish and the unlink). It never removes an empty target folder with no lock file: that can be a folder of the user.
+- **Item loop (`DirigibleAudio/Render/ExportSet.swift`, made by this record).** The target check and the loop of `exportParts` move to one internal loop over a list of items: `struct ExportItem { session; source: ExportSource; options: ExportOptions; url: URL }` and `exportItems(_:replacing:package:progress:isCancelled:) throws(ExportItemsError) -> [ExportResult]`, with `ExportItemsError` `.exists([URL])` and `.stopped(ExportItemsStop)` (the error, the results of items 1 to k-1, and the URLs of item k and after). It checks every target before the first file, runs `exportMix` once for each item, and weights the progress by the frames of each item. `exportParts` keeps its API, its types, and its behavior, and maps the loop results to its own types; the presets set export does the same with its own types. `exportStems` calls the loop once with one item for each stem, and never calls `exportMix` itself. The item has a session (a part has its own title), a source (a stem has its own tracks), and options (a preset has its own) for each item.
+- **Progress and cancel.** The loop weights each item by its frames; every stem has the range length, so stem i of n maps the progress of its `exportMix` to `i/n...(i+1)/n`. The cancel check is the one of the item loop.
+- **Terms.** A stem is one file of a stem export: the mix of one track or of one role. The name that a split export (0067) puts in front of `-<NN>-<title>` is the prefix, in code and in text, as the guide and the app say. The code of capture and clip files keeps "stem" for a file name with no extension: no export text and no app word uses it.
+- **Thread.** As `exportMix`: off the main actor, on a GCD utility thread in the app.
+
+**Work in `DirigibleMCP`.** `StemsWork` is the one owner of the argument rules, the steps, and the texts of `dirigible export-stems`, the `export_stems` tool, and the live call on an open session, as `ExportWork` is for `export`. `Studio.exportStems(by:source:titles:options:folder:progress:)` runs `exportStems` on the Studio session of the job start, in the one `ExportJob` with the 0067 `Task<Void, Never>` handle: a take start, the sheet Cancel, and a close end it, as an export, and a second export during it is busy. The job `url` is the target folder: its parent, the folder that the user chose, exists for the whole job, so `endOtherExports` and `sameVolume` find the volume of the target. `StudioError` gets one case, `exportStems(ExportStemsError)`; a stem export throws only `.exportStems`, and a stop of the app gives `.exportStems(.stopped(.cancelled))` with the cause in `exportStop`. The live call checks the media of the source first, then calls `Studio.exportStems`, so a track muted during the media check gets no file. A stop of the app gives the agent "A take started in Dirigible, so the stem export stopped. No stem was written." (or the cancel and close forms).
+
+**Command and tool.** `dirigible export-stems <package> --out <folder> [--by track|role] [--format wav|flac] [--bits 16|24] [--mono] [--rate 44100|48000] [--from N] [--to N] [--track ID]... [--allow-missing]`. Defaults: `--by track`, `--format wav`, 24 bits, stereo, the session rate, the whole session, every track. Stdout: one line for each file, the file name, a tab, and the track IDs, separated by tabs. Stderr: the warning lines (files read as silence, tracks not heard, empty stems, no role set, a stem over 0 dBFS, the mix over 0 dBFS). Exit 64 for a usage error (also an `--out` in a package, and an `--out` folder name over 206 bytes); 2 for a package that does not read, an `--out` that exists, a media fault with no `--allow-missing`, not enough free space, a volume that cannot publish, or a failed write; 1 when no stem has a clip in the range (no folder is made). The tool `export_stems` takes the same arguments with the tool spelling, is a long tool (0049) that writes a file (the lost-call advice), and is alone in a batch.
+
+**App** (UI panel of 2026-10-28). File > Export Stems... comes after Export Selection, with no key equivalent. The scope: the selected tracks, or every track when none is selected, with or without Marks; the Marks range, or the whole session when no Marks are set. This is the rule of the CLI and the tool (`--track`, `--from`/`--to`). The save panel names a new folder: `nameFieldLabel` "Folder name", `prompt` "Export", a message with the scope ("3 of 5 tracks, 12:04 to 18:30") and the count of muted tracks that get no stem, and one accessory line that says what each stem holds. The role titles come from the app language. The done banner puts the clip warning first, then the folder and the file count with Show in Finder; a stop says that no stem was written.
+
+## Consequences
+
+- A failed or cancelled stem export leaves no target folder and no stem, unlike a chapter part export (0067). A crash leaves a hidden staging folder and a lock file beside the target; the next stem export into that parent folder removes them. A crash between the `mkdir` claim and its rename (exFAT, FAT32) leaves an empty target folder; the next export to that name exits 2, and the guide tells the user to remove it.
+- The sum of the 24-bit stem files equals the 24-bit mix export within n + 1 LSB for n stems (each file rounds once; measured 1.0 LSB for 3 stems), when nothing clips. A stem or a mix above 1.0 breaks the sum; a warning line names each stem over, and one line says when the mix is over. The mix peak pass reads at the session rate, so a converter overshoot at another file rate is not counted. 32-bit float stems, which do not clip, are a later item. A 16-bit stem gets its own TPDF dither, so 16-bit stems add up to the mix only within the dither noise.
+- A volume where the publish cannot work (P2: the in-staging test fails) refuses before any render, so a failed publish never discards a full render. SMB has no probe; the capability check covers it, and a manual check proves it once.
+- A stem export renders each track once, as the mix does; the encoder runs n times.
+- A role stem file name in the app follows the app language; the CLI and the tools write English names.
+- A split export prints and shows "older file of this prefix" in English, where it said "stem". A script that matched the old stderr text must change.
+
+## Alternatives considered
+
+- **One render pass that writes n files** (`exportMix` gets a stem list and a `MixReader` for each stem in its chunk loop). It saves no file read, because each track is read once in both shapes, and it puts n writers into the loudness, tag, and retry loop of the one writer. Rejected: a deeper change of the most complex function for no gain.
+- **Files beside other files in an existing folder** (Logic, Audacity), each with its own atomic move. A failure leaves a partial set, and a name can collide with a file of the user. Rejected: the folder that appears whole has neither problem, and P1 and P2 prove it on APFS, exFAT, and FAT32.
+- **A stem set loop and a job shape of its own.** Rejected: two loops would diverge on the target check, the stop, the progress, and the cancel rules. The loop of `exportParts` becomes the one item loop for parts, presets, and stems, and the stems add only the wrapper stop rule.
+- **Wait for the presets run to land the folder publish and the item loop.** Rejected: this record makes both with the API and the item shape of the presets drafts, so the presets run reuses them.
+- **Keep "stem" for the 0067 name prefix.** Rejected: one word would name a stem file and the start of a part file name in one export panel, one stderr text, and one tool list. The guide and seven string tables already say prefix, so the rename changes the English text and the code only.
+- **Keep stems 1 to k-1 after a stop** (the 0067 part rule). Rejected: a partial stem set does not add up to the mix, and a mixer cannot tell it from a whole one.
+- **`dirigible export --stems`** on the existing command and tool. `--out` would be a file in one mode and a folder in the other, and the loudness, MP3, and AAC options would need a refusal in stem mode. Rejected: two meanings for one option.
+- **One loudness gain for each stem** (Logic Normalize On). Rejected: the stems no longer add up to the mix. **One mix gain for all stems** keeps the sum and is a later item.
+- **A track with no role goes to Dialogue** (the FCP default for untagged audio). Rejected: a silent move of a track to another stem.
+- **A file for an empty stem.** Rejected: a silent file is noise for the mixer; the note line names it.

@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Accepted: 2026-11-02, after the code gate and the Phase 7 checks of run `2026-10-28-chapter-export-files`.
 - Amends: 0019 (one export job holds a set of files; the target check covers each file of the set), 0045 (the title tag of a part file is the part title), 0011 (`dirigible export --split`), 0041 (the `split` argument of the `export` tool).
+- Amended: 2026-11-20, run `2026-10-28-stem-export` (see 0078). The target check and the loop of `exportParts` are the internal item loop `exportItems` of `Render/ExportSet.swift`; `exportParts` keeps its API, its types, and its behavior. The stem export runs on the same loop in the same `ExportJob`, with its own stop rule: a stop keeps no stem. In code and in text, the name in front of `-<NN>-<title>` is the prefix ("older file of this prefix"); a stem is one file of a stem export.
 
 ## Context
 

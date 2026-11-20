@@ -133,6 +133,35 @@ struct ExportStemsTests {
         #expect(error <= bound, "sum error \(error / Self.lsb) LSB, bound \(bound / Self.lsb) LSB")
     }
 
+    /// C4 at 16 bits: each stem gets its own TPDF dither. Each file then adds an independent error
+    /// of 1/4 LSB², so the stem sum of 6 stems is off the mix by RMS sqrt(7/4) = 1.32 LSB. One
+    /// dither sequence in every stem adds it 5 times over: RMS 2.18 LSB.
+    @Test func sixteenBitStemsDoNotShareOneDither() throws {
+        let package = try MixPackage()
+        for index in 1...6 {
+            try package.addFile(
+                FileID("n\(index)"), channels: [Self.noise(48_000, peak: 0.1, seed: UInt64(index))])
+            try package.addTrack(
+                TrackID("t\(index)"), clip: ClipID("c\(index)"), file: FileID("n\(index)"), start: 0, offset: 0,
+                length: 48_000)
+        }
+        let wav16 = StemOptions(format: .wav(.bits16), layout: .mono, rate: .session)
+        let result = try Self.stems(package, range: 0..<48_000, options: wav16)
+        #expect(result.files.count == 6 && result.mixPeak == nil)
+        let stems = try Self.samples(of: result, in: package.folder.url.appending(path: "stems"))
+        let tracks = Set((1...6).map { TrackID("t\($0)") })
+        let mix = try Self.export(
+            package, tracks, 0..<48_000, ExportOptions(format: .wav(.bits16), layout: .mono, rate: .session),
+            "mix.wav")
+        #expect(stems.allSatisfy { $0.count == mix.count } && mix.count == 48_000)
+        let squares = mix.indices.map { k in
+            let residual = (stems.reduce(0.0) { $0 + Double($1[k]) } - Double(mix[k])) * 32_768
+            return residual * residual
+        }
+        let rms = (squares.reduce(0, +) / Double(max(squares.count, 1))).squareRoot()
+        #expect(rms > 1 && rms < 1.6, "residual RMS \(rms) LSB")
+    }
+
     /// C3: with the range 48000..<144000, a clip at 96000 starts at file frame 48000 of its stem,
     /// and a clip at 48000 sounds at file frame 0. Every file has the range length, also at 44.1 kHz.
     @Test func everyStemStartsAtTheRangeStartWithTheRangeLength() throws {

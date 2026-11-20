@@ -139,10 +139,12 @@ func exportStems(
         throw .notEnoughSpace(need: need, free: free)
     }
     let names = plan.stems.map { "\($0.name).\(options.format.exportFormat.pathExtension)" }
-    let items = zip(plan.stems, names).map { stem, name in
-        ExportItem(
-            session: session, source: source.stem(stem.tracks), options: options.exportOptions,
-            url: staging.url.appending(path: name))
+    let items = zip(plan.stems, names).enumerated().map { index, pair in
+        var options = options.exportOptions
+        options.ditherSeed = UInt64(index)
+        return ExportItem(
+            session: session, source: source.stem(pair.0.tracks), options: options,
+            url: staging.url.appending(path: pair.1))
     }
     let results: [ExportResult]
     do {

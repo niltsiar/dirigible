@@ -11,6 +11,8 @@ public struct ExportOptions: Hashable, Sendable {
     /// title and no show name. Only `DirigibleApp` reads `L10n` (decision 0010), so the app gives
     /// its text here; the CLI and MCP keep the English default.
     public var introTitle: String
+    /// The seed of the TPDF dither of a 16-bit file. 0 for each export of one file.
+    var ditherSeed: UInt64 = 0
 
     public init(
         format: ExportFormat, layout: ChannelLayout, rate: ExportRate, loudness: LoudnessTarget? = nil,

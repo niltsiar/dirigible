@@ -72,6 +72,10 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveRead(work, studio: studio, call: call, report: report)
     case .transcribe(let work):
         return await liveTranscribe(work, studio: studio, call: call, report: report)
+    case .stems:
+        return .result(
+            text: "export_stems runs only on a session that is not open in Dirigible. Close the session window, "
+                + "then call it again.", isError: true)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
         .record, .transport, .words,
@@ -359,6 +363,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
             + "stay in \(export.folder.path)."
     case .export(let export):
         "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
+    case .stems: "Dirigible stopped its agent server, so the stem export stopped. No stem was written."
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .ride: "Dirigible stopped its agent server, so the level over time stopped. No ride changed."

@@ -31,7 +31,7 @@ struct MCPExportToolTests {
     /// The tool text of a CLI run: the first error line with no "Error: ", with the tool name of
     /// each option (`allow_missing` for `--allow-missing`), or the stdout lines and then the
     /// stderr lines, or "OK" when the run printed nothing.
-    func toolText(of run: CLIResult) -> (text: String, isError: Bool) {
+    static func toolText(of run: CLIResult) -> (text: String, isError: Bool) {
         guard run.status == 0 else {
             let first = run.stderr.split(separator: "\n").first.map(String.init) ?? ""
             let text = String(first.dropFirst("Error: ".count))
@@ -114,7 +114,7 @@ struct MCPExportToolTests {
         calls.append(toolCall(cases.count + 1, "render", ["package": package.path, "out": out("tool.caf")]))
         let answers = try await mcp(calls)
         for (index, run) in runs.enumerated() {
-            #expect(toolResult(answer(answers, id: index + 1)) == toolText(of: run), "case \(index + 1): \(run)")
+            #expect(toolResult(answer(answers, id: index + 1)) == Self.toolText(of: run), "case \(index + 1): \(run)")
         }
     }
 

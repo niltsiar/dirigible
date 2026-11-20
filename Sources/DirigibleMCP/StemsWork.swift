@@ -80,6 +80,25 @@ package struct StemsWork: Sendable {
             package: { package }, progress: progress, isCancelled: isCancelled)
     }
 
+    /// The job of a tool call on the files. The control gets the progress and gives the cancel.
+    func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
+        let session: Session
+        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
+            throw ToolError(error.message(package: path))
+        }
+        let source = try source(in: session)
+        try checkFiles(session, package: package, source: source)
+        let result: StemsResult
+        do throws(ExportStemsError) {
+            result = try export(
+                session, source: source, package: package, progress: control.report, isCancelled: control.isCancelled)
+        } catch {
+            throw ToolError(message(error) ?? cancelledMessage)
+        }
+        let (stdout, stderr) = try lines(of: result, session: session, source: source)
+        return (stdout + stderr).joined(separator: "\n")
+    }
+
     /// The text of a refused or failed job, or nil for a cancel.
     package func message(_ error: ExportStemsError) -> String? {
         switch error {

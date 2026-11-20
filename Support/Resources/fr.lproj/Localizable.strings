@@ -953,6 +953,7 @@
 "sheet.sync.drift" = "Corriger la dérive";
 "sheet.sync.drift.take" = "Une prise enregistre sur l'horloge de la session.";
 "banner.drift.corrected" = "Dérive de %+.1f ppm (%lld ms le long du clip) corrigée en un seul rééchantillonnage. Le décalage reste à moins de %.1f ms de la droite.";
+"banner.drift.corrected.pieces" = "Dérive de %+.1f ppm (%lld ms le long du clip) corrigée en %lld rééchantillonnages. Le décalage reste à moins de %.1f ms de la droite.";
 "banner.drift.split" = "Clip coupé à %@ (l'enregistrement s'est interrompu %@).";
 "banner.drift.not.corrected" = "La dérive n'a pas été corrigée : %@.";
 "banner.drift.cause.too.short" = "le clip dure moins de 5 min";

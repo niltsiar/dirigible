@@ -15,12 +15,15 @@ extension SyncBannerTests {
     static let first = "Moved the clip 3.4 s earlier. Match score: 0.98."
 
     func fix(splits: [DriftSplit] = []) -> DriftFix {
-        DriftFix(
-            slope: 100e-6, across: 2_880, worstResidual: 19.2, splits: splits, clips: ["C"], files: ["c drift"])
+        let clips = [ClipID("C")] + splits.indices.map { ClipID("C-\($0 + 2)") }
+        return DriftFix(
+            slope: 100e-6, across: 2_880, worstResidual: 19.2, splits: splits, clips: clips,
+            files: clips.map { _ in "c drift" })
     }
 
-    /// A fix gives the rate, the change across the clip, and the worst residual in place of the
-    /// spread line, then one line for each cut. The time of a cut is a clip time, as the lag is.
+    /// A fix gives the rate, the change across the clip, the count of resamples (one for each piece,
+    /// as the CLI says), and the worst residual in place of the spread line, then one line for each
+    /// cut. The time of a cut is a clip time, as the lag is.
     @Test func theBannerGivesTheDriftLine() {
         #expect(
             text(driftMoved(.corrected(fix()), drift: .spread(2_880)))
@@ -31,7 +34,7 @@ extension SyncBannerTests {
         #expect(
             text(driftMoved(.corrected(fix(splits: [pause]))))
                 == Self.first
-                + " Corrected a drift of +100.0 ppm (60 ms across the clip) in one resample."
+                + " Corrected a drift of +100.0 ppm (60 ms across the clip) in 2 resamples."
                 + " The lag stays within 0.4 ms of the line."
                 + " Split the clip at 31 min 2.2 s (the recording paused 20.0 s).")
         let slow = DriftFix(

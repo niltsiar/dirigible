@@ -953,6 +953,7 @@
 "sheet.sync.drift" = "Correct drift";
 "sheet.sync.drift.take" = "A take records on the session clock.";
 "banner.drift.corrected" = "Corrected a drift of %+.1f ppm (%lld ms across the clip) in one resample. The lag stays within %.1f ms of the line.";
+"banner.drift.corrected.pieces" = "Corrected a drift of %+.1f ppm (%lld ms across the clip) in %lld resamples. The lag stays within %.1f ms of the line.";
 "banner.drift.split" = "Split the clip at %@ (the recording paused %@).";
 "banner.drift.not.corrected" = "The drift was not corrected: %@.";
 "banner.drift.cause.too.short" = "the clip is shorter than 5 min";

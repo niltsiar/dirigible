@@ -953,6 +953,7 @@
 "sheet.sync.drift" = "Drift corrigeren";
 "sheet.sync.drift.take" = "Een opname neemt op met de sessieklok.";
 "banner.drift.corrected" = "Een drift van %+.1f ppm (%lld ms over de clip) is gecorrigeerd in één resample. De vertraging blijft binnen %.1f ms van de lijn.";
+"banner.drift.corrected.pieces" = "Een drift van %+.1f ppm (%lld ms over de clip) is gecorrigeerd in %lld resamples. De vertraging blijft binnen %.1f ms van de lijn.";
 "banner.drift.split" = "Clip gesplitst bij %@ (de opname pauzeerde %@).";
 "banner.drift.not.corrected" = "De drift is niet gecorrigeerd: %@.";
 "banner.drift.cause.too.short" = "de clip is korter dan 5 min";

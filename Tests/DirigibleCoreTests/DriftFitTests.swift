@@ -213,6 +213,15 @@ struct DriftFitTests {
         }
     }
 
+    /// At -999.5 ppm the rate is under 1000 ppm, but the ratio 1 / (1 + rate) of the drift link is
+    /// 1000.5 ppm from 1.
+    @Test func theRateLimitIsTheLimitOfTheLinkRatio() {
+        #expect(throws: DriftFitFailure.rateOutOfRange) {
+            try Self.fit(Self.points(minutes: 60, ppm: -999.5, offsetMs: 0, seed: 10))
+        }
+        #expect(throws: Never.self) { try Self.fit(Self.points(minutes: 60, ppm: -998.5, offsetMs: 0, seed: 10)) }
+    }
+
     @Test func theRatioTypeRefusesOutOfRange() {
         #expect(DriftRatio(1 + 999e-6)?.value == 1 + 999e-6)
         #expect(DriftRatio(1 - 999e-6)?.value == 1 - 999e-6)

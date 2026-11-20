@@ -144,9 +144,9 @@ package func driftRequest(
     let cuts = try read { () throws(SyncFailure) in
         try driftCuts(of: clip, to: track, in: session, package: package, fit: fit, isCancelled: isCancelled)
     }
-    guard let lines = DriftLines(slope: fit.slope, lags: fit.segments.map(\.offset), cuts: cuts.map { Frames($0) }),
-        lines.ratio(after: played.drift) != nil
-    else { return try moved(by: measure.sync, .composedRateOutOfRange) }
+    guard let lines = DriftLines(slope: fit.slope, lags: fit.segments.map(\.offset), cuts: cuts.map { Frames($0) })
+    else { preconditionFailure("the fit bounds the ratio, and each cut lies after the points before it") }
+    guard lines.ratio(after: played.drift) != nil else { return try moved(by: measure.sync, .composedRateOutOfRange) }
     let plan: DriftPlan
     do throws(SessionError) { plan = try session.driftPlan(of: clip, lines: lines) } catch { throw .session(error) }
 

@@ -223,7 +223,7 @@ release_forms=(
   'bash scripts/land.sh t b.md'
   'sh -x scripts/land.sh t b.md'
 )
-# The hooks pass of the lead takes no lock, so it is no release call (C18).
+# The hooks pass of the lead takes no lock, so it is no release call.
 hooks_forms=(
   'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; echo \"exit \$?\" > $R/logs/hooks-pass.done" > /dev/null 2>&1 < /dev/null &); sleep 3; head -3 $R/logs/hooks-pass.log'
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
@@ -853,7 +853,7 @@ for form in "${unlimited_forms[@]}"; do
     || { echo "FAIL: the subagent block names no bash file or no lead command: $form"; failures=$((failures + 1)); }
   expect allow "$form"
 done
-# Only the lead runs the hooks pass, in the background (C18): a subagent call of it blocks and names the
+# Only the lead runs the hooks pass, in the background: a subagent call of it blocks and names the
 # bash file route. A HOOK_TESTS= word is the plain lock-free call, which a subagent runs.
 for form in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' \
   "bash -c 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > h.log 2>&1'"; do
@@ -1887,7 +1887,7 @@ expect_each_lock agree \
 rw_rec "$tmp/rw-lock" toolu_tl 600 Agent toolu_tl
 rw_meta tl toolu_tl none 10
 expect_each_lock --live "$tmp/rw-lock" agree "${lock_spellings[@]}"
-# The hooks pass is free, not release (C18): it runs beside a live lock-step agent.
+# The hooks pass is free, not release: it runs beside a live lock-step agent.
 expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'MAKEFLAGS=DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'

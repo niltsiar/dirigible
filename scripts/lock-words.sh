@@ -71,13 +71,14 @@ hooks_pass() {
 long_text_re='bench|mutation-pass|flake-monitor/loop|test-stress|land\.sh|make'
 # long_words <command word>...: succeeds when a command of the words runs a long holder: a release
 # call (release_call with no BASE or MAKEFLAGS of the environment), bench.sh, bench-pairs.sh (not
-# --compare or --lines, which take no lock), make with a bench or dmg goal, mutation-pass.sh, flake-monitor/loop.sh, or
-# test-stress.sh. A command starts at the first word, after a separator (&&, ||, |, &, ;, a lone (
-# or {, or a word that ends with ;, &, or |), and after a wrapper word: env, nice, nohup, command,
-# time, caffeinate, xcrun, a shell word (bash, sh, zsh, or dash), probe.sh with its folder, and an
-# option, a number, or NAME=value after them. So a wrapper or a shell -c body hides no long holder,
-# and an argument (rg -n bench.sh) runs none. A word loses its quote marks, a leading ( or {, and a
-# trailing ;, &, |, ), or }. Miss: a wrapper outside that list (xargs, sudo).
+# --compare or --lines, which take no lock), make with a bench or dmg goal, mutation-pass.sh,
+# flake-monitor/loop.sh, or test-stress.sh. A command starts at the first word, after a separator
+# (&&, ||, |, &, ;, a lone ( or {, or a word that ends with ;, &, or |), and after a wrapper word:
+# env, nice, nohup, command, time, caffeinate, xcrun, a shell word (bash, sh, zsh, or dash),
+# probe.sh with its folder, and an option, a number, or NAME=value after them. So a wrapper or a
+# shell -c body hides no long holder, and an argument (rg -n bench.sh) runs none. A word loses its
+# quote marks, a leading ( or {, and a trailing ;, &, |, ), or }. Miss: a wrapper outside that list
+# (xargs, sudo).
 long_words() {
     local raw w i j at=1 folder="" words=() ends=()
     [[ $# -gt 0 ]] || return 1

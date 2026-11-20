@@ -180,8 +180,10 @@ func exportMix(
     defer { if let tagged { unlink(tagged.path) } }
     var current: LoudnessStage?
     var decoded: FileMeasure?
+    var samplePeak: Float = 0
     /// Writes the file once. `current` is the gain stage, nil for no target.
     func writeRound(_ band: ClosedRange<Double>) throws(ExportError) {
+        samplePeak = 0
         try writeFile(
             temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
         ) {
@@ -195,6 +197,7 @@ func exportMix(
                 dither?.apply(buffer)
                 current?.measure(buffer)
                 guard buffer.frameLength > 0 else { return }
+                samplePeak = max(samplePeak, peak(of: buffer))
                 try sink(buffer)
                 written += Int(buffer.frameLength)
                 advance(band, written)
@@ -288,7 +291,19 @@ func exportMix(
     }
     return ExportResult(
         faults: mix.faults, loudness: loudness, droppedChapters: mp3 ? list.dropped : m4a.dropped,
-        chapterImagesOmitted: imagesOmitted)
+        chapterImagesOmitted: imagesOmitted, samplePeak: samplePeak)
+}
+
+/// The largest sample magnitude of the frames of `buffer`, over its channels.
+func peak(of buffer: AVAudioPCMBuffer) -> Float {
+    let channels = buffer.floatChannelData!
+    var peak: Float = 0
+    for channel in 0..<Int(buffer.format.channelCount) {
+        var value: Float = 0
+        vDSP_maxmgv(channels[channel], 1, &value, vDSP_Length(buffer.frameLength))
+        peak = max(peak, value)
+    }
+    return peak
 }
 
 /// The bytes of the episode artwork for an MP3 or an AAC export, read once before any file
@@ -310,7 +325,7 @@ private func readArtwork(
 }
 
 /// `mono = 0.5 x (L + R)` of `stereo` (decision 0007).
-private func fold(_ stereo: AVAudioPCMBuffer, into mono: AVAudioPCMBuffer) {
+func fold(_ stereo: AVAudioPCMBuffer, into mono: AVAudioPCMBuffer) {
     mono.frameLength = stereo.frameLength
     let channels = stereo.floatChannelData!
     var half: Float = 0.5

@@ -106,13 +106,15 @@
 # HOOK_TESTS= word; and the hooks pass of a run (hooks_pass of lock-words.sh: make test-hooks with
 # DIRIGIBLE_HOOKS_ALL=1 and no HOOK_TESTS= word). The file of the hooks pass in dirigible-lock-free/
 # (below) has the kind hooks in line 3, the call start time in line 4, and, while its command runs,
-# the process group of the command in line 5. The command gets DIRIGIBLE_HOOKS_PASS=<pid of the
+# the process group of the command in line 5 and, with a hold limit, the second when that limit and
+# WITH_LOCK_HOLD_GRACE end in line 6. The command gets DIRIGIBLE_HOOKS_PASS=<pid of the
 # call>, so scripts/test-hooks.sh runs ncpu / 2 jobs. One pass runs at a time: a pass waits while
 # another hooks file is live (the older call keeps its file, the younger one removes its own), while
 # a release call has a live ticket, and while a long holder waits (a live file in
 # dirigible-long-waiting/ of the git common dir). The pass has the hold limit of a release call. It
 # exits 2 and runs nothing when it cannot write its file. INT, TERM, or HUP stops the process group
-# of its command, and its file stays while a process of that group runs. A long holder (release_call
+# of its command, and its file stays while a process of that group runs, also after a KILL of the
+# call, up to the second in line 6. A long holder (release_call
 # or long_words of lock-words.sh) writes dirigible-long-waiting/<pid> with its command, waits while
 # a hooks file is live before it takes the lock (no idle held lock), polls at most each second, and
 # removes its file after the take. That wait counts in its wait limit and its wait line. An
@@ -212,15 +214,17 @@ pstart() { LC_ALL=C TZ=UTC0 ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
 # or the kernel gave it to another process. An empty start time (ps printed nothing when the file was
 # written, or prints nothing now) counts as a match while the pid runs. The file of a hooks pass with
 # the process group of its command in line 5 is also live while that group runs: a KILL of the call
-# leaves the command running.
+# leaves the command running. That ends at the second in line 6, the end of its hold limit and grace
+# time: the KILL also stops the hold watcher, and the kernel can give the group number to another
+# process.
 file_live() {
-    local cur stamp group
+    local cur stamp group end
     if alive "${1##*/}"; then
         cur="$(pstart "${1##*/}")" stamp="$(sed -n 1p "$1" 2>/dev/null)"
         [[ -z "$cur" || -z "$stamp" || "$cur" == "$stamp" ]] && return 0
     fi
-    group="$(sed -n 5p "$1" 2>/dev/null)"
-    [[ ! "$group" =~ ^[0-9]+$ ]] || ! alive "-$group" || return 0
+    group="$(sed -n 5p "$1" 2>/dev/null)" end="$(sed -n 6p "$1" 2>/dev/null)"
+    [[ ! "$group" =~ ^[0-9]+$ ]] || ! alive "-$group" || [[ "$end" =~ ^[0-9]+$ && $(date +%s) -ge $end ]] || return 0
     rm -f "$1"
     return 1
 }
@@ -651,7 +655,7 @@ lf_write() {
 # hold_watch <child> <limit file>: the hold limit (header). After $maxhold seconds it writes the limit
 # file, sends TERM to the process group of the child, and KILL after the grace time; it sets watcher.
 # It calls /bin/sleep, so a test that puts a fake sleep on the PATH does not see its polls.
-watcher=""
+watcher="" grace="${WITH_LOCK_HOLD_GRACE:-10}"
 hold_watch() {
     (
         end=$(($(date +%s) + maxhold))
@@ -659,7 +663,7 @@ hold_watch() {
         kill -0 $$ 2>/dev/null || exit 0
         echo limit > "$2"
         kill -TERM -- "-$1"
-        /bin/sleep "${WITH_LOCK_HOLD_GRACE:-10}"
+        /bin/sleep "$grace"
         kill -KILL -- "-$1"
     ) > /dev/null 2>&1 &
     watcher=$!
@@ -677,12 +681,14 @@ hold_limit() {
         [[ $maxhold -ge 3600 ]] || maxhold=3600
     fi
     [[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
+    [[ "$grace" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_HOLD_GRACE is '$grace'; give whole seconds" >&2; exit 2; }
     maxhold=$((10#$maxhold))
 }
 # run_lock_free <command>: runs the command with no lock, as a child with its own process group,
 # and exits with its status, or with 75 for the make line "Error 75" (see the header). The hooks pass
-# writes that group into line 5 of its file and has the hold limit of a release call (exit 124).
-# After INT, TERM, or HUP, its file stays while a process of that group still runs.
+# writes that group into line 5 of its file, and the second when its hold limit and grace time end
+# into line 6. It has the hold limit of a release call (exit 124). After INT, TERM, HUP, or KILL, its
+# file stays while a process of that group still runs, up to that second.
 free_child="" mark=""
 stop_free() {
     [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }
@@ -690,7 +696,7 @@ stop_free() {
     exit "$1"
 }
 run_lock_free() {
-    local err status
+    local err status end=""
     err="$(mktemp)"
     trap 'rm -f "$err" "$err.limit" ${lf:+"$lf"} ${mark:+"$mark"}' EXIT
     trap 'stop_free 130' INT
@@ -706,7 +712,8 @@ run_lock_free() {
     free_child=$!
     set +m
     if [[ -n "$free_kind" ]]; then
-        write_stamped "$lf" "$*" "$free_kind" "$start" "$free_child" ||
+        [[ $maxhold -eq 0 ]] || end=$(($(date +%s) + maxhold + grace))
+        write_stamped "$lf" "$*" "$free_kind" "$start" "$free_child" ${end:+"$end"} ||
             { echo "with-lock: cannot write the process group into $lf; the hooks pass stops. Check the disk" >&2; stop_free 2; }
         [[ $maxhold -eq 0 ]] || hold_watch "$free_child" "$err.limit"
     fi

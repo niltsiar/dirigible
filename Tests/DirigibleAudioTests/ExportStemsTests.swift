@@ -186,6 +186,44 @@ struct ExportStemsTests {
         #expect(counts.count == 2 && Set(counts).count == 1 && abs((counts.first ?? 0) - 88_200) <= 1, "\(counts)")
     }
 
+    /// A step from 0 to `level` and back over 24000 frames: a resampler overshoots at each edge.
+    static func step(_ level: Float) -> [Float] {
+        [Float](repeating: 0, count: 2_000) + [Float](repeating: level, count: 20_000)
+            + [Float](repeating: 0, count: 2_000)
+    }
+
+    /// C15: the converter to 44.1 kHz overshoots a step of 0.95 to over 1.0, and the integer file
+    /// clips there. The peak is the peak of the samples that the file gets, so only the 44.1 kHz
+    /// stem is over full scale.
+    @Test func aStemThatClipsOnlyAtTheFileRateIsOver() throws {
+        let package = try MixPackage()
+        try Self.addFloatTrack(package, "s", Self.step(0.95))
+        let session = try Self.stems(package, range: 0..<24_000)
+        #expect(session.files.map(\.isOverFullScale) == [false], "\(session.files.map(\.samplePeak))")
+        let hz44100 = StemOptions(format: .wav(.bits24), layout: .stereo, rate: .hz44100)
+        let resampled = try Self.stems(package, range: 0..<24_000, options: hz44100, name: "stems-44")
+        #expect(resampled.files.map(\.isOverFullScale) == [true], "\(resampled.files.map(\.samplePeak))")
+    }
+
+    /// C15: `ExportResult.samplePeak` of a 44.1 kHz float CAF, which does not clip, is the peak of
+    /// the samples that the file holds; the mix peak pass of stems at 44.1 kHz gives the same value
+    /// for the mix of the stem tracks.
+    @Test func thePeakIsThePeakOfTheFileAtItsRate() throws {
+        let package = try MixPackage()
+        try Self.addFloatTrack(package, "a", Self.step(0.55))
+        try Self.addFloatTrack(package, "b", Self.step(0.55))
+        let caf = ExportOptions(format: .floatCAF, layout: .stereo, rate: .hz44100)
+        let url = package.folder.url.appending(path: "mix.caf")
+        let source = try #require(ExportSource(range: 0..<24_000))
+        let mix = try exportMix(package.session, source: source, options: caf, to: url, package: { package.url })
+        let file = try readAudio(url).samples.map(abs).max() ?? 0
+        #expect(file > 1.1 * 1.02 && abs(mix.samplePeak - file) <= 1e-6, "result \(mix.samplePeak), file \(file)")
+        let hz44100 = StemOptions(format: .wav(.bits24), layout: .stereo, rate: .hz44100)
+        let stems = try Self.stems(package, range: 0..<24_000, options: hz44100)
+        let mixPeak = try #require(stems.mixPeak)
+        #expect(abs(mixPeak - file) <= 1e-6, "mix peak \(mixPeak), file \(file)")
+    }
+
     /// C15 fixture A: a stem with a sample of `Float(1).nextUp` is over full scale; a stem with a
     /// peak of exactly 1.0 is not. The stem peaks sum over 1.0, so the mix peak is measured.
     @Test func aStemOverFullScaleIsNamedAndTheSumIsNotClaimed() throws {

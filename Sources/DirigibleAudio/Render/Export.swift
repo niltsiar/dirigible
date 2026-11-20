@@ -181,9 +181,15 @@ func exportMix(
     var current: LoudnessStage?
     var decoded: FileMeasure?
     var samplePeak: Float = 0
+    // The converter of a PCM file changes the samples at another rate; an encoder changes them anyway.
+    let peakRate =
+        switch options.format {
+        case .wav, .flac, .floatCAF: rate
+        case .aac, .mp3: session.sampleRate
+        }
     /// Writes the file once. `current` is the gain stage, nil for no target.
     func writeRound(_ band: ClosedRange<Double>) throws(ExportError) {
-        samplePeak = 0
+        var filePeak = try FilePeak(client: folded?.format ?? stereo, fileRate: peakRate)
         try writeFile(
             temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
         ) {
@@ -197,7 +203,7 @@ func exportMix(
                 dither?.apply(buffer)
                 current?.measure(buffer)
                 guard buffer.frameLength > 0 else { return }
-                samplePeak = max(samplePeak, peak(of: buffer))
+                try filePeak.feed(buffer)
                 try sink(buffer)
                 written += Int(buffer.frameLength)
                 advance(band, written)
@@ -207,7 +213,9 @@ func exportMix(
                 try write(buffer)
             }
             while let drained = current?.drain(into: folded ?? mixBuffer), drained { try write(folded ?? mixBuffer) }
+            try filePeak.finish()
         }
+        samplePeak = filePeak.value
     }
     if var active = search {
         var trialsInRound = 0

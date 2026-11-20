@@ -56,8 +56,8 @@ public struct StemsResult: Hashable, Sendable {
     public let files: [StemFile]
     /// The faults of the files that the stems read.
     public let faults: [FileID: MediaFault]
-    /// The sample peak of the mix of the stem tracks at the session rate. Nil when the stem peaks
-    /// sum to 1.0 or less: then the mix cannot clip.
+    /// The sample peak of a mix export of the stem tracks in the stem options, at the file rate. Nil
+    /// when the stem peaks sum to 1.0 or less: then the mix cannot clip.
     public let mixPeak: Float?
 }
 
@@ -166,7 +166,7 @@ func exportStems(
     if needsMixPeak(stemPeaks: peaks) {
         do {
             mixPeak = try samplePeak(
-                session, source: source, layout: options.layout, package: package,
+                session, source: source, options: options, package: package,
                 progress: { progress(stemsBand + (1 - stemsBand) * $0) }, isCancelled: isCancelled)
         } catch {
             staging.discard()
@@ -195,11 +195,11 @@ private func stemBytes(_ plan: StemPlan, options: StemOptions, sessionRate: Int)
     return Int64(plan.stems.count) * (bytes + 4096)
 }
 
-/// The sample peak of the mix of `source` at the session rate, folded to mono for a mono `layout`
-/// as the stem files are. `progress` gets the fraction of the frames read at each new whole
-/// percent.
+/// The sample peak of a mix export of `source` in `options`: folded to mono for a mono layout, with
+/// the dither of a 16-bit mix export, and at the file rate (`FilePeak`). `progress` gets the
+/// fraction of the frames read at each new whole percent.
 private func samplePeak(
-    _ session: Session, source: ExportSource, layout: ChannelLayout, package: () throws(SessionFileError) -> URL,
+    _ session: Session, source: ExportSource, options: StemOptions, package: () throws(SessionFileError) -> URL,
     progress: (Double) -> Void, isCancelled: () -> Bool
 ) throws(ExportError) -> Float {
     let chunk = 48_000
@@ -210,7 +210,9 @@ private func samplePeak(
         let monoBuffer = AVAudioPCMBuffer(pcmFormat: mono, frameCapacity: AVAudioFrameCount(chunk))
     else { throw .writeFailed(kAudio_ParamError) }
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks, span: chunk)
-    var result: Float = 0
+    let output = options.layout == .mono ? monoBuffer : mixBuffer
+    var filePeak = try FilePeak(client: output.format, fileRate: options.rate.hertz(session: session.sampleRate))
+    var dither = options.format.bits == .bits16 ? TPDFDither(channels: options.layout.channelCount) : nil
     let first = source.range.lowerBound
     let total = Double(source.range.upperBound.count - first.count)
     var percent = 0
@@ -221,8 +223,9 @@ private func samplePeak(
         let end = min(start + Frames(chunk), source.range.upperBound)
         mix.render(start..<end, into: mixBuffer)
         if let error = mix.openError { throw .openFailed(error.code.rawValue) }
-        if layout == .mono { fold(mixBuffer, into: monoBuffer) }
-        result = max(result, peak(of: layout == .mono ? monoBuffer : mixBuffer))
+        if options.layout == .mono { fold(mixBuffer, into: monoBuffer) }
+        dither?.apply(output)
+        try filePeak.feed(output)
         start = end
         let fraction = Double(end.count - first.count) / total
         if Int(fraction * 100) > percent {
@@ -230,5 +233,6 @@ private func samplePeak(
             progress(fraction)
         }
     }
-    return result
+    try filePeak.finish()
+    return filePeak.value
 }

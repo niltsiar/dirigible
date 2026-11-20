@@ -4,8 +4,8 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criterion D16 of decision 0077: with a cause of D10, the fix moves the clip by the 0076 lag,
-/// writes no file, and names the cause.
+/// Decision 0077 D10: with a `DriftCause`, the fix moves the clip by the 0076 lag, writes no file,
+/// and names the cause.
 extension StudioDriftTests {
     /// A clip on a take file, a clip on a rendered file, and a clip with points in 2 cells of 5 (no
     /// fit). Each clip "T" on track "t" plays a copy of the 5 min drift clip.

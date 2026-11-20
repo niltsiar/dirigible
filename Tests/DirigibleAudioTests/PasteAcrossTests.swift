@@ -353,7 +353,7 @@ struct PasteAcrossTests {
         #expect(clips == ["N@480000"] && session.clip("N@480000")?.clip.file == "take1-mic NR")
     }
 
-    /// D12 of run waveform-drift (decision 0077 D2): a paste into another package copies a
+    /// Decision 0077 D2: a paste into another package copies a
     /// drift-corrected file as a plain file. The copy has no drift link, and the source file does not
     /// come along. The clipboard record keeps the link.
     @Test func aPasteIntoAnotherPackageDropsTheLink() throws {

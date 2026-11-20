@@ -3,8 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The `<drift>` element of a file in `session.xml` (decision 0077 D4, criteria D10 and D11 of run
-/// `2026-11-19-waveform-drift`).
+/// The `<drift>` element of a file in `session.xml` (decision 0077 D4).
 extension SessionFileTests {
     /// A 48 kHz session with the plain file "guest" (28 800 000 frames, mono), the take file "take",
     /// the rendered file "guest NR", and the drift-corrected files "guest drift" and "guest drift 2"
@@ -34,7 +33,7 @@ extension SessionFileTests {
         return session
     }
 
-    /// D10: the ratio and the gain of a drift link read back bit for bit, in a file of version
+    /// The ratio and the gain of a drift link read back bit for bit, in a file of version
     /// `driftSessionVersion`, the next version after the voice match.
     @Test(arguments: [1 / (1 + 50e-6), 1 / (1 - 135e-6)])
     func aDriftLinkReadsBackBitForBit(ratio: Double) throws {
@@ -53,7 +52,7 @@ extension SessionFileTests {
         #expect(read == session)
     }
 
-    /// D10 and 0024 P6: a session with only a fade writes version 3 and no `<drift>`. The same
+    /// Decision 0024 P6: a session with only a fade writes version 3 and no `<drift>`. The same
     /// session with a drift-corrected file writes `driftSessionVersion`.
     @Test func aSessionWithNoDriftLinkKeepsItsVersion() throws {
         var session = Session(sampleRate: 48_000)
@@ -74,7 +73,7 @@ extension SessionFileTests {
         #expect(linked.contains("<drift "))
     }
 
-    /// The refusal of each D11 input: nil for a changed file that reads.
+    /// The refusal of each change of `driftDocument`: nil for a changed file that reads.
     static let driftRefusals: [String: SessionFileError?] = [
         "version 18": .invalidValue(element: "drift", attribute: "version"),
         "two elements": .invalidValue(element: "drift", attribute: "count"),
@@ -114,7 +113,7 @@ extension SessionFileTests {
         let target = try file("guest drift")
         let drift = try #require(target.elements(forLocalName: "drift", uri: sessionNamespace).first)
         let set = { (name: String, value: String) in drift.attribute(forName: name)?.stringValue = value }
-        // The worked example of D14: 28 802 881 frames end on the source end, one more is past it.
+        // The worked example of `SessionDriftEditTests`: 28 802 881 frames end on the source end, one more is past it.
         let workedExample = { (length: String) in
             set("offset", "0")
             set("ratio", String(describing: 1 / 1.0001))
@@ -149,7 +148,7 @@ extension SessionFileTests {
         return document.xmlData
     }
 
-    /// D11: the reader refuses each bad drift link with its error, and reads the same file with
+    /// The reader refuses each bad drift link with its error, and reads the same file with
     /// the fault removed.
     @Test(arguments: driftRefusals.keys.sorted())
     func eachBadDriftLinkIsRefused(change: String) throws {

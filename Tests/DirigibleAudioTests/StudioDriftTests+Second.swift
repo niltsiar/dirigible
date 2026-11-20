@@ -4,8 +4,9 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleCore
 
-/// Criterion D17 of decision 0077 (a second fix reads the first source) and the same-package paste
-/// of D12. Clip "T" on track "t" plays "first", a drift-corrected copy of the drift clip "c".
+/// A second fix reads the first source (decision 0077 D5), and a same-package paste keeps the drift
+/// link (decision 0077 D2). Clip "T" on track "t" plays "first", a drift-corrected copy of the drift
+/// clip "c".
 extension StudioDriftTests {
     /// The first link has ratio 1 / 1.0001 and added gain +2 dB on a clip at -1 dB, and the copy
     /// drifts by 2 ppm across 10 min (1.2 ms). The new file links to "c" with the composed ratio, the
@@ -104,7 +105,7 @@ extension StudioDriftTests {
         }
     }
 
-    /// D12: only a clipboard of this package holds a clip on a drift-corrected file. Remove Unused
+    /// Only a clipboard of this package holds a clip on a drift-corrected file. Remove Unused
     /// Files keeps the file and its source, and the paste, the save, and the open give the clip on
     /// the file with its link.
     @Test func aSamePackagePasteAfterRemoveUnusedFilesKeepsTheLink() async throws {

@@ -4,10 +4,10 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criteria D6 to D9 of decision 0077: the drift points of one read, and the cut between two
-/// segments, on packages of the drift signal.
+/// The drift points of one read, and the cut between two segments (decision 0077 D6 and D8), on
+/// packages of the drift signal.
 struct DriftMeasureTests {
-    /// The D6 clip: 10 min at 100 ppm.
+    /// A 10 min clip at 100 ppm.
     @Test func eachWindowLagIsOnTheTrueLine() throws {
         try Self.expectOnePointOnTheLineInEachCell(DriftPackage(seconds: 600))
     }
@@ -17,7 +17,7 @@ struct DriftMeasureTests {
     }
 
     /// The reference of cells 2 and 7 is another voice: those windows give no point, and the fit of
-    /// the 8 points holds the D1 bars (rate within 0.1 ppm, offset within 0.1 ms).
+    /// the 8 points gives the rate within 0.1 ppm and the offset within 0.1 ms.
     @Test func windowsInADropoutGiveNoPoint() throws {
         let (voice, other) = (DriftSignal(seed: 1, seconds: 700), DriftSignal(seed: 2, seconds: 700))
         let drift = try DriftPackage(
@@ -63,7 +63,7 @@ struct DriftMeasureTests {
         #expect(points.map { drift.cellIndex($0.clipFrame) } == [0, 1, 2, 3, 5, 6, 7, 8, 9])
     }
 
-    /// The D8 clip: 12 min at 100 ppm, whose source skips 20 s at clip minute 5.5.
+    /// A 12 min clip at 100 ppm, whose source skips 20 s at clip minute 5.5.
     @Test func aPauseUnder60sIsFoundNearTheLag() throws {
         try Self.expectOnePointOnItsLineAroundThePause(DriftPackage(seconds: 720, pause: 20, at: 330))
     }

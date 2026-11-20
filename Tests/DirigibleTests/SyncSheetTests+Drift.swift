@@ -6,7 +6,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// Criterion D20 of decision 0077: the Correct drift box of the Sync Clip to Track sheet, on the package
+/// Decision 0077 D12: the Correct drift box of the Sync Clip to Track sheet, on the package
 /// of `syncWindowPackage`. Clip "K" on track Host plays the file that each test adds, at 15 s.
 extension SyncSheetTests {
     static let takeLine = "A take records on the session clock."
@@ -24,7 +24,7 @@ extension SyncSheetTests {
             nominalSampleRate: 48_000, measuredSampleRate: 48_000, latency: 0)
     }
 
-    /// D20: the box is on when the sheet opens, with no line under it, and the sync uses the drift run.
+    /// The box is on when the sheet opens, with no line under it, and the sync uses the drift run.
     @Test func theDriftBoxIsOnWhenTheSheetOpens() async throws {
         let (model, studio, _) = try await open()
         model.timeline.selection = select("C")
@@ -37,7 +37,7 @@ extension SyncSheetTests {
         await model.close()
     }
 
-    /// D20: a take file is on the session clock, so the box is off, disabled, and has the line. A box that
+    /// A take file is on the session clock, so the box is off, disabled, and has the line. A box that
     /// a caller sets on still gives no drift run.
     @Test func theDriftBoxIsOffForATakeClip() async throws {
         let (model, studio, _) = try await open { session in
@@ -55,7 +55,7 @@ extension SyncSheetTests {
         await model.close()
     }
 
-    /// D20: a split half of a take has a capture and is no take file: the box is off as for a take.
+    /// A split half of a take has a capture and is no take file: the box is off as for a take.
     @Test func theDriftBoxIsOffForASplitHalfOfATake() async throws {
         let (model, studio, _) = try await open { session in
             try session.addCapture(Self.capture("tk"))
@@ -70,7 +70,7 @@ extension SyncSheetTests {
         await model.close()
     }
 
-    /// D20: only a capture disables the box. A drift-corrected clip (the resample source is a plain file)
+    /// Only a capture disables the box. A drift-corrected clip (the resample source is a plain file)
     /// and a rendered clip (the result gives the cause) keep it on.
     @Test func theDriftBoxIsOnForADriftCorrectedClip() async throws {
         let ratio = try #require(DriftRatio(1.0001))
@@ -96,7 +96,7 @@ extension SyncSheetTests {
         await rendered.close()
     }
 
-    /// D20: the box picks the run. On, the sync is `Studio.correctDrift`: the 8 s clip is under 5 min, so it
+    /// The box picks the run. On, the sync is `Studio.correctDrift`: the 8 s clip is under 5 min, so it
     /// moves by the lag and the banner gives the cause. Off, it is the 0076 sync with no drift outcome.
     @Test func theBoxPicksTheRun() async throws {
         for on in [true, false] {

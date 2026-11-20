@@ -147,12 +147,10 @@ extension Session {
         else { throw .invalidOrigin(file.id) }
     }
 
-    /// The drift rule of `addFile` and of the load step (decision 0077 D4): the file has no origin,
-    /// and the source is a file of the pool with the same layout and no fault of
-    /// `driftSourceFault(of:)`. The offset is 0 or more, and the last file frame maps to a source
-    /// frame up to `source.length`, because the converter writes up to 1 frame past the exact length.
-    /// The ratio and the gain keep their ranges in their types. A file that names itself is not in
-    /// the pool at `addFile`, and has a drift link at the load step, so it is refused.
+    /// The drift rule of `addFile` and of the load step (decision 0077 D4). The last file frame can map
+    /// to source frame `source.length`, because the converter writes up to 1 frame past the exact
+    /// length. The ratio and the gain keep their ranges in their types. A file that names itself is
+    /// not in the pool at `addFile`, and has a drift link at the load step, so it is refused.
     func check(_ drift: DriftOrigin, of file: AudioFile) throws(SessionError) {
         guard file.origin == nil, let source = files[drift.source],
             driftSourceFault(of: drift.source) == nil, source.layout == file.layout, drift.offset >= .zero,

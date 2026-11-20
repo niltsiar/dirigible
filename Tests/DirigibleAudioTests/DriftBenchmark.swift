@@ -4,7 +4,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criterion D19 of decision 0077: the drift fix of a 1 h mono clip at 48 kHz at 100 ppm, in a sync
+/// The drift fix (decision 0077) of a 1 h mono clip at 48 kHz at 100 ppm, in a sync
 /// span of 2 h, fits its time budgets and 512 MiB of peak footprint in an optimized build
 /// (`make bench FILTER=DriftBenchmark`). Each time is the median of 3 runs. A debug build runs a
 /// 10 min clip once and only prints the times.
@@ -77,8 +77,9 @@ struct DriftBenchmark {
 
     /// A 20 s pause at the middle of the clip gives two lines, so the measure holds one cut scan.
     /// The bench times the calls of `driftRequest` up to the cuts: `driftMeasure`, `DriftFit`, and
-    /// `driftCuts`. Speech runs through the pause, as in the first case of D9, so the cut is within
-    /// 50 ms of it: in a silence, the cut can be anywhere in the silence.
+    /// `driftCuts`. Speech runs through the pause, as in
+    /// `DriftMeasureTests.theCutIsAtTheGapInContinuousSpeech`, so the cut is within 50 ms of it: in a
+    /// silence, the cut can be anywhere in the silence.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aPausedHourTimesTheCutScan() throws {
         let (pause, at) = (20.0, Double(Self.seconds / 2))

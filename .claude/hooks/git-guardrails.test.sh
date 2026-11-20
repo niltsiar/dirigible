@@ -862,6 +862,13 @@ for form in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'DIRIGI
     { echo "FAIL: the subagent block of the hooks pass does not say that only the lead runs it: $form"; failures=$((failures + 1)); }
   expect allow "$form"
 done
+# A script file that runs the hooks pass blocks a subagent too, also after nohup.
+printf 'cd /x/wt\nscripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > h.log 2>&1\n' > "$tmp/hooks-pass.sh"
+for form in "bash $tmp/hooks-pass.sh" "nohup bash $tmp/hooks-pass.sh > /dev/null 2>&1 &"; do
+  expect_agent block "$form"
+  grep -q 'only the lead runs the hooks pass' "$tmp/agent.err" ||
+    { echo "FAIL: a script file of the hooks pass: no hooks pass block in a subagent: $form"; failures=$((failures + 1)); }
+done
 expect_agent allow 'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh DIRIGIBLE_HOOKS_ALL=1'
 expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'
 expect_agent allow 'scripts/with-lock.sh make check-changed'

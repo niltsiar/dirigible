@@ -238,9 +238,14 @@ struct Tool: Sendable {
     let body: Body
     let batch: BatchRole
     private(set) var hints = Hints.none
-    /// A long tool that writes a file outside the package: a call that the bridge loses can still
-    /// write it, so the lost-call and limit texts say to check the output.
-    private(set) var writesFile = false
+    /// What a long tool writes outside the package.
+    enum Output: String {
+        case file, folder
+    }
+
+    /// The output of a long tool that writes outside the package, else nil: a call that the bridge
+    /// loses can still write it, so the lost-call and limit texts say to check the output.
+    private(set) var output: Output?
 
     /// This tool with `hints`.
     func hinted(_ hints: Hints) -> Tool {
@@ -249,15 +254,15 @@ struct Tool: Sendable {
         return tool
     }
 
-    /// This tool with `writesFile`.
-    func writing() -> Tool {
+    /// This tool with `output`.
+    func writing(_ output: Output = .file) -> Tool {
         var tool = self
-        tool.writesFile = true
+        tool.output = output
         return tool
     }
 
-    /// True for the name of a tool that `writing()` marks.
-    static func writesFile(_ name: String) -> Bool { all.contains { $0.name == name && $0.writesFile } }
+    /// The output of the tool of `name` that `writing(_:)` marks, else nil.
+    static func output(of name: String) -> Output? { all.first { $0.name == name }?.output }
 
     /// The entry of the tool in `tools/list`.
     var listing: [String: Any] {

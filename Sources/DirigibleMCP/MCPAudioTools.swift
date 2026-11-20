@@ -202,7 +202,7 @@ let audioTools = [
             try StemsWork(
                 out: try outPath(a, stemsOut), by: by, format: format, bits: depth, mono: folds, rate: hertz,
                 from: first, to: end, tracks: ids.map { TrackID($0) }, allowMissing: allows, spelling: .tool))
-    }.writing(),
+    }.writing(.folder),
     Tool(
         "level",
         "Set the gain of each clip to the loudness target of its track layout, as dirigible level: -16 LUFS for a "

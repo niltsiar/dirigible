@@ -1430,9 +1430,9 @@ fi
 # dmg, also in a shell -c body or a script file), and with mutation-pass.sh (it wraps itself) on the
 # masked text, so text in a quote of rg or echo is data. A bench and a flake loop pass: a slice runs
 # a bench in the foreground. Only the lead runs the hooks pass, in the background, so a subagent call
-# of it (a hooks line of release_segments) blocks too.
+# of it (a hooks line of release_segments, also from a script file) blocks too.
 agent=""
-if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* || "$release_found" == *lock$'\t'* ]]; then
+if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* || "$release_found" == *lock$'\t'* || -n "$hooks_found" ]]; then
   agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
 fi
 if [[ -n "$agent" ]]; then

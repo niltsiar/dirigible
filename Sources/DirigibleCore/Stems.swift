@@ -19,8 +19,8 @@ public struct Stem: Hashable, Sendable {
     public let key: Key
     /// Heard tracks only, never empty.
     public let tracks: Set<TrackID>
-    /// The file name with no extension: no `/` or `:`, unique in the plan, and in the byte limit of
-    /// the plan.
+    /// The file name with no extension: cleaned by `fileNameText`, unique in the plan, and in the
+    /// byte limit of the plan.
     public let name: String
 }
 
@@ -62,9 +62,9 @@ public struct StemTitles: Hashable, Sendable {
 extension Session {
     /// The stems of the tracks of `ids` (nil: all tracks) that the mix hears (`heardTracks(in:)`,
     /// decision 0039), over `range`. A track stem is named `01 Host`: its place among the stems with
-    /// a file, with at least two digits, and the track name (the track ID when the name is only
-    /// white space). A role stem is named by `titles`. Each name is in NFC, cut at a character
-    /// boundary to `limit` UTF-8 bytes, and unique with a case-insensitive compare (a later equal
+    /// a file, with at least two digits, and the track name (the track ID when the cleaned name is
+    /// empty). A role stem is named by `titles`. Each name is in NFC, cleaned by `fileNameText`, cut
+    /// at a character boundary to `limit` UTF-8 bytes, and unique with a case-insensitive compare (a later equal
     /// name gets " 2", then " 3"). Nil when no stem has a clip that sounds in the range.
     public func stemPlan(
         by grouping: StemGrouping, tracks ids: Set<TrackID>?, range: Range<Frames>, titles: StemTitles, limit: Int
@@ -93,7 +93,7 @@ extension Session {
                 let name = Self.fileText(track.name)
                 text = "\(number) \(name.isEmpty ? Self.fileText(track.id.rawValue) : name)"
             case .role(let role):
-                let title = String(Self.fileText(titles.title(role)).drop { $0 == "." })
+                let title = Self.fileText(titles.title(role))
                 text = title.isEmpty ? (role?.rawValue ?? "none") : title
             }
             names.append(Self.unique(text, in: names, limit: limit))
@@ -105,14 +105,8 @@ extension Session {
             noRoleSet: grouping == .role && heard.allSatisfy { $0.role == nil })
     }
 
-    /// `text` in NFC with each `/`, `:`, and control character as `-`, and no white space at the
-    /// ends.
-    private static func fileText(_ text: String) -> String {
-        let scalars = text.precomposedStringWithCanonicalMapping.unicodeScalars.map {
-            $0 == "/" || $0 == ":" || $0.properties.generalCategory == .control ? "-" : $0
-        }
-        return String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespaces)
-    }
+    /// `text` in NFC, cleaned by `fileNameText`.
+    private static func fileText(_ text: String) -> String { fileNameText(text.precomposedStringWithCanonicalMapping) }
 
     /// `text` cut to `limit` UTF-8 bytes at a character boundary, with " 2", " 3", and on when an
     /// earlier name of `names` is equal with a case-insensitive compare.

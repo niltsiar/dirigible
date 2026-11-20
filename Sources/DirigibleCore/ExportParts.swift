@@ -106,7 +106,7 @@ extension Session {
         _ part: ExportPart, digits: Int, prefix: String, pathExtension: String, limit: Int
     ) -> String {
         let number = String(repeating: "0", count: max(0, digits - String(part.number).count)) + String(part.number)
-        var title = cleanTitle(part.title?.text ?? "")
+        var title = fileNameText(part.title?.text ?? "")
         var prefix = prefix
         func name() -> String { "\(prefix)-\(number)\(title.isEmpty ? "" : "-\(title)").\(pathExtension)" }
         while name().utf8.count > limit, !title.isEmpty {
@@ -139,14 +139,16 @@ extension Session {
         return (try? EpisodeLine(line)) ?? nil
     }
 
-    private static func cleanTitle(_ title: String) -> String {
-        let refused: Set<Unicode.Scalar> = ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"]
-        let cleaned = String(
-            String.UnicodeScalarView(
-                title.unicodeScalars.map {
-                    refused.contains($0) || $0.properties.generalCategory == .control ? "-" : $0
-                }))
-        return String(cleaned.trimmingCharacters(in: .whitespaces).drop { $0 == "." })
-            .trimmingCharacters(in: .whitespaces)
-    }
+}
+
+/// `text` as a part of an export file name, the one cleaner of the split export (decision 0067)
+/// and the stem export (0078): each character that macOS, exFAT, FAT32, or SMB refuses
+/// (`/ \ : * ? " < > |` and the control characters) becomes "-", and the spaces at each end and a
+/// leading dot go.
+func fileNameText(_ text: String) -> String {
+    let refused: Set<Unicode.Scalar> = ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"]
+    let cleaned = String(
+        String.UnicodeScalarView(
+            text.unicodeScalars.map { refused.contains($0) || $0.properties.generalCategory == .control ? "-" : $0 }))
+    return String(cleaned.trimmingCharacters(in: .whitespaces).drop { $0 == "." }).trimmingCharacters(in: .whitespaces)
 }

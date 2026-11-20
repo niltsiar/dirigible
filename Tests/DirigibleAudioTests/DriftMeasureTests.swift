@@ -75,6 +75,12 @@ struct DriftMeasureTests {
         try Self.expectOnePointOnItsLineAroundThePause(DriftPackage(seconds: 720, pause: 90, at: 330))
     }
 
+    /// A skip of 90 s 100 s before the clip end: the windows after it find no match within 60 s, and
+    /// the whole-span search of that run at the clip end finds them.
+    @Test func aPauseOver60sNearTheEndIsFoundByTheWholeSpan() throws {
+        try Self.expectOnePointOnItsLineAroundThePause(DriftPackage(seconds: 720, pause: 90, at: 620))
+    }
+
     /// The reference holds another voice in cells 1 to 3 and 6 to 8: two runs of windows with no
     /// match. The 0076 read and the two runs build the full-span coarse scores twice: once for the
     /// read, and once for both runs.

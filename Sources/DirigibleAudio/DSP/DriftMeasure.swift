@@ -14,7 +14,8 @@ private let cellSeconds = 60
 private let windowSeconds = 10
 /// A window searches the reference this many seconds on each side of the expected lag.
 private let searchSeconds = 60
-/// A run of this many windows with no match gets one search over the whole span.
+/// A run of this many windows with no match, or a run at the clip start or end, gets one search
+/// over the whole span. A run at an end has no point after it to place the line there.
 private let lostRunCount = 3
 /// The fine step correlates blocks of this many seconds. Across a 10 s window the lag moves by up to
 /// 10 ms at `DriftRatio.limit`, and one correlation of the whole window peaks at the lag of its
@@ -26,8 +27,8 @@ private let blockPeak = 0.2
 /// The drift measure of `clip` against `track` in `span`, a range of `Session.syncSpan` (decision
 /// 0077, D6). One read gives the 0076 lag and the 50 ms levels and the 2 kHz reference that the
 /// windows search: the loudest 10 s of each 60 s cell of the clip, within 60 s of the 0076 lag, with
-/// the 0076 match rule. A run of 3 or more windows with no match gets one search of its loudest
-/// window over the whole span, and a match there centers the search of the run. The fine step at the
+/// the 0076 match rule. A run of 3 or more windows with no match, and a run of any length at the
+/// clip start or end, gets one search of its loudest window over the whole span, and a match there centers the search of the run. The fine step at the
 /// session rate finds the lag of each 1 s block of a matched window, within the window smear at
 /// `DriftRatio.limit` of the coarse lag. A point is the mean clip frame of the block centers and the
 /// mean lag of the blocks. A silent window gives no point.
@@ -134,7 +135,7 @@ func driftMeasure(
         }
         var end = first
         while end < windows.count, points[end] == nil { end += 1 }
-        if end - first >= lostRunCount,
+        if end - first >= lostRunCount || first == 0 || end == windows.count,
             let loudest = (first..<end).max(by: { level(windows[$0]) < level(windows[$1]) }),
             let center = try search(windows[loudest], at: nil)
         {

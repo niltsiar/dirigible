@@ -5,9 +5,10 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criteria C3 and C4 of the stem export (U4): each stem is the `exportMix` of its own tracks over
-/// the plan range, so the stems start at the range start and add up to the mix.
+/// Criteria C3, C4, and C15 of the stem export (U4): each stem is the `exportMix` of its own tracks
+/// over the plan range, so the stems start at the range start and add up to the mix.
 struct ExportStemsTests {
+    static let wav24 = StemOptions(format: .wav(.bits24), layout: .stereo, rate: .session)
     /// One LSB of a 24-bit file at full scale.
     static let lsb = 1.0 / 8_388_608
 
@@ -52,6 +53,22 @@ struct ExportStemsTests {
         return package
     }
 
+    /// Exports the stems of `tracks` over `range` to the folder `name` in the test folder.
+    static func stems(
+        _ package: MixPackage, tracks: Set<TrackID>? = nil, range: Range<Frames>, options: StemOptions = wav24,
+        name: String = "stems"
+    ) throws -> StemsResult {
+        try exportStems(
+            package.session, by: .track, source: #require(ExportSource(range: range, tracks: tracks)), options: options,
+            to: package.folder.url.appending(path: name), package: { package.url }, progress: { _ in },
+            isCancelled: { false })
+    }
+
+    /// The samples of each stem file of `result`, in plan order.
+    static func samples(of result: StemsResult, in folder: URL) throws -> [[Float]] {
+        try result.files.map { try readAudio(folder.appending(path: $0.name)).samples }
+    }
+
     /// The samples of the `exportMix` of `tracks` over `range`, written to `name` in the package
     /// folder.
     static func export(
@@ -64,23 +81,45 @@ struct ExportStemsTests {
         return try readAudio(url).samples
     }
 
+    /// Adds a track with one clip of a mono 32-bit float CAF, which keeps samples at and over full
+    /// scale, at unity gain.
+    static func addFloatTrack(_ package: MixPackage, _ id: TrackID, _ samples: [Float]) throws {
+        let path = "\(id.rawValue).caf"
+        let format = try #require(
+            AVAudioFormat(standardFormatWithSampleRate: Double(package.session.sampleRate), channels: 1))
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)))
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        buffer.floatChannelData![0].update(from: samples, count: samples.count)
+        do {
+            let file = try AVAudioFile(
+                forWriting: package.url.appending(path: "\(clipsFolderName)/\(path)"), settings: format.settings,
+                commonFormat: .pcmFormatFloat32, interleaved: false)
+            try file.write(from: buffer)
+        }
+        let length = Frames(samples.count)
+        let file = FileID(id.rawValue)
+        try package.session.addFile(AudioFile(id: file, path: path, layout: .mono, length: length))
+        try package.addTrack(id, clip: ClipID(id.rawValue), file: file, start: 0, offset: 0, length: length)
+    }
+
     /// C4: the sample sum of the 24-bit track stems equals the 24-bit mix of the same range and
-    /// tracks within n + 1 LSB (W2).
+    /// tracks within n + 1 LSB (W2). The stem peaks sum under 1.0, so no mix peak is measured.
     @Test func theStemsAddUpToTheMix() throws {
         let package = try Self.mixedPackage()
         let tracks: Set<TrackID> = ["t1", "t2", "t3"]
-        let plan = package.session.stemPlan(by: .track, tracks: tracks, range: 0..<144_000)
-        #expect(plan.stems.map(\.key) == [.track("t1"), .track("t2"), .track("t3")])
+        let result = try Self.stems(package, tracks: tracks, range: 0..<144_000)
+        #expect(result.plan.stems.map(\.key) == [.track("t1"), .track("t2"), .track("t3")])
+        #expect(result.files.map(\.name) == ["01.wav", "02.wav", "03.wav"])
+        let stems = try Self.samples(of: result, in: package.folder.url.appending(path: "stems"))
         let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session)
-        let stems = try plan.stems.enumerated().map { index, stem in
-            try Self.export(package, stem.tracks, plan.range, options, "\(index + 1).wav")
-        }
         let mix = try Self.export(package, tracks, 0..<144_000, options, "mix.wav")
         let peaks = stems.map { $0.map(abs).max() ?? 0 }
         #expect(peaks.allSatisfy { $0 > 0.05 && $0 < 0.316 }, "stem peaks \(peaks)")
-        #expect(stems.allSatisfy { $0.count == mix.count } && mix.count == 2 * 144_000)
+        #expect(result.files.map(\.samplePeak).allSatisfy { $0 > 0.05 && $0 < 0.316 })
+        #expect(result.mixPeak == nil)
+        #expect(stems.count == 3 && stems.allSatisfy { $0.count == mix.count } && mix.count == 2 * 144_000)
         let error = mix.indices.map { k in abs(stems.reduce(0.0) { $0 + Double($1[k]) } - Double(mix[k])) }.max() ?? 0
-        let bound = Double(plan.stems.count + 1) * Self.lsb
+        let bound = Double(result.plan.stems.count + 1) * Self.lsb
         #expect(error <= bound, "sum error \(error / Self.lsb) LSB, bound \(bound / Self.lsb) LSB")
     }
 
@@ -92,22 +131,49 @@ struct ExportStemsTests {
         try package.addFile("n2", channels: [Self.noise(24_000, peak: 0.2, seed: 2)])
         try package.addTrack("late", clip: "a", file: "n1", start: 96_000, offset: 0, length: 24_000)
         try package.addTrack("early", clip: "b", file: "n2", start: 48_000, offset: 0, length: 24_000)
-        let plan = package.session.stemPlan(by: .track, tracks: nil, range: 48_000..<144_000)
-        #expect(plan.stems.map(\.key) == [.track("late"), .track("early")])
-        let session = ExportOptions(format: .wav(.bits24), layout: .mono, rate: .session)
-        let files = try plan.stems.enumerated().map { index, stem in
-            try Self.export(package, stem.tracks, plan.range, session, "\(index + 1).wav")
-        }
+        let mono = StemOptions(format: .wav(.bits24), layout: .mono, rate: .session)
+        let result = try Self.stems(package, range: 48_000..<144_000, options: mono)
+        #expect(result.plan.stems.map(\.key) == [.track("late"), .track("early")])
+        let files = try Self.samples(of: result, in: package.folder.url.appending(path: "stems"))
         #expect(files.map(\.count) == [96_000, 96_000])
         if files.count == 2 {
             #expect(files[0][0..<48_000].allSatisfy { $0 == 0 }, "the late stem is silent before its clip")
             #expect((files[0][48_000..<48_480].map(abs).max() ?? 0) > 0.01, "the late stem sounds at 48000")
             #expect((files[1][0..<480].map(abs).max() ?? 0) > 0.01, "the early stem sounds at frame 0")
         }
-        let rate = ExportOptions(format: .wav(.bits24), layout: .mono, rate: .hz44100)
-        let counts = try plan.stems.enumerated().map { index, stem in
-            try Self.export(package, stem.tracks, plan.range, rate, "\(index + 1)-44.wav").count
-        }
+        let rate = StemOptions(format: .wav(.bits24), layout: .mono, rate: .hz44100)
+        let resampled = try Self.stems(package, range: 48_000..<144_000, options: rate, name: "stems-44")
+        let counts = try Self.samples(of: resampled, in: package.folder.url.appending(path: "stems-44")).map(\.count)
         #expect(counts.count == 2 && Set(counts).count == 1 && abs((counts.first ?? 0) - 88_200) <= 1, "\(counts)")
+    }
+
+    /// C15 fixture A: a stem with a sample of `Float(1).nextUp` is over full scale; a stem with a
+    /// peak of exactly 1.0 is not. The stem peaks sum over 1.0, so the mix peak is measured.
+    @Test func aStemOverFullScaleIsNamedAndTheSumIsNotClaimed() throws {
+        let package = try MixPackage()
+        try Self.addFloatTrack(package, "over", [0.25, Float(1).nextUp, 0.25, 0, 0, 0])
+        try Self.addFloatTrack(package, "full", [0, 0, 0, 0.25, 1, 0.25])
+        let result = try Self.stems(package, range: 0..<6)
+        #expect(result.files.map(\.samplePeak) == [Float(1).nextUp, 1])
+        #expect(result.files.map(\.isOverFullScale) == [true, false])
+        #expect(result.mixPeak == Float(1).nextUp)
+    }
+
+    /// C15 fixture B: each stem is at or under 1.0, and their sum clips: no stem is over full
+    /// scale, and the mix peak is over 1.0.
+    @Test func aMixOverFullScaleWithNoStemOverGivesTheMixLine() throws {
+        let package = try MixPackage()
+        try Self.addFloatTrack(package, "a", [0, 0.75, 0.5, 0])
+        try Self.addFloatTrack(package, "b", [0, 0.75, -0.5, 0])
+        let result = try Self.stems(package, range: 0..<4)
+        #expect(result.files.map(\.isOverFullScale) == [false, false])
+        #expect(result.mixPeak == 1.5)
+    }
+
+    /// C15: the mix pass runs only when the stem peaks sum over 1.0; at exactly 1.0 the mix cannot
+    /// clip.
+    @Test func theMixPeakIsMeasuredOnlyOverASumOfOne() {
+        #expect(!needsMixPeak(stemPeaks: [0.5, 0.5]))
+        #expect(needsMixPeak(stemPeaks: [0.5, 0.5 + Float(1).ulp]))
     }
 }

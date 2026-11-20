@@ -39,6 +39,9 @@ public struct ExportResult: Hashable, Sendable {
     /// The M4A has chapters with an image and chapters with none, and the episode has no artwork, so
     /// the file has no chapter images.
     public let chapterImagesOmitted: Bool
+    /// The largest sample magnitude that the last write gives to the file writer, at the session
+    /// rate. Over 1.0, a WAV or FLAC file clips.
+    public let samplePeak: Float
 }
 
 public enum ExportError: Error, Hashable, Sendable {
@@ -167,6 +170,9 @@ public struct ExportSource: Hashable, Sendable {
     /// The source of a part of `range` with the tracks of this source. `part` is the range of a part
     /// of `Session.exportParts(in: range)`: a range with frames inside `range`, so it needs no check.
     func part(_ part: Range<Frames>) -> ExportSource { ExportSource(checked: part, tracks: tracks) }
+
+    /// The source of the range of this source with `tracks`: a stem, whose set is never empty.
+    func stem(_ tracks: Set<TrackID>) -> ExportSource { ExportSource(checked: range, tracks: tracks) }
 
     private init(checked range: Range<Frames>, tracks: Set<TrackID>?) {
         self.range = range

@@ -52,7 +52,8 @@
 # The CPU-share signal of the TV launcher session reads it.
 # scripts/with-lock.sh --long-holder takes no lock and runs no command, also inside a locked process
 # tree. It prints the --release-holder line and exits 0 when that query exits 0 for a holder or a
-# ticket of the lock (not for the lock-free hooks pass, which makes no agent wait). Else, while a live
+# ticket of the lock (not for the lock-free hooks pass: an ordinary call runs beside it, and only a long
+# holder waits for it). Else, while a live
 # holder runs a long holder (long_words of scripts/lock-words.sh: a bench, a mutation pass, or a flake
 # loop), it prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
 # (<tree>)" and exits 0; else it prints nothing and exits 1. It removes a dead ticket or a dead marker.
@@ -104,11 +105,18 @@
 # format, none, test, test-app, test-filter, or a word with =; make test-hooks with a
 # HOOK_TESTS= word; and the hooks pass of a run (hooks_pass of lock-words.sh: make test-hooks with
 # DIRIGIBLE_HOOKS_ALL=1 and no HOOK_TESTS= word). The file of the hooks pass in dirigible-lock-free/
-# (below) has the kind hooks in line 3, and its command gets DIRIGIBLE_HOOKS_PASS=<pid of the call>,
-# so scripts/test-hooks.sh runs ncpu / 2 jobs. A long holder (long_words of lock-words.sh) takes the
-# lock as usual and then, before its command, waits while a hooks file of a live pid exists; it
-# holds the lock in that wait, so no new hooks pass starts, and the wait counts in its wait limit
-# and its wait line. An ordinary call does not wait for the hooks pass. test, test-filter, and
+# (below) has the kind hooks in line 3, the call start time in line 4, and, while its command runs,
+# the process group of the command in line 5. The command gets DIRIGIBLE_HOOKS_PASS=<pid of the
+# call>, so scripts/test-hooks.sh runs ncpu / 2 jobs. One pass runs at a time: a pass waits while
+# another hooks file is live (the older call keeps its file, the younger one removes its own), while
+# a release call has a live ticket, and while a long holder waits (a live file in
+# dirigible-long-waiting/ of the git common dir). The pass has the hold limit of a release call. It
+# exits 2 and runs nothing when it cannot write its file. INT, TERM, or HUP stops the process group
+# of its command, and its file stays while a process of that group runs. A long holder (release_call
+# or long_words of lock-words.sh) writes dirigible-long-waiting/<pid> with its command, waits while
+# a hooks file is live before it takes the lock (no idle held lock), polls at most each second, and
+# removes its file after the take. That wait counts in its wait limit and its wait line. An
+# ordinary call does not wait for the hooks pass. test, test-filter, and
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
 # run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh
@@ -202,13 +210,17 @@ pstart() { LC_ALL=C TZ=UTC0 ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
 # file_live <file>: a marker or lock-free file is named after a pid, and line 1 holds the start time
 # of that process. It is live while the pid runs with that start time. Else it goes: the pid is dead,
 # or the kernel gave it to another process. An empty start time (ps printed nothing when the file was
-# written, or prints nothing now) counts as a match while the pid runs.
+# written, or prints nothing now) counts as a match while the pid runs. The file of a hooks pass with
+# the process group of its command in line 5 is also live while that group runs: a KILL of the call
+# leaves the command running.
 file_live() {
-    local cur stamp
+    local cur stamp group
     if alive "${1##*/}"; then
         cur="$(pstart "${1##*/}")" stamp="$(sed -n 1p "$1" 2>/dev/null)"
         [[ -z "$cur" || -z "$stamp" || "$cur" == "$stamp" ]] && return 0
     fi
+    group="$(sed -n 5p "$1" 2>/dev/null)"
+    [[ ! "$group" =~ ^[0-9]+$ ]] || ! alive "-$group" || return 0
     rm -f "$1"
     return 1
 }
@@ -220,7 +232,7 @@ write_stamped() {
     { mkdir -p "$dir" && printf '%s\n' "$(pstart $$)" "$@" > "$dir/.$name" && mv -f "$dir/.$name" "$dir/$name"; } 2>/dev/null
 }
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
-benches="${lock%/*}/dirigible-bench-marks" freedir="${lock%/*}/dirigible-lock-free" cause="" waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
+benches="${lock%/*}/dirigible-bench-marks" freedir="${lock%/*}/dirigible-lock-free" longdir="${lock%/*}/dirigible-long-waiting" cause="" waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
 # The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
 ep_awk='
     function ep(s, y, mo) {
@@ -344,22 +356,30 @@ release_holder() {
     done
     return 1
 }
-# hooks_busy: succeeds while the lock-free hooks pass runs (a file of a live pid in $freedir with the
-# kind hooks in line 3), and sets cause and hooks_cmd to its pid and command.
-hooks_busy() {
-    local f
+# free_busy [hooks]: succeeds while a lock-free call of another pid lives (a live file in $freedir;
+# with hooks, only a hooks pass: the kind hooks in line 3). It sets cause and free_cmd to the pid and
+# command of the first one, and older when a live hooks pass started before this call (line 4, the
+# call start time, then the pid). A file that is not live goes.
+free_busy() {
+    local f pid at what found=""
+    older=""
     for f in "$freedir"/*; do
-        [[ -f "$f" && "$(sed -n 3p "$f" 2>/dev/null)" == hooks ]] || continue
+        pid="${f##*/}"
+        [[ -f "$f" && "$pid" != $$ ]] || continue
+        what="lock-free call"
+        if [[ "$(sed -n 3p "$f" 2>/dev/null)" == hooks ]]; then what="lock-free hooks pass"; elif [[ -n "${1:-}" ]]; then continue; fi
         file_live "$f" || continue
-        hooks_cmd="$(sed -n 2p "$f" 2>/dev/null)" cause="lock-free hooks pass pid ${f##*/} ($hooks_cmd)"
-        return 0
+        if [[ -z "$found" ]]; then free_cmd="$(sed -n 2p "$f" 2>/dev/null)" cause="$what pid $pid ($free_cmd)"; fi
+        found=1
+        at="$(sed -n 4p "$f" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}"
+        if [[ $at -lt $start || ($at -eq $start && $pid -lt $$) ]]; then older=1; fi
     done
-    return 1
+    [[ -n "$found" ]]
 }
 [[ "$1" != --release-holder ]] || {
     release_holder && exit 0
-    hooks_busy || exit 1
-    echo "holder: $hooks_cmd"
+    free_busy hooks || exit 1
+    echo "holder: $free_cmd"
     exit 0
 }
 # The --long-holder query (header): the --release-holder line first, then the long holder.
@@ -528,18 +548,28 @@ lock_free() {
             ;;
     esac
 }
-# free_busy: succeeds while a lock-free call lives (a file of a live pid in $freedir), and sets cause
-# to its pid and command. A file of a dead pid goes.
-free_busy() {
+# long_waiting: succeeds while a long holder of another pid waits for the lock (a live file in
+# $longdir), and sets cause to its pid and command.
+long_waiting() {
     local f
-    for f in "$freedir"/*; do
-        [[ -f "$f" ]] || continue
-        if file_live "$f"; then
-            cause="lock-free call pid ${f##*/} ($(sed -n 2p "$f" 2>/dev/null))"
-            return 0
-        fi
+    for f in "$longdir"/*; do
+        [[ -f "$f" && "${f##*/}" != $$ ]] || continue
+        file_live "$f" || continue
+        cause="waiting long holder pid ${f##*/} ($(sed -n 2p "$f" 2>/dev/null))"
+        return 0
     done
     return 1
+}
+# free_block: succeeds while this lock-free call waits: for a long holder, and for the hooks pass also
+# for a release ticket, a waiting long holder, or another hooks pass. It sets keep when the only cause
+# is a younger hooks pass: this pass keeps its file, so the younger one sees it and yields.
+free_block() {
+    keep=""
+    long_holder && return 0
+    [[ "$free_kind" == hooks ]] || return 1
+    if ahead || long_waiting; then return 0; fi
+    free_busy hooks || return 1
+    [[ -n "$older" ]] || keep=1
 }
 # wait_limit <command>: sets max (seconds of wait before exit 75, 0 for none) and uncapped.
 uncapped=""
@@ -549,10 +579,11 @@ wait_limit() {
     max=$((10#$max))
     if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
 }
-# pause <command>...: sleeps one retry, cut to the seconds that are left of the wait limit; at the
-# limit it runs stop75.
+# pause <command>...: sleeps one retry (or the shorter poll in short), cut to the seconds that are
+# left of the wait limit; at the limit it runs stop75.
+short=""
 pause() {
-    local left nap="$retry"
+    local left nap="${short:-$retry}"
     if [[ $max -gt 0 ]]; then
         left=$((max - ($(date +%s) - start)))
         [[ $left -gt 0 ]] || stop75 "$@"
@@ -599,36 +630,94 @@ say_wait() {
     fi
     [[ "$msg" != "$said" ]] || return 0
     said="$msg"
-    echo "with-lock: $msg; retry each $retry s" >&2
+    echo "with-lock: $msg; retry each ${short:-$retry} s" >&2
 }
 # lf_write <command>...: the file of a lock-free call, $freedir/<pid of this call> with its command, while it
-# runs. A write that fails (a sandbox) leaves no file and prints one stderr line for the call; the
-# call still runs.
+# runs; a hooks pass adds its kind and the call start time. A write that fails (a sandbox) leaves no
+# file and prints one stderr line for the call; the call still runs, except the hooks pass, which
+# exits 2: a long holder cannot see a pass with no file.
 lf="" lf_said="" free_kind=""
 lf_write() {
-    if write_stamped "$freedir/$$" "$*" ${free_kind:+"$free_kind"}; then lf="$freedir/$$"; return; fi
+    if write_stamped "$freedir/$$" "$*" ${free_kind:+"$free_kind" "$start"}; then lf="$freedir/$$"; return; fi
     lf=""
+    if [[ -n "$free_kind" ]]; then
+        echo "with-lock: cannot write the lock-free file $freedir/$$, so a long holder cannot see the hooks pass; it does not run. Check the disk, and run with-lock.sh outside scripts/probe.sh" >&2
+        exit 2
+    fi
     [[ -z "$lf_said" ]] || return 0
     lf_said=1
     echo "with-lock: cannot write the lock-free file $freedir/$$; a bench marker cannot see this call" >&2
 }
+# hold_watch <child> <limit file>: the hold limit (header). After $maxhold seconds it writes the limit
+# file, sends TERM to the process group of the child, and KILL after the grace time; it sets watcher.
+# It calls /bin/sleep, so a test that puts a fake sleep on the PATH does not see its polls.
+watcher=""
+hold_watch() {
+    (
+        end=$(($(date +%s) + maxhold))
+        while kill -0 $$ 2>/dev/null && [[ $(date +%s) -lt $end ]]; do /bin/sleep 1; done
+        kill -0 $$ 2>/dev/null || exit 0
+        echo limit > "$2"
+        kill -TERM -- "-$1"
+        /bin/sleep "${WITH_LOCK_HOLD_GRACE:-10}"
+        kill -KILL -- "-$1"
+    ) > /dev/null 2>&1 &
+    watcher=$!
+}
+# hold_limit: sets maxhold (header): WITH_LOCK_MAX_HOLD, else 1800 s, or 2 times hold_base (at least
+# 3600 s) for a call with no wait limit (long).
+hold_limit() {
+    maxhold="${WITH_LOCK_MAX_HOLD:-}"
+    if [[ -z "$maxhold" && -z "$long" ]]; then
+        maxhold=1800
+    elif [[ -z "$maxhold" ]]; then
+        maxhold="$(hold_base "$holds")"
+        [[ "$maxhold" =~ ^[0-9]+$ ]] || maxhold=0
+        maxhold=$((2 * 10#$maxhold))
+        [[ $maxhold -ge 3600 ]] || maxhold=3600
+    fi
+    [[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
+    maxhold=$((10#$maxhold))
+}
 # run_lock_free <command>: runs the command with no lock, as a child with its own process group,
-# and exits with its status, or with 75 for the make line "Error 75" (see the header).
+# and exits with its status, or with 75 for the make line "Error 75" (see the header). The hooks pass
+# writes that group into line 5 of its file and has the hold limit of a release call (exit 124).
+# After INT, TERM, or HUP, its file stays while a process of that group still runs.
 free_child="" mark=""
-stop_free() { [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }; exit "$1"; }
+stop_free() {
+    [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }
+    [[ -z "$free_kind" ]] || ! alive "-$free_child" || lf=""
+    exit "$1"
+}
 run_lock_free() {
     local err status
     err="$(mktemp)"
-    trap 'rm -f "$err" ${lf:+"$lf"} ${mark:+"$mark"}' EXIT
+    trap 'rm -f "$err" "$err.limit" ${lf:+"$lf"} ${mark:+"$mark"}' EXIT
     trap 'stop_free 130' INT
     trap 'stop_free 143' TERM
-    [[ -z "$free_kind" ]] || export DIRIGIBLE_HOOKS_PASS=$$
+    trap 'stop_free 129' HUP
+    if [[ -n "$free_kind" ]]; then
+        export DIRIGIBLE_HOOKS_PASS=$$
+        long=1
+        hold_limit
+    fi
     set -m
     (set +m; "$@" 2>&1 >&3 3>&- | tee "$err" >&2 3>&-; exit "${PIPESTATUS[0]}") 3>&1 <&0 &
     free_child=$!
     set +m
+    if [[ -n "$free_kind" ]]; then
+        write_stamped "$lf" "$*" "$free_kind" "$start" "$free_child" ||
+            { echo "with-lock: cannot write the process group into $lf; the hooks pass stops. Check the disk" >&2; stop_free 2; }
+        [[ $maxhold -eq 0 ]] || hold_watch "$free_child" "$err.limit"
+    fi
     wait "$free_child"
     status=$?
+    if [[ -e "$err.limit" ]]; then
+        echo "with-lock: the command ran past WITH_LOCK_MAX_HOLD ($maxhold s); its process group got TERM, then KILL" >&2
+        ! alive "-$free_child" || wait "$watcher"
+        exit 124
+    fi
+    [[ -z "$watcher" ]] || kill "$watcher" 2>/dev/null
     if [[ $status -ne 0 ]] && grep -qE '^[A-Za-z0-9_./-]+(\[[0-9]+\])?: \*\*\* \[check-changed\] Error 75$' "$err"; then exit 75; fi
     exit "$status"
 }
@@ -700,11 +789,13 @@ if lock_free "$@"; then
     waited=""
     while :; do
         lf_write "$@"
-        long_holder || break
-        [[ -z "$lf" ]] || rm -f "$lf"
-        lf=""
+        free_block || break
         if [[ -z "$waited" ]]; then wait_limit "$@"; waited=1; fi
-        while long_holder || ahead; do say_wait; pause "$@"; done
+        while free_block || ahead; do
+            if [[ -z "$keep" && -n "$lf" ]]; then rm -f "$lf"; lf=""; fi
+            say_wait
+            pause "$@"
+        done
     done
     [[ -z "$waited" ]] || wait_line "$@"
     run_lock_free "$@"
@@ -714,20 +805,31 @@ long="" nocap=""
 ! release_call "$@" || nocap=1
 [[ "${WITH_LOCK_NO_CAP:-}" != 1 ]] || nocap=1 uncapped=1
 [[ $max -ne 0 ]] || long=1
-maxhold="${WITH_LOCK_MAX_HOLD:-}"
-if [[ -z "$maxhold" && -z "$long" ]]; then
-    maxhold=1800
-elif [[ -z "$maxhold" ]]; then
-    maxhold="$(hold_base "$holds")"
-    [[ "$maxhold" =~ ^[0-9]+$ ]] || maxhold=0
-    maxhold=$((2 * 10#$maxhold))
-    [[ $maxhold -ge 3600 ]] || maxhold=3600
+hold_limit
+# cleanup_wait: the EXIT trap of a call that waits: it removes its waiting marker, its file in
+# $longdir, and its ticket.
+longmark="" hwait=""
+cleanup_wait() { rm -f ${marker:+"$marker"} ${longmark:+"$longmark"}; [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null; }
+# A long holder waits for the lock-free hooks pass before it takes the lock, so it never holds an
+# idle lock. It polls each second at most. Its file in $longdir keeps a new pass from starting until
+# it holds the lock.
+if release_call "$@" || long_words "$@"; then
+    if write_stamped "$longdir/$$" "$*"; then
+        longmark="$longdir/$$"
+    else
+        echo "with-lock: cannot write $longdir/$$; a new hooks pass can start while this call waits for the lock" >&2
+    fi
+    trap cleanup_wait EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    short="$(awk -v r="$retry" 'BEGIN { print (r < 1) ? r : 1 }')"
+    while free_busy hooks; do hwait=1; say_wait; pause "$@"; done
+    short=""
 fi
-[[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
-maxhold=$((10#$maxhold))
+# A release call takes its ticket after that wait, so an ordinary call runs during it.
 if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
     ticket="$first/$$"
-    trap 'rmdir "$ticket" 2>/dev/null' EXIT
+    trap cleanup_wait EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
 fi
@@ -766,7 +868,7 @@ while :; do
         fi
         told=1
         if mkdir -p "$waiting" 2>/dev/null && echo "$tree" > "$waiting/$$" 2>/dev/null; then marker="$waiting/$$"; fi
-        trap 'rm -f ${marker:+"$marker"}; [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null' EXIT
+        trap cleanup_wait EXIT
         trap 'exit 130' INT
         trap 'exit 143' TERM
         others="$(builders | grep -vxF -- "$tree")"
@@ -784,18 +886,11 @@ rm -f ${marker:+"$marker"}
 { echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold" &&
     { [[ -z "$nocap" ]] || : > "$lock/nocap"; } && { ! release_call "$@" || : > "$lock/release"; }; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
-# A long holder starts its command after the lock-free hooks pass ends. It holds the lock while it
-# waits, so no new pass starts; the trap removes only this lock.
-if release_call "$@" || long_words "$@"; then
-    trap '[[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || rm -rf "$lock"' EXIT
-    trap 'exit 130' INT
-    trap 'exit 143' TERM
-    while hooks_busy; do told=1; say_wait; pause "$@"; done
-fi
+rm -f ${longmark:+"$longmark"}
 taken="$(date +%s)" cmdline="$*"
-[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \
+[[ -z "$told$hwait" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \
     >> "$waits" 2>/dev/null
-child="" watcher="" stopped=""
+child="" stopped=""
 release() {
     local extra=""
     [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
@@ -820,21 +915,8 @@ set -m
 child=$!
 set +m
 echo "$child" > "$lock/child"
-# The hold limit: the watcher stops the process group of the command (TERM, then KILL after the
-# grace time) and marks the lock folder; the call then exits 124. It calls /bin/sleep, so a test that
-# puts a fake sleep on the PATH does not see its polls.
-if [[ $maxhold -gt 0 ]]; then
-    (
-        end=$(($(date +%s) + maxhold))
-        while kill -0 $$ 2>/dev/null && [[ $(date +%s) -lt $end ]]; do /bin/sleep 1; done
-        kill -0 $$ 2>/dev/null || exit 0
-        echo limit > "$lock/limit"
-        kill -TERM -- "-$child"
-        /bin/sleep "${WITH_LOCK_HOLD_GRACE:-10}"
-        kill -KILL -- "-$child"
-    ) > /dev/null 2>&1 &
-    watcher=$!
-fi
+# The hold limit marks the lock folder; the call then exits 124.
+[[ $maxhold -eq 0 ]] || hold_watch "$child" "$lock/limit"
 wait "$child"
 status=$?
 if [[ -e "$lock/limit" ]]; then

@@ -1898,6 +1898,20 @@ expect_each_lock --live "$tmp/rw-lock" agree "${lock_spellings[@]}"
 expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'MAKEFLAGS=DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
+# A make option word and an empty HOOK_TESTS= word keep the pass a hooks pass (each was a release call
+# before the pass took no lock), never an ordinary locked call.
+expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make -s test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'scripts/with-lock.sh make -j4 test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make -j 4 test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'scripts/with-lock.sh make -C ../wt test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make --no-print-directory test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS= DIRIGIBLE_HOOKS_ALL=1'
+# A form that hooks_pass does not take (another goal, -j with no number) still runs the whole list:
+# lock-words.sh classes it release, and the test-hooks form rule of the hook blocks it.
+for form in 'scripts/with-lock.sh make -j build test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'scripts/with-lock.sh make test-hooks lint DIRIGIBLE_HOOKS_ALL=1'; do
+  class="$( (unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL; eval "${form//scripts\/with-lock.sh/$lock_stub}") 2>/dev/null | tail -n 1)"
+  [[ "$class" == release ]] || { echo "FAIL: lock class '$class' (want release): $form"; failures=$((failures + 1)); }
+  expect block "$form"
+done
 # Spellings that the fix was not fitted to, each with a fixed verdict. With WITH_LOCK_RUN_ONLY=1, with-lock.sh
 # exits 2 and runs nothing unless the command is a built binary or a shell file, so the bare form blocks and
 # the HOOK_TESTS=a form is safe to allow (the hook models no run-only mode).

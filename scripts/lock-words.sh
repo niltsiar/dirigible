@@ -1,5 +1,5 @@
 #!/bin/bash
-# The lock-free make words, sourced by scripts/with-lock.sh (lock_free, hooks_pass, release_call) and by
+# The lock-free make words, sourced by scripts/with-lock.sh (lock_free, hooks_pass, hooks_all, release_call) and by
 # .claude/hooks/git-guardrails.sh (the verdict for a with-lock.sh make test-hooks call). Both read
 # the same functions, so a form of the call has one class. The case test-rule of
 # .claude/hooks/git-guardrails.test.sh (expect_each_lock) sends each spelling through both.
@@ -29,8 +29,14 @@ hooks_env() {
     local re='[[:space:]]DIRIGIBLE_HOOKS_ALL=1([[:space:]]|$)'
     [[ "${DIRIGIBLE_HOOKS_ALL:-}" == 1 || " ${MAKEFLAGS:-}" =~ $re ]]
 }
+# hooks_all <command>: succeeds when DIRIGIBLE_HOOKS_ALL is 1 from hooks_env or as a word of the
+# command.
+hooks_all() { hooks_env || [[ " ${*:2} " == *" DIRIGIBLE_HOOKS_ALL=1 "* ]]; }
+
 # release_call <command>: a push check (make check-changed with a BASE= word, or with BASE from
-# push_env), a land (land.sh), or a DMG build (make dmg).
+# push_env), a land (land.sh), a DMG build (make dmg), or make with the goal test-hooks and
+# hooks_all in a form that neither hooks_pass nor lock_make_words takes (another goal, a BASE
+# word): that call still runs the whole list, so it takes the lock.
 release_call() {
     local w goal="" base=""
     [[ "${1##*/}" == land.sh ]] && return 0
@@ -41,29 +47,39 @@ release_call() {
             BASE=?*) base=1 ;;
             dmg) goal=dmg ;;
             check-changed) [[ $goal == dmg ]] || goal=check ;;
+            test-hooks) [[ -n $goal ]] || goal=hooks ;;
         esac
     done
-    [[ $goal == dmg || ($goal == check && -n $base) ]]
+    [[ $goal == dmg || ($goal == check && -n $base) ]] && return 0
+    [[ $goal == hooks ]] && hooks_all "$@" && ! hooks_pass "$@" && ! (lock_make_words "$@" && [[ $lock_goal == test-hooks ]])
 }
 
-# hooks_pass <command>: the hooks pass of a run, which takes no lock: make (any path) with the one goal
-# test-hooks, NAME=value words, DIRIGIBLE_HOOKS_ALL=1 as a word or from hooks_env, no HOOK_TESTS= word
-# (that form is the plain lock-free call of lock_make_words), and no BASE word or push_env.
+# hooks_pass <command>: the hooks pass of a run, which takes no lock: make (any path) with the one
+# goal test-hooks, make options (a word that starts with -, with the value word of -C, -f, -I, -o, -W and
+# their long forms, or the number after -j or -l), NAME=value words, hooks_all, no HOOK_TESTS= word
+# with a value (that form is the plain lock-free call of lock_make_words), and no BASE word or
+# push_env.
 hooks_pass() {
-    local w goal="" hooks=""
+    local w goal="" skip=""
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || return 1
-    ! hooks_env || hooks=1
+    hooks_all "$@" || return 1
     for w in "${@:2}"; do
+        case "$skip" in
+            any) skip=""; continue ;;
+            number) skip=""; [[ ! $w =~ ^[0-9]+$ ]] || continue ;;
+        esac
         case "$w" in
-            BASE=?* | HOOK_TESTS=*) return 1 ;;
-            DIRIGIBLE_HOOKS_ALL=1) hooks=1 ;;
+            BASE=?* | HOOK_TESTS=?*) return 1 ;;
             *=*) ;;
+            -C | -f | -I | -o | -W | --directory | --file | --makefile | --include-dir | --old-file | --assume-old | --what-if | --new-file | --assume-new) skip=any ;;
+            -j | -l | --jobs | --load-average) skip=number ;;
+            -*) ;;
             test-hooks) [[ -z $goal ]] || return 1; goal=1 ;;
             *) return 1 ;;
         esac
     done
-    [[ -n $goal && -n $hooks ]]
+    [[ -n $goal ]]
 }
 
 # long_text_re matches the text of each command that long_words takes, so a text with no match runs

@@ -234,6 +234,45 @@ extension Studio {
         if exportJob?.number == number { exportJob = nil }
         do { return try result.get() } catch { throw .exportParts(error) }
     }
+
+    /// Exports one file for each stem of `source` of the session of now into the new folder `folder`
+    /// (`exportStems`). It is one export job: it throws `.busy` as `export`, and a take start in this
+    /// or another studio, `settle()`, Cancel, and a cancel of the caller stop it with
+    /// `.exportStems(.stopped(.cancelled))` and no folder; `exportStop` gives the cause. The job URL
+    /// is `folder`, so the disk check of a take reads the volume of its parent. A folder name over
+    /// `stemFolderNameLimit` throws `.exportStems(.folderNameTooLong)` and starts no job.
+    public func exportStems(
+        by grouping: StemGrouping, source: ExportSource, titles: StemTitles, options: StemOptions, folder: URL,
+        progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
+    ) async throws(StudioError) -> StemsResult {
+        try checkIdle()
+        guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
+        guard folder.lastPathComponent.utf8.count <= stemFolderNameLimit else {
+            throw .exportStems(.folderNameTooLong)
+        }
+        exportNumber += 1
+        exportStop = nil
+        let number = exportNumber
+        let session = session
+        let hop: @Sendable (Double) -> Void = { [weak self] fraction in
+            Task { @MainActor in self?.exportProgressed(number, fraction) }
+        }
+        let task = jobTask { package, isCancelled in
+            Result { () throws(ExportStemsError) in
+                try DirigibleAudio.exportStems(
+                    session, by: grouping, source: source, titles: titles, options: options, to: folder,
+                    package: package, progress: hop, isCancelled: isCancelled)
+            }
+        }
+        exportJob = ExportJob(number: number, url: folder, progress: 0, report: progress, task: Self.handle(task))
+        let result = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        if exportJob?.number == number { exportJob = nil }
+        do { return try result.get() } catch { throw .exportStems(error) }
+    }
 }
 
 extension Studio {

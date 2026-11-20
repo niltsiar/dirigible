@@ -26,7 +26,7 @@ package struct StemsWork: Sendable {
         // The folder itself and each folder above it must not be a package.
         try ExportText.checkOutsidePackages(URL(filePath: out).appending(path: "x"))
         guard URL(filePath: out).lastPathComponent.utf8.count <= stemFolderNameLimit else {
-            throw ToolError("The \(o("out")) folder name is over \(stemFolderNameLimit) bytes.")
+            throw ToolError(Self.longNameMessage(o))
         }
         guard let grouping = StemGrouping(rawValue: by ?? "track") else {
             throw ToolError("\(o("by")) must be track or role.")
@@ -65,9 +65,18 @@ package struct StemsWork: Sendable {
         do throws(POSIXError) { faults = try checkMedia(session, package: package, source: source) } catch {
             throw ToolError(mediaCheckMessage(error))
         }
+        try check(faults, in: session)
+    }
+
+    /// The refusal of the faults of a media check with no `allow_missing`.
+    func check(_ faults: [FileID: MediaFault], in session: Session) throws(ToolError) {
         guard faults.isEmpty || allowMissing else {
             throw ToolError(ExportText.faultMessage(faults, in: session, spelling: spelling))
         }
+    }
+
+    static func longNameMessage(_ o: OptionSpelling) -> String {
+        "The \(o("out")) folder name is over \(stemFolderNameLimit) bytes."
     }
 
     /// The job on the files: the CLI and the tools name the role files in English.
@@ -102,6 +111,7 @@ package struct StemsWork: Sendable {
     /// The text of a refused or failed job, or nil for a cancel.
     package func message(_ error: ExportStemsError) -> String? {
         switch error {
+        case .folderNameTooLong: return Self.longNameMessage(spelling)
         case .noStem: return "No track of the set has a clip in the range. No folder was made."
         case .notEnoughSpace(let need, let free):
             return "cannot write \(out): the stems need \(need) bytes, and the volume has \(free) bytes free. "

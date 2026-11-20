@@ -72,10 +72,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveRead(work, studio: studio, call: call, report: report)
     case .transcribe(let work):
         return await liveTranscribe(work, studio: studio, call: call, report: report)
-    case .stems:
-        return .result(
-            text: "export_stems runs only on a session that is not open in Dirigible. Close the session window, "
-                + "then call it again.", isError: true)
+    case .stems(let work):
+        return await liveStems(work, target: target, path: call.path, report: report)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
         .record, .transport, .words,

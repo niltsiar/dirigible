@@ -37,6 +37,10 @@ public enum StudioError: Error, Hashable, Sendable {
     /// stopped or failed after it (decision 0067). A split export never throws `.export` or
     /// `.exportYielded`; `exportStop` gives the cause of a stop.
     case exportParts(ExportPartsError)
+    /// A stem export refused its folder before its job, or refused, stopped, or failed in its job.
+    /// A stem export never throws `.export` or `.exportYielded`; `exportStop` gives the cause of a
+    /// stop.
+    case exportStems(ExportStemsError)
     /// The import failed or was cancelled (decision 0040).
     case audioImport(ImportError)
     /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session

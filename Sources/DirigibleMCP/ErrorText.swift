@@ -246,6 +246,8 @@ extension StudioError {
         case .exportYielded: "a take in another studio stopped the export."
         // `liveExport` catches each `.exportParts` case first, and no command exports a set through Studio.
         case .exportParts(let error): "the export of the files failed (\(error))."
+        // `liveStems` catches each `.exportStems` case first, and no command exports stems through Studio.
+        case .exportStems(let error): "the stem export failed (\(error))."
         // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
         case .audioImport(let error): "the import failed (\(error))."
         case .importYielded: "a take in another studio stopped the import."

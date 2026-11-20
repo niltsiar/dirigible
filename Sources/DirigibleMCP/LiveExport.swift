@@ -14,9 +14,7 @@ func liveExport(
     let source = try work.source(in: session)
     // A render writes a bad file as silence, so it reads no media state.
     if !work.isRender {
-        guard let faults = await studio.exportFaults(source) else {
-            throw ToolError("cannot check the audio files: the package or a file descriptor is not available.")
-        }
+        guard let faults = await studio.exportFaults(source) else { throw ToolError(noMediaCheck) }
         try work.check(faults, in: session)
         // The user can open a dialog or start an export during the media check.
         if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
@@ -45,6 +43,51 @@ func liveExport(
         throw ToolError(error.message(package: path))
     }
     return try work.text(of: result, session: session, source: source)
+}
+
+private let noMediaCheck = "cannot check the audio files: the package or a file descriptor is not available."
+
+/// `export_stems` through `Studio.exportStems`: the session of the window, also an unsaved edit. A take
+/// start, the sheet Cancel, or a cancel of the call ends the job with no folder (decision 0049). A running
+/// export or a dialog of the window refuses it first, as `export`.
+@MainActor
+func liveStems(
+    _ work: StemsWork, target: AgentTarget, path: String, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    let studio = target.studio
+    if let busy = exportBusy(studio) ?? target.sheetCause() {
+        return .result(text: busy.message(package: path), isError: true)
+    }
+    do throws(ToolError) {
+        let checked = studio.session
+        let source = try work.source(in: checked)
+        guard let faults = await studio.exportFaults(source) else { throw ToolError(noMediaCheck) }
+        try work.check(faults, in: checked)
+        // The user can open a dialog or start an export during the media check.
+        if let busy = target.sheetCause() { throw ToolError(busy.message(package: path)) }
+        // The job plans the stems on the session of its start, which is this one: no await comes between.
+        let session = studio.session
+        let result: StemsResult
+        do throws(StudioError) {
+            result = try await studio.exportStems(
+                by: work.grouping, source: source, titles: .english, options: work.options, folder: work.url,
+                progress: report)
+        } catch .exportStems(.stopped(.cancelled)) {
+            // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+            if Task.isCancelled { throw ToolError(cancelledMessage) }
+            throw ToolError(stopMessage(studio.exportStop, noun: "stem export", nothing: "No stem was written."))
+        } catch .exportStems(let error) {
+            throw ToolError(work.message(error) ?? cancelledMessage)
+        } catch .busy {
+            throw ToolError((exportBusy(studio) ?? .task).message(package: path))
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
+        let (stdout, stderr) = try work.lines(of: result, session: session, source: source)
+        return .result(text: (stdout + stderr).joined(separator: "\n"), isError: false)
+    } catch {
+        return .result(text: error.message, isError: true)
+    }
 }
 
 /// The set of `export` with `split`. The job computes the parts and the targets on the session that it

@@ -80,6 +80,18 @@ extension StudioDriftTests {
         try await Self.expectMovedByTheLag("C", drift, cause: .noFit(.lagStepsBack))
     }
 
+    /// A 12 min clip with no drift whose source skips 5 s at clip minute 5.5: the fix splits the
+    /// clip, and each piece is within 1 ms of its line.
+    @Test func aPauseWithNoDriftSplitsTheClip() async throws {
+        let drift = try DriftPackage(seconds: 720, ppm: 0, pause: 5, at: 330)
+        let studio = try await Self.open(drift)
+
+        let fix = try Self.fix(try await studio.correctDrift("C", to: "ref"))
+
+        #expect(fix.clips.count == 2 && fix.splits.count == 1, "\(fix)")
+        for clip in fix.clips { try Self.expectAligned(clip, in: studio, drift, points: nil) }
+    }
+
     /// A clip of 299 s is not measured; a clip of 300 s is corrected.
     @Test func theFiveMinuteLine() async throws {
         try await Self.expectMovedByTheLag("C", try DriftPackage(seconds: 299), cause: .clipTooShort)

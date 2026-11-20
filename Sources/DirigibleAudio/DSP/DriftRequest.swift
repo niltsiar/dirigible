@@ -26,7 +26,7 @@ public enum DriftCause: Hashable, Sendable {
     /// The ratio of the drift link of the played file times the ratio of the fit is 1000 ppm or
     /// more from 1.
     case composedRateOutOfRange
-    /// The line changes the lag by less than 1 ms across the clip.
+    /// The fit has one segment, and its line changes the lag by less than 1 ms across the clip.
     case underOneMillisecond
 }
 
@@ -136,7 +136,10 @@ package func driftRequest(
         return try moved(by: measure.sync, .noFit(error))
     }
     let across = fit.slope * Double(target.length.count)
-    guard abs(across) * 1000 >= Double(rate) else { return try moved(by: measure.sync, .underOneMillisecond) }
+    // A pause moves the lag by more than the split gap of the fit, 50 ms.
+    guard fit.segments.count > 1 || abs(across) * 1000 >= Double(rate) else {
+        return try moved(by: measure.sync, .underOneMillisecond)
+    }
     let cuts = try read { () throws(SyncFailure) in
         try driftCuts(of: clip, to: track, in: session, package: package, fit: fit, isCancelled: isCancelled)
     }

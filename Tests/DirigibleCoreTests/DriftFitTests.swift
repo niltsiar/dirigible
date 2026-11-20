@@ -90,6 +90,16 @@ struct DriftFitTests {
         }
     }
 
+    /// A pause only adds lag. A later segment 30 s under the first would place its piece over the
+    /// tail of the piece before it.
+    @Test func aLagStepDownGivesNoFit() {
+        for seed in 0..<10 as Range<UInt64> {
+            #expect(throws: DriftFitFailure.lagStepsBack, "seed \(seed)") {
+                try Self.fit(Self.points(minutes: 60, ppm: 50, offsetMs: 1234.5, seed: seed, pause: (31.3, -30)))
+            }
+        }
+    }
+
     @Test func aStepOf51msSplitsAndOf49msDoesNot() throws {
         for seed in 0..<10 as Range<UInt64> {
             let split = try Self.fit(

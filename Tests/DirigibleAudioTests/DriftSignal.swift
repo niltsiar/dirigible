@@ -112,8 +112,8 @@ struct DriftSignal {
 /// A package at `rate`: track "ref" holds clip "R" (file "r") that plays a source from session frame
 /// 0, and track "c" holds clip "C" (file "c"), a recording of the same source at a clock of 1 + m from
 /// source time 30 s. With a pause of `pause` seconds at clip frame `pauseAt`, the clip skips that much
-/// source there. The clip starts at session frame 30 s - 1.2345 s, so the true lag of clip frame c is
-/// 1.2345 s + m x c, plus the pause from `pauseAt`.
+/// source there; a negative pause plays that much source again. The clip starts at session frame
+/// 30 s - 1.2345 s, so the true lag of clip frame c is 1.2345 s + m x c, plus the pause from `pauseAt`.
 struct DriftPackage {
     let rate: Int
     let length: Int
@@ -158,7 +158,7 @@ struct DriftPackage {
     }
 
     /// The seconds of source that the pause skips before clip frame `c`.
-    private func skipped(_ c: Double) -> Double { c >= Double(pauseAt) && pause > 0 ? pause : 0 }
+    private func skipped(_ c: Double) -> Double { c >= Double(pauseAt) && pause != 0 ? pause : 0 }
 
     /// The reference frames that clip frames `range` play (before a pause).
     func referenceFrames(of range: Range<Int>) -> Range<Int> {

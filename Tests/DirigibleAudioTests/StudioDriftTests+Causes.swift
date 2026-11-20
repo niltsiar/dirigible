@@ -73,6 +73,13 @@ extension StudioDriftTests {
         _ = try Self.fix(try await studio.correctDrift("C", to: "ref"))
     }
 
+    /// The source of a 12 min clip steps back 30 s at clip minute 5.5, as when the producer cut 30 s
+    /// out of the reference: no piece is placed over another.
+    @Test func aLagStepDownIsNotCorrected() async throws {
+        let drift = try DriftPackage(seconds: 720, pause: -30, at: 330)
+        try await Self.expectMovedByTheLag("C", drift, cause: .noFit(.lagStepsBack))
+    }
+
     /// A clip of 299 s is not measured; a clip of 300 s is corrected.
     @Test func theFiveMinuteLine() async throws {
         try await Self.expectMovedByTheLag("C", try DriftPackage(seconds: 299), cause: .clipTooShort)

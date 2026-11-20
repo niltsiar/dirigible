@@ -175,7 +175,7 @@ extension DriftCause {
         case .renderedFile: .bannerDriftCauseRendered
         case .takeFile: .bannerDriftCauseTake
         case .noFit(.tooFewPoints), .noFit(.tooManyOutliers): .bannerDriftCauseFewParts
-        case .noFit(.twoLines), .noFit(.endOutlier): .bannerDriftCauseNoLine
+        case .noFit(.twoLines), .noFit(.endOutlier), .noFit(.lagStepsBack): .bannerDriftCauseNoLine
         case .noFit(.rateOutOfRange): .bannerDriftCauseRate
         case .composedRateOutOfRange: .bannerDriftCauseComposed
         case .underOneMillisecond: .bannerDriftCauseUnderMs

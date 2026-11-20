@@ -56,7 +56,7 @@ Probes of the run (MacBookPro15,2):
 2. slope0 is the median of the slopes of consecutive points. d = lag - slope0 x c.
 3. The local scale s is 1.4826 x the median of |d[i] - median(d[i-1], d[i], d[i+1])|. The split gap S is max(50 ms, 6 s).
 4. The sorted d values split into clusters at each gap over S. A cluster of 3 or more points is a segment, and so is a cluster of 2 points whose median d is more than 20 ms from each segment. Other points are outliers.
-5. Two segments whose time spans overlap give no fit (the lag jumps between two lines).
+5. Two segments whose time spans overlap give no fit (the lag jumps between two lines). A later segment under an earlier one gives no fit (cause `lagStepsBack`): a pause only adds lag, and the piece of the later segment would cover the tail of the piece before it.
 6. The slope is the median of the pairwise slopes inside each segment (Theil-Sen, pooled). The offset of a segment is the median of lag - slope x c.
 7. tau is max(1 ms, 4 x 1.4826 x the median |residual|). A point past tau is an outlier. No fit when outliers are over 30% of the points. An end point that is an outlier gives no fit (cause `endOutlier`) only when it is a pause jump: the last point more than S above the line of its segment, or the first point more than S under it. A pause skips source audio, so the lag after it is larger. Each other end outlier is a lone outlier, as an inner one, and the worst residual of the result counts it, so a step under S at an end shows in the result.
 8. Least squares with one shared slope and one offset for each segment, on the inliers.

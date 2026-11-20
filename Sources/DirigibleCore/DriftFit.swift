@@ -18,6 +18,8 @@ public enum DriftFitFailure: Error, Equatable, Sendable {
     case tooManyOutliers
     /// An end point that a pause of the recorder explains is off its line.
     case endOutlier
+    /// A later segment has less lag than an earlier one. A pause only adds lag.
+    case lagStepsBack
     case rateOutOfRange
 }
 
@@ -138,6 +140,10 @@ public struct DriftFit: Equatable, Sendable {
         guard !groups.isEmpty else { throw .tooManyOutliers }
         groups.sort { $0[0] < $1[0] }
         for (a, b) in zip(groups, groups.dropFirst()) where a[a.count - 1] > b[0] { throw .twoLines }
+        // Clusters are more than the split gap apart, so a lower later group steps back by more.
+        for (a, b) in zip(groups, groups.dropFirst()) where median(b.map { d[$0] }) < median(a.map { d[$0] }) {
+            throw .lagStepsBack
+        }
         return (groups, gap)
     }
 }

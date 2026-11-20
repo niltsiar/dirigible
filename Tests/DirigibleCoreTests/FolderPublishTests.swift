@@ -199,10 +199,13 @@ struct FolderPublishTests {
         let place = try Place()
         try place.makeFolder(".Stems.notauuid.stems", file: "01.wav")
         try place.makeFile(".Stems.notauuid.stems.lock")
+        // The UUID length and dashes, with the non-hex letter G.
+        let uuidShaped = ".Stems.0123456G-89AB-CDEF-0123-456789ABCDEF.stems"
+        try place.makeFolder(uuidShaped, file: "01.wav")
         try place.makeFolder(".other.\(Self.uuid).stems", file: "01.wav")
         let staging = try stageFolder(for: place.target, kind: "stems")
         let name = staging.url.lastPathComponent
-        let kept = [".Stems.notauuid.stems", ".Stems.notauuid.stems.lock", ".other.\(Self.uuid).stems"]
+        let kept = [".Stems.notauuid.stems", ".Stems.notauuid.stems.lock", uuidShaped, ".other.\(Self.uuid).stems"]
         #expect(try place.names() == (kept + [name, "\(name).lock"]).sorted())
         staging.discard()
     }

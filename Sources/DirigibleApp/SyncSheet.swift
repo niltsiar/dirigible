@@ -178,6 +178,7 @@ extension DriftCause {
         case .clipTooShort: .bannerDriftCauseTooShort
         case .renderedFile: .bannerDriftCauseRendered
         case .takeFile: .bannerDriftCauseTake
+        case .transcriptNotLoaded: .bannerDriftCauseTranscript
         case .noFit(.tooFewPoints), .noFit(.tooManyOutliers): .bannerDriftCauseFewParts
         case .noFit(.twoLines), .noFit(.endOutlier), .noFit(.lagStepsBack): .bannerDriftCauseNoLine
         case .noFit(.rateOutOfRange): .bannerDriftCauseRate

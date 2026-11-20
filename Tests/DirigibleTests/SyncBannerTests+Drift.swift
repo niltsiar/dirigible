@@ -48,6 +48,11 @@ extension SyncBannerTests {
             (.clipTooShort, "the clip is shorter than 5 min"),
             (.renderedFile, "the clip plays rendered audio: restore the original audio first"),
             (.takeFile, "a take records on the session clock"),
+            (
+                .transcriptNotLoaded,
+                "a transcript of the session did not load: import the transcript again with an agent or the dirigible"
+                    + " command"
+            ),
             (.noFit(.tooFewPoints), "too few parts of the clip match the reference"),
             (.noFit(.tooManyOutliers), "too few parts of the clip match the reference"),
             (.noFit(.twoLines), "the lag does not follow a steady line"),

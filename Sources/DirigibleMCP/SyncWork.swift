@@ -260,6 +260,7 @@ extension DriftCause {
         case .clipTooShort: "the clip is shorter than 5 min"
         case .renderedFile: "the clip plays a rendered file: restore its original audio first"
         case .takeFile: "the clip is audio of a take, which records on the session clock"
+        case .transcriptNotLoaded: "a transcript of the session did not load: import the transcript again first"
         case .noFit(let failure): "no line fits the lags: \(failure.text)"
         case .composedRateOutOfRange:
             "with the earlier correction, the clock would be 1000 ppm or more from the original recording"

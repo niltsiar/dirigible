@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "de kloksnelheid wijkt 1000 ppm of meer af van de referentie";
 "banner.drift.cause.composed" = "de clip is al gecorrigeerd, en beide correcties samen zouden de klok met 1000 ppm of meer veranderen";
 "banner.drift.cause.under.ms" = "de vertraging verandert minder dan 1 ms over de clip";
+"banner.drift.cause.transcript" = "een transcript van de sessie is niet geladen: importeer het transcript opnieuw met een agent of het commando dirigible";

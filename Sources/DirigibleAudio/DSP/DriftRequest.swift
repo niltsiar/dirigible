@@ -22,6 +22,9 @@ public enum DriftCause: Hashable, Sendable {
     case renderedFile
     /// The resample source of the clip has a capture: a take file or a split half of a take.
     case takeFile
+    /// A transcript of the session did not load (decision 0055), so the session cannot take the
+    /// words of a new file.
+    case transcriptNotLoaded
     case noFit(DriftFitFailure)
     /// The ratio of the drift link of the played file times the ratio of the fit is 1000 ppm or
     /// more from 1.
@@ -116,6 +119,9 @@ package func driftRequest(
             .renderedFile
         } else if session.driftSourceFault(of: played.drift?.source ?? played.id) != nil {
             .takeFile
+        } else if !session.transcriptsNotLoaded.isEmpty {
+            // `addDriftFile` refuses it after the resample.
+            .transcriptNotLoaded
         } else {
             nil
         }

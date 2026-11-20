@@ -948,4 +948,5 @@ enum L10n: String, CaseIterable {
     case bannerDriftCauseRate = "banner.drift.cause.rate"
     case bannerDriftCauseComposed = "banner.drift.cause.composed"
     case bannerDriftCauseUnderMs = "banner.drift.cause.under.ms"
+    case bannerDriftCauseTranscript = "banner.drift.cause.transcript"
 }

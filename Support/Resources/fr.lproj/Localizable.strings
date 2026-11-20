@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "la fréquence de l'horloge s'écarte de 1000 ppm ou plus de la référence";
 "banner.drift.cause.composed" = "le clip a déjà été corrigé, et les deux corrections ensemble changeraient l'horloge de 1000 ppm ou plus";
 "banner.drift.cause.under.ms" = "le décalage varie de moins de 1 ms le long du clip";
+"banner.drift.cause.transcript" = "une transcription de la session n'a pas pu être chargée : importez de nouveau la transcription avec un agent ou la commande dirigible";

@@ -197,6 +197,36 @@ struct ExportStemsFolderTests {
         #expect(!Self.exists(dead) && Self.leftovers(package).isEmpty)
     }
 
+    /// C10: when the stem peaks sum over 1.0, the mix peak pass runs after the last stem file is
+    /// in the staging folder. The progress rises over that pass too, so a client that stops a call
+    /// with no new progress (opencode, 60 s) does not stop a long pass.
+    @Test func theMixPeakPassReportsProgress() throws {
+        let package = try MixPackage()
+        try package.addFile("n1", channels: [ExportStemsTests.noise(480_000, peak: 0.6, seed: 1)])
+        try package.addFile("n2", channels: [ExportStemsTests.noise(480_000, peak: 0.6, seed: 2)])
+        try package.addTrack("t1", clip: "a", file: "n1", start: 0, offset: 0, length: 480_000)
+        try package.addTrack("t2", clip: "b", file: "n2", start: 0, offset: 0, length: 480_000)
+        var all: [Double] = []
+        var afterStems: [Double] = []
+        let result = try exportStems(
+            package.session, by: .track, source: #require(ExportSource(range: 0..<480_000)), titles: .english,
+            options: ExportStemsTests.wav24, to: package.folder.url.appending(path: "stems"),
+            package: { package.url },
+            progress: { value in
+                all.append(value)
+                let stems = Self.staging(package).map {
+                    ((try? FileManager.default.contentsOfDirectory(atPath: $0.path)) ?? []).filter {
+                        $0.hasSuffix(".wav") && !$0.hasPrefix(".")
+                    }
+                }
+                if stems?.count == 2 { afterStems.append(value) }
+            }, isCancelled: { false })
+        #expect(result.mixPeak != nil)
+        #expect(afterStems.count >= 5, "\(afterStems.count) progress values in the mix peak pass")
+        #expect(zip(afterStems, afterStems.dropFirst()).allSatisfy { $0 < $1 }, "\(afterStems)")
+        #expect(zip(all, all.dropFirst()).allSatisfy { $0 <= $1 } && all.last == 1, "\(all)")
+    }
+
     /// No heard track gives no stem: a refusal before the staging folder exists.
     @Test func noHeardTrackMakesNoFolder() throws {
         let package = try Self.twoTracks()

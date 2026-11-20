@@ -94,7 +94,8 @@ let stemNameLimit = exportNameLimit - ".flac".utf8.count
 /// `exportItems` call, each file named by its plan name and the extension. A stop or a failure of
 /// a stem removes the staging folder, so `folder` gets no stem. When the stem peaks sum over 1.0,
 /// one pass measures the peak of the mix. Then the staging folder is published as `folder`.
-/// Thread rule: as `exportMix`.
+/// `progress` maps the n stems to 0...n/(n + 1) and the mix peak pass to the last band, or jumps to
+/// 1 when no pass runs. Thread rule: as `exportMix`.
 public func exportStems(
     _ session: Session, by grouping: StemGrouping, source: ExportSource, titles: StemTitles, options: StemOptions,
     to folder: URL, package: () throws(SessionFileError) -> URL, progress: (Double) -> Void,
@@ -146,10 +147,12 @@ func exportStems(
             session: session, source: source.stem(pair.0.tracks), options: options,
             url: staging.url.appending(path: pair.1))
     }
+    // The stems map to 0...n/(n + 1), and a mix peak pass to the last band.
+    let stemsBand = Double(items.count) / Double(items.count + 1)
     let results: [ExportResult]
     do {
         results = try exportItems(
-            items, replacing: [:], package: package, progress: { fraction, _ in progress(fraction) },
+            items, replacing: [:], package: package, progress: { fraction, _ in progress(fraction * stemsBand) },
             isCancelled: isCancelled)
     } catch {
         staging.discard()
@@ -163,11 +166,14 @@ func exportStems(
     if needsMixPeak(stemPeaks: peaks) {
         do {
             mixPeak = try samplePeak(
-                session, source: source, layout: options.layout, package: package, isCancelled: isCancelled)
+                session, source: source, layout: options.layout, package: package,
+                progress: { progress(stemsBand + (1 - stemsBand) * $0) }, isCancelled: isCancelled)
         } catch {
             staging.discard()
             throw .stopped(error)
         }
+    } else {
+        progress(1)
     }
     do { try staging.publish() } catch { throw .publish(error) }
     let files = zip(zip(plan.stems, names), peaks).map { StemFile(name: $0.1, tracks: $0.0.tracks, samplePeak: $1) }
@@ -190,10 +196,11 @@ private func stemBytes(_ plan: StemPlan, options: StemOptions, sessionRate: Int)
 }
 
 /// The sample peak of the mix of `source` at the session rate, folded to mono for a mono `layout`
-/// as the stem files are.
+/// as the stem files are. `progress` gets the fraction of the frames read at each new whole
+/// percent.
 private func samplePeak(
     _ session: Session, source: ExportSource, layout: ChannelLayout, package: () throws(SessionFileError) -> URL,
-    isCancelled: () -> Bool
+    progress: (Double) -> Void, isCancelled: () -> Bool
 ) throws(ExportError) -> Float {
     let chunk = 48_000
     let rate = Double(session.sampleRate)
@@ -204,7 +211,10 @@ private func samplePeak(
     else { throw .writeFailed(kAudio_ParamError) }
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks, span: chunk)
     var result: Float = 0
-    var start = source.range.lowerBound
+    let first = source.range.lowerBound
+    let total = Double(source.range.upperBound.count - first.count)
+    var percent = 0
+    var start = first
     while start < source.range.upperBound {
         if isCancelled() { throw .cancelled }
         do { mix.package = try package() } catch { throw .packageUnavailable }
@@ -214,6 +224,11 @@ private func samplePeak(
         if layout == .mono { fold(mixBuffer, into: monoBuffer) }
         result = max(result, peak(of: layout == .mono ? monoBuffer : mixBuffer))
         start = end
+        let fraction = Double(end.count - first.count) / total
+        if Int(fraction * 100) > percent {
+            percent = Int(fraction * 100)
+            progress(fraction)
+        }
     }
     return result
 }

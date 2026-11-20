@@ -19,7 +19,7 @@ package struct ExportWork: Sendable {
     /// How the texts name an option.
     let spelling: OptionSpelling
     /// Nil for one file. Else one file for each part of the range (decision 0067): `out` gives the
-    /// folder, the stem, and the format.
+    /// folder, the prefix, and the format.
     let split: SplitKind?
 
     package init(
@@ -158,7 +158,7 @@ package struct SplitRefusal: Error, Sendable {
 
 extension ExportWork {
     var folder: URL { url.deletingLastPathComponent() }
-    var stem: String { url.deletingPathExtension().lastPathComponent }
+    var prefix: String { url.deletingPathExtension().lastPathComponent }
 
     /// The files of the set that the targets of `session` name, and the confirmation of each item
     /// that `replace` takes. Refuses a range with no split point, and an item at a target with no
@@ -167,7 +167,7 @@ extension ExportWork {
         throws(SplitRefusal) -> [URL: ConfirmedFile]
     {
         let targets = exportPartTargets(
-            session, range: source.range, by: kind, options: options, folder: folder, stem: stem
+            session, range: source.range, by: kind, options: options, folder: folder, prefix: prefix
         ).targets
         guard !targets.isEmpty else {
             throw SplitRefusal(message: ExportText.noPointMessage(kind, range: source.range), isNoPoint: true)
@@ -184,10 +184,11 @@ extension ExportWork {
         return confirmed
     }
 
-    /// The items of the folder that an earlier set of the stem wrote and `files` do not. It reads
+    /// The items of the folder that an earlier set of the prefix wrote and `files` do not. It reads
     /// the folder, so call it off the main actor.
     package func oldFiles(besides files: [ExportedPart]) -> [URL] {
-        oldPartFiles(in: folder, stem: stem, format: options.format, besides: Set(files.map(\.url.lastPathComponent)))
+        oldPartFiles(
+            in: folder, prefix: prefix, format: options.format, besides: Set(files.map(\.url.lastPathComponent)))
     }
 
     /// The job of a set on the files.
@@ -196,13 +197,13 @@ extension ExportWork {
         progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool
     ) throws(ExportPartsError) -> ExportPartsResult {
         try exportParts(
-            session, source: source, by: kind, options: options, folder: folder, stem: stem, replacing: replacing,
+            session, source: source, by: kind, options: options, folder: folder, prefix: prefix, replacing: replacing,
             package: { package }, progress: { progress($0.fraction) }, isCancelled: isCancelled)
     }
 
     /// The stdout lines and the stderr lines of a set that ended with no error: a line for each file,
     /// a line for each split point with no file, the warnings of each file, and the line of the older
-    /// files of the stem. The files that only the export found bad refuse the set, as for one file:
+    /// files of the prefix. The files that only the export found bad refuse the set, as for one file:
     /// `SetFaults` names each of them.
     package func setLines(of result: ExportPartsResult, session: Session, source: ExportSource, old: [URL])
         throws(SetFaults) -> (stdout: [String], stderr: [String])

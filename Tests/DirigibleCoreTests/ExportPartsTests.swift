@@ -30,9 +30,9 @@ struct ExportPartsTests {
 
     static func length(_ range: Range<Frames>) -> Int { (range.upperBound - range.lowerBound).count }
 
-    static func names(_ parts: ExportParts, stem: String = "Ep 12", ext: String = "mp3") -> [String] {
+    static func names(_ parts: ExportParts, prefix: String = "Ep 12", ext: String = "mp3") -> [String] {
         parts.parts.map {
-            Session.partFileName($0, digits: parts.digits, stem: stem, pathExtension: ext, limit: limit)
+            Session.partFileName($0, digits: parts.digits, prefix: prefix, pathExtension: ext, limit: limit)
         }
     }
 
@@ -219,8 +219,9 @@ struct ExportPartsTests {
     /// C4 byte limit, H3. Control: a cut at the end of the name removes `-01` and gives two parts one name.
     @Test func aLongStemIsCutAfterTheTitle() throws {
         let session = try Self.chapters([("Intro", 0), ("Talk", 480_000)])
-        let stem = String(repeating: "s", count: 250)
-        let names = Self.names(session.exportParts(in: 0..<Self.end, by: .chapters, introTitle: "Intro"), stem: stem)
+        let prefix = String(repeating: "s", count: 250)
+        let names = Self.names(
+            session.exportParts(in: 0..<Self.end, by: .chapters, introTitle: "Intro"), prefix: prefix)
         #expect(names.allSatisfy { $0.utf8.count <= Self.limit })
         #expect(names[0].hasSuffix("s-01.mp3"))
         #expect(names[1].hasSuffix("s-02.mp3"))
@@ -246,13 +247,13 @@ struct ExportPartsTests {
         #expect(names.last == "Ep 12-99-c99.mp3")
     }
 
-    /// C15 old files: the names of an older set of the stem, and no other name.
+    /// C15 old files: the names of an older set of the prefix, and no other name.
     @Test(arguments: [
         ("Ep 12-05-Outro.mp3", true), ("Ep 12-05.mp3", true), ("Ep 12-100-Talk.mp3", true),
         ("Ep 12.mp3", false), ("Ep 13-01-A.mp3", false), ("Ep 12-05-Outro.m4a", false), ("Ep 12-5-Outro.mp3", false),
         ("Ep 12-xx-Outro.mp3", false), ("Ep 12-05-.mp3", false), ("Ep 12 extra-05-A.mp3", false),
     ])
     func aNameOfTheStemPatternMatchesOnlyPartNames(name: String, matches: Bool) {
-        #expect(Session.isPartFileName(name, stem: "Ep 12", pathExtension: "mp3") == matches)
+        #expect(Session.isPartFileName(name, prefix: "Ep 12", pathExtension: "mp3") == matches)
     }
 }

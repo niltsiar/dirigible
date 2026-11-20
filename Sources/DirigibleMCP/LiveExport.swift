@@ -63,7 +63,7 @@ private func liveSet(
     let result: ExportPartsResult
     do throws(StudioError) {
         result = try await studio.export(
-            source, by: kind, options: work.options, folder: work.folder, stem: work.stem, replacing: replacing,
+            source, by: kind, options: work.options, folder: work.folder, prefix: work.prefix, replacing: replacing,
             progress: report)
     } catch .exportParts(.stopped(let stop)) {
         if Task.isCancelled { throw ToolError(cancelledMessage) }
@@ -100,7 +100,7 @@ private func setStopMessage(_ work: ExportWork, _ stop: ExportPartsStop, cause: 
     try work.splitConfirmations(session, source: source, by: kind)
 }
 
-/// The folder read for the older files of the stem, off the main actor.
+/// The folder read for the older files of the prefix, off the main actor.
 @concurrent private func oldFiles(_ work: ExportWork, besides files: [ExportedPart]) async -> [URL] {
     work.oldFiles(besides: files)
 }

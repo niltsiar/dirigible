@@ -7,11 +7,11 @@ import os
 @testable import DirigibleMCP
 
 /// `export` with `split` on a package that the app has open (decision 0067, criterion C14). The package
-/// of `LiveExportTests` with the chapters Intro at 0, Second at 1 s, and Third at 2 s, so the stem `Ep`
+/// of `LiveExportTests` with the chapters Intro at 0, Second at 1 s, and Third at 2 s, so the prefix `Ep`
 /// gives `Ep-01-Intro.wav`, `Ep-02-Second.wav`, and `Ep-03-Third.wav`.
 extension LiveExportTests {
-    var stem: URL { package.folder.appending(path: "Ep.wav") }
-    var setArguments: [String: String] { ["package": package.path, "out": stem.path, "split": "chapters"] }
+    var prefix: URL { package.folder.appending(path: "Ep.wav") }
+    var setArguments: [String: String] { ["package": package.path, "out": prefix.path, "split": "chapters"] }
 
     func file(_ number: Int) -> String {
         package.folder.appending(path: ["Ep-01-Intro", "Ep-02-Second", "Ep-03-Third"][number - 1] + ".wav").path

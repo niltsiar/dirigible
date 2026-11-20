@@ -292,8 +292,8 @@ extension MCPExportToolTests {
         #expect(toolResult(answer(answers, id: 1)) == (text, true))
     }
 
-    /// Lead ruling 1b row 6: the text ends with the line of the older files of the stem.
-    @Test func exportWithSplitNamesTheOldFilesOfTheStem() async throws {
+    /// Lead ruling 1b row 6: the text ends with the line of the older files of the prefix.
+    @Test func exportWithSplitNamesTheOldFilesOfThePrefix() async throws {
         try addChapters()
         let old = out("Ep-05-Outro.mp3")
         try Data("old".utf8).write(to: URL(filePath: old))
@@ -303,7 +303,7 @@ extension MCPExportToolTests {
         ])
 
         let names = ["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]
-        let line = "Warning: 1 older file of this stem stays: \(old). Dirigible does not delete it."
+        let line = "Warning: 1 older file of this prefix stays: \(old). Dirigible does not delete it."
         #expect(toolResult(answer(answers, id: 1)) == ((exported(names) + [line]).joined(separator: "\n"), false))
         #expect(try Data(contentsOf: URL(filePath: old)) == Data("old".utf8))
     }

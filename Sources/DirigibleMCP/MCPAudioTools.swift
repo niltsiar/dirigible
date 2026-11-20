@@ -32,8 +32,8 @@ private let allowMissing = Param.defaulted(
     false)
 private let split = Param<String?>.optional(
     "split",
-    "Write one file for each chapter or marker of the range: chapters or markers. out gives the folder, the stem, "
-        + "and the format; each file is <stem>-<NN>-<title>, and replace takes the files that exist.",
+    "Write one file for each chapter or marker of the range: chapters or markers. out gives the folder, the prefix, "
+        + "and the format; each file is <prefix>-<NN>-<title>, and replace takes the files that exist.",
     .string)
 
 private let chosenClips = Param<[String]?>.optional(

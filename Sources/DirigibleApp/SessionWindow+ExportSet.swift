@@ -5,7 +5,7 @@ import DirigibleMCP
 import Foundation
 
 /// The question before a split export replaces files: the set that waits, the items at its targets
-/// that the user must confirm, and the older files of the stem that stay (decision 0067).
+/// that the user must confirm, and the older files of the prefix that stay (decision 0067).
 struct ReplaceParts: Hashable {
     let source: ExportSource
     let options: ExportOptions
@@ -18,7 +18,7 @@ struct ReplaceParts: Hashable {
 }
 
 /// The replace sheet (decision 0067): the question, the first five names, and the older files of the
-/// stem that stay. Cancel is the first button and the default, so Return cancels. Replace is
+/// prefix that stay. Cancel is the first button and the default, so Return cancels. Replace is
 /// destructive and has no key.
 @MainActor func replaceQuestion(_ set: ReplaceParts) -> NSAlert {
     let names = set.names
@@ -60,7 +60,7 @@ extension SessionWindow {
         defer { if exportStep == .starting { exportStep = nil } }
         let targets = exportPartTargets(
             studio.session, range: source.range, by: split.kind, options: options, folder: split.folder,
-            stem: split.stem
+            prefix: split.prefix
         ).targets
         guard !targets.isEmpty else {
             alert = .error(.exportParts(.noPoint(split.kind, source.range)))
@@ -77,7 +77,7 @@ extension SessionWindow {
     }
 
     /// The question before the set, read off the main actor: the items at the targets and the older
-    /// files of the stem. Nil when no item is at a target.
+    /// files of the prefix. Nil when no item is at a target.
     func replacements(
         _ source: ExportSource, _ options: ExportOptions, _ split: SplitTarget, targets: [ExportPartTarget]
     ) async -> ReplaceParts? {
@@ -104,7 +104,8 @@ extension SessionWindow {
         let (revision, session) = (studio.sessionRevision, studio.session)
         do throws(StudioError) {
             let result = try await studio.export(
-                source, by: split.kind, options: options, folder: split.folder, stem: split.stem, replacing: replacing)
+                source, by: split.kind, options: options, folder: split.folder, prefix: split.prefix,
+                replacing: replacing)
             let written = Set(result.files.map(\.url.lastPathComponent))
             let old = await olderFiles(split, format: options.format, besides: written).map(\.lastPathComponent)
             show(result, old: old, session: session, format: options.format, revision: revision)
@@ -146,9 +147,9 @@ extension SessionWindow {
     urls.reduce(into: [:]) { confirmed, url in confirmed[url] = ConfirmedFile(at: url) }
 }
 
-/// The older files of the stem that are not in `names`. It reads the folder.
+/// The older files of the prefix that are not in `names`. It reads the folder.
 @concurrent private func olderFiles(_ split: SplitTarget, format: ExportFormat, besides names: Set<String>) async
     -> [URL]
 {
-    oldPartFiles(in: split.folder, stem: split.stem, format: format, besides: names)
+    oldPartFiles(in: split.folder, prefix: split.prefix, format: format, besides: names)
 }

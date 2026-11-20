@@ -202,7 +202,7 @@ extension Studio {
     /// point it throws `.exportParts(.noPoint(_, _))` and starts no job. `exportFile` gives the part
     /// in hand.
     public func export(
-        _ source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, stem: String,
+        _ source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, prefix: String,
         replacing: [URL: ConfirmedFile],
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportPartsResult {
@@ -210,7 +210,7 @@ extension Studio {
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let session = session
         let targets = exportPartTargets(
-            session, range: source.range, by: kind, options: options, folder: folder, stem: stem)
+            session, range: source.range, by: kind, options: options, folder: folder, prefix: prefix)
         guard let first = targets.targets.first else { throw .exportParts(.noPoint(kind, source.range)) }
         exportNumber += 1
         exportStop = nil
@@ -221,7 +221,7 @@ extension Studio {
         let task = jobTask { package, isCancelled in
             Result { () throws(ExportPartsError) in
                 try exportParts(
-                    session, source: source, by: kind, options: options, folder: folder, stem: stem,
+                    session, source: source, by: kind, options: options, folder: folder, prefix: prefix,
                     replacing: replacing, package: package, progress: hop, isCancelled: isCancelled)
             }
         }

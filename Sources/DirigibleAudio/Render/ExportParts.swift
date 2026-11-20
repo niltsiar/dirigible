@@ -62,32 +62,33 @@ public struct ExportPartsProgress: Hashable, Sendable {
 /// `Session.exportParts`, named by `Session.partFileName` in `folder`. The one owner of the target
 /// URLs: the keys of `replacing` of `exportParts` come from it.
 public func exportPartTargets(
-    _ session: Session, range: Range<Frames>, by kind: SplitKind, options: ExportOptions, folder: URL, stem: String
+    _ session: Session, range: Range<Frames>, by kind: SplitKind, options: ExportOptions, folder: URL, prefix: String
 ) -> (targets: [ExportPartTarget], dropped: [Marker]) {
     let parts = session.exportParts(in: range, by: kind, introTitle: options.introTitle)
     let targets = parts.parts.map { part in
         ExportPartTarget(
-            part: part, url: folder.appending(path: exportPartFileName(part, of: parts, options: options, stem: stem)))
+            part: part,
+            url: folder.appending(path: exportPartFileName(part, of: parts, options: options, prefix: prefix)))
     }
     return (targets, parts.dropped)
 }
 
 /// The file name of `part` of `parts` (decision 0067): the one owner of the name that
 /// `exportPartTargets` uses. A caller that holds the parts asks it for one name.
-public func exportPartFileName(_ part: ExportPart, of parts: ExportParts, options: ExportOptions, stem: String)
+public func exportPartFileName(_ part: ExportPart, of parts: ExportParts, options: ExportOptions, prefix: String)
     -> String
 {
     Session.partFileName(
-        part, digits: parts.digits, stem: stem, pathExtension: options.format.pathExtension, limit: exportNameLimit)
+        part, digits: parts.digits, prefix: prefix, pathExtension: options.format.pathExtension, limit: exportNameLimit)
 }
 
-/// The old files of the stem: the items of `folder` whose name `Session.isPartFileName` matches
+/// The old files of the prefix: the items of `folder` whose name `Session.isPartFileName` matches
 /// with the extension of `format`, and that are not in `besides`. It reads the folder, so call it off
 /// the main actor.
-public func oldPartFiles(in folder: URL, stem: String, format: ExportFormat, besides names: Set<String>) -> [URL] {
+public func oldPartFiles(in folder: URL, prefix: String, format: ExportFormat, besides names: Set<String>) -> [URL] {
     let items = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
     return items.filter {
-        !names.contains($0) && Session.isPartFileName($0, stem: stem, pathExtension: format.pathExtension)
+        !names.contains($0) && Session.isPartFileName($0, prefix: prefix, pathExtension: format.pathExtension)
     }
     .sorted().map { folder.appending(path: $0) }
 }
@@ -102,13 +103,13 @@ public func oldPartFiles(in folder: URL, stem: String, format: ExportFormat, bes
 /// fraction of the set by frames at each new whole percent and at the start of each part. The source
 /// of each part keeps the tracks of `source`. Thread rule: as `exportMix`.
 public func exportParts(
-    _ session: Session, source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, stem: String,
+    _ session: Session, source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, prefix: String,
     replacing: [URL: ConfirmedFile], package: () throws(SessionFileError) -> URL,
     progress: (ExportPartsProgress) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled }
 ) throws(ExportPartsError) -> ExportPartsResult {
     let range = source.range
     let (targets, dropped) = exportPartTargets(
-        session, range: range, by: kind, options: options, folder: folder, stem: stem)
+        session, range: range, by: kind, options: options, folder: folder, prefix: prefix)
     guard !targets.isEmpty else { throw .noPoint(kind, range) }
     let items = targets.map {
         ExportItem(

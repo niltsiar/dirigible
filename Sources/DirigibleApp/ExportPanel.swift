@@ -335,9 +335,9 @@ private struct ExportAccessory: View {
             if let plan = settings.plan, let kind = settings.files.kind {
                 // The panel reports no edit of its name field, so the line reads it again.
                 TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-                    let stem = SplitTarget.stem(of: name())
+                    let prefix = SplitTarget.prefix(of: name())
                     let line = plan.line(
-                        kind, options: settings.options, stem: stem, pathExtension: settings.fileExtension)
+                        kind, options: settings.options, prefix: prefix, pathExtension: settings.fileExtension)
                     Text(verbatim: line?.text ?? "").foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

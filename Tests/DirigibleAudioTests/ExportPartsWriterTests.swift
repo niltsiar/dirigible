@@ -22,17 +22,18 @@ struct ExportPartsWriterTests {
 
     static func export(
         _ package: MixPackage, range: Range<Frames> = 0..<480_000, tracks: Set<TrackID>? = nil,
-        by kind: SplitKind = .chapters, options: ExportOptions = wav, stem: String = "Ep",
+        by kind: SplitKind = .chapters, options: ExportOptions = wav, prefix: String = "Ep",
         replacing: [URL: ConfirmedFile] = [:], progress: (ExportPartsProgress) -> Void = { _ in }
     ) throws(ExportPartsError) -> ExportPartsResult {
         try exportParts(
             package.session, source: ExportSource(range: range, tracks: tracks)!, by: kind, options: options,
-            folder: package.folder.url, stem: stem, replacing: replacing, package: { package.url }, progress: progress)
+            folder: package.folder.url, prefix: prefix, replacing: replacing, package: { package.url },
+            progress: progress)
     }
 
-    static func targets(_ package: MixPackage, range: Range<Frames> = 0..<480_000, stem: String = "Ep") -> [URL] {
+    static func targets(_ package: MixPackage, range: Range<Frames> = 0..<480_000, prefix: String = "Ep") -> [URL] {
         exportPartTargets(
-            package.session, range: range, by: .chapters, options: wav, folder: package.folder.url, stem: stem
+            package.session, range: range, by: .chapters, options: wav, folder: package.folder.url, prefix: prefix
         )
         .targets.map(\.url)
     }
@@ -227,10 +228,10 @@ struct ExportPartsWriterTests {
         var episode = Episode()
         episode.title = try EpisodeLine("Episode 12")
         package.session.setEpisode(episode)
-        let stem = String(repeating: "s", count: exportNameLimit - "-01-A.m4a".utf8.count)
+        let prefix = String(repeating: "s", count: exportNameLimit - "-01-A.m4a".utf8.count)
         let options = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
 
-        let result = try Self.export(package, range: 0..<48_000, options: options, stem: stem)
+        let result = try Self.export(package, range: 0..<48_000, options: options, prefix: prefix)
 
         let url = try #require(result.files.first?.url)
         #expect(exportNameLimit == 209)
@@ -262,13 +263,13 @@ struct ExportPartsWriterTests {
         #expect(calls.contains { $0.number == 2 && $0.count == 3 && $0.name == targets[1].lastPathComponent })
     }
 
-    /// C13 old files: the stem names that the set does not write, and no other name.
+    /// C13 old files: the prefix names that the set does not write, and no other name.
     @Test func oldPartFilesAreTheStemNamesThatTheSetDoesNotWrite() throws {
         let package = try Self.package([("A", 0), ("B", 144_000)])
         let targets = exportPartTargets(
             package.session, range: 0..<480_000, by: .chapters,
             options: ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session),
-            folder: package.folder.url, stem: "Ep 12")
+            folder: package.folder.url, prefix: "Ep 12")
         let folder = package.folder.url
         for name in ["Ep 12-05-Outro.mp3", "Ep 12.mp3", "Ep 13-01-A.mp3", "Ep 12-01-A.mp3"] {
             try Data("old".utf8).write(to: folder.appending(path: name))
@@ -276,15 +277,15 @@ struct ExportPartsWriterTests {
 
         let besides = Set(targets.targets.map(\.url.lastPathComponent))
 
-        let old = oldPartFiles(in: folder, stem: "Ep 12", format: .mp3(.k128), besides: besides)
+        let old = oldPartFiles(in: folder, prefix: "Ep 12", format: .mp3(.k128), besides: besides)
 
         #expect(old == [folder.appending(path: "Ep 12-05-Outro.mp3")])
         #expect(try Data(contentsOf: folder.appending(path: "Ep 12-05-Outro.mp3")) == Data("old".utf8))
         // Code gate 1 item 6: the format gives the extension, so an M4A set sees no MP3 file.
-        #expect(oldPartFiles(in: folder, stem: "Ep 12", format: .aac(.k128), besides: []) == [])
+        #expect(oldPartFiles(in: folder, prefix: "Ep 12", format: .aac(.k128), besides: []) == [])
         try Data("old".utf8).write(to: folder.appending(path: "Ep 12-02-B.m4a"))
         #expect(
-            oldPartFiles(in: folder, stem: "Ep 12", format: .aac(.k128), besides: [])
+            oldPartFiles(in: folder, prefix: "Ep 12", format: .aac(.k128), besides: [])
                 == [folder.appending(path: "Ep 12-02-B.m4a")])
     }
 }

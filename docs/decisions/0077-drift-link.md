@@ -47,7 +47,7 @@ Probes of the run (MacBookPro15,2):
 **D6. Measure.** One read gives the lag of 0076 and the drift points:
 
 - The clip is cut into cells of 60 s (the last cell takes the remainder). In each cell, the window is the 10 s with the largest sum of the 50 ms window levels of the clip (the excerpt choice of 0076, with 10 s windows). A 10 s window smears the lag by 2 ms at 200 ppm. The 0076 Phase 4 table gives a median peak of 0.630 at 1 ms of smear and 0.411 at 2 ms, over the match rule of 0.2.
-- Each window searches the 2 kHz reference of the read within 60 s on each side of the 0076 lag (an FFT of 2^19 points at 48 kHz), with the match rule of 0076 (0.2 and 3), then the fine step at the session rate. A run of 3 or more windows with no match gets one search of its loudest window over the whole span, and a match there centers the search of the run. A window that fails the match rule gives no point.
+- Each window searches the 2 kHz reference of the read within 60 s on each side of the 0076 lag (an FFT of 2^19 points at 48 kHz), with the match rule of 0076 (0.2 and 3), then the fine step at the session rate. A run of 3 or more windows with no match, and a run of any length at the clip start or end, gets one search of its loudest window over the whole span, and a match there centers the search of the run. The full-span scores of these searches are built once for the measure. A window that fails the match rule gives no point.
 - A point is the clip frame of the window center and its lag.
 
 **D7. Fit.** One rate for the clip (one recorder has one clock) and one offset for each segment (a pause of the recorder starts a segment). The rules, with P3:

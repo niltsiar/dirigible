@@ -299,8 +299,10 @@ fi
 if [[ -n $reason ]]; then
     echo "test-hooks: no stamp ($reason)"
 else
-    # The key holds the date, so only the lines of today can match: drop the others.
-    { grep " $today\$" "$stamp" 2>/dev/null; echo "$key $sha $today"; } > "$stamp.new" && mv "$stamp.new" "$stamp"
+    # The key holds the date, so only the lines of today can match: drop the others. Each pass
+    # writes its own temporary file, so two passes never write one file.
+    stamp_new="$(mktemp "$stamp.XXXXXX")" &&
+        { grep " $today\$" "$stamp" 2>/dev/null; echo "$key $sha $today"; } > "$stamp_new" && mv "$stamp_new" "$stamp"
     echo "test-hooks: wrote $key"
 fi
 echo "$time_line"

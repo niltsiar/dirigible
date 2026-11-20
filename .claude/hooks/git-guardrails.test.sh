@@ -901,6 +901,12 @@ expect block 'rm -rf "$(git rev-parse --git-common-dir)/dirigible-bench-marks"'
 expect block 'rm -f /Users/x/repo/.git/dirigible-lock-free/*'
 expect allow 'ls .git/dirigible-bench-marks'
 expect allow 'cat .git/dirigible-lock-free/5'
+# Only scripts/with-lock.sh writes and removes the marks of a waiting long holder: a hand-written
+# remove lets a new hooks pass start before that holder. A read is allowed.
+expect_each_write .git/dirigible-long-waiting/5
+expect block 'rm -f "$(git rev-parse --git-common-dir)/dirigible-long-waiting/"*'
+expect allow 'ls .git/dirigible-long-waiting'
+expect allow 'cat .git/dirigible-long-waiting/5'
 # Only scripts/verify-copy.sh start takes the screen lock and stop removes it: a hand-written
 # remove freed the screen for a second verify copy. A read is allowed.
 expect_each_write .git/dirigible-screen
@@ -918,7 +924,7 @@ expect allow 'grep -c . "$(git rev-parse --git-common-dir)/dirigible-hooks-stamp
 # Each guarded path allows the read forms of one shared list.
 for guarded in .git/dirigible-flakes .git/dirigible-check-partial .git/dirigible-check-running/5 \
   .git/dirigible-build.lock .git/dirigible-screen .git/dirigible-hooks-stamp \
-  .git/dirigible-bench-marks/5 .git/dirigible-lock-free/5; do
+  .git/dirigible-bench-marks/5 .git/dirigible-lock-free/5 .git/dirigible-long-waiting/5; do
   expect_each_read "$guarded"
 done
 # A plain assignment must not let a read tool run another program: these names block.
@@ -1002,7 +1008,7 @@ for body in "${sink_bodies[2]}" "${sink_bodies[@]:4}"; do
 done
 for name in dirigible-check-stamp dirigible-slow-date dirigible-flakes dirigible-check-partial \
   dirigible-check-running dirigible-build.lock dirigible-screen dirigible-hooks-stamp \
-  dirigible-bench-marks/5 dirigible-lock-free/5; do
+  dirigible-bench-marks/5 dirigible-lock-free/5 dirigible-long-waiting/5; do
   expect block $'python3 - <<\'EOF\'\nimport os\nos.remove(".git/'"$name"$'")\nEOF'
 done
 expect block $'python3 - <<\'EOF\'\nimport os\nos.rmdir(".git/dirigible-build.lock")\nEOF'

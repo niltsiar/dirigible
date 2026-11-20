@@ -491,6 +491,11 @@ fi
 if ! reads_only dirigible-lock-free; then
   block "names the lock-free call files of scripts/with-lock.sh in a command that is not a read (only with-lock.sh writes and removes them, and a file of a dead pid goes at the next call; read them with ls or cat)"
 fi
+# A long holder keeps a new hooks pass from starting with its mark, so a hand-written remove lets a
+# pass start before it.
+if ! reads_only dirigible-long-waiting; then
+  block "names the waiting marks of the long holders of scripts/with-lock.sh in a command that is not a read (only with-lock.sh writes and removes them, and a mark of a dead pid goes at the next call; read them with ls or cat)"
+fi
 # Only scripts/verify-copy.sh start takes the screen lock and stop removes it, so a hand-written
 # remove cannot free the screen for a second verify copy. A read is allowed.
 if ! reads_only dirigible-screen; then

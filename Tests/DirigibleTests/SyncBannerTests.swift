@@ -180,7 +180,10 @@ import Testing
 
         let banner = try #require(model.syncReport?.banner, "no banner")
         #expect(
-            banner == .syncNoMatch(clip: "C", track: "t2", clipName: "c", trackName: "Guest", press: 1), "\(banner)")
+            banner
+                == .syncNoMatch(
+                    clip: "C", track: "t2", clipName: "c", trackName: "Guest", correctsDrift: true, press: 1),
+            "\(banner)")
         #expect(banner.kind == .warning && model.alert == nil)
         #expect(
             syncNoMatchText(clip: "c", track: "Guest", text: englishText) == "No match: c was not found on Guest.")
@@ -199,16 +202,38 @@ import Testing
             let draft = try #require(SyncDraft(clip: "C", in: studio.session))
             #expect(draft.reference == "t2", "third \(third): the default track")
             await model.sync(draft)
-            guard case .syncNoMatch(let clip, let track, _, _, _) = try #require(model.syncReport?.banner) else {
+            guard case .syncNoMatch(let clip, let track, _, _, let drift, _) = try #require(model.syncReport?.banner)
+            else {
                 Issue.record("third \(third): no no-match banner")
                 return
             }
             #expect(model.syncDraft == nil && track == "t2")
 
-            model.chooseAnotherSyncTrack(for: clip, after: track)
+            model.chooseAnotherSyncTrack(for: clip, after: track, correctsDrift: drift)
 
             let again = try #require(model.syncDraft, "third \(third): no sheet")
             #expect(again.clip == "C" && again.reference == (third ? "t3" : "t2"), "third \(third): \(again)")
+            await model.close()
+        }
+    }
+
+    /// Decision 0077 D12: the sheet that the button opens again keeps the Correct drift box of the
+    /// sync that found no match, off or on.
+    @Test func chooseAnotherTrackKeepsTheDriftBox() async throws {
+        for box in [false, true] {
+            let (model, studio) = try await open(unrelated: true)
+            var draft = try #require(SyncDraft(clip: "C", in: studio.session))
+            draft.correctsDrift = box
+            await model.sync(draft)
+            guard case .syncNoMatch(let clip, let track, _, _, let drift, _) = try #require(model.syncReport?.banner)
+            else {
+                Issue.record("box \(box): no no-match banner")
+                return
+            }
+
+            model.chooseAnotherSyncTrack(for: clip, after: track, correctsDrift: drift)
+
+            #expect(try #require(model.syncDraft, "box \(box): no sheet").correctsDrift == box, "box \(box)")
             await model.close()
         }
     }

@@ -20,15 +20,16 @@ struct SyncDraft: Equatable {
     var correctsDrift: Bool
 
     /// The sheet for `clip`, on the track of `Session.defaultSyncReference(for:)`, or after a sync on
-    /// `failed` that found no match, on the default track other than `failed` when one exists. Nil when
-    /// no other track has a clip near the clip, so the popup would be empty.
-    init?(clip: ClipID, in session: Session, after failed: TrackID? = nil) {
+    /// `failed` that found no match, on the default track other than `failed` when one exists. The box
+    /// is `correctsDrift`, the box of that sync, and off for a blocked clip. Nil when no other track has
+    /// a clip near the clip, so the popup would be empty.
+    init?(clip: ClipID, in session: Session, after failed: TrackID? = nil, correctsDrift: Bool = true) {
         guard
             let reference = session.defaultSyncReference(for: clip, excluding: failed)
                 ?? session.defaultSyncReference(for: clip)
         else { return nil }
         (self.clip, self.reference) = (clip, reference)
-        correctsDrift = !Self.driftIsBlocked(clip, in: session)
+        self.correctsDrift = correctsDrift && !Self.driftIsBlocked(clip, in: session)
     }
 
     /// True when the resample source of the clip, `file.drift?.source ?? file`, has a capture: a take
@@ -272,17 +273,19 @@ extension SessionWindow {
     }
 
     /// The Choose Another Track button of the no-match banner: the sheet again for `clip`, on a track
-    /// other than `failed` when one exists.
-    func chooseAnotherSyncTrack(for clip: ClipID, after failed: TrackID) { openSyncSheet(for: clip, after: failed) }
+    /// other than `failed` when one exists, with the Correct drift box `correctsDrift` of that sync.
+    func chooseAnotherSyncTrack(for clip: ClipID, after failed: TrackID, correctsDrift: Bool) {
+        openSyncSheet(for: clip, after: failed, correctsDrift: correctsDrift)
+    }
 
     func canChooseAnotherSyncTrack(for clip: ClipID) -> Bool {
         !dialogShowing && importJob == nil
             && idleStudio.map { SyncDraft(clip: clip, in: $0.session) != nil } == true
     }
 
-    private func openSyncSheet(for clip: ClipID, after failed: TrackID? = nil) {
+    private func openSyncSheet(for clip: ClipID, after failed: TrackID? = nil, correctsDrift: Bool = true) {
         guard canChooseAnotherSyncTrack(for: clip), let studio = idleStudio else { return }
-        syncDraft = SyncDraft(clip: clip, in: studio.session, after: failed)
+        syncDraft = SyncDraft(clip: clip, in: studio.session, after: failed, correctsDrift: correctsDrift)
     }
 
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
@@ -325,7 +328,7 @@ extension SessionWindow {
             syncReport = ToolBannerShown(
                 banner: .syncNoMatch(
                     clip: draft.clip, track: track.id, clipName: session.name(of: clip), trackName: track.name,
-                    press: syncPresses),
+                    correctsDrift: draft.correctsDrift, press: syncPresses),
                 revision: studio.sessionRevision)
         } catch {
             alert = .error(error)

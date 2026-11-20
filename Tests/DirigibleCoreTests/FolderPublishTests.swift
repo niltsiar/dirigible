@@ -111,6 +111,24 @@ struct FolderPublishTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: place.target.path) == ["user.wav"])
     }
 
+    /// The folder is at the target after the rename, so a failed flush of the parent folder does
+    /// not throw: a throw would report a folder that exists as not made.
+    @Test func aFailedFlushAfterTheRenameStillPublishes() throws {
+        let place = try Place()
+        var seams = FolderPublishSeams()
+        var flushed: [String] = []
+        seams.flushFolder = { path in
+            flushed.append(path)
+            return EIO
+        }
+        let staging = try stageFolder(for: place.target, kind: "stems", seams: seams)
+        try Data("stem".utf8).write(to: staging.url.appending(path: "01.wav"))
+        #expect(Self.publishError(staging) == nil)
+        #expect(flushed.map { URL(filePath: $0).standardizedFileURL } == [place.parent.standardizedFileURL])
+        #expect(try place.names() == ["Stems"], "the folder is at the target, and no lock file stays")
+        #expect(try Data(contentsOf: place.target.appending(path: "01.wav")) == Data("stem".utf8))
+    }
+
     @Test func aFailedClaimRenameRemovesTheClaim() throws {
         let place = try Place()
         var seams = FolderPublishSeams()

@@ -6,6 +6,8 @@ struct FolderPublishSeams {
     var plainRename: (String, String) -> Int32 = { rename($0, $1) == 0 ? 0 : errno }
     /// The `VOL_CAP_INT_RENAME_EXCL` bit of the volume of a path.
     var hasExclusiveRename: (String) -> Bool = volumeHasExclusiveRename
+    /// `fullFlush(path:)` of the parent folder after the rename: nil, or the errno.
+    var flushFolder: (String) -> Int32? = { fullFlush(path: $0) }
     /// `open(path, flags, 0o644)`: the descriptor, or -1 and the errno.
     var openLock: (String, Int32) -> (descriptor: Int32, errno: Int32) = { path, flags in
         let descriptor = open(path, flags, 0o644)
@@ -43,8 +45,10 @@ public struct StagingFolder: ~Copyable {
     /// Renames the folder to the target with `renamex_np(RENAME_EXCL)`; on ENOTSUP or EPERM, claims
     /// the target with `mkdir` and renames over the empty claim (decision 0078). An item at the
     /// target throws `.exists` and does not change; a claim that got an item stays with it. A failed
-    /// rename over the claim removes the claim while it is empty. Then it flushes the parent folder
-    /// and removes the lock file. A throw removes the staging folder and the lock file.
+    /// rename over the claim removes the claim while it is empty. A throw removes the staging folder
+    /// and the lock file, and leaves no folder of this call at the target. After the rename it
+    /// flushes the parent folder with no throw, as `exportMix` after its move: the folder is at the
+    /// target. Then it removes the lock file.
     public consuming func publish() throws(SessionFileError) {
         let (from, to) = (url.path, target.path)
         let code = seams.exclusiveRename(from, to)
@@ -64,10 +68,8 @@ public struct StagingFolder: ~Copyable {
             removeFiles()
             throw code == EEXIST || code == ENOTEMPTY ? .exists : .writeFailed(step: "rename", errno: code)
         }
-        defer { lock.remove() }
-        if let flush = fullFlush(path: target.deletingLastPathComponent().path) {
-            throw .writeFailed(step: "fsync", errno: flush)
-        }
+        _ = seams.flushFolder(target.deletingLastPathComponent().path)
+        lock.remove()
     }
 
     /// Removes the staging folder and the lock file.

@@ -55,7 +55,7 @@ extension SyncCommandTests {
 
     /// The first line moves the clip later by the offset of the package, then the fix line says the
     /// rate, the change across the clip, and that one resample made the new file, and the session
-    /// plays that file with a drift link to the old one. The JSON has the same fix in `drift_correction`.
+    /// plays that file with a drift link to the old one. The JSON has the same fix in `driftCorrection`.
     @Test func driftCorrectsAnOutsideRecording() async throws {
         let package = try Self.driftPackage(seconds: 300)
 
@@ -77,11 +77,11 @@ extension SyncCommandTests {
         let json = try await Self.drift(try Self.driftPackage(seconds: 300), "--json")
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(json.stdout.utf8)) as? [String: Any], "\(json)")
-        let correction = try #require(object["drift_correction"] as? [String: Any], "\(object)")
-        #expect(Set(correction.keys) == ["ppm", "across_ms", "segments", "worst_ms"], "\(correction)")
-        #expect(abs((correction["ppm"] as? Double ?? 0) - Self.ppm) <= 0.1 && correction["across_ms"] as? Int == 30)
-        #expect(correction["segments"] as? Int == 1 && (correction["worst_ms"] as? Double ?? 9) < 1, "\(correction)")
-        #expect(object["drift_not_corrected"] == nil && object["clip"] as? String == "C")
+        let correction = try #require(object["driftCorrection"] as? [String: Any], "\(object)")
+        #expect(Set(correction.keys) == ["ppm", "acrossMs", "segments", "worstMs"], "\(correction)")
+        #expect(abs((correction["ppm"] as? Double ?? 0) - Self.ppm) <= 0.1 && correction["acrossMs"] as? Int == 30)
+        #expect(correction["segments"] as? Int == 1 && (correction["worstMs"] as? Double ?? 9) < 1, "\(correction)")
+        #expect(object["driftNotCorrected"] == nil && object["clip"] as? String == "C")
     }
 
     /// A clip under 5 min moves by the lag, writes no file, and the text and the JSON give the cause.
@@ -102,8 +102,8 @@ extension SyncCommandTests {
                 == names, "a file was written")
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(jsonResult.stdout.utf8)) as? [String: Any], "\(jsonResult)")
-        #expect(object["drift_correction"] is NSNull && object["frames"] as? Int == -960_000, "\(object)")
-        #expect(object["drift_not_corrected"] as? String == "the clip is shorter than 5 min", "\(object)")
+        #expect(object["driftCorrection"] is NSNull && object["frames"] as? Int == -960_000, "\(object)")
+        #expect(object["driftNotCorrected"] as? String == "the clip is shorter than 5 min", "\(object)")
     }
 
     /// A 12 min clip, with a pause of 20 s at clip second 330. The text gives one split line
@@ -128,7 +128,7 @@ extension SyncCommandTests {
     }
 
     /// With no `--drift`, the text and the JSON are those of 0076: no drift line and no
-    /// `drift_correction` key.
+    /// `driftCorrection` key.
     @Test func noDriftFlagKeepsTheOldOutput() async throws {
         let text = try Self.package(reference: "r-full")
         let json = try Self.package(reference: "r-full")

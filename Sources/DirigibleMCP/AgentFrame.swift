@@ -75,15 +75,17 @@ let readSize = 64 * 1024
 package let lostCallMessage =
     "The connection to Dirigible closed during the call. Read the session before you try again."
 
-/// The lost-call text of `tool` at a close. A job of a tool that writes a file (`Tool.writesFile`)
-/// can be past its last cancel check and still write its file.
+/// The lost-call text of `tool` at a close. A job of a tool that writes a file or a folder
+/// (`Tool.output`) can be past its last cancel check and still write it.
 func lostMessage(tool: String) -> String {
-    Tool.writesFile(tool) ? "The connection to Dirigible closed during the call. \(fileAdvice(tool))" : lostCallMessage
+    Tool.output(of: tool).map { "The connection to Dirigible closed during the call. \(advice(tool, $0))" }
+        ?? lostCallMessage
 }
 
-/// The advice of a tool that writes a file when the bridge does not know if the job wrote it.
-private func fileAdvice(_ tool: String) -> String {
-    "The \(tool) can still write its file: check the output file, and read the session before you try again."
+/// The advice of a tool that writes `output` when the bridge does not know if the job wrote it.
+private func advice(_ tool: String, _ output: Tool.Output) -> String {
+    "The \(tool) can still write its \(output.rawValue): check the output \(output.rawValue), and read the session "
+        + "before you try again."
 }
 
 /// The error text of a call that got no line from the app for `seconds`. A progress line restarts
@@ -91,9 +93,8 @@ private func fileAdvice(_ tool: String) -> String {
 func limitMessage(tool: String, seconds: Int) -> String {
     let head = "Dirigible sent nothing for \(seconds) s."
     let tail = "read the session before you try again."
+    if let output = Tool.output(of: tool) { return "\(head) \(advice(tool, output))" }
     switch tool {
-    case _ where Tool.writesFile(tool):
-        return "\(head) \(fileAdvice(tool))"
     case "record":
         return "\(head) The take can still start after a system prompt. Tell the user to check the Dirigible window, "
             + "and \(tail)"

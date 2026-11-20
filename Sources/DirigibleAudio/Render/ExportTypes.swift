@@ -41,8 +41,9 @@ public struct ExportResult: Hashable, Sendable {
     /// The M4A has chapters with an image and chapters with none, and the episode has no artwork, so
     /// the file has no chapter images.
     public let chapterImagesOmitted: Bool
-    /// The largest sample magnitude that the last write gives to the file writer, at the session
-    /// rate. Over 1.0, a WAV or FLAC file clips.
+    /// The largest sample magnitude of the last write: for WAV, FLAC, and float CAF, of the samples
+    /// that the file gets at its rate (`FilePeak`); for AAC and MP3, of the encoder input at the
+    /// session rate. Over 1.0, a WAV or FLAC file clips.
     public let samplePeak: Float
 }
 

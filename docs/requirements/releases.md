@@ -219,7 +219,7 @@ Goal: export stems, organize the work with presets, templates, favorites, and bi
 | R10 | Export presets and templates, favorites, and clipboard bins (F63, F23, F22). |
 | R11 | Stem export and export presets (F73, F57). |
 
-1. **Stem export (F73).** One file for each track or each role, all from the same start.
+1. **Stem export (F73).** One file for each track or each role, all from the same start. Run 1 lands the command line and the MCP tool. The app command comes in the next run of this release.
 2. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
 3. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
 4. **Import Session (F151).** Merge another Dirigible package into the open session (Hindenburg PRO has Import Session Into Session). The use case: two people record apart, with no link between the apps. One of them sends the full package for the edit. A recording from another app, such as Audacity, uses Import Audio and Sync by waveform. The merge adds one track for each imported track, with its name, and the markers as an option. It copies the files with the copy function of the paste across packages (0042: new file IDs, `NewClipFiles`). It gets a `dirigible` command (0011, CLI parity). The capture times of the other package come from another clock and give only a rough start. The package has one timebase, so all its tracks align with the same drift fit of Sync by waveform (Release 6). The drift fit uses a track that both sessions recorded, for example the call track. With no common track, the import keeps the rough start from the capture times.

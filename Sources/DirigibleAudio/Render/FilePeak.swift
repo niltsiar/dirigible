@@ -1,16 +1,16 @@
 import AVFoundation
 
-/// The sample peak of the samples that `ExtAudioFile` writes to a PCM file at `fileRate` from
-/// buffers in the `client` format. At another rate it runs the buffers through an
-/// `AVAudioConverter` with its default settings (medium quality, the normal algorithm, the normal
-/// prime). These are the settings of the converter of `ExtAudioFile`, and the two give the same
-/// samples (probe gate1-src of run `2026-10-28-stem-export`: a difference of 0).
+/// The sample peak of the samples that `ExtAudioFile` writes to a `fileFormat` file at `fileRate`
+/// from buffers in the `client` format. At another rate it runs the buffers through an
+/// `AVAudioConverter` with the sample rate converter quality of the `ExtAudioFile` converter for
+/// that format: high for FLAC, medium for WAV and CAF. With the default algorithm and prime, the
+/// two give samples within 0.5 LSB (fix check 1.8 of run `2026-10-28-stem-export`).
 struct FilePeak {
     private(set) var value: Float = 0
     private let converter: AVAudioConverter?
     private let output: AVAudioPCMBuffer?
 
-    init(client: AVAudioFormat, fileRate: Int) throws(ExportError) {
+    init(client: AVAudioFormat, fileRate: Int, fileFormat: ExportFormat) throws(ExportError) {
         guard Int(client.sampleRate) != fileRate else {
             (converter, output) = (nil, nil)
             return
@@ -19,6 +19,11 @@ struct FilePeak {
             let converter = AVAudioConverter(from: client, to: format),
             let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8_192)
         else { throw .writeFailed(kAudio_ParamError) }
+        converter.sampleRateConverterQuality =
+            switch fileFormat {
+            case .flac: AVAudioQuality.high.rawValue
+            case .wav, .floatCAF, .aac, .mp3: AVAudioQuality.medium.rawValue
+            }
         (self.converter, self.output) = (converter, output)
     }
 

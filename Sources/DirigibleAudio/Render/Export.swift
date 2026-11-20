@@ -189,7 +189,8 @@ func exportMix(
         }
     /// Writes the file once. `current` is the gain stage, nil for no target.
     func writeRound(_ band: ClosedRange<Double>) throws(ExportError) {
-        var filePeak = try FilePeak(client: folded?.format ?? stereo, fileRate: peakRate)
+        var filePeak = try FilePeak(
+            client: folded?.format ?? stereo, fileRate: peakRate, fileFormat: options.format)
         try writeFile(
             temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
         ) {

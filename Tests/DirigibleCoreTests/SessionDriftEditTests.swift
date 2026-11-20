@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// Decision 0077 D9: the session edit of a drift fix (criterion D14 of run `2026-11-19-waveform-drift`).
+/// Decision 0077 D9: the session edit of a drift fix.
 struct SessionDriftEditTests {
     /// The ratio of the worked example: m = +100e-6.
     static let ratio = 1 / (1 + 100e-6)
@@ -25,7 +25,7 @@ struct SessionDriftEditTests {
         DriftFile(stem: stem, length: length, gain: try #require(Gain(dB: gain)))
     }
 
-    /// D14: one segment with m = +100e-6 and b = 4800 on the whole clip. The new file links to
+    /// The worked example: one segment with m = +100e-6 and b = 4800 on the whole clip. The new file links to
     /// "guest" at offset 0 and holds 28 802 881 frames for a written 28 802 881 or 28 802 882. The
     /// clip keeps its ID and fades, starts at 52 800, and plays 28 802 880 frames from frame 0. A
     /// returned +3.01 dB on +95 dB gives +96 dB and a link gain of +1 dB. A second fix of the clip
@@ -65,7 +65,7 @@ struct SessionDriftEditTests {
         #expect(session.files["guest drift 2"]?.drift?.source == "guest")
     }
 
-    /// D14: the envelope and the ride points move through the time map, round((f - offset) / ratio).
+    /// The envelope and the ride points move through the time map, round((f - offset) / ratio).
     /// One piece: old file frame 14 400 000 goes to 14 401 440. With a cut at clip frame 14 400 000,
     /// the second file starts at source frame 13 920 000, so the same point goes to 480 048.
     @Test func theEnvelopeMovesThroughTheTimeMap() throws {
@@ -92,7 +92,7 @@ struct SessionDriftEditTests {
         #expect(right.envelope.gain(at: 480_048) == 0)
     }
 
-    /// D14 and D8: a pause splits the clip at the cut. The right piece is "c@14448000" on its own file
+    /// A pause splits the clip at the cut. The right piece is "c@14448000" on its own file
     /// at start 15 414 240 (the start uses m x c0) and offset 480 048. The clip "d" under the new
     /// range of the right piece loses its head and is named; the clip "e" past it stays. A start of
     /// -4800 cuts the head of the clip, as a sync does.
@@ -127,7 +127,7 @@ struct SessionDriftEditTests {
         #expect(d.start == 29_815_680 && d.offset == 967_680 && session.clip("e")?.clip == e)
     }
 
-    /// D14 and P5: over ratios from -999 to +999 ppm, spans that end at the source end, and written
+    /// Over ratios from -999 to +999 ppm, spans that end at the source end, and written
     /// lengths of floor, floor + 1, and ceil + 1 of the exact length, each edit passes the drift check,
     /// the session reads back from its XML, and the record is at most 1 frame shorter than its file.
     @Test func eachEditPassesTheDriftCheck() throws {

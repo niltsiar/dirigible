@@ -5,12 +5,11 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criteria D15 to D17 and the same-package paste of D12 of decision 0077: `Studio.correctDrift` on
-/// packages of the drift signal, where clip "C" on track "c" drifts by `DriftPackage.m` against
-/// track "ref".
+/// `Studio.correctDrift` (decision 0077 D11) on packages of the drift signal, where clip "C" on
+/// track "c" drifts by `DriftPackage.m` against track "ref".
 @MainActor
 struct StudioDriftTests {
-    /// The D6 clip: 10 min at 100 ppm. After the fix, the clip plays one new file with a drift link
+    /// A 10 min clip at 100 ppm. After the fix, the clip plays one new file with a drift link
     /// to its old file, and a second measure gives 10 points within 1 ms of their median lag.
     @Test func aDriftingClipIsWithinOneMillisecondAfterTheFix() async throws {
         let drift = try DriftPackage(seconds: 600)
@@ -52,7 +51,7 @@ struct StudioDriftTests {
         #expect(studio.session == before && !studio.canUndo, "the fix is more than one undo step")
     }
 
-    /// A 44.1 kHz original of the drift clip, imported into the 48 kHz session, gets the same bars.
+    /// A 44.1 kHz original of the drift clip, imported into the 48 kHz session, is corrected as well.
     @Test func anOriginalAt44100IsCorrected() async throws {
         let voice = DriftSignal(seed: 1, seconds: 30 + 600 * 1.01 + 60)
         let drift = try DriftPackage(seconds: 600, voice: voice)
@@ -71,7 +70,7 @@ struct StudioDriftTests {
         try Self.expectAligned(imported, in: studio, drift, points: 10)
     }
 
-    /// The D8 clip: 12 min at 100 ppm, whose source skips 20 s at clip minute 5.5. Each piece plays
+    /// A 12 min clip at 100 ppm, whose source skips 20 s at clip minute 5.5. Each piece plays
     /// its own new file and is within 1 ms of its line.
     @Test func aPausedRecordingGivesTwoAlignedClips() async throws {
         let drift = try DriftPackage(seconds: 720, pause: 20, at: 330)
@@ -131,7 +130,7 @@ struct StudioDriftTests {
         #expect(studio.session.clip("R")?.clip.start == start, "the move ran")
     }
 
-    /// The P6 tone: 0.25 s of a 12 kHz tone at phase pi/4 with samples at full scale (true peak
+    /// 0.25 s of a 12 kHz tone at phase pi/4 with samples at full scale (true peak
     /// +3.01 dBFS) in a 6 min clip at 100 ppm. After the fix, the tone plays within 0.1 dB of its
     /// level before.
     @Test func aFullScaleClipKeepsItsLevel() async throws {

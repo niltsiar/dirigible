@@ -68,7 +68,7 @@ public struct DriftSyncReport: Hashable, Sendable {
 private let shortestClipSeconds = 300
 
 /// The one body of a sync with the drift option (decision 0077 D11): `Studio.correctDrift` and the
-/// closed-package work of `clip_sync` call it. A clip with a cause of D10 before the measure is
+/// closed-package work of `clip_sync` call it. A clip with a `DriftCause` before the measure is
 /// read by `syncLag`; else `driftMeasure` gives the 0076 lag and the points, `DriftFit` the line,
 /// and `driftCuts` the cuts. A cause moves the clip by the 0076 lag with `Session.sync` and writes
 /// no file. Else each piece of `Session.driftPlan` is resampled from its source span with
@@ -106,7 +106,7 @@ package func driftRequest(
         }
     }
 
-    // The source of a drift link is a plain file (D4), so after the origin check each fault of
+    // The source of a drift link is a plain file (decision 0077 D4), so after the origin check each fault of
     // the resample source is a capture.
     let cause: DriftCause? =
         if target.length < Frames(shortestClipSeconds * rate) {

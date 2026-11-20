@@ -40,7 +40,7 @@ extension Studio {
 extension Studio {
     /// Sync Clip to Track with Correct drift (decision 0077 D11): `driftRequest` in a blocking run of
     /// kind `.drift`, as a clip render (`blockingRun`). It saves `session.xml` and records one undo
-    /// entry with `agent`, also for a move with a cause of D10. The errors of `Session.syncSpan`
+    /// entry with `agent`, also for a move with a `DriftCause`. The errors of `Session.syncSpan`
     /// throw before the run. A read fault throws as for `syncClip`, a resample or rename fault
     /// `.clipRender`, a session refusal `.session`, and a cancel of the caller, of the banner, or by
     /// a take in another studio `.syncCancelled`. A throw changes nothing in memory, and the new

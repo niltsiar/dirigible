@@ -7,8 +7,8 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleMCP
 
-/// The tool `clip_sync` with `drift` (decision 0077 D12, criterion D18). The drift package is the D6
-/// package of `StudioDriftTests` with 300 s of audio: clip `C` (file `c`) is on `t1`, and clip `R` (file
+/// The tool `clip_sync` with `drift` (decision 0077 D12). The drift package is that of
+/// `StudioDriftTests` with 300 s of audio: clip `C` (file `c`) is on `t1`, and clip `R` (file
 /// `r`, the signal at session time) is on `t2`. The audio of `C` is the same signal on a clock of 100 ppm,
 /// 1.2345 s early.
 extension SyncToolTests {
@@ -195,7 +195,7 @@ private func writeWAV(_ url: URL, length: Int, samples: (Range<Int>) -> [Float])
     }
 }
 
-/// The drift signal of decision 0077 (the fixture of `DriftSignal.swift` in `DirigibleAudioTests`): a
+/// The voice of `DriftSignal.swift` in `DirigibleAudioTests`: a
 /// seeded syllable envelope, on for 150 to 400 ms and off for 100 to 600 ms, over 40 seeded sines
 /// from 100 to 3400 Hz for each on or off span. A sample is a function of its time in seconds, so a
 /// clip at a clock of 1 + m needs no resampler.

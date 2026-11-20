@@ -4,7 +4,7 @@ import Testing
 @testable import DirigibleCore
 
 /// Decision 0077 D2 to D4: the drift check in memory, the holders of a drift source, and the words
-/// of a new drift-corrected file (criteria D11 to D13 of run `2026-11-19-waveform-drift`).
+/// of a new drift-corrected file.
 struct SessionDriftTests {
     let unused: UnusedFilesTests
 
@@ -39,10 +39,10 @@ struct SessionDriftTests {
         return session
     }
 
-    /// D11: `addFile` and `addDriftFile` refuse a source with a capture (a take file and a split half
-    /// of a take), a source with a drift link, a file with an origin and a drift link, and a last
-    /// frame past the source. The session does not change. The bound length on a plain source, and
-    /// the same link to "guest drift" after its drift link is removed, pass (controls).
+    /// `addFile` and `addDriftFile` refuse a source with a capture (a take file and a split half of
+    /// a take), a source with a drift link, a file with an origin and a drift link, and a last frame
+    /// past the source. The session does not change. The bound length on a plain source, and the
+    /// same link to "guest drift" after its drift link is removed, pass.
     @Test func eachBadDriftLinkIsRefusedInMemory() throws {
         var session = Session(sampleRate: 48_000)
         try session.addCapture(
@@ -96,7 +96,7 @@ struct SessionDriftTests {
         #expect(plain.files["x"]?.drift == worked && session.files["x"] == plain.files["x"])
     }
 
-    /// D12: a clip on the drift-corrected file keeps its source. The unrelated file "u" is the one
+    /// A clip on the drift-corrected file keeps its source. The unrelated file "u" is the one
     /// item, and the prune moves only it.
     @Test func removeUnusedFilesKeepsADriftSource() throws {
         var session = try Self.chain("guest drift", of: "guest", placed: true, others: [("u", "u.wav")])
@@ -110,8 +110,8 @@ struct SessionDriftTests {
         #expect(session.files["guest"] != nil && session.files["guest drift"]?.drift?.source == "guest")
     }
 
-    /// D12: `removeFile` refuses the source of a drift link, and the session does not change. After
-    /// the drift-corrected file goes, the source goes too (control).
+    /// `removeFile` refuses the source of a drift link, and the session does not change. After the
+    /// drift-corrected file goes, the source goes too.
     @Test func aDriftSourceCannotBeRemovedAlone() throws {
         var session = try Self.chain("guest drift", of: "guest", placed: false)
         let before = session
@@ -124,7 +124,7 @@ struct SessionDriftTests {
         #expect(session.files.isEmpty)
     }
 
-    /// D12: with no clip, Remove Unused Files removes both files, whether the ID order puts the
+    /// With no clip, Remove Unused Files removes both files, whether the ID order puts the
     /// source first ("guest") or last ("z").
     @Test func bothFilesGoTogetherInEitherOrder() throws {
         for (drift, source) in [("guest drift", "guest"), ("a drift", "z")] as [(FileID, FileID)] {
@@ -141,7 +141,7 @@ struct SessionDriftTests {
         }
     }
 
-    /// D12: a clip on a render of the drift-corrected file (clip, "guest drift NR", "guest drift",
+    /// A clip on a render of the drift-corrected file (clip, "guest drift NR", "guest drift",
     /// "guest") keeps the whole chain. Only "u" goes.
     @Test func removeUnusedFilesKeepsTheSourceUnderARender() throws {
         var session = try Self.chain(
@@ -156,7 +156,7 @@ struct SessionDriftTests {
         #expect(Set(session.files.keys) == ["guest", "guest drift", "guest drift NR"])
     }
 
-    /// D12: with no clip on the chain, Remove Unused Files removes the three files together.
+    /// With no clip on the chain, Remove Unused Files removes the three files together.
     @Test func bothFilesGoTogetherUnderARender() throws {
         var session = try Self.chain("guest drift", of: "guest", rendered: "guest drift NR", placed: false)
         let names = ["guest.wav", "guest drift.wav", "guest drift NR.wav"]
@@ -169,8 +169,8 @@ struct SessionDriftTests {
         #expect(report.moved.count == 3 && report.failed.isEmpty && session.files.isEmpty)
     }
 
-    /// D13: the words of the source go into the new file through the time map of the worked example
-    /// of D14 (offset 0, ratio 1 / 1.0001): each end lands within 1 frame of round(f x 1.0001), with
+    /// The words of the source go into the new file through the time map of the worked example of
+    /// `SessionDriftEditTests` (offset 0, ratio 1 / 1.0001): each end lands within 1 frame of round(f x 1.0001), with
     /// its number, and the transcript loads after a save and an open. Fail value: a copy by the
     /// offset only puts the last word 2880 frames early.
     @Test func theWordsOfTheSourceMoveThroughTheTimeMap() throws {

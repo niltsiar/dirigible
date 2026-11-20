@@ -5,7 +5,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// Criterion D20 of decision 0077: the drift lines of the result banner of Tools > Sync Clip to Track....
+/// Decision 0077 D12: the drift lines of the result banner of Tools > Sync Clip to Track....
 extension SyncBannerTests {
     func driftMoved(_ outcome: DriftOutcome, drift: SyncDrift = .spread(0)) -> SyncMoved {
         SyncMoved(
@@ -19,7 +19,7 @@ extension SyncBannerTests {
             slope: 100e-6, across: 2_880, worstResidual: 19.2, splits: splits, clips: ["C"], files: ["c drift"])
     }
 
-    /// D20: a fix gives the rate, the change across the clip, and the worst residual in place of the
+    /// A fix gives the rate, the change across the clip, and the worst residual in place of the
     /// spread line, then one line for each cut. The time of a cut is a clip time, as the lag is.
     @Test func theBannerGivesTheDriftLine() {
         #expect(
@@ -39,7 +39,7 @@ extension SyncBannerTests {
         #expect(text(driftMoved(.corrected(slow))).contains("Corrected a drift of -135.0 ppm (81 ms across the clip)"))
     }
 
-    /// D20: no fix gives "The drift was not corrected" with the cause, after the 0076 spread line.
+    /// No fix gives "The drift was not corrected" with the cause, after the 0076 spread line.
     @Test func theBannerGivesTheCause() {
         let causes: [(DriftCause, String)] = [
             (.clipTooShort, "the clip is shorter than 5 min"),

@@ -75,17 +75,10 @@ extension Session {
 
     /// The drift fix of `clip` (decision 0077 D9) on a copy, so it is one undo entry. The clip splits
     /// at the cuts of `lines`, and each piece moves to the file of `files` with the same index, which
-    /// the caller wrote from the span of `driftPlan` with the same arguments. Each new file gets the
-    /// largest record length, up to its written length, whose last frame is in the source (the bound
-    /// of D4). For the first clip frame c0 of piece k and its source frame f0, the piece plays from
-    /// round((f0 - span start) / ratio) for round(length / `lines.ratio`) frames, up to the file end,
-    /// and starts at round(clip start + c0 + lag k + slope x c0). Its gain is the clip gain without
-    /// the gain of the first fix plus the returned gain, clamped to `Gain.range`; the drift link
-    /// holds the difference of the new and that clip gain. The envelope and the ride move through
-    /// the time map, the clips under the new range are cut, and a start under frame 0 cuts the head,
-    /// as `sync` does. It throws the errors of `driftPlan`, `.frameOutOfRange` for a file count
-    /// other than the piece count or a record with no frame, each refusal of `addDriftFile`, and
-    /// each refusal of `check`. A throw changes nothing.
+    /// the caller wrote from the span of `driftPlan` with the same arguments. The clips under the new
+    /// range are cut, and a start under frame 0 cuts the head, as `sync` does. It throws the errors of
+    /// `driftPlan`, `.frameOutOfRange` for a file count other than the piece count or a record with
+    /// no frame, each refusal of `addDriftFile`, and each refusal of `check`. A throw changes nothing.
     @discardableResult
     public mutating func correctDrift(_ clip: ClipID, lines: DriftLines, files written: [DriftFile])
         throws(SessionError) -> DriftCorrection

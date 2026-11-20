@@ -1,4 +1,3 @@
-import AVFoundation
 import Accelerate
 import DirigibleCore
 import Foundation
@@ -6,7 +5,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The drift signal of decision 0077: a seeded syllable envelope, on for 150 to 400 ms and off for
+/// The voice of the drift tests: a seeded syllable envelope, on for 150 to 400 ms and off for
 /// 100 to 600 ms, over seeded sines from 100 to 3400 Hz (log-uniform). Each drawn on or off span
 /// has its own 40 sines: one sine set for the whole signal correlates again at lags far from the
 /// true lag, under the ratio of the 0076 match rule. A sample is a function of its time in seconds,
@@ -225,19 +224,10 @@ extension DriftSignal {
 extension MixPackage {
     /// Writes a mono 24-bit WAV of `length` frames in blocks from `samples` and adds it to the pool.
     func addSignal(_ id: FileID, length: Int, samples: (Range<Int>) -> [Float]) throws {
-        let rate = session.sampleRate
-        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 1))
-        let block = 1 << 20
-        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(block)))
         let path = "\(id.rawValue).wav"
-        let writer = try ClipWriter(url: url.appending(path: "\(clipsFolderName)/\(path)"), file: path, format: format)
-        for first in stride(from: 0, to: length, by: block) {
-            let frames = samples(first..<min(first + block, length))
-            buffer.frameLength = AVAudioFrameCount(frames.count)
-            buffer.floatChannelData![0].update(from: frames, count: frames.count)
-            try writer.write(buffer)
-        }
-        try writer.close()
+        try writeWAV(
+            url.appending(path: "\(clipsFolderName)/\(path)"), rate: session.sampleRate, length: length,
+            samples: samples)
         try session.addFile(AudioFile(id: id, path: path, layout: .mono, length: Frames(length)))
     }
 }

@@ -6,8 +6,8 @@ import Testing
 
 @testable import DirigibleMCP
 
-/// `dirigible clip sync --drift` (decision 0077 D12, criterion D18). The drift package is the D6
-/// package of `StudioDriftTests`: track `ref` holds clip `R` (file `r`, the signal at session
+/// `dirigible clip sync --drift` (decision 0077 D12). The drift package is that of
+/// `StudioDriftTests`: track `ref` holds clip `R` (file `r`, the signal at session
 /// time), and track `guest` holds clip `C` (file `c`, the same signal on a clock of 100 ppm), 1.2345 s
 /// early. With a pause, the clip skips that many seconds of the signal there.
 extension SyncCommandTests {
@@ -106,7 +106,7 @@ extension SyncCommandTests {
         #expect(object["drift_not_corrected"] as? String == "the clip is shorter than 5 min", "\(object)")
     }
 
-    /// The D8 clip: 12 min, with a pause of 20 s at clip second 330. The text gives one split line
+    /// A 12 min clip, with a pause of 20 s at clip second 330. The text gives one split line
     /// with the clip time of the cut and the length of the pause, and the session has two clips.
     @Test func aPauseGivesASplitLine() async throws {
         let package = try Self.driftPackage(seconds: 720, pause: 20, at: 330)
@@ -209,7 +209,7 @@ private func writeWAV(_ url: URL, length: Int, samples: (Range<Int>) -> [Float])
     }
 }
 
-/// The drift signal of decision 0077 (the fixture of `DriftSignal.swift` in `DirigibleAudioTests`): a
+/// The voice of `DriftSignal.swift` in `DirigibleAudioTests`: a
 /// seeded syllable envelope, on for 150 to 400 ms and off for 100 to 600 ms, over 40 seeded sines
 /// from 100 to 3400 Hz for each on or off span. A sample is a function of its time in seconds, so a
 /// clip at a clock of 1 + m needs no resampler.

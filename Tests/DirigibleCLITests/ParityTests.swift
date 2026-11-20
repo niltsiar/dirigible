@@ -68,6 +68,7 @@ struct ParityTests {
         "removeMatch": ["track match-voice"],
         "shuffle": ["clip shuffle"],
         "sync": ["clip sync"],
+        "correctDrift": ["clip sync"],
     ]
 
     static let exemptions: [String: String] = [

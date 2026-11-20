@@ -15,6 +15,9 @@ struct SyncDraft: Equatable {
 
     let clip: ClipID
     var reference: TrackID
+    /// The Correct drift box (decision 0077 D12): on when the sheet opens, off for a clip whose resample
+    /// source has a capture.
+    var correctsDrift: Bool
 
     /// The sheet for `clip`, on the track of `Session.defaultSyncReference(for:)`, or after a sync on
     /// `failed` that found no match, on the default track other than `failed` when one exists. Nil when
@@ -25,7 +28,25 @@ struct SyncDraft: Equatable {
                 ?? session.defaultSyncReference(for: clip)
         else { return nil }
         (self.clip, self.reference) = (clip, reference)
+        correctsDrift = !Self.driftIsBlocked(clip, in: session)
     }
+
+    /// True when the resample source of the clip, `file.drift?.source ?? file`, has a capture: a take
+    /// file or a split half of a take. A drift-corrected clip and a rendered clip are not blocked.
+    func driftIsBlocked(in session: Session) -> Bool { Self.driftIsBlocked(clip, in: session) }
+
+    private static func driftIsBlocked(_ clip: ClipID, in session: Session) -> Bool {
+        guard let file = session.clip(clip).flatMap({ session.files[$0.clip.file] }) else { return false }
+        return session.driftSourceFault(of: file.drift?.source ?? file.id) == .capture
+    }
+
+    /// The line under the disabled box, or nil.
+    func driftLine(in session: Session, text: (L10n) -> String = { $0.text }) -> String? {
+        driftIsBlocked(in: session) ? text(.sheetSyncDriftTake) : nil
+    }
+
+    /// Whether Sync runs the drift fix: the box is on and the clip is not blocked.
+    func usesDrift(in session: Session) -> Bool { correctsDrift && !driftIsBlocked(in: session) }
 
     /// Each track but the track of the clip, in session order. `text` gives the value of a key.
     func rows(in session: Session, text: (L10n) -> String = { $0.text }) -> [Row] {
@@ -77,6 +98,8 @@ struct SyncMoved: Equatable {
     let headCut: Frames
     let replaced: [String]
     let rate: Int
+    /// What the drift fix did, or nil for a sync with no drift option.
+    var outcome: DriftOutcome?
 
     /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
     /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence with its
@@ -96,13 +119,27 @@ struct SyncMoved: Equatable {
                 : format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))
         ]
         sentences.append(format(.bannerSyncMatch, peak))
-        switch drift {
-        case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):
-            let milliseconds = Int((Double(spread.count) * 1000 / Double(rate)).rounded())
-            sentences.append(format(.bannerSyncSpread, milliseconds))
-        case .spread: break
-        case .clipTooShort: sentences.append(format(.bannerSyncTooShort))
-        case .onePartMatched: sentences.append(format(.bannerSyncNotMeasured))
+        func milliseconds(_ frames: Double) -> Double { frames * 1000 / Double(rate) }
+        if case .corrected(let fix) = outcome {
+            sentences.append(
+                format(
+                    .bannerDriftCorrected, fix.slope * 1e6, Int(milliseconds(abs(fix.across)).rounded()),
+                    milliseconds(fix.worstResidual)))
+            for split in fix.splits {
+                sentences.append(
+                    format(.bannerDriftSplit, duration(split.clipFrame), duration(Frames(Int(split.pause.rounded())))))
+            }
+        } else {
+            switch drift {
+            case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):
+                sentences.append(format(.bannerSyncSpread, Int(milliseconds(Double(spread.count)).rounded())))
+            case .spread: break
+            case .clipTooShort: sentences.append(format(.bannerSyncTooShort))
+            case .onePartMatched: sentences.append(format(.bannerSyncNotMeasured))
+            }
+        }
+        if case .notCorrected(let cause) = outcome {
+            sentences.append(format(.bannerDriftNotCorrected, text(cause.reasonKey)))
         }
         if headCut > .zero { sentences.append(format(.bannerSyncHeadCut, duration(headCut))) }
         if !replaced.isEmpty {
@@ -120,6 +157,29 @@ extension SyncMoved {
         self.init(
             lag: result.lag, peak: Double(result.score.peak), drift: result.drift, headCut: cut.head, replaced: names,
             rate: before.sampleRate)
+    }
+
+    /// The banner of a sync with the drift option (decision 0077 D12): the 0076 read and cut of the
+    /// report, and its drift outcome.
+    init(_ report: DriftSyncReport, before: Session) {
+        self.init(report.sync, cut: report.cut, before: before)
+        outcome = report.outcome
+    }
+}
+
+extension DriftCause {
+    /// The key of the reason that the banner gives after "The drift was not corrected".
+    var reasonKey: L10n {
+        switch self {
+        case .clipTooShort: .bannerDriftCauseTooShort
+        case .renderedFile: .bannerDriftCauseRendered
+        case .takeFile: .bannerDriftCauseTake
+        case .noFit(.tooFewPoints), .noFit(.tooManyOutliers): .bannerDriftCauseFewParts
+        case .noFit(.twoLines), .noFit(.endOutlier): .bannerDriftCauseNoLine
+        case .noFit(.rateOutOfRange): .bannerDriftCauseRate
+        case .composedRateOutOfRange: .bannerDriftCauseComposed
+        case .underOneMillisecond: .bannerDriftCauseUnderMs
+        }
     }
 }
 
@@ -170,6 +230,8 @@ struct SyncSheet: View {
             }
             if let line = draft.spanLine(in: session) { Text(verbatim: line).foregroundStyle(.secondary) }
             if let line = draft.noCallLine(in: session) { Text(verbatim: line).foregroundStyle(.secondary) }
+            Toggle(L10n.sheetSyncDrift.key, isOn: $draft.correctsDrift).disabled(draft.driftIsBlocked(in: session))
+            if let line = draft.driftLine(in: session) { Text(verbatim: line).foregroundStyle(.secondary) }
             if let refusal {
                 Label {
                     Text(verbatim: L10n.message(for: .session(refusal), session: session))
@@ -221,9 +283,10 @@ extension SessionWindow {
     }
 
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
-    /// undo entry (decision 0076). A match shows the result banner, with Undo only when the clip moved,
-    /// and the view scrolls only when the new place is out of view. No match shows a banner that changes
-    /// nothing. The banner Cancel shows nothing; another error shows the alert, also the busy refusal
+    /// undo entry (decision 0076). With the Correct drift box on, it also fixes the clock drift
+    /// (`Studio.correctDrift`, decision 0077). A match shows the result banner, with Undo only when the
+    /// clip moved, and the view scrolls only when the new place is out of view. No match shows a banner
+    /// that changes nothing. The banner Cancel shows nothing; another error shows the alert, also the busy refusal
     /// of a studio that started another job while the sheet was open.
     func sync(_ draft: SyncDraft) async {
         syncDraft = nil
@@ -236,10 +299,18 @@ extension SessionWindow {
         defer { syncProgress = nil }
         let before = studio.sessionRevision
         do throws(StudioError) {
-            let (result, cut) = try await studio.syncClip(draft.clip, to: draft.reference) {
-                [weak self] fraction in self?.syncProgress = fraction
+            let moved: SyncMoved
+            if draft.usesDrift(in: session) {
+                let report = try await studio.correctDrift(draft.clip, to: draft.reference) {
+                    [weak self] fraction in self?.syncProgress = fraction
+                }
+                moved = SyncMoved(report, before: session)
+            } else {
+                let (result, cut) = try await studio.syncClip(draft.clip, to: draft.reference) {
+                    [weak self] fraction in self?.syncProgress = fraction
+                }
+                moved = SyncMoved(result, cut: cut, before: session)
             }
-            let moved = SyncMoved(result, cut: cut, before: session)
             let revision = studio.sessionRevision
             syncReport = ToolBannerShown(
                 banner: .syncMoved(moved, revision: revision == before ? nil : revision, press: syncPresses),

@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "Sem correspondência: %@ não foi encontrado em %@.";
 "banner.sync.choose" = "Escolher Outra Pista…";
 "banner.sync.undo" = "Desfazer";
+"sheet.sync.drift" = "Corrigir deriva";
+"sheet.sync.drift.take" = "Uma gravação usa o relógio da sessão.";
+"banner.drift.corrected" = "Deriva de %+.1f ppm (%lld ms ao longo do clipe) corrigida em uma só reamostragem. O deslocamento fica a menos de %.1f ms da reta.";
+"banner.drift.split" = "Clipe dividido em %@ (a gravação pausou %@).";
+"banner.drift.not.corrected" = "A deriva não foi corrigida: %@.";
+"banner.drift.cause.too.short" = "o clipe tem menos de 5 min";
+"banner.drift.cause.rendered" = "o clipe toca áudio renderizado: restaure antes o áudio original";
+"banner.drift.cause.take" = "uma gravação usa o relógio da sessão";
+"banner.drift.cause.few.parts" = "poucas partes do clipe correspondem à referência";
+"banner.drift.cause.no.line" = "o deslocamento não segue uma reta estável";
+"banner.drift.cause.rate" = "a taxa do relógio difere 1000 ppm ou mais da referência";
+"banner.drift.cause.composed" = "o clipe já foi corrigido, e as duas correções juntas mudariam o relógio em 1000 ppm ou mais";
+"banner.drift.cause.under.ms" = "o deslocamento muda menos de 1 ms ao longo do clipe";

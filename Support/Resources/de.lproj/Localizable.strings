@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "Keine Übereinstimmung: %@ wurde auf %@ nicht gefunden.";
 "banner.sync.choose" = "Andere Spur wählen …";
 "banner.sync.undo" = "Widerrufen";
+"sheet.sync.drift" = "Drift korrigieren";
+"sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Sitzungsuhr.";
+"banner.drift.corrected" = "Drift von %+.1f ppm (%lld ms über den Clip) in einem Resampling korrigiert. Der Versatz bleibt innerhalb von %.1f ms der Linie.";
+"banner.drift.split" = "Clip bei %@ geteilt (die Aufnahme pausierte %@).";
+"banner.drift.not.corrected" = "Der Drift wurde nicht korrigiert: %@.";
+"banner.drift.cause.too.short" = "Der Clip ist kürzer als 5 min";
+"banner.drift.cause.rendered" = "Der Clip spielt gerendertes Audio: Stelle zuerst das Originalaudio wieder her";
+"banner.drift.cause.take" = "Eine Aufnahme läuft auf der Sitzungsuhr";
+"banner.drift.cause.few.parts" = "Zu wenige Teile des Clips stimmen mit der Referenz überein";
+"banner.drift.cause.no.line" = "Der Versatz folgt keiner stetigen Linie";
+"banner.drift.cause.rate" = "Die Taktrate weicht um 1000 ppm oder mehr von der Referenz ab";
+"banner.drift.cause.composed" = "Der Clip wurde schon korrigiert, und beide Korrekturen zusammen würden die Taktrate um 1000 ppm oder mehr ändern";
+"banner.drift.cause.under.ms" = "Der Versatz ändert sich um weniger als 1 ms über den Clip";

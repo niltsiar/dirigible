@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "Geen overeenkomst: %@ is niet gevonden op %@.";
 "banner.sync.choose" = "Kies een ander spoor…";
 "banner.sync.undo" = "Herstel";
+"sheet.sync.drift" = "Drift corrigeren";
+"sheet.sync.drift.take" = "Een opname neemt op met de sessieklok.";
+"banner.drift.corrected" = "Een drift van %+.1f ppm (%lld ms over de clip) is gecorrigeerd in één resample. De vertraging blijft binnen %.1f ms van de lijn.";
+"banner.drift.split" = "Clip gesplitst bij %@ (de opname pauzeerde %@).";
+"banner.drift.not.corrected" = "De drift is niet gecorrigeerd: %@.";
+"banner.drift.cause.too.short" = "de clip is korter dan 5 min";
+"banner.drift.cause.rendered" = "de clip speelt gerenderde audio af: herstel eerst de originele audio";
+"banner.drift.cause.take" = "een opname neemt op met de sessieklok";
+"banner.drift.cause.few.parts" = "te weinig delen van de clip komen overeen met de referentie";
+"banner.drift.cause.no.line" = "de vertraging volgt geen vaste lijn";
+"banner.drift.cause.rate" = "de kloksnelheid wijkt 1000 ppm of meer af van de referentie";
+"banner.drift.cause.composed" = "de clip is al gecorrigeerd, en beide correcties samen zouden de klok met 1000 ppm of meer veranderen";
+"banner.drift.cause.under.ms" = "de vertraging verandert minder dan 1 ms over de clip";

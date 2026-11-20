@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "No match: %@ was not found on %@.";
 "banner.sync.choose" = "Choose Another Track…";
 "banner.sync.undo" = "Undo";
+"sheet.sync.drift" = "Correct drift";
+"sheet.sync.drift.take" = "A take records on the session clock.";
+"banner.drift.corrected" = "Corrected a drift of %+.1f ppm (%lld ms across the clip) in one resample. The lag stays within %.1f ms of the line.";
+"banner.drift.split" = "Split the clip at %@ (the recording paused %@).";
+"banner.drift.not.corrected" = "The drift was not corrected: %@.";
+"banner.drift.cause.too.short" = "the clip is shorter than 5 min";
+"banner.drift.cause.rendered" = "the clip plays rendered audio: restore the original audio first";
+"banner.drift.cause.take" = "a take records on the session clock";
+"banner.drift.cause.few.parts" = "too few parts of the clip match the reference";
+"banner.drift.cause.no.line" = "the lag does not follow a steady line";
+"banner.drift.cause.rate" = "the clock rate is 1000 ppm or more from the reference";
+"banner.drift.cause.composed" = "the clip was fixed before, and both fixes together would change the clock by 1000 ppm or more";
+"banner.drift.cause.under.ms" = "the lag changes by less than 1 ms across the clip";

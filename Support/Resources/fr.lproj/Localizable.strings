@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "Aucune correspondance : %@ est introuvable sur %@.";
 "banner.sync.choose" = "Choisir une autre piste…";
 "banner.sync.undo" = "Annuler";
+"sheet.sync.drift" = "Corriger la dérive";
+"sheet.sync.drift.take" = "Une prise enregistre sur l'horloge de la session.";
+"banner.drift.corrected" = "Dérive de %+.1f ppm (%lld ms le long du clip) corrigée en un seul rééchantillonnage. Le décalage reste à moins de %.1f ms de la droite.";
+"banner.drift.split" = "Clip coupé à %@ (l'enregistrement s'est interrompu %@).";
+"banner.drift.not.corrected" = "La dérive n'a pas été corrigée : %@.";
+"banner.drift.cause.too.short" = "le clip dure moins de 5 min";
+"banner.drift.cause.rendered" = "le clip lit un audio rendu : restaurez d'abord l'audio d'origine";
+"banner.drift.cause.take" = "une prise enregistre sur l'horloge de la session";
+"banner.drift.cause.few.parts" = "trop peu de parties du clip correspondent à la référence";
+"banner.drift.cause.no.line" = "le décalage ne suit pas une droite stable";
+"banner.drift.cause.rate" = "la fréquence de l'horloge s'écarte de 1000 ppm ou plus de la référence";
+"banner.drift.cause.composed" = "le clip a déjà été corrigé, et les deux corrections ensemble changeraient l'horloge de 1000 ppm ou plus";
+"banner.drift.cause.under.ms" = "le décalage varie de moins de 1 ms le long du clip";

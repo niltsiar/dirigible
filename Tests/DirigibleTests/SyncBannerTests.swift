@@ -235,7 +235,8 @@ import Testing
     /// C20: a sync that is cancelled shows no banner and no alert.
     @Test func aCancelShowsNothing() async throws {
         let (model, studio) = try await open()
-        let draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        var draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        draft.correctsDrift = false
         let gate = AsyncGate()
         studio.environment.beforeFinalize = { await gate.wait() }
         let syncing = Task { await model.sync(draft) }

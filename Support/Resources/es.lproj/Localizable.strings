@@ -950,3 +950,16 @@
 "banner.sync.no.match" = "Sin coincidencia: %@ no se encontró en %@.";
 "banner.sync.choose" = "Elegir otra pista…";
 "banner.sync.undo" = "Deshacer";
+"sheet.sync.drift" = "Corregir deriva";
+"sheet.sync.drift.take" = "Una toma graba con el reloj de la sesión.";
+"banner.drift.corrected" = "Se corrigió una deriva de %+.1f ppm (%lld ms a lo largo del clip) en un solo remuestreo. El desfase se mantiene a menos de %.1f ms de la recta.";
+"banner.drift.split" = "Se dividió el clip en %@ (la grabación se pausó %@).";
+"banner.drift.not.corrected" = "No se corrigió la deriva: %@.";
+"banner.drift.cause.too.short" = "el clip dura menos de 5 min";
+"banner.drift.cause.rendered" = "el clip reproduce audio renderizado: restaura antes el audio original";
+"banner.drift.cause.take" = "una toma graba con el reloj de la sesión";
+"banner.drift.cause.few.parts" = "muy pocas partes del clip coinciden con la referencia";
+"banner.drift.cause.no.line" = "el desfase no sigue una recta estable";
+"banner.drift.cause.rate" = "la frecuencia del reloj difiere 1000 ppm o más de la referencia";
+"banner.drift.cause.composed" = "el clip ya se corrigió, y las dos correcciones juntas cambiarían el reloj 1000 ppm o más";
+"banner.drift.cause.under.ms" = "el desfase cambia menos de 1 ms a lo largo del clip";

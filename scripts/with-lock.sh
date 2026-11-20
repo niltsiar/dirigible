@@ -46,11 +46,13 @@
 # scripts/with-lock.sh --release-holder takes no lock and runs no command, also inside a locked
 # process tree. It prints "holder: <command>" and exits 0 while a release call (below) or a stress
 # lane (scripts/test-stress.sh) holds the lock with a live pid, child, or child group, or "ticket:
-# <pid>" and exits 0 for a live release ticket; else it prints nothing, exits 1, and removes the
-# ticket of a dead pid. A bench, a mutation pass, a flake loop, and an ordinary call give exit 1.
+# <pid>" and exits 0 for a live release ticket, or "holder: <command>" and exits 0 while the
+# lock-free hooks pass (below) runs; else it prints nothing, exits 1, and removes the ticket of a
+# dead pid. A bench, a mutation pass, a flake loop, and an ordinary call give exit 1.
 # The CPU-share signal of the TV launcher session reads it.
 # scripts/with-lock.sh --long-holder takes no lock and runs no command, also inside a locked process
-# tree. It prints the --release-holder line and exits 0 when that query exits 0. Else, while a live
+# tree. It prints the --release-holder line and exits 0 when that query exits 0 for a holder or a
+# ticket of the lock (not for the lock-free hooks pass, which makes no agent wait). Else, while a live
 # holder runs a long holder (long_words of scripts/lock-words.sh: a bench, a mutation pass, or a flake
 # loop), it prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
 # (<tree>)" and exits 0; else it prints nothing and exits 1. It removes a dead ticket or a dead marker.
@@ -65,8 +67,8 @@
 # DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so does WITH_LOCK_NO_CAP=1 (a read-only scan,
 # long-runs.md): it waits for the lock as any call, takes no slot, and ends its wait and hold lines
 # with the column nocap (the hold line has an empty fifth column unless it has limit). A release
-# call also ends its lines with nocap, so a make dmg, a land, or the hooks pass never fills a slot
-# of the cap. cost.sh counts those minutes.
+# call also ends its lines with nocap, so a make dmg or a land never fills a slot of the cap.
+# cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
@@ -78,7 +80,7 @@
 # folder keeps the limit in <lock>/maxhold, and --builders ends with the line
 # "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
-# make test-hooks with DIRIGIBLE_HOOKS_ALL=1 in the same three places; land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
+# land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
 # that starts later still runs first. A ticket of a dead pid does not block.
@@ -95,12 +97,18 @@
 # Otherwise the call exits with the status of the command.
 # A lock-free call takes no lock and writes no hold line, and prints one stderr line
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
-# check, the hooks pass, a land, or make dmg), a bench, a mutation pass, a flake loop, or a stress
-# lane holds the lock, or while a bench marker is live". It is make check-changed with no BASE= word and no BASE in the environment or in
+# check, a land, or make dmg), a bench, a mutation pass, a flake loop, or a stress lane holds the
+# lock, or while a bench marker is live". It is make check-changed with no BASE= word and no BASE in the environment or in
 # MAKEFLAGS (both make a push check, and so a release call), when scripts/check-changed.sh (with the
 # NAME=value words of the call in its environment) gives only check-docs, check-fast, static, lint,
-# format, none, test, test-app, test-filter, or a word with =; and make test-hooks with a
-# HOOK_TESTS= word. test, test-filter, and
+# format, none, test, test-app, test-filter, or a word with =; make test-hooks with a
+# HOOK_TESTS= word; and the hooks pass of a run (hooks_pass of lock-words.sh: make test-hooks with
+# DIRIGIBLE_HOOKS_ALL=1 and no HOOK_TESTS= word). The file of the hooks pass in dirigible-lock-free/
+# (below) has the kind hooks in line 3, and its command gets DIRIGIBLE_HOOKS_PASS=<pid of the call>,
+# so scripts/test-hooks.sh runs ncpu / 2 jobs. A long holder (long_words of lock-words.sh) takes the
+# lock as usual and then, before its command, waits while a hooks file of a live pid exists; it
+# holds the lock in that wait, so no new hooks pass starts, and the wait counts in its wait limit
+# and its wait line. An ordinary call does not wait for the hooks pass. test, test-filter, and
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
 # run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh
@@ -131,8 +139,8 @@
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
 # cost.sh and wiki.py build nothing: the call exits 2 at once with a message, before any wait, so a
 # transcript scan never queues behind a push check (DLV-157).
-# scripts/lock-words.sh holds the word rules of the lock-free make call (lock_make_words), push_env,
-# hooks_env, and release_call; the guardrail hook reads the same file.
+# scripts/lock-words.sh holds the word rules of the lock-free make call (lock_make_words, hooks_pass),
+# push_env, hooks_env, and release_call; the guardrail hook reads the same file.
 # scripts/with-lock.sh --bench-mark <command> [<argument>...] runs a timing of a shell script or a
 # hook test (make test-hooks HOOK_TESTS=<names>) that builds no Swift and runs no built binary, while no lock-free call
 # runs. A timed Swift build, Swift test, bench, built binary, or probe takes the lock
@@ -141,7 +149,7 @@
 # stderr line that names the lock form scripts/with-lock.sh <command>, and exits 64. The class it
 # sees: swift, a script of lock_scripts (lock-words.sh), a script that builds or runs Swift
 # (bench_swift in bench_class), probe.sh, land.sh, a path under .build/ or build/Dirigible.app/,
-# and each make call except make test-hooks with a HOOK_TESTS= word (no release call) and goals of
+# and each make call except make test-hooks with a HOOK_TESTS= word (no DIRIGIBLE_HOOKS_ALL=1) and goals of
 # lock_free_targets only. make check-changed is refused, because its targets can run a Swift test.
 # A hook test script (a .test.sh file) or test-hooks.sh is refused with exit 64 and the line that
 # names make test-hooks HOOK_TESTS=: a hook test runs only through that make call. The call skips
@@ -173,7 +181,8 @@
 # call until the wait limit. A lock-free call that cannot write its file (a sandbox, a full disk)
 # runs, and a marker cannot see it: the call prints one stderr line that names the file. A file or
 # a marker that is not live is ignored and removed. A call that takes the lock, --release-holder,
-# and --builders do not read the marker or the lock-free files; --long-holder reads only the marker.
+# and --builders do not read the marker, and read only the hooks files of the lock-free files;
+# --long-holder reads only the marker.
 # The guardrail hook blocks each command that names the lock, the markers, or the lock-free files
 # and is not a read.
 # scripts/with-lock.test.sh tests it.
@@ -335,7 +344,24 @@ release_holder() {
     done
     return 1
 }
-[[ "$1" != --release-holder ]] || { release_holder; exit; }
+# hooks_busy: succeeds while the lock-free hooks pass runs (a file of a live pid in $freedir with the
+# kind hooks in line 3), and sets cause and hooks_cmd to its pid and command.
+hooks_busy() {
+    local f
+    for f in "$freedir"/*; do
+        [[ -f "$f" && "$(sed -n 3p "$f" 2>/dev/null)" == hooks ]] || continue
+        file_live "$f" || continue
+        hooks_cmd="$(sed -n 2p "$f" 2>/dev/null)" cause="lock-free hooks pass pid ${f##*/} ($hooks_cmd)"
+        return 0
+    done
+    return 1
+}
+[[ "$1" != --release-holder ]] || {
+    release_holder && exit 0
+    hooks_busy || exit 1
+    echo "holder: $hooks_cmd"
+    exit 0
+}
 # The --long-holder query (header): the --release-holder line first, then the long holder.
 [[ "$1" != --long-holder ]] || {
     release_holder && exit 0
@@ -402,7 +428,7 @@ bench_class() {
         *.test.sh | test-hooks.sh) goal=hooks ;;
         *.sh) [[ ! "/${c%.sh}" =~ $re ]] || goal=lock ;;
         make)
-            if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! release_call "$@"; }; then
+            if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! hooks_env && [[ " ${*:2} " != *" DIRIGIBLE_HOOKS_ALL=1 "* ]]; }; then
                 for w in "${@:2}"; do
                     if [[ "$w" =~ ^($lock_free_targets)$ ]]; then goal=free; elif [[ "$w" != *=* ]]; then goal=lock; break; fi
                 done
@@ -486,6 +512,7 @@ run_only() {
 lock_free() {
     local w out="" status=0
     if [[ "${WITH_LOCK_RUN_ONLY:-}" == 1 ]]; then run_only "$@"; return; fi
+    if hooks_pass "$@"; then free_targets=test-hooks free_kind=hooks; return 0; fi
     lock_make_words "$@" || return 1
     case "$lock_goal" in
         test-hooks) free_targets=test-hooks ;;
@@ -508,7 +535,7 @@ free_busy() {
     for f in "$freedir"/*; do
         [[ -f "$f" ]] || continue
         if file_live "$f"; then
-            cause="lock-free call pid ${f##*/} ($(sed 1d "$f" 2>/dev/null))"
+            cause="lock-free call pid ${f##*/} ($(sed -n 2p "$f" 2>/dev/null))"
             return 0
         fi
     done
@@ -577,9 +604,9 @@ say_wait() {
 # lf_write <command>...: the file of a lock-free call, $freedir/<pid of this call> with its command, while it
 # runs. A write that fails (a sandbox) leaves no file and prints one stderr line for the call; the
 # call still runs.
-lf="" lf_said=""
+lf="" lf_said="" free_kind=""
 lf_write() {
-    if write_stamped "$freedir/$$" "$*"; then lf="$freedir/$$"; return; fi
+    if write_stamped "$freedir/$$" "$*" ${free_kind:+"$free_kind"}; then lf="$freedir/$$"; return; fi
     lf=""
     [[ -z "$lf_said" ]] || return 0
     lf_said=1
@@ -595,6 +622,7 @@ run_lock_free() {
     trap 'rm -f "$err" ${lf:+"$lf"} ${mark:+"$mark"}' EXIT
     trap 'stop_free 130' INT
     trap 'stop_free 143' TERM
+    [[ -z "$free_kind" ]] || export DIRIGIBLE_HOOKS_PASS=$$
     set -m
     (set +m; "$@" 2>&1 >&3 3>&- | tee "$err" >&2 3>&-; exit "${PIPESTATUS[0]}") 3>&1 <&0 &
     free_child=$!
@@ -665,7 +693,7 @@ fi
 # never both run: one of them sees the other.
 free_targets=""
 if lock_free "$@"; then
-    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock, or while a bench marker is live" >&2
+    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock, or while a bench marker is live" >&2
     trap 'rm -f ${lf:+"$lf"}' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
@@ -756,6 +784,14 @@ rm -f ${marker:+"$marker"}
 { echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold" &&
     { [[ -z "$nocap" ]] || : > "$lock/nocap"; } && { ! release_call "$@" || : > "$lock/release"; }; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
+# A long holder starts its command after the lock-free hooks pass ends. It holds the lock while it
+# waits, so no new pass starts; the trap removes only this lock.
+if release_call "$@" || long_words "$@"; then
+    trap '[[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || rm -rf "$lock"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    while hooks_busy; do told=1; say_wait; pause "$@"; done
+fi
 taken="$(date +%s)" cmdline="$*"
 [[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \
     >> "$waits" 2>/dev/null

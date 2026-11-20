@@ -1,5 +1,5 @@
 #!/bin/bash
-# The lock-free make words, sourced by scripts/with-lock.sh (lock_free, release_call) and by
+# The lock-free make words, sourced by scripts/with-lock.sh (lock_free, hooks_pass, release_call) and by
 # .claude/hooks/git-guardrails.sh (the verdict for a with-lock.sh make test-hooks call). Both read
 # the same functions, so a form of the call has one class. The case test-rule of
 # .claude/hooks/git-guardrails.test.sh (expect_each_lock) sends each spelling through both.
@@ -30,33 +30,48 @@ hooks_env() {
     [[ "${DIRIGIBLE_HOOKS_ALL:-}" == 1 || " ${MAKEFLAGS:-}" =~ $re ]]
 }
 # release_call <command>: a push check (make check-changed with a BASE= word, or with BASE from
-# push_env), the hooks pass of a run (make test-hooks with DIRIGIBLE_HOOKS_ALL=1 as a word, or from
-# hooks_env), a land (land.sh), or a DMG build (make dmg).
+# push_env), a land (land.sh), or a DMG build (make dmg).
 release_call() {
-    local w goal="" base="" hooks=""
+    local w goal="" base=""
     [[ "${1##*/}" == land.sh ]] && return 0
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || base=1
-    ! hooks_env || hooks=1
     for w in "${@:2}"; do
         case "$w" in
             BASE=?*) base=1 ;;
-            DIRIGIBLE_HOOKS_ALL=1) hooks=1 ;;
             dmg) goal=dmg ;;
             check-changed) [[ $goal == dmg ]] || goal=check ;;
-            test-hooks) [[ -n $goal ]] || goal=hooks ;;
         esac
     done
-    [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
+    [[ $goal == dmg || ($goal == check && -n $base) ]]
+}
+
+# hooks_pass <command>: the hooks pass of a run, which takes no lock: make (any path) with the one goal
+# test-hooks, NAME=value words, DIRIGIBLE_HOOKS_ALL=1 as a word or from hooks_env, no HOOK_TESTS= word
+# (that form is the plain lock-free call of lock_make_words), and no BASE word or push_env.
+hooks_pass() {
+    local w goal="" hooks=""
+    [[ "${1##*/}" == make ]] || return 1
+    ! push_env || return 1
+    ! hooks_env || hooks=1
+    for w in "${@:2}"; do
+        case "$w" in
+            BASE=?* | HOOK_TESTS=*) return 1 ;;
+            DIRIGIBLE_HOOKS_ALL=1) hooks=1 ;;
+            *=*) ;;
+            test-hooks) [[ -z $goal ]] || return 1; goal=1 ;;
+            *) return 1 ;;
+        esac
+    done
+    [[ -n $goal && -n $hooks ]]
 }
 
 # long_text_re matches the text of each command that long_words takes, so a text with no match runs
 # no long holder.
 long_text_re='bench|mutation-pass|flake-monitor/loop|test-stress|land\.sh|make'
 # long_words <command word>...: succeeds when a command of the words runs a long holder: a release
-# call (release_call with no BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL of the environment, and not a
-# test-hooks goal that lock_make_words takes), bench.sh, bench-pairs.sh (not --compare or --lines,
-# which take no lock), make with a bench or dmg goal, mutation-pass.sh, flake-monitor/loop.sh, or
+# call (release_call with no BASE or MAKEFLAGS of the environment), bench.sh, bench-pairs.sh (not
+# --compare or --lines, which take no lock), make with a bench or dmg goal, mutation-pass.sh, flake-monitor/loop.sh, or
 # test-stress.sh. A command starts at the first word, after a separator (&&, ||, |, &, ;, a lone (
 # or {, or a word that ends with ;, &, or |), and after a wrapper word: env, nice, nohup, command,
 # time, caffeinate, xcrun, a shell word (bash, sh, zsh, or dash), probe.sh with its folder, and an
@@ -95,8 +110,8 @@ long_words() {
                         for ((j = i; j + 1 < ${#words[@]} && ends[j] == 0; j++)); do :; done
                         for w in "${words[@]:i:j-i+1}"; do [[ "$w" == bench || "$w" == dmg ]] && return 0; done
                         (
-                            unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
-                            ! { lock_make_words "${words[@]:i:j-i+1}" && [[ $lock_goal == test-hooks ]]; } && release_call "${words[@]:i:j-i+1}"
+                            unset BASE MAKEFLAGS
+                            release_call "${words[@]:i:j-i+1}"
                         ) && return 0
                         ;;
                 esac

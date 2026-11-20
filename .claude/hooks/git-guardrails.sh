@@ -640,8 +640,8 @@ fi
 # and the like). It blocks a shell word (sh, bash, zsh, with a path) with flags other than -n and then
 # a .test.sh path, a bare .test.sh path, and scripts/test-hooks.sh (any path), also after with-lock.sh.
 # It blocks make test-hooks (with or without HOOK_TESTS) unless with-lock.sh is in the prefix and
-# scripts/lock-words.sh, which with-lock.sh also sources, classes the call as free (lock_make_words) or
-# release (release_call). The check runs those functions in a subshell on the words after the
+# scripts/lock-words.sh, which with-lock.sh also sources, classes the call as free (lock_make_words, or
+# hooks_pass for the hooks pass). The check runs those functions in a subshell on the words after the
 # with-lock.sh word, with the BASE, MAKEFLAGS, and DIRIGIBLE_HOOKS_ALL words before it as their
 # environment, and evals no command text. bash -n, make -n outside a with-lock.sh call, and a .test.sh
 # path under .scratchpads/ pass. A segment of only NAME=value words, with an optional export, declare,
@@ -1132,7 +1132,7 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
         unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
         for lock_arg in ${lock_env[@]+"${lock_env[@]}"}; do export "$lock_arg"; done
         . "$lock_words_file"
-        { lock_make_words "${lock_args[@]}" && [[ "$lock_goal" == test-hooks ]]; } || release_call "${lock_args[@]}"
+        { lock_make_words "${lock_args[@]}" && [[ "$lock_goal" == test-hooks ]]; } || hooks_pass "${lock_args[@]}"
       ); then
         block "runs scripts/test-hooks.sh outside its lock-free form (make test-hooks with a word that takes the lock)" "$lock_way"
       fi
@@ -1197,17 +1197,18 @@ release_words_file="$(dirname "$0")/../../scripts/lock-words.sh" release_loaded=
 # release_load: sources scripts/lock-words.sh once for each hook call (release_segments runs in one
 # subshell, and a script file can hold hundreds of lines); it fails when the file is missing.
 release_load() { [[ -n "$release_loaded" ]] || { . "$release_words_file" 2> /dev/null && release_loaded=1; }; }
-# release_words <env word>... -- <command word>...: succeeds when release_call does and with-lock.sh
-# does not run the call lock-free (a test-hooks goal that lock_make_words takes, also with a
-# DIRIGIBLE_HOOKS_ALL=1 word).
+# release_words <release_call|hooks_pass> <env word>... -- <command word>...: succeeds when that
+# function of scripts/lock-words.sh takes the command with that environment (hooks_pass: the
+# lock-free hooks pass, which only the lead runs).
 release_words() {
   release_load || return 1
   (
     unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
+    local fn="$1"
+    shift
     while [[ $# -gt 0 && "$1" != -- ]]; do export "$1"; shift; done
     shift
-    lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && exit 1
-    release_call "$@"
+    "$fn" "$@"
   )
 }
 # release_env <text>: set renv to the BASE, MAKEFLAGS, and DIRIGIBLE_HOOKS_ALL words of the text, quotes removed.
@@ -1351,7 +1352,8 @@ release_segments() {
     if [[ "$prefix" =~ (^|[[:space:]\"\'])[^[:space:]\"\']*with-lock\.sh[\"\']?[[:space:]] ]]; then
       release_env "$prefix"
       release_cmd "$rest"
-      [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words release_call ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words hooks_pass ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'hooks\t%s\n' "$seg"
     else
       release_cmd "$rest"
       [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
@@ -1386,7 +1388,8 @@ release_segments() {
       [[ -z "$w" || "$w" == */ ]] || continue
       release_env "$head"
       release_cmd "$body"
-      [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words release_call ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words hooks_pass ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'hooks\t%s\n' "$seg"
       [[ -n "$seg_long" ]] && release_long_cmd && printf 'long\t%s\n' "${rcmd[*]}"
     done
   done <<< "$text"
@@ -1412,15 +1415,22 @@ if [[ "$chained" == *with-lock.sh* || "$chained" == *land.sh* || -n "$release_lo
   # bg_kept: the keep mask that the background block sets when the text has a shell -c body.
   release_found="$(release_segments "$release_masked" "$(plutil -extract cwd raw -o - "$input" 2> /dev/null)" 0 "${bg_kept:-}")"
 fi
+# A hooks line is no release call: only the subagent rule reads it.
+hooks_found=""
+if [[ "$release_found" == *hooks$'\t'* ]]; then
+  hooks_found=1
+  release_found="$(grep -v $'^hooks\t' <<< "$release_found")"
+fi
 
 # A subagent never runs a lock wait with no limit: after a second exit 75 it writes the remaining
 # locked steps as one bash file and returns its path to the lead, which runs the file in the
 # background as WITH_LOCK_MAX_WAIT=0 bash <file> (AGENTS.md, Commands). The input of a subagent holds
 # agent_id; the input of the lead does not. The wait has no limit with WITH_LOCK_MAX_WAIT set to
-# zeros, with each with-lock.sh release call that release_segments finds (a land, a push check, the
-# hooks pass, make dmg, also in a shell -c body or a script file), and with mutation-pass.sh (it wraps
-# itself) on the masked text, so text in a quote of rg or echo is data. A bench and a flake loop
-# pass: a slice runs a bench in the foreground.
+# zeros, with each with-lock.sh release call that release_segments finds (a land, a push check, make
+# dmg, also in a shell -c body or a script file), and with mutation-pass.sh (it wraps itself) on the
+# masked text, so text in a quote of rg or echo is data. A bench and a flake loop pass: a slice runs
+# a bench in the foreground. Only the lead runs the hooks pass, in the background, so a subagent call
+# of it (a hooks line of release_segments) blocks too.
 agent=""
 if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* || "$release_found" == *lock$'\t'* ]]; then
   agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
@@ -1437,7 +1447,10 @@ if [[ -n "$agent" ]]; then
   [[ -n "$agent_masked" ]] || agent_masked="$(mask_quoted_data <<< "$chained")" || exit 2
   agent_mutation_re="${agent_start}([^[:space:]]*/)?mutation-pass\.sh([[:space:];&|)]|\$)"
   if [[ "$agent_masked" =~ $agent_mutation_re ]] || [[ "$release_found" == *lock$'\t'* ]]; then
-    block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, the hooks pass, make dmg, or a mutation pass)" "$agent_way"
+    block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, make dmg, or a mutation pass)" "$agent_way"
+  fi
+  if [[ -n "$hooks_found" ]]; then
+    block "runs the hooks pass in a subagent: only the lead runs the hooks pass, in the background" "Return to the lead and name the pass in the hand-back. The lead runs it, or a bash file of locked steps as WITH_LOCK_MAX_WAIT=0 bash <file>, in the background."
   fi
 fi
 
@@ -1542,7 +1555,7 @@ if [[ -n "$release_found" ]]; then
     if [[ -n "$missing" || -n "$unknown" ]]; then
       release_step=""
       while IFS=$'\t' read -r kind text; do [[ "$kind" == long ]] && { release_step="$text"; break; }; done <<< "$release_found"
-      block "is a release call (a push check, the hooks pass, a land, or make dmg) or a long background step of the lead (a bench, a mutation pass, a flake loop, or a stress lane) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}.${release_step:+ Step: $release_step.} Live agents:$live_lines$note_lines
+      block "is a release call (a push check, a land, or make dmg) or a long background step of the lead (a bench, a mutation pass, a flake loop, or a stress lane) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}.${release_step:+ Step: $release_step.} Live agents:$live_lines$note_lines
 An agent stops being live when its meta file says finished true (the end of its run), 90 min after its run started, or 5 min after its newest record when no meta write follows it. A SendMessage resume makes it live again while one of its records is under 24 h old. A delegate_task record ends at the end text of its child (Delegated task <taskId> (<title>) [completed]: or [failed]:) or at a task_cancel of its taskId, and at the latest 90 min after its brief (5 min when its call returned no taskId)" \
         "Start the release call after that agent hands back, and run lock-free work meanwhile; for a delegate_task child, that is after its end text. For a delegate_task child that handed back while the hook still names it, a dead agent, or a brief with no lock step, pass RELEASE_PAST=<id>[,<id>] before the release call, with the id of each live agent. A brief with no with-lock.sh step needs the line Build lock: none."
     fi

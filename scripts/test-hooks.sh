@@ -15,8 +15,10 @@
 #   recipe), so no hook test reads the context of its caller. PATH and HOME stay, and so does
 #   HOOK_CASES (below). A test that needs one of them sets it itself.
 # Jobs: while the caller holds the build lock (DIRIGIBLE_BUILD_LOCK equals the pid in the lock
-#   folder of the git common dir), the script runs HOOK_JOBS tests at a time, else ncpu / 2 (at
-#   least 1). With no lock it runs 1 test at a time, and a HOOK_JOBS over 1 prints a line that says
+#   folder of the git common dir), or runs the lock-free hooks pass of scripts/with-lock.sh
+#   (DIRIGIBLE_HOOKS_PASS names a file of dirigible-lock-free/ in the git common dir whose line 3 is
+#   hooks; a long holder waits for that file), the script runs HOOK_JOBS tests at a time, else ncpu / 2
+#   (at least 1). Else it runs 1 test at a time, and a HOOK_JOBS over 1 prints a line that says
 #   so: a lock-free call must not load the machine. HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock
 #   (a probe of the 4-job load). A HOOK_JOBS that is not a whole number of 1 or more exits 2, before
 #   the key. The job count is no part of the key. Each job slot has its own clone of the key
@@ -72,15 +74,18 @@ if [[ -n ${HOOK_JOBS+x} && ! $HOOK_JOBS =~ ^[1-9][0-9]*$ ]]; then
     echo "test-hooks: HOOK_JOBS must be a whole number of 1 or more, not '$HOOK_JOBS'" >&2
     exit 2
 fi
-holds_lock=no
+full_jobs=no
 if [[ -n ${DIRIGIBLE_BUILD_LOCK:-} && "$(cat "$common/dirigible-build.lock/pid" 2>/dev/null)" == "$DIRIGIBLE_BUILD_LOCK" ]]; then
-    holds_lock=yes
+    full_jobs=yes
+fi
+if [[ ${DIRIGIBLE_HOOKS_PASS:-} =~ ^[0-9]+$ && "$(sed -n 3p "$common/dirigible-lock-free/$DIRIGIBLE_HOOKS_PASS" 2>/dev/null)" == hooks ]]; then
+    full_jobs=yes
 fi
 njobs=1
-if [[ $holds_lock == yes || ${HOOK_JOBS_PROBE:-} == 1 ]]; then
+if [[ $full_jobs == yes || ${HOOK_JOBS_PROBE:-} == 1 ]]; then
     if [[ -n ${HOOK_JOBS+x} ]]; then
         njobs=$HOOK_JOBS
-    elif [[ $holds_lock == yes ]]; then
+    elif [[ $full_jobs == yes ]]; then
         ncpu="$(sysctl -n hw.ncpu 2>/dev/null)"
         [[ $ncpu =~ ^[0-9]+$ ]] || { echo "test-hooks: sysctl -n hw.ncpu gave no number; set HOOK_JOBS" >&2; exit 1; }
         njobs=$((ncpu / 2))

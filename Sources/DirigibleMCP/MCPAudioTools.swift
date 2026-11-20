@@ -12,6 +12,13 @@ private let out = Param.required(
     .string)
 private let renderOut = Param.required(
     "out", "The absolute path of the output file, outside each session package. It must not exist.", .string)
+private let stemsOut = Param.required(
+    "out", "The absolute path of the new folder of the files, outside each session package. It must not exist.",
+    .string)
+private let stemsBy = Param<String?>.optional(
+    "by", "One file for each track or each role: track or role. The default is track.", .string)
+private let stemsFormat = Param<String?>.optional(
+    "format", "The file format: wav or flac. The default is wav.", .string)
 private let bits = Param<Int?>.optional(
     "bits", "The bit depth of WAV and FLAC: 16 or 24. The default is 24.", .integer())
 private let bitrate = Param<Int?>.optional(
@@ -162,7 +169,7 @@ let audioTools = [
             ExportWork(
                 out: path, options: options, from: first, to: end, tracks: ids.map { TrackID($0) },
                 replace: replaces, allowMissing: allows, split: kind))
-    },
+    }.writing(),
     Tool(
         "render",
         "Render the session mix to a 32-bit float stereo CAF file at the session rate, as dirigible render. A "
@@ -176,7 +183,27 @@ let audioTools = [
         return .export(
             ExportWork(
                 out: path, options: .render, from: first, to: end, tracks: [], replace: false, allowMissing: true))
-    },
+    }.writing(),
+    Tool(
+        "export_stems",
+        "Export one file for each heard track or role into a new folder, as dirigible export-stems. Each file starts "
+            + "at the range start and has the range length; when nothing clips, the files add up to the mix. The text "
+            + "is one line for each file (the file name and the track IDs, separated by tabs), then the warning lines. "
+            + "The folder appears whole or not at all. A file in the range that is missing, short, or unreadable "
+            + "refuses the export, unless allow_missing. A cancel leaves no folder; a cancel at the end can be late, "
+            + "so check the output folder.",
+        [stemsOut, stemsBy, stemsFormat, bits, mono, rate, from, to, tracks, allowMissing], saves: false, batch: .alone
+    ) { a throws(ToolError) in
+        let (by, format, depth, folds, hertz) = (
+            try a[stemsBy], try a[stemsFormat], try a[bits], try a[mono], try a[rate]
+        )
+        let (first, end, ids, allows) = (try a[from], try a[to], try a[tracks] ?? [], try a[allowMissing])
+        return .stems(
+            try StemsWork(
+                out: try outPath(a, stemsOut), by: by, format: format, bits: depth, mono: folds, rate: hertz,
+                from: first,
+                to: end, tracks: ids.map { TrackID($0) }, allowMissing: allows, spelling: .tool))
+    }.writing(),
     Tool(
         "level",
         "Set the gain of each clip to the loudness target of its track layout, as dirigible level: -16 LUFS for a "

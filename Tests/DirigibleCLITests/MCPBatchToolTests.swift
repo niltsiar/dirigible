@@ -92,8 +92,9 @@ struct MCPBatchToolTests {
         #expect(result == ((lines + ["calls[2] clip_fade: OK"]).joined(separator: "\n"), false), "\(result)")
     }
 
-    /// C6: the 34 tools with the role `.alone`.
+    /// C6: the 35 tools with the role `.alone`.
     static let alone = [
+        "export_stems",
         "session_create", "session_info", "episode_get", "file_prune", "backup_list", "backup_revert",
         "clip_split_stereo", "clip_denoise", "clip_repair", "clip_level_over_time", "clip_sync", "transcript_import",
         "transcript_words", "transcript_cut",

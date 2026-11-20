@@ -132,6 +132,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try loudness(package, path: path, ids: ids, control: control)
     case .export(let work):
         return try work.run(package, path: path, control: control)
+    case .stems(let work):
+        return try work.run(package, path: path, control: control)
     case .level(let work):
         return try work.run(package, path: path, control: control)
     case .duck(let work):

@@ -57,6 +57,8 @@ enum ToolWork: Sendable {
     case loudness(clips: [String])
     /// `export` and `render`: no lock, as `dirigible export` and `dirigible render`.
     case export(ExportWork)
+    /// `export_stems`: no lock, as `dirigible export-stems`.
+    case stems(StemsWork)
     /// `level`: an edit under the lock, as `dirigible level`.
     case level(LevelWork)
     /// `duck`: a speech read and an edit under the lock, as `dirigible duck`.
@@ -93,8 +95,8 @@ enum ToolWork: Sendable {
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level, .duck, .ride, .sync, .matchVoice, .importFile, .splitStereo, .clipRender,
-            .chapters,
+        case .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice, .importFile, .splitStereo,
+            .clipRender, .chapters,
             .transcriptExport, .read, .transcribe:
             true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
@@ -236,6 +238,9 @@ struct Tool: Sendable {
     let body: Body
     let batch: BatchRole
     private(set) var hints = Hints.none
+    /// A long tool that writes a file outside the package: a call that the bridge loses can still
+    /// write it, so the lost-call and limit texts say to check the output.
+    private(set) var writesFile = false
 
     /// This tool with `hints`.
     func hinted(_ hints: Hints) -> Tool {
@@ -243,6 +248,16 @@ struct Tool: Sendable {
         tool.hints = hints
         return tool
     }
+
+    /// This tool with `writesFile`.
+    func writing() -> Tool {
+        var tool = self
+        tool.writesFile = true
+        return tool
+    }
+
+    /// True for the name of a tool that `writing()` marks.
+    static func writesFile(_ name: String) -> Bool { all.contains { $0.name == name && $0.writesFile } }
 
     /// The entry of the tool in `tools/list`.
     var listing: [String: Any] {

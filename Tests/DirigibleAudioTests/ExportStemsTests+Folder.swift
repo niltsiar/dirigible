@@ -28,7 +28,7 @@ struct ExportStemsFolderTests {
         let source = try #require(ExportSource(range: 0..<48_000))
         return Result { () throws(ExportStemsError) in
             try exportStems(
-                package.session, by: .track, source: source, options: ExportStemsTests.wav24,
+                package.session, by: .track, source: source, titles: .english, options: ExportStemsTests.wav24,
                 to: package.folder.url.appending(path: "stems"), package: { package.url }, progress: progress,
                 isCancelled: isCancelled, stage: stage, freeBytes: freeBytes)
         }
@@ -62,7 +62,7 @@ struct ExportStemsFolderTests {
         let package = try Self.twoTracks()
         let target = package.folder.url.appending(path: "stems")
         func stemOneIsWritten() -> Bool {
-            Self.staging(package).map { Self.exists($0.appending(path: "01.wav")) } ?? false
+            Self.staging(package).map { Self.exists($0.appending(path: "01 t1.wav")) } ?? false
         }
         let cancelled = try Self.stems(package, isCancelled: stemOneIsWritten)
         guard case .failure(.stopped(.cancelled)) = cancelled else {
@@ -74,9 +74,9 @@ struct ExportStemsFolderTests {
             package,
             isCancelled: {
                 if stemOneIsWritten(), let staging = Self.staging(package),
-                    !Self.exists(staging.appending(path: "02.wav"))
+                    !Self.exists(staging.appending(path: "02 t2.wav"))
                 {
-                    FileManager.default.createFile(atPath: staging.appending(path: "02.wav").path, contents: Data())
+                    FileManager.default.createFile(atPath: staging.appending(path: "02 t2.wav").path, contents: Data())
                 }
                 return false
             })
@@ -147,11 +147,11 @@ struct ExportStemsFolderTests {
             Issue.record("the export failed")
             return
         }
-        #expect(result.files.map(\.name) == ["01.wav", "02.wav"])
+        #expect(result.files.map(\.name) == ["01 t1.wav", "02 t2.wav"])
         #expect(Self.leftovers(package).isEmpty, "\(Self.leftovers(package))")
         #expect(
             try FileManager.default.contentsOfDirectory(atPath: folder.appending(path: "stems").path).sorted()
-                == ["01.wav", "02.wav"])
+                == ["01 t1.wav", "02 t2.wav"])
     }
 
     /// C16: the need of the stems with `diskMargin` passes, and that need minus 1 refuses with both
@@ -172,7 +172,7 @@ struct ExportStemsFolderTests {
             return
         }
         let target = package.folder.url.appending(path: "stems")
-        let written = try ["01.wav", "02.wav"].reduce(Int64(0)) { sum, name in
+        let written = try ["01 t1.wav", "02 t2.wav"].reduce(Int64(0)) { sum, name in
             let size = try FileManager.default.attributesOfItem(atPath: target.appending(path: name).path)[.size]
             return sum + ((size as? Int64) ?? 0)
         }

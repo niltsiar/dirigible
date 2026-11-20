@@ -55,13 +55,13 @@ struct ExportStemsTests {
 
     /// Exports the stems of `tracks` over `range` to the folder `name` in the test folder.
     static func stems(
-        _ package: MixPackage, tracks: Set<TrackID>? = nil, range: Range<Frames>, options: StemOptions = wav24,
-        name: String = "stems"
+        _ package: MixPackage, by grouping: StemGrouping = .track, tracks: Set<TrackID>? = nil, range: Range<Frames>,
+        options: StemOptions = wav24, name: String = "stems"
     ) throws -> StemsResult {
         try exportStems(
-            package.session, by: .track, source: #require(ExportSource(range: range, tracks: tracks)), options: options,
-            to: package.folder.url.appending(path: name), package: { package.url }, progress: { _ in },
-            isCancelled: { false })
+            package.session, by: grouping, source: #require(ExportSource(range: range, tracks: tracks)),
+            titles: .english, options: options, to: package.folder.url.appending(path: name),
+            package: { package.url }, progress: { _ in }, isCancelled: { false })
     }
 
     /// The samples of each stem file of `result`, in plan order.
@@ -102,22 +102,32 @@ struct ExportStemsTests {
         try package.addTrack(id, clip: ClipID(id.rawValue), file: file, start: 0, offset: 0, length: length)
     }
 
-    /// C4: the sample sum of the 24-bit track stems equals the 24-bit mix of the same range and
-    /// tracks within n + 1 LSB (W2). The stem peaks sum under 1.0, so no mix peak is measured.
-    @Test func theStemsAddUpToTheMix() throws {
+    /// C4: the sample sum of the 24-bit track stems, and of the 24-bit role stems (t1 and t3
+    /// dialogue, t2 no role), equals the 24-bit mix of the same range and tracks within n + 1 LSB
+    /// (W2). The stem peaks sum under 1.0, so no mix peak is measured.
+    @Test(arguments: [StemGrouping.track, .role]) func theStemsAddUpToTheMix(by grouping: StemGrouping) throws {
         let package = try Self.mixedPackage()
+        try package.session.setRole(.dialogue, tracks: ["t1", "t3"])
         let tracks: Set<TrackID> = ["t1", "t2", "t3"]
-        let result = try Self.stems(package, tracks: tracks, range: 0..<144_000)
-        #expect(result.plan.stems.map(\.key) == [.track("t1"), .track("t2"), .track("t3")])
-        #expect(result.files.map(\.name) == ["01.wav", "02.wav", "03.wav"])
+        let result = try Self.stems(package, by: grouping, tracks: tracks, range: 0..<144_000)
+        switch grouping {
+        case .track:
+            #expect(result.plan.stems.map(\.key) == [.track("t1"), .track("t2"), .track("t3")])
+            #expect(result.files.map(\.name) == ["01 t1.wav", "02 t2.wav", "03 t3.wav"])
+        case .role:
+            #expect(result.plan.stems.map(\.key) == [.role(.dialogue), .role(nil)])
+            #expect(result.files.map(\.name) == ["Dialogue.wav", "No Role.wav"])
+        }
         let stems = try Self.samples(of: result, in: package.folder.url.appending(path: "stems"))
         let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session)
         let mix = try Self.export(package, tracks, 0..<144_000, options, "mix.wav")
         let peaks = stems.map { $0.map(abs).max() ?? 0 }
-        #expect(peaks.allSatisfy { $0 > 0.05 && $0 < 0.316 }, "stem peaks \(peaks)")
-        #expect(result.files.map(\.samplePeak).allSatisfy { $0 > 0.05 && $0 < 0.316 })
+        #expect(peaks.allSatisfy { $0 > 0.05 } && peaks.reduce(0, +) < 0.95, "stem peaks \(peaks)")
+        #expect(result.files.map(\.samplePeak).allSatisfy { $0 > 0.05 })
         #expect(result.mixPeak == nil)
-        #expect(stems.count == 3 && stems.allSatisfy { $0.count == mix.count } && mix.count == 2 * 144_000)
+        #expect(
+            stems.count == result.plan.stems.count && stems.allSatisfy { $0.count == mix.count }
+                && mix.count == 2 * 144_000)
         let error = mix.indices.map { k in abs(stems.reduce(0.0) { $0 + Double($1[k]) } - Double(mix[k])) }.max() ?? 0
         let bound = Double(result.plan.stems.count + 1) * Self.lsb
         #expect(error <= bound, "sum error \(error / Self.lsb) LSB, bound \(bound / Self.lsb) LSB")
@@ -168,6 +178,20 @@ struct ExportStemsTests {
         let result = try Self.stems(package, range: 0..<4)
         #expect(result.files.map(\.isOverFullScale) == [false, false])
         #expect(result.mixPeak == 1.5)
+    }
+
+    /// C8: a track name longer than the limit gives a FLAC stem whose name is `exportNameLimit`
+    /// bytes, and it exports.
+    @Test func aFLACStemAtTheLongestNameExports() throws {
+        let package = try MixPackage()
+        try package.addFile("n1", channels: [Self.noise(4_800, peak: 0.2, seed: 1)])
+        try package.session.addTrack("t1", name: String(repeating: "a", count: 250), layout: .mono)
+        try package.session.place(Clip(id: "a", file: "n1", start: 0, offset: 0, length: 4_800), on: "t1")
+        let flac = StemOptions(format: .flac(.bits24), layout: .mono, rate: .session)
+        let result = try Self.stems(package, range: 0..<4_800, options: flac)
+        let name = try #require(result.files.first?.name)
+        #expect(name.utf8.count == exportNameLimit && name.hasSuffix(".flac"))
+        #expect(try readAudio(package.folder.url.appending(path: "stems/\(name)")).samples.count == 4_800)
     }
 
     /// C15: the mix pass runs only when the stem peaks sum over 1.0; at exactly 1.0 the mix cannot

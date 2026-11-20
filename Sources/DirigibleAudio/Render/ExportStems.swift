@@ -62,7 +62,7 @@ public struct StemsResult: Hashable, Sendable {
 }
 
 public enum ExportStemsError: Error, Sendable {
-    /// No track of the set is heard. No folder was made.
+    /// No stem has a clip that sounds in the range. No folder was made.
     case noStem
     /// The stem files and `diskMargin` need `need` bytes, and the volume has `free`. No stem was
     /// rendered.
@@ -79,22 +79,29 @@ let stemsKind = "stems"
 /// The longest stem folder name in UTF-8 bytes: 206.
 public let stemFolderNameLimit = folderNameLimit(kind: stemsKind)
 
+/// The longest stem name with no extension: with `.flac`, the longest stem extension, it fits
+/// `exportNameLimit`.
+let stemNameLimit = exportNameLimit - ".flac".utf8.count
+
 /// Exports one file for each stem of `Session.stemPlan` over `source` into the new folder
 /// `folder`, which appears whole or not at all. It computes the plan on `session`, so a check of a
 /// caller before the call cannot give a stem of a track that is not heard. A plan with no stem
-/// throws `.noStem` before any folder exists. Then, in this order: `stageFolder` (the sweep, the lock file, the empty
-/// staging folder), the exists check of `folder`, `checkPublish()`, and the space check; a refusal
-/// discards the staging folder. The stems run as the items of one `exportItems` call, each file
-/// named by its place in the plan (`01.wav`). A stop or a failure of a stem removes the staging
-/// folder, so `folder` gets no stem. When the stem peaks sum over 1.0, one pass measures the peak
-/// of the mix. Then the staging folder is published as `folder`. Thread rule: as `exportMix`.
+/// throws `.noStem` before any folder exists. Then, in this order: `stageFolder` (the sweep, the
+/// lock file, the empty staging folder), the exists check of `folder`, `checkPublish()`, and the
+/// space check; a refusal discards the staging folder. The stems run as the items of one
+/// `exportItems` call, each file named by its plan name and the extension. A stop or a failure of
+/// a stem removes the staging folder, so `folder` gets no stem. When the stem peaks sum over 1.0,
+/// one pass measures the peak of the mix. Then the staging folder is published as `folder`.
+/// Thread rule: as `exportMix`.
 public func exportStems(
-    _ session: Session, by grouping: StemGrouping, source: ExportSource, options: StemOptions, to folder: URL,
-    package: () throws(SessionFileError) -> URL, progress: (Double) -> Void, isCancelled: () -> Bool
+    _ session: Session, by grouping: StemGrouping, source: ExportSource, titles: StemTitles, options: StemOptions,
+    to folder: URL, package: () throws(SessionFileError) -> URL, progress: (Double) -> Void,
+    isCancelled: () -> Bool
 ) throws(ExportStemsError) -> StemsResult {
     try exportStems(
-        session, by: grouping, source: source, options: options, to: folder, package: package, progress: progress,
-        isCancelled: isCancelled, stage: { url throws(SessionFileError) in try stageFolder(for: url, kind: stemsKind) },
+        session, by: grouping, source: source, titles: titles, options: options, to: folder, package: package,
+        progress: progress, isCancelled: isCancelled,
+        stage: { url throws(SessionFileError) in try stageFolder(for: url, kind: stemsKind) },
         freeBytes: { parent in
             // A volume that gives no value skips the check; a full disk then stops the write.
             Int64((try? parent.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity ?? .max)
@@ -104,12 +111,14 @@ public func exportStems(
 /// `exportStems` with the staging folder of `stage` and the free bytes of the parent folder of
 /// `folder` from `freeBytes`.
 func exportStems(
-    _ session: Session, by grouping: StemGrouping, source: ExportSource, options: StemOptions, to folder: URL,
-    package: () throws(SessionFileError) -> URL, progress: (Double) -> Void, isCancelled: () -> Bool,
-    stage: (URL) throws(SessionFileError) -> StagingFolder, freeBytes: (URL) -> Int64
+    _ session: Session, by grouping: StemGrouping, source: ExportSource, titles: StemTitles, options: StemOptions,
+    to folder: URL, package: () throws(SessionFileError) -> URL, progress: (Double) -> Void,
+    isCancelled: () -> Bool, stage: (URL) throws(SessionFileError) -> StagingFolder, freeBytes: (URL) -> Int64
 ) throws(ExportStemsError) -> StemsResult {
-    let plan = session.stemPlan(by: grouping, tracks: source.tracks, range: source.range)
-    guard !plan.stems.isEmpty else { throw .noStem }
+    guard
+        let plan = session.stemPlan(
+            by: grouping, tracks: source.tracks, range: source.range, titles: titles, limit: stemNameLimit)
+    else { throw .noStem }
     let staging: StagingFolder
     do { staging = try stage(folder) } catch { throw .publish(error) }
     var info = stat()
@@ -127,10 +136,7 @@ func exportStems(
         staging.discard()
         throw .notEnoughSpace(need: need, free: free)
     }
-    let digits = max(2, String(plan.stems.count).count)
-    let names = plan.stems.indices.map {
-        "\(String(repeating: "0", count: digits - String($0 + 1).count))\($0 + 1).\(options.format.exportFormat.pathExtension)"
-    }
+    let names = plan.stems.map { "\($0.name).\(options.format.exportFormat.pathExtension)" }
     let items = zip(plan.stems, names).map { stem, name in
         ExportItem(
             session: session, source: source.stem(stem.tracks), options: options.exportOptions,

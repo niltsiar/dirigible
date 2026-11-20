@@ -25,7 +25,8 @@ package enum EditRules {
         "A role is a label. It changes no sound. `duck` (tool `duck`) takes the dialogue tracks as the speech "
         + "and the music tracks as the tracks to lower, when it gets no list. A track with no role is in no list. "
         + "`clip denoise` (tool `clip_denoise`) with noise refuses a clip of a music or effects track; hum "
-        + "removal alone takes every role. The app shows the role as a color strip and a letter. "
+        + "removal alone takes every role. `export-stems --by role` (tool `export_stems`) writes one file for each "
+        + "role and one for the tracks with no role. The app shows the role as a color strip and a letter. "
         + "`info` (tool `session_info`) shows the role."
 
     /// The line after `OK` in the reply of `track_role`. The command prints nothing.

@@ -173,7 +173,8 @@ package enum AgentManual {
     /// What a role is and what reads it (decision 0060). In the skill only: the manual has no room
     /// under its 6000 characters.
     static let roleLine =
-        "A role from `track_role` is a label: it changes no sound. `duck` and `clip_denoise` read it. "
+        "A role from `track_role` is a label: it changes no sound. `duck`, `clip_denoise`, and `export_stems` "
+        + "read it. "
         + "A track with no role is in no list of `duck`: give `speech` or `music`."
 
     /// What Match Voice takes (decision 0074). In the skill only: the manual has no room under its 6000

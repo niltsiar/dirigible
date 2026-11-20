@@ -148,7 +148,7 @@
 # cost.sh and wiki.py build nothing: the call exits 2 at once with a message, before any wait, so a
 # transcript scan never queues behind a push check (DLV-157).
 # scripts/lock-words.sh holds the word rules of the lock-free make call (lock_make_words, hooks_pass),
-# push_env, hooks_env, and release_call; the guardrail hook reads the same file.
+# push_env, hooks_env, hooks_all, and release_call; the guardrail hook reads the same file.
 # scripts/with-lock.sh --bench-mark <command> [<argument>...] runs a timing of a shell script or a
 # hook test (make test-hooks HOOK_TESTS=<names>) that builds no Swift and runs no built binary, while no lock-free call
 # runs. A timed Swift build, Swift test, bench, built binary, or probe takes the lock
@@ -448,7 +448,7 @@ bench_class() {
         *.test.sh | test-hooks.sh) goal=hooks ;;
         *.sh) [[ ! "/${c%.sh}" =~ $re ]] || goal=lock ;;
         make)
-            if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! hooks_env && [[ " ${*:2} " != *" DIRIGIBLE_HOOKS_ALL=1 "* ]]; }; then
+            if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! hooks_all "$@"; }; then
                 for w in "${@:2}"; do
                     if [[ "$w" =~ ^($lock_free_targets)$ ]]; then goal=free; elif [[ "$w" != *=* ]]; then goal=lock; break; fi
                 done

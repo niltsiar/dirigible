@@ -560,7 +560,9 @@ run_with "${locked[@]}" "${marks[@]}" HOOK_JOBS=1 HOOKS_WAIT=20 --
     || fail "(jobs C1) two tests at 1 job: code $code: $(out)"
 
 # Jobs C2: the job count. expect_jobs <name> <want> <lock> <env word>..., where <lock> is held, other,
-# none, novar, or a lock-free file: hooks, plain (no kind), or other-hooks (of another pid).
+# none, novar, or a lock-free file: hooks (the kind hooks, a live pid, and its start time), plain (no
+# kind), other-hooks (the variable names another pid), dead (a dead pid), or stale (another start
+# time).
 jobs_line() { sed -n 's/^test-hooks: [0-9]* tests, \([0-9]*\) jobs$/\1/p' "$tmp/out"; }
 expect_jobs() {
     local name="$1" want="$2" mode="$3"
@@ -572,13 +574,16 @@ expect_jobs() {
         other) fake_lock; lockenv=("DIRIGIBLE_BUILD_LOCK=$((lock_value + 1))" DIRIGIBLE_FULL_SUITE=1) ;;
         none) ;;
         novar) fake_lock; lockenv=(DIRIGIBLE_FULL_SUITE=1) ;;
-        hooks | plain | other-hooks)
+        hooks | plain | other-hooks | dead | stale)
             mkdir -p "$repo/.git/dirigible-lock-free"
-            local kind=hooks pid=4243
+            local kind=hooks pid=$$ named=$$ at
+            at="$(LC_ALL=C TZ=UTC0 ps -o lstart= -p $$ | sed 's/^ *//')"
             [[ $mode != plain ]] || kind=""
-            [[ $mode != other-hooks ]] || pid=4244
-            printf 'start\nmake test-hooks DIRIGIBLE_HOOKS_ALL=1\n%s\n' "$kind" > "$repo/.git/dirigible-lock-free/4243"
-            lockenv=("DIRIGIBLE_HOOKS_PASS=$pid" DIRIGIBLE_HOOKS_ALL=1) ;;
+            [[ $mode != other-hooks ]] || named=$dead_pid
+            [[ $mode != dead ]] || pid=$dead_pid named=$dead_pid
+            [[ $mode != stale ]] || at='Thu Jan  1 00:00:00 1970'
+            printf '%s\nmake test-hooks DIRIGIBLE_HOOKS_ALL=1\n%s\n' "$at" "$kind" > "$repo/.git/dirigible-lock-free/$pid"
+            lockenv=("DIRIGIBLE_HOOKS_PASS=$named" DIRIGIBLE_HOOKS_ALL=1) ;;
     esac
     run_with "${lockenv[@]}" "$@" --
     [[ $code -eq 0 && "$(jobs_line)" == "$want" ]] || fail "(jobs C2) $name: want $want jobs: code $code, got [$(jobs_line)]: $(out)"
@@ -595,12 +600,19 @@ expect_jobs 'HOOK_JOBS=3 with no lock' 1 none HOOK_JOBS=3
 grep -qxF 'test-hooks: HOOK_JOBS=3 needs the build lock; 1 job' "$tmp/out" \
     || fail "(jobs C2) HOOK_JOBS=3 with no lock: no needs-the-lock line: $(out)"
 expect_jobs 'HOOK_JOBS=3 with the probe override and no lock' 3 none HOOK_JOBS=3 HOOK_JOBS_PROBE=1
-# The lock-free hooks pass of with-lock.sh (DIRIGIBLE_HOOKS_PASS names its lock-free file of the
-# kind hooks) runs ncpu / 2 jobs, or HOOK_JOBS; a file of no kind, or of another pid, gives 1 job.
+# The lock-free hooks pass of with-lock.sh (DIRIGIBLE_HOOKS_PASS names its live lock-free file of the
+# kind hooks) runs ncpu / 2 jobs, or HOOK_JOBS up to ncpu / 2; a file of no kind, of another pid, of
+# a dead pid, or with another start time gives 1 job.
+sleep 0 &
+dead_pid=$!
+wait "$dead_pid"
 expect_jobs 'the lock-free hooks pass, 8 cpus' 4 hooks
 expect_jobs 'the lock-free hooks pass, HOOK_JOBS=3' 3 hooks HOOK_JOBS=3
+expect_jobs 'the lock-free hooks pass, HOOK_JOBS=32' 4 hooks HOOK_JOBS=32
 expect_jobs 'a lock-free file of no kind' 1 plain
 expect_jobs 'a hooks file of another pid' 1 other-hooks
+expect_jobs 'a hooks file of a dead pid' 1 dead
+expect_jobs 'a hooks file with another start time' 1 stale
 for bad in 0 x 01 -1 2.5 ''; do
     new_repo; fake_lock
     run_with "${locked[@]}" "HOOK_JOBS=$bad" --

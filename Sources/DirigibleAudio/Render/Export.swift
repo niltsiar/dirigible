@@ -191,7 +191,7 @@ func exportMix(
             var written = 0
             var dither: TPDFDither?
             if options.format == .wav(.bits16) || options.format == .flac(.bits16) {
-                dither = TPDFDither(channels: options.layout.channelCount)
+                dither = TPDFDither(channels: options.layout.channelCount, seed: options.ditherSeed)
             }
             func write(_ buffer: AVAudioPCMBuffer) throws(ExportError) {
                 dither?.apply(buffer)

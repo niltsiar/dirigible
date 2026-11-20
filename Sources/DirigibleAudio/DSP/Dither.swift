@@ -3,11 +3,14 @@ import AVFoundation
 /// TPDF dither of ±1 LSB of 16 bit for a WAV 16 or FLAC 16 export (decision 0032): the
 /// difference of two uniform values, added before the converter rounds. Each channel has its own
 /// SplitMix64 stream with a fixed seed, so each export of the same mix gives the same file, and
-/// FLAC equals WAV bit for bit.
+/// FLAC equals WAV bit for bit. A `seed` other than 0 gives other streams: the files of one set
+/// export do not share one dither sequence, so their sum adds the dither as noise, not n times.
 struct TPDFDither: Sendable {
     private var states: [UInt64]
 
-    init(channels: Int) { states = (0..<channels).map { 0x5EED_D17E &+ UInt64($0) } }
+    init(channels: Int, seed: UInt64 = 0) {
+        states = (0..<channels).map { 0x5EED_D17E &+ seed << 32 &+ UInt64($0) }
+    }
 
     /// Adds the dither to the frames of `buffer` in place.
     mutating func apply(_ buffer: AVAudioPCMBuffer) {

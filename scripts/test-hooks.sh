@@ -17,9 +17,10 @@
 # Jobs: while the caller holds the build lock (DIRIGIBLE_BUILD_LOCK equals the pid in the lock
 #   folder of the git common dir), or runs the lock-free hooks pass of scripts/with-lock.sh
 #   (DIRIGIBLE_HOOKS_PASS names a file of dirigible-lock-free/ in the git common dir whose line 3 is
-#   hooks; a long holder waits for that file), the script runs HOOK_JOBS tests at a time, else ncpu / 2
-#   (at least 1). Else it runs 1 test at a time, and a HOOK_JOBS over 1 prints a line that says
-#   so: a lock-free call must not load the machine. HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock
+#   hooks, and that pid runs with the start time of line 1, as file_live of with-lock.sh; a long
+#   holder waits for that file), the script runs HOOK_JOBS tests at a time, else ncpu / 2 (at least
+#   1). In the hooks pass, HOOK_JOBS is cut to ncpu / 2. Else it runs 1 test at a time, and a
+#   HOOK_JOBS over 1 prints a line that says so: a lock-free call must not load the machine. HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock
 #   (a probe of the 4-job load). A HOOK_JOBS that is not a whole number of 1 or more exits 2, before
 #   the key. The job count is no part of the key. Each job slot has its own clone of the key
 #   commit, and each test runs in the process group of the script, with SIGINT at its default. The
@@ -74,22 +75,26 @@ if [[ -n ${HOOK_JOBS+x} && ! $HOOK_JOBS =~ ^[1-9][0-9]*$ ]]; then
     echo "test-hooks: HOOK_JOBS must be a whole number of 1 or more, not '$HOOK_JOBS'" >&2
     exit 2
 fi
-full_jobs=no
+full_jobs=no pass_jobs=no
 if [[ -n ${DIRIGIBLE_BUILD_LOCK:-} && "$(cat "$common/dirigible-build.lock/pid" 2>/dev/null)" == "$DIRIGIBLE_BUILD_LOCK" ]]; then
     full_jobs=yes
-fi
-if [[ ${DIRIGIBLE_HOOKS_PASS:-} =~ ^[0-9]+$ && "$(sed -n 3p "$common/dirigible-lock-free/$DIRIGIBLE_HOOKS_PASS" 2>/dev/null)" == hooks ]]; then
-    full_jobs=yes
+elif [[ ${DIRIGIBLE_HOOKS_PASS:-} =~ ^[0-9]+$ ]] && kill -0 "$DIRIGIBLE_HOOKS_PASS" 2>/dev/null; then
+    pass_file="$common/dirigible-lock-free/$DIRIGIBLE_HOOKS_PASS"
+    pass_start="$(LC_ALL=C TZ=UTC0 ps -o lstart= -p "$DIRIGIBLE_HOOKS_PASS" 2>/dev/null | sed 's/^ *//')"
+    file_start="$(sed -n 1p "$pass_file" 2>/dev/null)"
+    if [[ "$(sed -n 3p "$pass_file" 2>/dev/null)" == hooks && ( -z $pass_start || -z $file_start || $pass_start == "$file_start" ) ]]; then
+        full_jobs=yes pass_jobs=yes
+    fi
 fi
 njobs=1
 if [[ $full_jobs == yes || ${HOOK_JOBS_PROBE:-} == 1 ]]; then
-    if [[ -n ${HOOK_JOBS+x} ]]; then
-        njobs=$HOOK_JOBS
-    elif [[ $full_jobs == yes ]]; then
+    [[ -z ${HOOK_JOBS+x} ]] || njobs=$HOOK_JOBS
+    if [[ $full_jobs == yes && ( -z ${HOOK_JOBS+x} || $pass_jobs == yes ) ]]; then
         ncpu="$(sysctl -n hw.ncpu 2>/dev/null)"
         [[ $ncpu =~ ^[0-9]+$ ]] || { echo "test-hooks: sysctl -n hw.ncpu gave no number; set HOOK_JOBS" >&2; exit 1; }
-        njobs=$((ncpu / 2))
-        [[ $njobs -ge 1 ]] || njobs=1
+        half=$((ncpu / 2))
+        [[ $half -ge 1 ]] || half=1
+        [[ -n ${HOOK_JOBS+x} && $njobs -le $half ]] || njobs=$half
     fi
 elif [[ -n ${HOOK_JOBS+x} && $HOOK_JOBS -gt 1 ]]; then
     echo "test-hooks: HOOK_JOBS=$HOOK_JOBS needs the build lock; 1 job"

@@ -2005,6 +2005,13 @@ code=$?
 WITH_LOCK_MAX_HOLD=0 "$repo/scripts/with-lock.sh" bash -c 'sleep 2' > /dev/null 2>&1
 code=$?
 [[ $code -eq 0 ]] || fail "WITH_LOCK_MAX_HOLD=0: exit $code"
+# A grace time that is not whole seconds exits 2 before the command runs: the hooks pass adds it to
+# the bound in line 6 of its file.
+rm -f "$tmp/grace.ran"
+out="$(WITH_LOCK_HOLD_GRACE=0.5 "$repo/scripts/with-lock.sh" touch "$tmp/grace.ran" 2>&1)"
+code=$?
+[[ $code -eq 2 && ! -e "$tmp/grace.ran" && ! -e "$lock" && "$out" == *"WITH_LOCK_HOLD_GRACE is '0.5'; give whole seconds"* ]] ||
+    fail "WITH_LOCK_HOLD_GRACE=0.5: exit $code (want 2), command ran [$(ls "$tmp/grace.ran" 2>/dev/null)]: $out"
 # A step limit of test-shards.sh (the file <lock>/shard-limit) gives the hold line the column limit,
 # so the push check that it ended is no base of a limit. The exit stays that of the command, and no
 # "ran past WITH_LOCK_MAX_HOLD" line prints.
@@ -2433,6 +2440,31 @@ rm -f "$HPL_GATE"
 [[ $code -eq 124 && $code2 -eq 0 && "$(hpl_order)" == "start $hp|start bench.sh NavBench|end bench.sh NavBench" &&
     "$(cat "$tmp/hpl.out")" == *'ran past WITH_LOCK_MAX_HOLD (1 s)'* && ! -e "$frees/$hl_pid" ]] ||
     fail "hold limit: exit $code (want 124), long holder exit $code2, order [$(hpl_order)]: $(cat "$tmp/hpl.out")"
+# After a KILL of the call, no hold watcher stops the command of the pass, so its group keeps the
+# file live only until the hold limit and the grace time end: a long holder then starts.
+reset_builders
+rm -rf "$frees"
+rm -f "$HPL_ORDER" "$HPL_STATE" "$HPL_STATE.pid"
+touch "$HPL_GATE"
+WITH_LOCK_MAX_HOLD=3 WITH_LOCK_HOLD_GRACE=1 "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl.out" 2>&1 &
+inner=$!
+if until_true 50 test -s "$HPL_STATE" && until_true 50 awk 'NR == 5 { f = 1 } END { exit !f }' "$frees/$inner"; then
+    kill -KILL "$inner"
+    until_true 50 dead "$inner" || fail "bound after KILL: the call of the pass did not end"
+    wait "$inner" 2>/dev/null
+    WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/bench.sh" NavBench > "$tmp/hpl-long.out" 2>&1 &
+    waiter=$!
+    until_true 100 dead "$waiter" || fail "bound after KILL: the long holder waits past the hold limit of the pass: order [$(hpl_order)]"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    [[ $code -eq 0 && "$(hpl_order)" == "start $hp|start bench.sh NavBench|end bench.sh NavBench" ]] && ! dead "$(cat "$HPL_STATE.pid")" ||
+        fail "bound after KILL: exit $code, order [$(hpl_order)], want the bench beside the command of the pass: $(cat "$tmp/hpl-long.out")"
+else
+    fail "bound after KILL: the hooks pass did not start: $(cat "$tmp/hpl.out")"
+fi
+rm -f "$HPL_GATE"
+until_true 50 dead "$(cat "$HPL_STATE.pid" 2>/dev/null)" || fail "bound after KILL: the command of the pass did not end"
+inner="" waiter=""
 # A hooks pass that cannot write its lock-free file exits 2 and runs nothing: no long holder could
 # see it.
 reset_builders

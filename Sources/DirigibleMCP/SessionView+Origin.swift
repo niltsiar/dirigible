@@ -37,6 +37,24 @@ extension SessionView {
     }
 }
 
+extension SessionView {
+    /// The drift link of a drift-corrected file (decision 0077): the source, the source frame of its
+    /// first frame, the source frames for each file frame, and the gain that the fix added.
+    struct DriftView: Encodable {
+        let source: String
+        let offset: Int
+        let ratio: Double
+        let gain: Double
+
+        init(_ drift: DriftOrigin) {
+            source = drift.source.rawValue
+            offset = drift.offset.count
+            ratio = drift.ratio.value
+            gain = drift.addedGain.dB
+        }
+    }
+}
+
 /// The origin of `file` in the `info` text, or an empty text for a file with no origin.
 func originText(of file: AudioFile) -> String {
     guard let origin = file.origin else { return "" }
@@ -51,4 +69,10 @@ func originText(of file: AudioFile) -> String {
     }
     return " origin \(origin.source) offset \(origin.offset) added gain \(origin.addedGain) "
         + effects.joined(separator: ", ")
+}
+
+/// The drift link of `file` in the `info` text, or an empty text for a file with no drift link.
+func driftText(of file: AudioFile) -> String {
+    guard let drift = file.drift else { return "" }
+    return " drift \(drift.source) offset \(drift.offset) ratio \(drift.ratio.value) added gain \(drift.addedGain)"
 }

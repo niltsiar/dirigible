@@ -30,6 +30,7 @@ package struct SessionView: Encodable {
         /// The real length of a short file.
         let mediaLength: Int?
         let origin: OriginView?
+        let drift: DriftView?
     }
 
     /// A device route has `device` and `channels`; an app route has only `app`.
@@ -250,7 +251,8 @@ package struct SessionView: Encodable {
             FileView(
                 id: $0.id.rawValue, path: $0.path, layout: $0.layout.rawValue, length: $0.length.count,
                 capture: $0.capture?.rawValue, media: media[$0.id].map(\.word) ?? "ok",
-                mediaLength: media[$0.id].flatMap(\.length), origin: $0.origin.map(OriginView.init))
+                mediaLength: media[$0.id].flatMap(\.length), origin: $0.origin.map(OriginView.init),
+                drift: $0.drift.map(DriftView.init))
         }
         tracks = session.tracks.map { track in
             TrackView(

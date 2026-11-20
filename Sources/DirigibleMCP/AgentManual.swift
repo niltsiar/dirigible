@@ -188,8 +188,9 @@ package enum AgentManual {
     /// characters.
     static let syncLine =
         "`clip_sync` moves a clip onto its audio on another track, for a recording with no shared clock: `clip`, "
-        + "`to` (the reference track), and `within` (seconds on each side, 1800 by default). It moves the whole "
-        + "clip by one lag and does not correct a drift."
+        + "`to` (the reference track), `within` (seconds on each side, 1800 by default), and `drift`. Without "
+        + "`drift`, it moves the whole clip by one lag and does not correct a drift. With `drift` true, a clip of "
+        + "5 min or more also gets its clock drift fixed, with new audio files."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =

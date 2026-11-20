@@ -25,6 +25,7 @@
 - Amended: 2026-11-01, run `2026-11-01-user-model-file` (see 0065 D8). The tool `transcribe` takes `model_file`, the absolute path of a ggml whisper model file of the user, in place of `model`. `model` and `model_file` together, or a relative `model_file`, give a tool error and change nothing. The job checks the file in the helper `dirigible model check` before it loads it, and the text ends with `Model file SHA-256: <hex>`.
 - Amended: 2026-11-02, run `2026-10-28-chapter-export-files` (see 0067). The `export` tool takes `split` (`chapters` or `markers`): one file for each chapter or marker, with the files in the reply.
 - Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). The tool `clip_sync` (`clip`, `to`, `within`) gives the lines of `dirigible clip sync`. On an open session in the app it runs through `Studio.syncClip`.
+- Amended: 2026-11-20, run `2026-11-19-waveform-drift` (see 0077). The tool `clip_sync` gets the argument `drift` (default false). On a closed package it calls `driftRequest` under the package lock; on an open session in the app it runs through `Studio.correctDrift`, a long job with progress. `session_info` gives a drift-corrected file the `drift` key.
 
 ## Context
 

@@ -36,7 +36,7 @@ public struct StagingFolder: ~Copyable {
     }
 
     /// Renames the folder to the target with `renamex_np(RENAME_EXCL)`; on ENOTSUP or EPERM, claims
-    /// the target with `mkdir` and renames over the empty claim (probes P1, P2). An item at the
+    /// the target with `mkdir` and renames over the empty claim (decision 0078). An item at the
     /// target throws `.exists` and does not change; a claim that got an item stays with it. A failed
     /// rename over the claim removes the claim while it is empty. Then it flushes the parent folder
     /// and removes the lock file. A throw removes the staging folder and the lock file.

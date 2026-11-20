@@ -28,10 +28,11 @@ private let blockPeak = 0.2
 /// 0077, D6). One read gives the 0076 lag and the 50 ms levels and the 2 kHz reference that the
 /// windows search: the loudest 10 s of each 60 s cell of the clip, within 60 s of the 0076 lag, with
 /// the 0076 match rule. A run of 3 or more windows with no match, and a run of any length at the
-/// clip start or end, gets one search of its loudest window over the whole span, and a match there centers the search of the run. The fine step at the
-/// session rate finds the lag of each 1 s block of a matched window, within the window smear at
-/// `DriftRatio.limit` of the coarse lag. A point is the mean clip frame of the block centers and the
-/// mean lag of the blocks. A silent window gives no point.
+/// clip start or end, gets one search of its loudest window over the whole span, and a match there
+/// centers the search of the run. The fine step at the session rate finds the lag of each 1 s block
+/// of a matched window, within the window smear at `DriftRatio.limit` of the coarse lag. A point is
+/// the mean clip frame of the block centers and the mean lag of the blocks. A silent window gives no
+/// point.
 func driftMeasure(
     of clip: ClipID, to track: TrackID, in session: Session, package: URL, span: Range<Frames>,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }, open: @escaping MediaOpen = openMedia,

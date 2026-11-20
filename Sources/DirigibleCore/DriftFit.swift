@@ -20,7 +20,8 @@ public enum DriftFitFailure: Error, Equatable, Sendable {
     case endOutlier
     /// A later segment has less lag than an earlier one. A pause only adds lag.
     case lagStepsBack
-    /// The ratio 1 / (1 + slope) of a drift link of the line is out of the range of `DriftRatio`.
+    /// The slope is 1000 ppm or more from 0, or the ratio 1 / (1 + slope) of a drift link of the line
+    /// is out of the range of `DriftRatio`.
     case rateOutOfRange
 }
 
@@ -97,8 +98,8 @@ public struct DriftFit: Equatable, Sendable {
             }
         }
         let fitSlope = variance > 0 ? covariance / variance : slope
-        // The bound of the drift link, so each fit gives a valid `DriftLines`.
-        guard DriftRatio(1 / (1 + fitSlope)) != nil else { throw .rateOutOfRange }
+        // The rate limit, and the bound of the drift link, so each fit gives a valid `DriftLines`.
+        guard abs(fitSlope) < DriftRatio.limit, DriftRatio(1 / (1 + fitSlope)) != nil else { throw .rateOutOfRange }
         let fitOffsets = live.map { group in mean(group.map { points[$0].lag - fitSlope * points[$0].clipFrame }) }
 
         var worst = 0.0

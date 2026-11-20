@@ -205,11 +205,13 @@ struct DriftFitTests {
         }
     }
 
+    /// At 1000.5 ppm the ratio 1 / (1 + rate) of the drift link is in the range of `DriftRatio`, but
+    /// the rate is over the limit. The noise moves the fit of seed 10 by 0.011 ppm.
     @Test func theRateLimitIs1000ppm() throws {
         let fit = try Self.fit(Self.points(minutes: 60, ppm: 999, offsetMs: 0, seed: 10))
         #expect(Self.rateError(fit, ppm: 999) < 0.1)
         #expect(throws: DriftFitFailure.rateOutOfRange) {
-            try Self.fit(Self.points(minutes: 60, ppm: 1001, offsetMs: 0, seed: 10))
+            try Self.fit(Self.points(minutes: 60, ppm: 1000.5, offsetMs: 0, seed: 10))
         }
     }
 

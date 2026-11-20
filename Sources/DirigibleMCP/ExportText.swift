@@ -30,7 +30,7 @@ package enum ExportText {
         switch pathExtension {
         case "wav", "flac":
             guard bitrate == nil else { throw ToolError("\(o("bitrate")) is only for .m4a and .mp3.") }
-            guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ToolError("\(o("bits")) must be 16 or 24.") }
+            let depth = try bitDepth(bits, spelling: o)
             format = pathExtension == "wav" ? .wav(depth) : .flac(depth)
         case "m4a", "mp3":
             guard bits == nil else { throw ToolError("\(o("bits")) is only for .wav and .flac.") }
@@ -41,13 +41,7 @@ package enum ExportText {
         default:
             throw ToolError("\(o("out")) must end in .wav, .m4a, .mp3, or .flac.")
         }
-        let fileRate: ExportRate
-        switch rate {
-        case nil: fileRate = .session
-        case 44_100: fileRate = .hz44100
-        case 48_000: fileRate = .hz48000
-        default: throw ToolError("\(o("rate")) must be 44100 or 48000.")
-        }
+        let fileRate = try exportRate(rate, spelling: o)
         var target: LoudnessTarget?
         if let loudness {
             guard let value = LoudnessTarget(rawValue: loudness) else {
@@ -56,6 +50,22 @@ package enum ExportText {
             target = value
         }
         return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
+    }
+
+    /// The bit depth of WAV and FLAC that `bits` gives: 24 for nil.
+    package static func bitDepth(_ bits: Int?, spelling o: OptionSpelling) throws(ToolError) -> BitDepth {
+        guard let depth = BitDepth(rawValue: bits ?? 24) else { throw ToolError("\(o("bits")) must be 16 or 24.") }
+        return depth
+    }
+
+    /// The file rate that `rate` gives: the session rate for nil.
+    package static func exportRate(_ rate: Int?, spelling o: OptionSpelling) throws(ToolError) -> ExportRate {
+        switch rate {
+        case nil: .session
+        case 44_100: .hz44100
+        case 48_000: .hz48000
+        default: throw ToolError("\(o("rate")) must be 44100 or 48000.")
+        }
     }
 
     /// The split kind that the `split` argument gives, nil for no split. Another word is a usage

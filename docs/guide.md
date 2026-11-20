@@ -550,7 +550,7 @@ An AI agent does the same with the tool `silence_edit` and the command `dirigibl
 
 Choose **Tools > Sync Clip to Track** (Option-Command-G) to move a clip to the place where its audio matches another track. Use it for a recording that you made on another device, for example a guest on their own recorder, and a track that holds the same talk, for example the call track. The command is also in the menu of the right-click on a clip.
 
-![The sheet Sync Clip to Track: the pop-up Reference Track with Guest (Dialogue), the line that the search covers 30 minutes before and after the clip, and the buttons Cancel and Sync.](images/screenshot-sync.png)
+![The sheet Sync Clip to Track: the pop-up Reference Track with Call, the line that the search covers 30 minutes before and after the clip, the line "No call track: the first track with audio is chosen.", the Correct drift checkbox on, and the buttons Cancel and Sync.](images/screenshot-sync.png)
 
 1. Select one clip. The command is off with no clip, with two or more clips, and with a range. It is also off when no other track has a clip near the clip, and during a take, an import, or another job.
 2. Choose the command. The pop-up **Reference Track** lists the other tracks, each with its role: "Guest (Dialogue)". It starts on the first other track that has a call app as its source and holds a clip near the clip. When no such track exists, it starts on the first other track that holds a clip there. With no call track in the session, the sheet says "No call track: the first track with audio is chosen."

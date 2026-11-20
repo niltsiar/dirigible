@@ -85,7 +85,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F71 | Connected clips: a clip anchored to a clip on another track | FCP | Later | R7 |
 | F72 | Track role (dialogue, music, effects) with a color | FCP | done, Release 4 run 9 (moved from Release 7) | R10 |
 | F73 | Stem export: one file per track or per role, all from the same start | FCP | Release 7 | R11 |
-| F74 | Sync a clip to another track by its audio waveform | FCP | done, Release 6 run 13; Later: the drift fit of Release 6 item 5 L2 | R7 |
+| F74 | Sync a clip to another track by its audio waveform | FCP | done, Release 6 run 13 and Release 6 run 14 | R7 |
 | F75 | Gain envelope per clip; a range gain makes ramps | FCP | done, Release 4 runs 7, 8 and 26 (moved from Release 7) | R7 |
 | F76 | Session index: a list of clips, markers, and chapters with search | FCP | done, Release 6 run 9 and Release 6 run 10 | R7 |
 | F77 | Hum removal at 50 or 60 Hz | FCP | done, Release 4 run 25 | R8 |

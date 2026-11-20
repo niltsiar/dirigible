@@ -7,7 +7,9 @@ import Testing
 struct AgentManualRoleTests {
     @Test func theRoleLineSaysTheRoleIsALabelAndNamesItsReaders() {
         let line = AgentManual.roleLine
-        for word in ["`track_role`", "no sound", "`duck`", "`clip_denoise`", "no role", "`speech`", "`music`"] {
+        for word in [
+            "`track_role`", "no sound", "`duck`", "`clip_denoise`", "`export_stems`", "no role", "`speech`", "`music`",
+        ] {
             #expect(line.contains(word), "no \(word): \(line)")
         }
     }

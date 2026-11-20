@@ -4,7 +4,7 @@ import AVFoundation
 /// from buffers in the `client` format. At another rate it runs the buffers through an
 /// `AVAudioConverter` with the sample rate converter quality of the `ExtAudioFile` converter for
 /// that format: high for FLAC, medium for WAV and CAF. With the default algorithm and prime, the
-/// two give samples within 0.5 LSB (fix check 1.8 of run `2026-10-28-stem-export`).
+/// two give samples within 0.5 LSB.
 struct FilePeak {
     private(set) var value: Float = 0
     private let converter: AVAudioConverter?

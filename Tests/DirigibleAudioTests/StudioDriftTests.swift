@@ -154,7 +154,7 @@ extension StudioDriftTests {
     }
 
     /// The fix of a report that corrected the drift.
-    static func fix(_ report: DriftSyncReport) throws -> DriftFix {
+    nonisolated static func fix(_ report: DriftSyncReport) throws -> DriftFix {
         let fix: DriftFix? = if case .corrected(let fix) = report.outcome { fix } else { nil }
         return try #require(fix, "the drift was not corrected: \(report.outcome)")
     }
@@ -189,7 +189,9 @@ extension StudioDriftTests {
 
     /// A package of the drift signal with a 12 kHz tone at phase pi/4 and `amplitude` in clip
     /// seconds 100 to 100.25, where the voice is silent. Returns the package and the tone frames.
-    static func tonePackage(seconds: Double, ppm: Double, amplitude: Float) throws -> (DriftPackage, Range<Int>) {
+    nonisolated static func tonePackage(
+        seconds: Double, ppm: Double, amplitude: Float
+    ) throws -> (DriftPackage, Range<Int>) {
         var voice = DriftSignal(seed: 1, seconds: 30 + seconds * 1.01 + 60)
         let source = { (second: Double) in 30 + second * (1 + ppm * 1e-6) }
         voice.set(speech: false, in: source(99.5)..<source(100.75))

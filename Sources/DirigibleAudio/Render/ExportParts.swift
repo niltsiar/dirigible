@@ -96,8 +96,8 @@ public func oldPartFiles(in folder: URL, stem: String, format: ExportFormat, bes
 /// `exportPartTargets` (decision 0067). It computes the parts and the targets on `session`, so a
 /// caller list of an older session only feeds `replacing`. First it checks every target: an item
 /// that `replacing` does not hold as the same device and inode throws `.exists` with every such
-/// path, and nothing is written. Then it calls `exportMix` for each part with `session.forPart`, so
-/// each part file has its own loudness gain, title tag, and chapters. A stop or a failure in part k
+/// path, and nothing is written. Then `exportItems` runs `exportMix` for each part with
+/// `session.forPart`, so each part file has its own loudness gain, title tag, and chapters. A stop or a failure in part k
 /// throws `.stopped`: the files before part k stay, and part k leaves no file. `progress` gets the
 /// fraction of the set by frames at each new whole percent and at the start of each part. The source
 /// of each part keeps the tracks of `source`. Thread rule: as `exportMix`.
@@ -110,43 +110,30 @@ public func exportParts(
     let (targets, dropped) = exportPartTargets(
         session, range: range, by: kind, options: options, folder: folder, stem: stem)
     guard !targets.isEmpty else { throw .noPoint(kind, range) }
-    let existing = targets.map(\.url).filter { url in
-        ConfirmedFile(at: url).map { replacing[url] != $0 } ?? false
+    let items = targets.map {
+        ExportItem(
+            session: session.forPart($0.part), source: source.part($0.part.range), options: options, url: $0.url)
     }
-    guard existing.isEmpty else { throw .exists(existing) }
-    let total = Double((range.upperBound - range.lowerBound).count)
-    var written: [ExportedPart] = []
-    var done = 0
-    var percent = -1
-    for (index, target) in targets.enumerated() {
-        let part = target.part
-        let length = (part.range.upperBound - part.range.lowerBound).count
-        func report(_ fraction: Double) {
-            percent = Int(fraction * 100)
-            progress(
-                ExportPartsProgress(
-                    fraction: fraction, number: index + 1, count: targets.count, name: target.url.lastPathComponent))
-        }
-        func stop(_ error: ExportError) -> ExportPartsError {
-            .stopped(ExportPartsStop(error: error, written: written, remaining: targets[index...].map(\.url)))
-        }
-        report(Double(done) / total)
-        if isCancelled() { throw stop(.cancelled) }
-        do {
-            let result = try exportMix(
-                session.forPart(part), source: source.part(part.range), options: options,
-                to: target.url, replacing: replacing[target.url], package: package,
-                progress: { fraction in
-                    let set = (Double(done) + fraction * Double(length)) / total
-                    if Int(set * 100) > percent { report(set) }
-                }, isCancelled: isCancelled)
-            written.append(ExportedPart(url: target.url, part: part, result: result))
-        } catch {
-            throw stop(error)
-        }
-        done += length
+    func parts(_ results: [ExportResult]) -> [ExportedPart] {
+        zip(targets, results).map { ExportedPart(url: $0.url, part: $0.part, result: $1) }
     }
-    return ExportPartsResult(files: written, dropped: dropped)
+    do throws(ExportItemsError) {
+        let results = try exportItems(
+            items, replacing: replacing, package: package,
+            progress: { fraction, index in
+                progress(
+                    ExportPartsProgress(
+                        fraction: fraction, number: index + 1, count: targets.count,
+                        name: targets[index].url.lastPathComponent))
+            }, isCancelled: isCancelled)
+        return ExportPartsResult(files: parts(results), dropped: dropped)
+    } catch {
+        switch error {
+        case .exists(let urls): throw .exists(urls)
+        case .stopped(let stop):
+            throw .stopped(ExportPartsStop(error: stop.error, written: parts(stop.written), remaining: stop.remaining))
+        }
+    }
 }
 
 extension ExportFormat {

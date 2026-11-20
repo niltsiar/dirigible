@@ -130,4 +130,20 @@ struct StemPlanTests {
         let local = try #require(Self.plan(session, by: .role, titles: decomposed)).stems.map(\.name)
         #expect(local.map { Array($0.utf8) } == ["Diálogo", "Música", "Sin-rol"].map { Array($0.utf8) })
     }
+
+    /// C8: a stem name follows the 0067 rule of a part title: each character that macOS, exFAT,
+    /// FAT32, or SMB refuses becomes a dash, in a track name and in a role title.
+    @Test(arguments: ["/", "\\", ":", "*", "?", "\"", "<", ">", "|", "\u{7F}", "\u{9F}"])
+    func eachCharacterThatAVolumeRefusesBecomesADash(character: String) throws {
+        let session = try Self.session([("t", "a\(character)b", .music)])
+        #expect(Self.plan(session, by: .track)?.stems.map(\.name) == ["01 a-b"])
+        let titles = StemTitles(dialogue: "D", music: "M\(character)x", effects: "E", none: "N")
+        #expect(Self.plan(session, by: .role, titles: titles)?.stems.map(\.name) == ["M-x"])
+    }
+
+    /// C8: a track named `Q&A? "live"` gives a name that an exFAT volume takes.
+    @Test func aTrackNameWithAQuestionMarkAndQuotesGetsDashes() throws {
+        let session = try Self.session([("t", "Q&A? \"live\"", nil)])
+        #expect(Self.plan(session, by: .track)?.stems.map(\.name) == ["01 Q&A- -live-"])
+    }
 }

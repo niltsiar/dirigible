@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "la frecuencia del reloj difiere 1000 ppm o más de la referencia";
 "banner.drift.cause.composed" = "el clip ya se corrigió, y las dos correcciones juntas cambiarían el reloj 1000 ppm o más";
 "banner.drift.cause.under.ms" = "el desfase cambia menos de 1 ms a lo largo del clip";
+"banner.drift.cause.transcript" = "una transcripción de la sesión no se cargó: vuelve a importar la transcripción con un agente o con el comando dirigible";

@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "the clock rate is 1000 ppm or more from the reference";
 "banner.drift.cause.composed" = "the clip was fixed before, and both fixes together would change the clock by 1000 ppm or more";
 "banner.drift.cause.under.ms" = "the lag changes by less than 1 ms across the clip";
+"banner.drift.cause.transcript" = "a transcript of the session did not load: import the transcript again with an agent or the dirigible command";

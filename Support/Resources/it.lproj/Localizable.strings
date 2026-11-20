@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "la frequenza del clock differisce di 1000 ppm o più dal riferimento";
 "banner.drift.cause.composed" = "il clip è già stato corretto, e le due correzioni insieme cambierebbero il clock di 1000 ppm o più";
 "banner.drift.cause.under.ms" = "lo sfasamento cambia di meno di 1 ms lungo il clip";
+"banner.drift.cause.transcript" = "una trascrizione della sessione non è stata caricata: importa di nuovo la trascrizione con un agente o con il comando dirigible";

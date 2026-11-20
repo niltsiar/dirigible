@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "Die Taktrate weicht um 1000 ppm oder mehr von der Referenz ab";
 "banner.drift.cause.composed" = "Der Clip wurde schon korrigiert, und beide Korrekturen zusammen würden die Taktrate um 1000 ppm oder mehr ändern";
 "banner.drift.cause.under.ms" = "Der Versatz ändert sich um weniger als 1 ms über den Clip";
+"banner.drift.cause.transcript" = "Ein Transkript der Sitzung wurde nicht geladen: Importiere das Transkript erneut mit einem Agenten oder dem Befehl dirigible";

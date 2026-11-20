@@ -964,3 +964,4 @@
 "banner.drift.cause.rate" = "a taxa do relógio difere 1000 ppm ou mais da referência";
 "banner.drift.cause.composed" = "o clipe já foi corrigido, e as duas correções juntas mudariam o relógio em 1000 ppm ou mais";
 "banner.drift.cause.under.ms" = "o deslocamento muda menos de 1 ms ao longo do clipe";
+"banner.drift.cause.transcript" = "uma transcrição da sessão não carregou: importe a transcrição de novo com um agente ou com o comando dirigible";

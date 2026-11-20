@@ -1,8 +1,8 @@
-import DirigibleCore
 import Foundation
 import Testing
 
 @testable import DirigibleAudio
+@testable import DirigibleCore
 
 /// Decision 0077 D10: with a `DriftCause`, the fix moves the clip by the 0076 lag, writes no file,
 /// and names the cause.
@@ -113,6 +113,25 @@ extension StudioDriftTests {
 
         #expect(fix.clips.count == 2 && fix.splits.count == 1, "\(fix)")
         for clip in fix.clips { try Self.expectAligned(clip, in: studio, drift, points: nil) }
+    }
+
+    /// A session whose transcript did not load (decision 0055) cannot take a drift file: the clip
+    /// of 5 min moves by the lag of `syncLag`, and no file is written.
+    @Test func anUnloadedTranscriptMovesTheClip() throws {
+        let drift = try DriftPackage(seconds: 300)
+        var session = drift.package.session
+        session.transcripts[TranscriptID(1)] = Transcript(id: TranscriptID(1), name: "t1", words: nil)
+        let url = drift.package.url
+        let lag = try syncLag(of: "C", to: "ref", in: session, package: url, span: session.syncSpan("C", to: "ref")).lag
+        let start = try #require(session.clip("C")?.clip.start)
+        let names = Self.clipsNames(url)
+
+        let (moved, report, made) = try driftRequest(
+            "C", to: "ref", within: nil, of: session, in: url, freeBytes: { .max })
+
+        #expect(report.outcome == .notCorrected(.transcriptNotLoaded), "\(report.outcome)")
+        #expect(report.sync.lag == lag && moved.clip("C")?.clip.start == start + lag)
+        #expect(made.isEmpty && Self.clipsNames(url) == names, "a file was written")
     }
 
     /// A clip of 299 s is not measured; a clip of 300 s is corrected.

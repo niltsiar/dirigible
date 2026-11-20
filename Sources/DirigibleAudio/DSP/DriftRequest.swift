@@ -76,8 +76,8 @@ private let shortestClipSeconds = 300
 /// `Session.correctDrift` edits the session, and only then the WAVs get their names.
 ///
 /// A throw before the renames leaves no new file; a cancel after them removes the new files. A
-/// fault of the renames keeps the files that moved. `isCancelled` is read before each block and
-/// before and after the renames. It blocks: never call it on the main actor.
+/// fault of the renames keeps the files that moved. `isCancelled` is read before each block, before
+/// the move of a cause, and before and after the renames. It blocks: never call it on the main actor.
 package func driftRequest(
     _ clip: ClipID, to track: TrackID, within: Frames?, of session: Session, in package: URL,
     freeBytes: () -> Int64, progress: @escaping (Double) -> Void = { _ in },
@@ -97,6 +97,7 @@ package func driftRequest(
         }
     }
     func moved(by sync: SyncResult, _ cause: DriftCause) throws(DriftFailure) -> (Session, DriftSyncReport, [URL]) {
+        guard !isCancelled() else { throw .cancelled }
         var moved = session
         do throws(SessionError) {
             let cut = try moved.sync(clip, by: sync.lag)

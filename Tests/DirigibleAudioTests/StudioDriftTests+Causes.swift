@@ -80,6 +80,29 @@ extension StudioDriftTests {
         try await Self.expectMovedByTheLag("C", drift, cause: .noFit(.lagStepsBack))
     }
 
+    /// A cancel that comes after the last cancel read of the measure, on a clip with points in 2
+    /// cells of 5 (no fit), saves no move.
+    @Test func aCancelAfterTheMeasureOfANoFitClipThrows() throws {
+        let voice = DriftSignal(seed: 1, seconds: 30 + 300 * 1.01 + 60)
+        let drift = try DriftPackage(
+            seconds: 300, voice: voice,
+            clip: { drift, range in
+                var samples = voice.clip(drift, range)
+                for frame in (60 * drift.rate..<240 * drift.rate).clamped(to: range) {
+                    samples[frame - range.lowerBound] = 0
+                }
+                return samples
+            })
+        final class Flag { var on = false }
+        let cancel = Flag()
+        #expect(throws: DriftFailure.cancelled) {
+            try driftRequest(
+                "C", to: "ref", within: nil, of: drift.package.session, in: drift.package.url, freeBytes: { .max },
+                progress: { if $0 >= 0.49 { cancel.on = true } }, isCancelled: { cancel.on })
+        }
+        #expect(cancel.on, "the measure did not end")
+    }
+
     /// A 12 min clip with no drift whose source skips 5 s at clip minute 5.5: the fix splits the
     /// clip, and each piece is within 1 ms of its line.
     @Test func aPauseWithNoDriftSplitsTheClip() async throws {

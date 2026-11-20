@@ -17,8 +17,8 @@
 #   and so is -F - with a < file or a pipe on its left. Then backticks, < and > go. An empty value
 #   or a lone quote (`git commit -F` in backticks) passes. The leading quotes and the trailing
 #   ) ; : . , and quotes go before the comparison, so -F "" is refused.
-# - A brief that names a lock step is refused while a release call (a push check, the hooks pass, a
-#   land, or make dmg) holds the build lock or waits first for it, while a bench (bench.sh,
+# - A brief that names a lock step is refused while a release call (a push check, a land, or make
+#   dmg) holds the build lock or waits first for it, while a bench (bench.sh,
 #   bench-pairs.sh, make bench), a mutation pass, a flake loop, or a stress lane
 #   (scripts/test-stress.sh) holds the build lock, or while a bench marker is live, because the
 #   agent would wait for the lock on its 90 min clock. A lock step is
@@ -141,7 +141,7 @@ if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]
   holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --long-holder 2>/dev/null)"
   code=$?
   if [[ $code -eq 0 ]]; then
-    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it, a bench, a mutation pass, or a flake loop holds it or has a live bench marker, or a stress lane holds it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A with-lock.sh call that prints no lock also waits while this call holds the lock." >&2
+    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, a land, or make dmg) holds the build lock or waits first for it, a bench, a mutation pass, or a flake loop holds it or has a live bench marker, or a stress lane holds it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A with-lock.sh call that prints no lock also waits while this call holds the lock." >&2
     exit 2
   elif [[ $code -ne 1 ]]; then
     echo "BLOCKED by .claude/hooks/agent-guard.sh: scripts/with-lock.sh --long-holder exited $code, so the hook cannot tell whether a long call holds the build lock, and the brief names a lock step. Fix scripts/with-lock.sh, then start the agent. If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own." >&2

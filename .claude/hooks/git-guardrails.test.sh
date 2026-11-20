@@ -195,11 +195,10 @@ release_out() {
   else grep -qF -- "$1" "$tmp/release.out" || { echo "FAIL: release-wait stdout lacks: $1"; failures=$((failures + 1)); }; fi
 }
 # The release call forms of the lead, with neutral paths: the nohup bash -c transcript form of the push
-# check, the hooks pass, the land, both in one body, and make dmg; then nice, nohup nice, shell -c bodies,
-# the plain forms, an export of BASE, and a quoted with-lock.sh word.
+# check, the land, the hooks pass and the push check in one body, and make dmg; then nice, nohup nice,
+# shell -c bodies, the plain forms, an export of BASE, and a quoted with-lock.sh word.
 release_forms=(
   'cd /x/wt && R=/x/run && (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $R/logs/push-check.log 2>&1; echo \"exit \$?\" > $R/logs/push-check.done" > /dev/null 2>&1 < /dev/null &)'
-  'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; echo \"exit \$?\" > $R/logs/hooks-pass.done" > /dev/null 2>&1 < /dev/null &); sleep 3; head -3 $R/logs/hooks-pass.log'
   "cd /x/wt && git status --porcelain && R=/x/run && (nohup bash -c \"WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh 'Fix the hooks' \$R/pr.md > \$R/logs/land.log 2>&1; echo \\\"exit \\\$?\\\" > \$R/logs/land.done\" > /dev/null 2>&1 < /dev/null &)"
   'cd /x/wt && R=/x/run && (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; if grep -q '"'"'exit 0'"'"' $R/logs/hooks-pass.done; then WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $R/logs/push-check.log 2>&1; fi" > /dev/null 2>&1 < /dev/null &)'
   'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make dmg > $R/logs/dmg.log 2>&1; echo \"exit \$?\" > $R/logs/dmg.done" > /dev/null 2>&1 < /dev/null &); echo started'
@@ -208,7 +207,6 @@ release_forms=(
   'bash -c "cd /x/wt && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make dmg"'
   "sh -c 'cd /x; scripts/with-lock.sh make dmg'"
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > logs/push-check.log 2>&1'
-  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "t" x/pr.md'
   'scripts/land.sh "t" x/pr.md'
   'scripts/with-lock.sh make dmg'
@@ -224,6 +222,13 @@ release_forms=(
   'scripts/with-lock.sh bash scripts/land.sh t b.md'
   'bash scripts/land.sh t b.md'
   'sh -x scripts/land.sh t b.md'
+)
+# The hooks pass of the lead takes no lock, so it is no release call (C18).
+hooks_forms=(
+  'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; echo \"exit \$?\" > $R/logs/hooks-pass.done" > /dev/null 2>&1 < /dev/null &); sleep 3; head -3 $R/logs/hooks-pass.log'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
+  'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
+  'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
 )
 # expect_each_release <want> <records dir>: expect_release on each form of release_forms.
 expect_each_release() {
@@ -802,7 +807,7 @@ expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirig
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
 # A subagent never runs a lock wait with no limit: WITH_LOCK_MAX_WAIT=0, a land, a push check (a
-# BASE= word, or BASE in the environment), the hooks pass, make dmg, or a mutation pass, also inside bash -c and
+# BASE= word, or BASE in the environment), make dmg, or a mutation pass, also inside bash -c and
 # sh -c. After a second exit 75 it writes the remaining locked steps as one bash file and returns
 # its path to the lead. The lead runs the wait, so the input with no agent_id allows each form.
 unlimited_forms=(
@@ -830,8 +835,6 @@ unlimited_forms=(
   "sh -c 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make x'"
   "/bin/bash -c 'export WITH_LOCK_MAX_WAIT=0; scripts/with-lock.sh make x'"
   "env bash -c 'scripts/with-lock.sh make dmg'"
-  'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
-  'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
   'scripts/with-lock.sh make check-changed BASE="origin/main"'
   "scripts/with-lock.sh make check-changed BASE='origin/main'"
   'scripts/with-lock.sh make check-changed BASE="$(git merge-base HEAD origin/main)"'
@@ -850,6 +853,16 @@ for form in "${unlimited_forms[@]}"; do
     || { echo "FAIL: the subagent block names no bash file or no lead command: $form"; failures=$((failures + 1)); }
   expect allow "$form"
 done
+# Only the lead runs the hooks pass, in the background (C18): a subagent call of it blocks and names the
+# bash file route. A HOOK_TESTS= word is the plain lock-free call, which a subagent runs.
+for form in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' \
+  "bash -c 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > h.log 2>&1'"; do
+  expect_agent block "$form"
+  grep -q 'only the lead runs the hooks pass' "$tmp/agent.err" && grep -qF 'WITH_LOCK_MAX_WAIT=0 bash' "$tmp/agent.err" ||
+    { echo "FAIL: the subagent block of the hooks pass does not say that only the lead runs it: $form"; failures=$((failures + 1)); }
+  expect allow "$form"
+done
+expect_agent allow 'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh DIRIGIBLE_HOOKS_ALL=1'
 expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'
 expect_agent allow 'scripts/with-lock.sh make check-changed'
 expect_agent allow 'scripts/with-lock.sh make check-changed FILTER=ATests'
@@ -1577,6 +1590,7 @@ for job in "${bg_one_job[@]}"; do expect allow "$job" true 7200000; done
 expect_each_context block "${bg_two_jobs[0]}" true 7200000
 expect_each_context allow "${bg_two_jobs[0]}" true 7200000
 expect allow '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > l.log 2>&1; echo \"exit \$?\" > l.done" > /dev/null 2>&1 < /dev/null &)'
+for form in "${hooks_forms[@]}"; do expect allow "$form" true 7200000; done
 for form in "${release_forms[@]}"; do
   want=allow
   [[ "$form" == *"then WITH_LOCK_MAX_WAIT=0"* ]] && want=block
@@ -1848,7 +1862,7 @@ fi # guardrails-rules
 if case_block test-rule; then
 lock_stub="$tmp/lockstub/wl"
 mkdir -p "$tmp/lockstub"
-printf '#!/bin/bash\n. "%s"\nif lock_make_words "$@" && [[ $lock_goal == test-hooks ]]; then echo free; elif release_call "$@"; then echo release; else echo lock; fi\n' \
+printf '#!/bin/bash\n. "%s"\nif { lock_make_words "$@" && [[ $lock_goal == test-hooks ]]; } || hooks_pass "$@"; then echo free; elif release_call "$@"; then echo release; else echo lock; fi\n' \
   "$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh" > "$lock_stub"
 chmod +x "$lock_stub"
 T=scripts/land.test.sh
@@ -1873,6 +1887,10 @@ expect_each_lock agree \
 rw_rec "$tmp/rw-lock" toolu_tl 600 Agent toolu_tl
 rw_meta tl toolu_tl none 10
 expect_each_lock --live "$tmp/rw-lock" agree "${lock_spellings[@]}"
+# The hooks pass is free, not release (C18): it runs beside a live lock-step agent.
+expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
+  'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'MAKEFLAGS=DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
 # Spellings that the fix was not fitted to, each with a fixed verdict. With WITH_LOCK_RUN_ONLY=1, with-lock.sh
 # exits 2 and runs nothing unless the command is a built binary or a shell file, so the bare form blocks and
 # the HOOK_TESTS=a form is safe to allow (the hook models no run-only mode).
@@ -1979,6 +1997,7 @@ expect_each_long held 'make check-changed BASE=origin/main' 'scripts/land.sh t x
 expect_each_long held 'scripts/probe.sh /x/p make bench FILTER=NavBench' "bash -c 'cd /x && make bench FILTER=NavBench'" \
   'caffeinate -i scripts/bench.sh NavBench' 'scripts/probe.sh --no-audio /x/p scripts/bench-pairs.sh /x/main NavBench 3 /x/pairs'
 expect_each_long free 'scripts/bench-pairs.sh --compare /x/pairs' 'scripts/bench-pairs.sh --lines /x/b.log' 'make build' \
+  'make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'make test-filter FILTER=ATests' 'rg -n scripts/bench.sh notes.txt' "bash -c 'make build && echo bench'"
 fi # test-rule
 
@@ -1988,6 +2007,7 @@ rw="$tmp/rw"
 rw_rec "$rw/live" toolu_live 600 Agent toolu_live 'S1 slice agent'
 rw_meta alive toolu_live none 598
 expect_each_release block "$rw/live"
+for form in "${hooks_forms[@]}"; do expect_release allow "$rw/live" "$form"; done
 # Quoted data and calls that are no release call keep their verdict with the live record. A python3 -I
 # heredoc body is data, and the same body as a bash heredoc is code.
 for run in 'echo "(scripts/with-lock.sh make check-changed BASE=origin/main)"' "rg -n '\`scripts/with-lock.sh make dmg\`' AGENTS.md" \
@@ -2551,8 +2571,8 @@ if case_block agent-guard; then
 # brief with a lock step while a long call holds the build lock, and a delegate_task to a provider
 # before its recorded rate-limit reset.
 agent_hook="$(dirname "$0")/agent-guard.sh"
-# The hooks pass and the push check run this file as a release call, and a bench can hold the lock,
-# so a case of the real repo must name no lock step: the real --long-holder would see that holder.
+# The push check runs this file as a release call, and a bench can hold the lock, so a case of the
+# real repo must name no lock step: the real --long-holder would see that holder.
 # The lock-step cases below use a temp repo with a fake lock state. The pattern is lock_re of
 # agent-guard.sh, read from its line with the lists of scripts/lock-words.sh.
 lock_words_src="$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh"

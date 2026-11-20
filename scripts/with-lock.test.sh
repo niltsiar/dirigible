@@ -1089,7 +1089,7 @@ bm_refused 'swift-test.sh' "$repo/scripts/swift-test.sh" --filter X
 bm_refused 'env before swift' env X=1 "$fake/bm/swift" test
 bm_refused 'bash before test-shards.sh' bash "$repo/scripts/test-shards.sh"
 bm_refused 'make check-changed' "$fake/bm/make" check-changed
-bm_refused 'make test-hooks as a release call' "$fake/bm/make" test-hooks HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1
+bm_refused 'make test-hooks with DIRIGIBLE_HOOKS_ALL=1' "$fake/bm/make" test-hooks HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1
 bm_refused 'make test-hooks with no HOOK_TESTS' "$fake/bm/make" test-hooks
 bm_refused 'time -p before swift' time -p "$fake/bm/swift" build
 bm_refused '/usr/bin/time -p before swift' /usr/bin/time -p "$fake/bm/swift" build
@@ -1210,7 +1210,7 @@ lf_finish 80
 [[ $code -eq 0 && $elapsed -le 4 && "$(cat "$tmp/state" 2>/dev/null)" == $'nolock\nunset\nticket-gone' ]] ||
     fail "lock-free wait: exit $code after $elapsed s, state [$(cat "$tmp/state" 2>/dev/null | paste -sd, -)]: $out"
 [[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
-[[ "$out" == *'it waits while a release call (a push check, the hooks pass, a land, or make dmg)'* ]] ||
+[[ "$out" == *'it waits while a release call (a push check, a land, or make dmg)'* ]] ||
     fail "lock-free wait: the lock-free line does not name the wait behind a release call: $out"
 [[ "$out" == *'holds the lock, or while a bench marker is live'* ]] || fail "lock-free wait: the lock-free line does not end with the bench marker: $out"
 [[ ! -e "$holds" ]] || fail "lock-free wait: a hold line: $(cat "$holds")"
@@ -1704,14 +1704,15 @@ rm -f "$tmp/order"
 DIRIGIBLE_LOCKED_SCRIPT="$fake/make" capcall "$repo" "$fake/make" test
 [[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, marker call: exit $code: $out"
 # The hooks pass of Phase 7 (make test-hooks with DIRIGIBLE_HOOKS_ALL=1 as a word, in the
-# environment, or in MAKEFLAGS) is a release call: with 2 other trees it takes the free lock, marks
-# it release and nocap, ends its hold line with nocap, and a lock-free call waits during it. The
-# fake make holds the lock until $tmp/hp.go exists.
+# environment, or in MAKEFLAGS) takes no lock (C16): with 2 other trees it runs at once, with no lock
+# folder, a lock-free file of the kind hooks, and no hold line, and a lock-free call runs during it.
+# The fake make runs until $tmp/hp.go exists.
 mkdir -p "$fake/hp"
 printf '#!/bin/bash\nwhile [[ ! -e "%s" ]]; do sleep 0.1; done\n' "$tmp/hp.go" > "$fake/hp/make"
 chmod +x "$fake/hp/make"
 for hp_env in '' DIRIGIBLE_HOOKS_ALL=1 'MAKEFLAGS=w -- DIRIGIBLE_HOOKS_ALL=1'; do
   reset_builders
+  rm -rf "$frees"
   holdline 5 "$ta"
   holdline 3 "$tb"
   rm -f "$tmp/hp.go" "$tmp/order"
@@ -1719,17 +1720,20 @@ for hp_env in '' DIRIGIBLE_HOOKS_ALL=1 'MAKEFLAGS=w -- DIRIGIBLE_HOOKS_ALL=1'; d
   [[ -n "$hp_env" ]] || hp_word=DIRIGIBLE_HOOKS_ALL=1
   (cd "$repo" && exec env ${hp_env:+"$hp_env"} WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=0.1 "$repo/scripts/with-lock.sh" "$fake/hp/make" test-hooks $hp_word) > "$tmp/wait.out" 2>&1 &
   waiter=$!
-  until_true 50 test -e "$lock/release" || fail "cap, hooks pass [$hp_env$hp_word]: it did not take the lock at the cap: $(cat "$tmp/wait.out")"
-  [[ -e "$lock/nocap" ]] || fail "cap, hooks pass [$hp_env$hp_word]: the lock folder has no nocap mark"
+  until_true 50 test -s "$frees/$waiter" || fail "cap, hooks pass [$hp_env$hp_word]: no lock-free file at the cap: $(cat "$tmp/wait.out")"
+  [[ ! -e "$lock" && "$(sed -n 3p "$frees/$waiter" 2>/dev/null)" == hooks ]] ||
+    fail "cap, hooks pass [$hp_env$hp_word]: a lock folder, or a lock-free file with no kind hooks: [$(cat "$frees/$waiter" 2>/dev/null)]"
   out="$(FAKE_TARGETS=check-docs WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed 2>&1)"
   code=$?
-  [[ $code -eq 75 && ! -s "$tmp/order" ]] || fail "cap, hooks pass [$hp_env$hp_word]: a lock-free call during it: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+  [[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, hooks pass [$hp_env$hp_word]: a lock-free call during it: exit $code (want 0), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
   touch "$tmp/hp.go"
+  hp_pid=$waiter
+  until_true 50 dead "$waiter"
   wait "$waiter"
   code=$?
   waiter=""
-  [[ $code -eq 0 && "$(tail -n 1 "$holds" | awk -F'\t' '{ print NF, ($3 ~ /test-hooks/), $6 }')" == '6 1 nocap' ]] ||
-    fail "cap, hooks pass [$hp_env$hp_word]: exit $code, hold line [$(tail -n 1 "$holds")]"
+  [[ $code -eq 0 && "$(grep -c test-hooks "$holds")" == 0 && ! -e "$frees/$hp_pid" ]] ||
+    fail "cap, hooks pass [$hp_env$hp_word]: exit $code, hold lines [$(cat "$holds")]"
 done
 # A make test-hooks call with no DIRIGIBLE_HOOKS_ALL=1 is an ordinary call: the cap holds it.
 reset_builders
@@ -2111,8 +2115,11 @@ wait "$rh_leader"
 rh_member="$(cat "$tmp/rh.member")"
 rh_state() { # <kind>: write the lock state of a case
   reset_builders
-  rm -rf "$marks"
+  rm -rf "$marks" "$frees"
   case "$1" in
+    hooks | plain-free)
+      mkdir -p "$frees"
+      printf '%s\nmake test-hooks DIRIGIBLE_HOOKS_ALL=1\n%s\n' "$(LC_ALL=C TZ=UTC0 ps -o lstart= -p $$ | sed 's/^ *//')" "${1/plain-free/}" > "$frees/$$" ;;
     release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test | pairs | compare | lines | make-bench | mutation | flake | dead-bench)
       mkdir -p "$lock"
       case "$1" in dead-release* | dead-lane | dead-bench) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
@@ -2166,6 +2173,9 @@ rh_check filter 1 ''
 rh_check lane-test 1 ''
 rh_check dead-lane 1 ''
 rh_check free 1 ''
+# A live lock-free hooks pass is a holder for the CPU share; a lock-free file of no kind is not.
+rh_check hooks 0 'holder: make test-hooks DIRIGIBLE_HOOKS_ALL=1'
+rh_check plain-free 1 ''
 rh_check ticket 0 "ticket: $$"
 rh_check dead-ticket 1 ''
 [[ ! -e "$first/$rh_dead" ]] || fail '--release-holder: the ticket of a dead pid stays'
@@ -2203,6 +2213,8 @@ lh_check compare 1 ''
 lh_check lines 1 ''
 lh_check filter 1 ''
 lh_check free 1 ''
+# The lock-free hooks pass makes no agent wait: an ordinary call runs beside it (C17).
+lh_check hooks 1 ''
 lh_check dead-bench 1 ''
 lh_check dead-ticket 1 ''
 lh_check dead-marker 1 ''
@@ -2210,6 +2222,92 @@ lh_check dead-marker 1 ''
 lh_check bench 0 'holder: scripts/bench.sh' DIRIGIBLE_BUILD_LOCK=$$
 reset_builders
 rm -rf "$marks"
+
+# The lock-free hooks pass (C16, C17). The fake scripts of $fake/hpl log "start <name> <words>" and
+# "end <name> <words>"; the fake hooks pass also logs whether the lock folder exists and
+# DIRIGIBLE_HOOKS_PASS, and runs until $HPL_GATE goes. hpl_pass starts the pass in the background
+# ($inner) and returns 0 when it runs.
+mkdir -p "$fake/hpl/flake-monitor"
+cat > "$fake/hpl/make" << 'EOF'
+#!/bin/bash
+echo "start ${0##*/} $*" >> "$HPL_ORDER"
+if [[ " $* " == *" test-hooks "* ]]; then
+    { [[ -d "$HPL_LOCK" ]] && echo lock || echo nolock; echo "${DIRIGIBLE_HOOKS_PASS-unset}"; } > "$HPL_STATE"
+    while [[ -e "$HPL_GATE" ]]; do sleep 0.1; done
+fi
+echo "end ${0##*/} $*" >> "$HPL_ORDER"
+EOF
+chmod +x "$fake/hpl/make"
+for n in bench.sh bench-pairs.sh land.sh test-stress.sh mutation-pass.sh flake-monitor/loop.sh swift; do cp "$fake/hpl/make" "$fake/hpl/$n"; done
+export HPL_ORDER="$tmp/hpl.order" HPL_STATE="$tmp/hpl.state" HPL_GATE="$tmp/hpl.gate" HPL_LOCK="$lock"
+hpl_order() { paste -sd'|' - < "$HPL_ORDER" 2>/dev/null; }
+hpl_pass() {
+    reset_builders
+    rm -rf "$frees"
+    rm -f "$HPL_ORDER" "$HPL_STATE"
+    touch "$HPL_GATE"
+    "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl.out" 2>&1 &
+    inner=$!
+    until_true 50 test -s "$HPL_STATE"
+}
+hpl_end() { rm -f "$HPL_GATE"; until_true 50 dead "$inner"; wait "$inner" 2>/dev/null; hpl_code=$?; inner=""; }
+# (C16) The hooks pass with no long holder: it runs at once with no lock, gives the command its pid as
+# DIRIGIBLE_HOOKS_PASS, keeps a lock-free file of the kind hooks, and writes no wait or hold line.
+if hpl_pass; then
+    [[ "$(paste -sd' ' - < "$HPL_STATE")" == "nolock $inner" && "$(sed -n 3p "$frees/$inner" 2>/dev/null)" == hooks ]] ||
+        fail "(C16) hooks pass: state [$(paste -sd' ' - < "$HPL_STATE")], file [$(cat "$frees/$inner" 2>/dev/null)], want [nolock $inner] and kind hooks"
+    hpl_end
+    [[ $hpl_code -eq 0 && ! -e "$waits" && ! -e "$holds" && "$(cat "$tmp/hpl.out")" == *'lock-free targets (test-hooks)'* ]] ||
+        fail "(C16) hooks pass: exit $hpl_code, wait or hold line [$(cat "$waits" "$holds" 2>/dev/null)]: $(cat "$tmp/hpl.out")"
+else
+    fail "(C16) hooks pass: it did not run with no holder: $(cat "$tmp/hpl.out")"
+    hpl_end
+fi
+# (C16) A HOOK_TESTS= word keeps the plain lock-free call: no kind hooks and no DIRIGIBLE_HOOKS_PASS.
+reset_builders
+rm -rf "$frees"
+rm -f "$HPL_ORDER" "$HPL_STATE"
+touch "$HPL_GATE"
+"$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl.out" 2>&1 &
+inner=$!
+until_true 50 test -s "$HPL_STATE" || fail "(C16) HOOK_TESTS= word: the call did not run: $(cat "$tmp/hpl.out")"
+[[ "$(paste -sd' ' - < "$HPL_STATE")" == 'nolock unset' && -z "$(sed -n 3p "$frees/$inner" 2>/dev/null)" ]] ||
+    fail "(C16) HOOK_TESTS= word: state [$(paste -sd' ' - < "$HPL_STATE")], file [$(cat "$frees/$inner" 2>/dev/null)]"
+hpl_end
+# (C17) A long holder that starts while the hooks pass runs takes the lock, waits, and starts its
+# command only after the pass ends.
+for cmd in "bench.sh NavBench" "bench-pairs.sh /x/main NavBench 3 /x/pairs" "make check-changed BASE=origin/main" "land.sh t pr.md" \
+    "make dmg" "test-stress.sh --runs 1 out" "flake-monitor/loop.sh 10 ATests" "mutation-pass.sh $repo batch"; do
+    name="${cmd%% *}" name="start ${name##*/} ${cmd#* }"
+    hpl_pass || { fail "(C17) $cmd: the hooks pass did not start: $(cat "$tmp/hpl.out")"; hpl_end; continue; }
+    WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/"$cmd > "$tmp/hpl-long.out" 2>&1 &
+    waiter=$!
+    until_true 50 grep -q 'hooks pass pid' "$tmp/hpl-long.out" || fail "(C17) $cmd: no wait line for the hooks pass: $(cat "$tmp/hpl-long.out")"
+    sleep 0.3
+    [[ "$(cat "$lock/pid" 2>/dev/null)" == "$waiter" && "$(hpl_order)" != *"$name"* ]] ||
+        fail "(C17) $cmd: during the pass: lock pid [$(cat "$lock/pid" 2>/dev/null)] (want $waiter), order [$(hpl_order)]"
+    hpl_end
+    until_true 50 dead "$waiter"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    waiter=""
+    [[ $code -eq 0 && "$(hpl_order)" == "start make test-hooks DIRIGIBLE_HOOKS_ALL=1|end make test-hooks DIRIGIBLE_HOOKS_ALL=1|$name"* ]] ||
+        fail "(C17) $cmd: exit $code, order [$(hpl_order)]: $(cat "$tmp/hpl-long.out")"
+done
+# (C17) An ordinary call (make test-filter, swift build) starts at once while the hooks pass runs.
+for cmd in "make test-filter FILTER=ATests" "swift build"; do
+    hpl_pass || { fail "(C17) $cmd: the hooks pass did not start: $(cat "$tmp/hpl.out")"; hpl_end; continue; }
+    out="$(WITH_LOCK_MAX_WAIT=2 "$repo/scripts/with-lock.sh" "$fake/hpl/"$cmd 2>&1)"
+    code=$?
+    [[ $code -eq 0 && "$(hpl_order)" == "start make test-hooks DIRIGIBLE_HOOKS_ALL=1|start $cmd"* ]] ||
+        fail "(C17) $cmd during the hooks pass: exit $code, order [$(hpl_order)]: $out"
+    hpl_end
+done
+# (C17) The hooks pass waits for a long holder that holds the lock, with no lock (as at the base).
+HOLDER_COMMAND='make dmg' lockfree freewait "(C17) the hooks pass behind make dmg" "$fake/make" test-hooks DIRIGIBLE_HOOKS_ALL=1
+reset_builders
+rm -rf "$frees"
+unset HPL_ORDER HPL_STATE HPL_GATE HPL_LOCK
 
 # A pid variable that outlives its child can name a stranger when the kernel reuses the pid. A
 # stranger is a process that is not a descendant of this shell: until_true and clear_hold (and so the

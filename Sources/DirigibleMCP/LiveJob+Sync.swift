@@ -2,9 +2,10 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// `clip_sync` through `Studio.syncClip`: one undo step with the agent name. The banner Cancel or a
-/// cancel of the call ends it with no move (decisions 0049 and 0076). A moved clip with take audio
-/// adds the take sync lines (decision 0061).
+/// `clip_sync` through `Studio.syncClip`, or through `Studio.correctDrift` with `drift` (decision 0077
+/// D11): one undo step with the agent name. The banner Cancel or a cancel of the call ends it with no
+/// move (decisions 0049 and 0076). A moved clip with take audio adds the take sync lines (decision
+/// 0061).
 @MainActor
 func liveSync(
     _ work: SyncWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
@@ -13,9 +14,19 @@ func liveSync(
     do throws(SyncRefusal) {
         let within = try work.withinFrames(rate: studio.session.sampleRate)
         do throws(StudioError) {
-            let (result, cut) = try await studio.syncClip(
-                work.clip, to: work.track, within: within, agent: call.agent, progress: report)
-            let moved = SyncWork.Moved(clip: work.clip, result: result, cut: cut, sampleRate: studio.session.sampleRate)
+            let moved: SyncWork.Moved
+            if work.drift {
+                let fixed = try await studio.correctDrift(
+                    work.clip, to: work.track, within: within, agent: call.agent, progress: report)
+                moved = SyncWork.Moved(
+                    clip: work.clip, result: fixed.sync, cut: fixed.cut, sampleRate: studio.session.sampleRate,
+                    outcome: fixed.outcome)
+            } else {
+                let (result, cut) = try await studio.syncClip(
+                    work.clip, to: work.track, within: within, agent: call.agent, progress: report)
+                moved = SyncWork.Moved(
+                    clip: work.clip, result: result, cut: cut, sampleRate: studio.session.sampleRate)
+            }
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (moved.lines + note).joined(separator: "\n"), isError: false)
         } catch {

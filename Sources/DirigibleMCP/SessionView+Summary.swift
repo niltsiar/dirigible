@@ -39,7 +39,7 @@ package func summary(
         let state = media[file.id].map { " media \($0.word)" + ($0.length.map { " \($0)" } ?? "") } ?? ""
         lines.append(
             "file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)"
-                + "\(originText(of: file))\(state)")
+                + "\(originText(of: file))\(driftText(of: file))\(state)")
     }
     for capture in session.sortedCaptures {
         var line =

@@ -2294,6 +2294,26 @@ for cmd in "bench.sh NavBench" "bench-pairs.sh /x/main NavBench 3 /x/pairs" "mak
     [[ $code -eq 0 && "$(hpl_order)" == "start make test-hooks DIRIGIBLE_HOOKS_ALL=1|start swift build|end swift build|end make test-hooks DIRIGIBLE_HOOKS_ALL=1|$name"* ]] ||
         fail "$cmd: exit $code, order [$(hpl_order)]: $(cat "$tmp/hpl-long.out")"
 done
+# A long holder with a wait limit polls the pass each second, not each retry: it says so, and it
+# starts within a few seconds after the pass ends.
+if hpl_pass; then
+    WITH_LOCK_RETRY=30 WITH_LOCK_MAX_WAIT=60 "$repo/scripts/with-lock.sh" "$fake/hpl/bench.sh" NavBench > "$tmp/hpl-long.out" 2>&1 &
+    waiter=$!
+    until_true 50 grep -q 'hooks pass pid' "$tmp/hpl-long.out" || fail "short poll: no wait line for the hooks pass: $(cat "$tmp/hpl-long.out")"
+    sleep 1.5
+    hpl_end
+    until_true 50 grep -q 'start bench.sh NavBench' "$HPL_ORDER" ||
+        fail "short poll: the long holder did not start in 5 s after the pass ended: order [$(hpl_order)]"
+    until_true 50 dead "$waiter"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    waiter=""
+    [[ $code -eq 0 && "$(grep -c 'hooks pass pid .*retry each 1 s$' "$tmp/hpl-long.out")" == 1 ]] ||
+        fail "short poll: exit $code, want one wait line with retry each 1 s: $(cat "$tmp/hpl-long.out")"
+else
+    fail "short poll: the hooks pass did not start: $(cat "$tmp/hpl.out")"
+    hpl_end
+fi
 # An ordinary call (make test-filter, swift build) starts at once while the hooks pass runs.
 for cmd in "make test-filter FILTER=ATests" "swift build"; do
     hpl_pass || { fail "$cmd: the hooks pass did not start: $(cat "$tmp/hpl.out")"; hpl_end; continue; }

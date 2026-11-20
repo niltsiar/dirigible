@@ -587,7 +587,7 @@ pause() {
     if [[ $max -gt 0 ]]; then
         left=$((max - ($(date +%s) - start)))
         [[ $left -gt 0 ]] || stop75 "$@"
-        nap="$(awk -v r="$retry" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
+        nap="$(awk -v r="$nap" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
     fi
     sleep "$nap"
 }

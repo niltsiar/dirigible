@@ -6,6 +6,11 @@ struct FolderPublishSeams {
     var plainRename: (String, String) -> Int32 = { rename($0, $1) == 0 ? 0 : errno }
     /// The `VOL_CAP_INT_RENAME_EXCL` bit of the volume of a path.
     var hasExclusiveRename: (String) -> Bool = volumeHasExclusiveRename
+    /// `open(path, flags, 0o644)`: the descriptor, or -1 and the errno.
+    var openLock: (String, Int32) -> (descriptor: Int32, errno: Int32) = { path, flags in
+        let descriptor = open(path, flags, 0o644)
+        return (descriptor, descriptor < 0 ? errno : 0)
+    }
 }
 
 /// A hidden folder beside its target that `publish()` renames to the target, so the target
@@ -81,12 +86,12 @@ final class StagingLock {
     let path: String
     private let descriptor: Int32
 
-    init(path: String) throws(SessionFileError) {
+    init(path: String, open: (String, Int32) -> (descriptor: Int32, errno: Int32)) throws(SessionFileError) {
         let flags = O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC
-        var descriptor = open(path, flags | O_EXLOCK | O_NONBLOCK, 0o644)
+        var (descriptor, code) = open(path, flags | O_EXLOCK | O_NONBLOCK)
         // A volume with no flock: the lock file stays unlocked, and a sweep never removes it.
-        if descriptor < 0, errno == ENOTSUP { descriptor = open(path, flags, 0o644) }
-        guard descriptor >= 0 else { throw .writeFailed(step: "lock", errno: errno) }
+        if descriptor < 0, lacksFlock(code) { (descriptor, code) = open(path, flags) }
+        guard descriptor >= 0 else { throw .writeFailed(step: "lock", errno: code) }
         self.path = path
         self.descriptor = descriptor
     }
@@ -99,6 +104,10 @@ final class StagingLock {
         close(descriptor)
     }
 }
+
+/// True for the errno of an `O_EXLOCK` open on a volume with no flock: ENOTSUP or EOPNOTSUPP, two
+/// values on Darwin (45 and 102).
+package func lacksFlock(_ code: Int32) -> Bool { code == ENOTSUP || code == EOPNOTSUPP }
 
 /// The longest target folder name in UTF-8 bytes whose lock file name `.<name>.<UUID>.<kind>.lock`
 /// fits the 255 bytes of a file name.
@@ -117,7 +126,7 @@ func stageFolder(for target: URL, kind: String, seams: FolderPublishSeams) throw
     let parent = target.deletingLastPathComponent()
     sweepStaging(in: parent, target: target.lastPathComponent, kind: kind)
     let url = parent.appending(path: ".\(target.lastPathComponent).\(UUID().uuidString).\(kind)")
-    let lock = try StagingLock(path: url.path + ".lock")
+    let lock = try StagingLock(path: url.path + ".lock", open: seams.openLock)
     guard mkdir(url.path, 0o755) == 0 else {
         let code = errno
         lock.remove()

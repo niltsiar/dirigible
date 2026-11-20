@@ -165,7 +165,7 @@ func exportMix(
     // The flock tells the sweep of another export to this target that the file is live. It holds
     // on APFS, exFAT, and FAT (probe g1-flock). A volume with no locks gets the file with no lock.
     var held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_EXLOCK | O_CLOEXEC, 0o644)
-    if held < 0, errno == ENOTSUP || errno == EOPNOTSUPP {
+    if held < 0, lacksFlock(errno) {
         held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
     }
     guard held >= 0 else {

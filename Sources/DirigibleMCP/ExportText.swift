@@ -275,13 +275,13 @@ package enum ExportText {
             + "\(count(stop.remaining.count)) \(verb(stop.remaining.count)) not written: \(list(stop.remaining))."
     }
 
-    /// The stderr line of a split export that ended with exit 0: the files of the stem that an
+    /// The stderr line of a split export that ended with exit 0: the files of the prefix that an
     /// earlier set wrote and this set did not. Dirigible keeps them. Nil with none.
     package static func oldFilesLine(_ old: [URL]) -> String? {
         guard !old.isEmpty else { return nil }
         return old.count == 1
-            ? "Warning: 1 older file of this stem stays: \(list(old)). Dirigible does not delete it."
-            : "Warning: \(old.count) older files of this stem stay: \(list(old)). Dirigible does not delete them."
+            ? "Warning: 1 older file of this prefix stays: \(list(old)). Dirigible does not delete it."
+            : "Warning: \(old.count) older files of this prefix stay: \(list(old)). Dirigible does not delete them."
     }
 
     /// The files of `faults` in ID order, separated by "; ".

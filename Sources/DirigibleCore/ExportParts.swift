@@ -97,34 +97,34 @@ extension Session {
         return copy
     }
 
-    /// `<stem>-<NN>-<title>.<pathExtension>` (decision 0067). Each character that macOS, exFAT,
+    /// `<prefix>-<NN>-<title>.<pathExtension>` (decision 0067). Each character that macOS, exFAT,
     /// FAT32, or SMB refuses becomes "-", and the spaces at each end and a leading dot go; an empty
-    /// title gives `<stem>-<NN>.<pathExtension>`. A name over `limit` UTF-8 bytes loses characters
-    /// from the end of the title, then from the end of the stem, never `-<NN>` or the extension.
-    /// The stem is not cleaned.
+    /// title gives `<prefix>-<NN>.<pathExtension>`. A name over `limit` UTF-8 bytes loses characters
+    /// from the end of the title, then from the end of the prefix, never `-<NN>` or the extension.
+    /// The prefix is not cleaned.
     public static func partFileName(
-        _ part: ExportPart, digits: Int, stem: String, pathExtension: String, limit: Int
+        _ part: ExportPart, digits: Int, prefix: String, pathExtension: String, limit: Int
     ) -> String {
         let number = String(repeating: "0", count: max(0, digits - String(part.number).count)) + String(part.number)
         var title = cleanTitle(part.title?.text ?? "")
-        var stem = stem
-        func name() -> String { "\(stem)-\(number)\(title.isEmpty ? "" : "-\(title)").\(pathExtension)" }
+        var prefix = prefix
+        func name() -> String { "\(prefix)-\(number)\(title.isEmpty ? "" : "-\(title)").\(pathExtension)" }
         while name().utf8.count > limit, !title.isEmpty {
             title.removeLast()
             while title.last == " " { title.removeLast() }
         }
-        while name().utf8.count > limit, !stem.isEmpty { stem.removeLast() }
+        while name().utf8.count > limit, !prefix.isEmpty { prefix.removeLast() }
         return name()
     }
 
-    /// True for `<stem>-<digits>.<pathExtension>` and `<stem>-<digits>-<text>.<pathExtension>`,
-    /// with two digits or more: the names of an earlier set of the stem.
-    public static func isPartFileName(_ name: String, stem: String, pathExtension: String) -> Bool {
+    /// True for `<prefix>-<digits>.<pathExtension>` and `<prefix>-<digits>-<text>.<pathExtension>`,
+    /// with two digits or more: the names of an earlier set of the prefix.
+    public static func isPartFileName(_ name: String, prefix: String, pathExtension: String) -> Bool {
         let suffix = ".\(pathExtension)"
-        guard name.hasPrefix("\(stem)-"), name.hasSuffix(suffix), name.count > stem.count + 1 + suffix.count else {
+        guard name.hasPrefix("\(prefix)-"), name.hasSuffix(suffix), name.count > prefix.count + 1 + suffix.count else {
             return false
         }
-        let middle = name.dropFirst(stem.count + 1).dropLast(suffix.count)
+        let middle = name.dropFirst(prefix.count + 1).dropLast(suffix.count)
         let digits = middle.prefix { $0.isASCII && $0.isNumber }
         guard digits.count >= 2 else { return false }
         let rest = middle.dropFirst(digits.count)

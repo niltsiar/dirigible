@@ -5,7 +5,7 @@ import Testing
 
 /// `dirigible export --split` (decision 0067, criteria C9, C12, and C13). The package of
 /// `ExportCommandTests` with the chapters Intro at frame 0, Interview at 8000, and Outro at 15 000,
-/// so the stem `Ep` gives `Ep-01-Intro`, `Ep-02-Interview`, and `Ep-03-Outro`.
+/// so the prefix `Ep` gives `Ep-01-Intro`, `Ep-02-Interview`, and `Ep-03-Outro`.
 extension ExportCommandTests {
     static let partNames = ["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]
 
@@ -33,7 +33,7 @@ extension ExportCommandTests {
 
         let lines = paths(Self.partNames, "mp3").map { $0 + "\n" }.joined()
         #expect(result == CLIResult(status: 0, stdout: lines, stderr: ""), "\(result)")
-        #expect(try names() == Self.partNames.map { $0 + ".mp3" } + ["Show.dirigible"], "no stem file, no temp file")
+        #expect(try names() == Self.partNames.map { $0 + ".mp3" } + ["Show.dirigible"], "no prefix file, no temp file")
         for name in Self.partNames {
             let file = try AVAudioFile(forReading: out(name + ".mp3"))
             #expect(file.length > 0, "\(name)")
@@ -57,7 +57,7 @@ extension ExportCommandTests {
         try addChapters()
         let old = [out("Ep-02-Interview.mp3"), out("Ep-03-Outro.mp3")]
         for file in old { try Data("old".utf8).write(to: file) }
-        try Data("stem".utf8).write(to: out("Ep.mp3"))
+        try Data("prefix".utf8).write(to: out("Ep.mp3"))
 
         let refused = try await package.run("export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters")
         #expect(refused.status == 2 && refused.stderr.contains(old[0].path) && refused.stderr.contains(old[1].path))
@@ -68,7 +68,7 @@ extension ExportCommandTests {
 
         #expect(result.status == 0 && result.stdout.split(separator: "\n").count == 3, "\(result)")
         for file in old { #expect(try AVAudioFile(forReading: file).length > 0, "\(file.lastPathComponent)") }
-        #expect(try Data(contentsOf: out("Ep.mp3")) == Data("stem".utf8), "the stem file is never written")
+        #expect(try Data(contentsOf: out("Ep.mp3")) == Data("prefix".utf8), "the prefix file is never written")
         #expect(try temporaryFiles() == [])
     }
 
@@ -122,10 +122,10 @@ extension ExportCommandTests {
             try session.setMarker(Marker(id: "b", name: "Two", position: 240_000, kind: .chapter))
             try session.setMarker(Marker(id: "c", name: "Three", position: 576_000, kind: .chapter))
         }
-        let stem = package.folder.appending(path: "Ep.wav")
+        let prefix = package.folder.appending(path: "Ep.wav")
 
         let result = try await package.run(
-            "export", "PKG", "--out", stem.path, "--split", "chapters", "--loudness", "podcast")
+            "export", "PKG", "--out", prefix.path, "--split", "chapters", "--loudness", "podcast")
 
         #expect(result.status == 0 && result.stderr == "", "\(result)")
         let lines = result.stdout.split(separator: "\n").map(String.init)
@@ -161,9 +161,9 @@ extension ExportCommandTests {
         try FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: logs) }
         let (stdout, stderr) = (logs.appending(path: "stdout"), logs.appending(path: "stderr"))
-        let stem = package.folder.appending(path: "Ep.mp3")
+        let prefix = package.folder.appending(path: "Ep.mp3")
         let pid = try spawnDirigible(
-            "export", package.path, "--out", stem.path, "--split", "chapters", output: (stdout, stderr))
+            "export", package.path, "--out", prefix.path, "--split", "chapters", output: (stdout, stderr))
         var status: Int32 = 0
         defer {
             if waitpid(pid, &status, WNOHANG) == 0 {
@@ -208,15 +208,15 @@ extension ExportCommandTests {
         #expect(result.status == 0 && result.stderr == "", "\(result)")
     }
 
-    /// Lead ruling 1b row 6: the older files of the stem get one stderr line, also with no target before.
-    @Test func oldFilesOfTheStemGetOneStderrLine() async throws {
+    /// Lead ruling 1b row 6: the older files of the prefix get one stderr line, also with no target before.
+    @Test func oldFilesOfThePrefixGetOneStderrLine() async throws {
         try addChapters()
         let outro = out("Ep-05-Outro.mp3")
         try Data("old".utf8).write(to: outro)
 
         let one = try await package.run("export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters")
 
-        let line = "Warning: 1 older file of this stem stays: \(outro.path). Dirigible does not delete it.\n"
+        let line = "Warning: 1 older file of this prefix stays: \(outro.path). Dirigible does not delete it.\n"
         #expect(one.status == 0 && one.stderr == line, "\(one)")
         #expect(try Data(contentsOf: outro) == Data("old".utf8))
 
@@ -225,7 +225,7 @@ extension ExportCommandTests {
         let two = try await package.run(
             "export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters", "--replace")
         let both =
-            "Warning: 2 older files of this stem stay: \(tail.path), \(outro.path). Dirigible does not delete them.\n"
+            "Warning: 2 older files of this prefix stay: \(tail.path), \(outro.path). Dirigible does not delete them.\n"
         #expect(two.status == 0 && two.stderr == both, "\(two)")
     }
 

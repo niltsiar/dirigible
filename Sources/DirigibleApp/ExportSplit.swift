@@ -16,17 +16,17 @@ enum ExportFiles: Hashable, CaseIterable {
     }
 }
 
-/// What a split export needs from the save panel: the kind, the folder, and the stem that the panel
+/// What a split export needs from the save panel: the kind, the folder, and the prefix that the panel
 /// name gives.
 struct SplitTarget: Hashable {
     let kind: SplitKind
     let folder: URL
-    let stem: String
+    let prefix: String
 
-    /// The stem of a panel name: the name without the extension of an export format. A split panel has
+    /// The prefix of a panel name: the name without the extension of an export format. A split panel has
     /// no type, so it adds no extension, and a name field that showed `.wav` before a change of the
-    /// format keeps it: the stem drops it, whatever the format of now is.
-    static func stem(of name: String) -> String {
+    /// format keeps it: the prefix drops it, whatever the format of now is.
+    static func prefix(of name: String) -> String {
         let ext = (name as NSString).pathExtension.lowercased()
         return ExportFormat.exportPathExtensions.contains(ext) ? (name as NSString).deletingPathExtension : name
     }
@@ -71,13 +71,13 @@ struct ExportSplitPlan {
         }
     }
 
-    /// The line under the pop-ups: the count, the first file, and the stem file that stays.
-    func line(_ kind: SplitKind, options: ExportOptions, stem: String, pathExtension: String) -> SplitLine? {
+    /// The line under the pop-ups: the count, the first file, and the prefix file that stays.
+    func line(_ kind: SplitKind, options: ExportOptions, prefix: String, pathExtension: String) -> SplitLine? {
         let parts = parts(kind)
         guard let first = parts.parts.first else { return nil }
         return SplitLine(
-            count: parts.parts.count, first: exportPartFileName(first, of: parts, options: options, stem: stem),
-            stemFile: "\(stem).\(pathExtension)")
+            count: parts.parts.count, first: exportPartFileName(first, of: parts, options: options, prefix: prefix),
+            prefixFile: "\(prefix).\(pathExtension)")
     }
 }
 
@@ -96,11 +96,11 @@ extension ExportSplitPlan {
 struct SplitLine: Equatable {
     let count: Int
     let first: String
-    let stemFile: String
+    let prefixFile: String
 
     var text: String {
         count == 1
-            ? L10n.panelExportLineOne.format(first, stemFile) : L10n.panelExportLine.format(count, first, stemFile)
+            ? L10n.panelExportLineOne.format(first, prefixFile) : L10n.panelExportLine.format(count, first, prefixFile)
     }
 }
 
@@ -112,7 +112,7 @@ struct ExportSetShown: Equatable {
     let count: Int
     /// The loudness report of each file in `files`, or none when no target was on.
     let loudness: [LoudnessReport]
-    /// The names of the files of the stem that an older set wrote and this set did not.
+    /// The names of the files of the prefix that an older set wrote and this set did not.
     let old: [String]
     /// The tag warnings of the files that have one, each naming its file.
     var warnings: [ChapterWarningsShown] = []
@@ -154,7 +154,7 @@ extension L10n {
         (Array(names.prefix(5)), max(0, names.count - 5))
     }
 
-    /// The sentence about the older files of the stem that stay.
+    /// The sentence about the older files of the prefix that stay.
     static func oldFilesText(_ old: [String]) -> String {
         old.count == 1
             ? bannerExportSetOldOne.format(firstNames(old)) : bannerExportSetOldMany.format(old.count, firstNames(old))

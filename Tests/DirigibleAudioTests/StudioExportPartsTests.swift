@@ -26,7 +26,7 @@ struct StudioExportPartsTests {
     static func targets(_ studio: Studio, _ fixture: ExportStudioFixture) -> [URL] {
         exportPartTargets(
             studio.session, range: range, by: .chapters, options: options, folder: fixture.package.folder.url,
-            stem: "Ep"
+            prefix: "Ep"
         ).targets.map(\.url)
     }
 
@@ -34,7 +34,7 @@ struct StudioExportPartsTests {
         let folder = fixture.package.folder.url
         return Task {
             try await studio.export(
-                ExportSource(range: range)!, by: .chapters, options: options, folder: folder, stem: "Ep",
+                ExportSource(range: range)!, by: .chapters, options: options, folder: folder, prefix: "Ep",
                 replacing: [:])
         }
     }

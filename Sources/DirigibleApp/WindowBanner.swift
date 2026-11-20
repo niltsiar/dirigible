@@ -62,7 +62,7 @@ enum WindowBanner: Equatable {
     /// 0032). A warning when the gain is over the auto-level limit.
     case exportReport(LoudnessReport, file: String)
     /// The files of a split export, the lowest and the highest loudness of a target, and the older
-    /// files of the stem that stay (decision 0067).
+    /// files of the prefix that stay (decision 0067).
     case exportSetDone(files: [URL], low: Double?, high: Double?, old: [String])
     /// A split export that stopped: the files on disk and the files of the set.
     case exportSetStopped(written: Int, count: Int)
@@ -265,7 +265,7 @@ enum WindowBanner: Equatable {
     }
 }
 
-/// "Exported 10 files to <folder>.", then the loudness range of the files, then the older files of the stem.
+/// "Exported 10 files to <folder>.", then the loudness range of the files, then the older files of the prefix.
 func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [String]) -> String {
     let folder = files.first.map { $0.deletingLastPathComponent().path(percentEncoded: false) } ?? ""
     var text = L10n.bannerExportSetDone.format(files.count, folder)

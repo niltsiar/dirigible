@@ -864,8 +864,8 @@
 "banner.export.set.done" = "Exported %1$lld files to %2$@.";
 "banner.export.set.loudness" = "Loudness of the files: from %1$@ to %2$@ LUFS.";
 "banner.export.set.stopped" = "Exported %1$lld of %2$lld files. The other files did not change.";
-"banner.export.set.old.one" = "1 older file of this stem stays: %@. Dirigible does not delete it.";
-"banner.export.set.old.many" = "%1$lld older files of this stem stay: %2$@. Dirigible does not delete them.";
+"banner.export.set.old.one" = "1 older file of this prefix stays: %@. Dirigible does not delete it.";
+"banner.export.set.old.many" = "%1$lld older files of this prefix stay: %2$@. Dirigible does not delete them.";
 "banner.export.set.show" = "Show in Finder";
 "banner.export.set.dropped" = "“%@” has no file of its own: it starts at the time of the split point before it, or at the end of the range.";
 "error.export.nochapter" = "The session has no chapters in the export range now. No file was written.";

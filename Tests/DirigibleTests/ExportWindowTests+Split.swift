@@ -27,7 +27,7 @@ extension ExportWindowTests {
     func setTarget(_ kind: SplitKind = .chapters, options: ExportOptions = ExportWindowTests.options) -> ExportTarget {
         ExportTarget(
             url: folder.url.appending(path: "Ep"), options: options, confirmed: nil,
-            split: SplitTarget(kind: kind, folder: folder.url, stem: "Ep"))
+            split: SplitTarget(kind: kind, folder: folder.url, prefix: "Ep"))
     }
 
     func file(_ name: String) -> URL { folder.url.appending(path: name) }
@@ -58,7 +58,7 @@ extension ExportWindowTests {
         try await runSet(model, studio, setTarget())
 
         #expect(try setFiles() == ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"])
-        #expect(!FileManager.default.fileExists(atPath: file("Ep.wav").path), "the stem file stays unwritten")
+        #expect(!FileManager.default.fileExists(atPath: file("Ep.wav").path), "the prefix file stays unwritten")
         #expect(model.alert == nil)
         let written = try setFiles()
         #expect(model.exportSet?.files.map(\.lastPathComponent) == written)
@@ -102,9 +102,9 @@ extension ExportWindowTests {
         #expect(plan.title(.chapters) == L10n.panelExportFilesChapters.format(3))
         #expect(plan.help(.markers) == .panelExportFilesNoMarkersSession && plan.help(.chapters) == nil)
         #expect(
-            plan.line(.chapters, options: Self.options, stem: "Ep", pathExtension: "wav")
-                == SplitLine(count: 3, first: "Ep-01-Intro.wav", stemFile: "Ep.wav"))
-        #expect(plan.line(.markers, options: Self.options, stem: "Ep", pathExtension: "wav") == nil)
+            plan.line(.chapters, options: Self.options, prefix: "Ep", pathExtension: "wav")
+                == SplitLine(count: 3, first: "Ep-01-Intro.wav", prefixFile: "Ep.wav"))
+        #expect(plan.line(.markers, options: Self.options, prefix: "Ep", pathExtension: "wav") == nil)
         await model.close()
     }
 
@@ -142,7 +142,7 @@ extension ExportWindowTests {
         #expect(panel.nameFieldStringValue == "Episode 12", "the prefix field keeps a stale extension")
 
         #expect(panel.nameFieldLabel == L10n.panelExportPrefix.text && panel.prompt == L10n.alertExportConfirm.text)
-        #expect(panel.allowedContentTypes.isEmpty, "a typed panel asks about the stem file")
+        #expect(panel.allowedContentTypes.isEmpty, "a typed panel asks about the prefix file")
         settings.files = .one
         ExportPanel.follow(settings, panel, nameLabel: label, button: button)
         #expect(panel.nameFieldLabel == label && panel.prompt == button)
@@ -159,12 +159,13 @@ extension ExportWindowTests {
         try threeChapters(studio)
         await model.export(.session)
 
-        let line = try #require(plan?.line(.chapters, options: Self.options, stem: "Episode 12", pathExtension: "wav"))
+        let line = try #require(
+            plan?.line(.chapters, options: Self.options, prefix: "Episode 12", pathExtension: "wav"))
 
-        #expect(line == SplitLine(count: 3, first: "Episode 12-01-Intro.wav", stemFile: "Episode 12.wav"))
-        #expect(SplitTarget.stem(of: "Episode 12.wav") == "Episode 12", "an extension of an old format goes")
-        #expect(SplitTarget.stem(of: "Ep 12.MP3") == "Ep 12")
-        #expect(SplitTarget.stem(of: "Ep 12.5") == "Ep 12.5", "a dot in the name stays")
+        #expect(line == SplitLine(count: 3, first: "Episode 12-01-Intro.wav", prefixFile: "Episode 12.wav"))
+        #expect(SplitTarget.prefix(of: "Episode 12.wav") == "Episode 12", "an extension of an old format goes")
+        #expect(SplitTarget.prefix(of: "Ep 12.MP3") == "Ep 12")
+        #expect(SplitTarget.prefix(of: "Ep 12.5") == "Ep 12.5", "a dot in the name stays")
         await model.close()
     }
 
@@ -275,7 +276,7 @@ extension ExportWindowTests {
         try Data("old".utf8).write(to: file("Ep-01-Intro.wav"))
         let source = try #require(model.source(of: .session, in: studio))
         let targets = exportPartTargets(
-            studio.session, range: source.range, by: .chapters, options: Self.options, folder: folder.url, stem: "Ep"
+            studio.session, range: source.range, by: .chapters, options: Self.options, folder: folder.url, prefix: "Ep"
         ).targets
 
         let split = try #require(setTarget().split)

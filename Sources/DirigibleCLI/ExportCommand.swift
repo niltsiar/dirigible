@@ -28,7 +28,7 @@ struct Export: ParsableCommand {
             and its image. A chapter at the time of the chapter before it is not in the file, and a \
             warning names it. An .m4a with a chapter image, a chapter with none, and no episode \
             artwork gets no chapter images, and a warning says so. With --split chapters or --split \
-            markers, the export writes one file for each part of the range, named <stem>-<NN>-<title> \
+            markers, the export writes one file for each part of the range, named <prefix>-<NN>-<title> \
             from the file name of --out, in the folder of --out, and prints the path of each file; with \
             --loudness, each line adds a tab and the loudness line of its file. Each file has its own \
             gain. The part before the first point is number 00. A point at the millisecond of the point \
@@ -38,7 +38,7 @@ struct Export: ParsableCommand {
             names the files that were not written (exit 130 or 2). A set with files that only the export \
             found bad prints the path of each file, then names each file with such a fault (exit 2, unless \
             --allow-missing). After a set, stderr names the older \
-            files of the stem; Dirigible keeps them. The file <stem>.<ext> is never written.
+            files of the prefix; Dirigible keeps them. The file <prefix>.<ext> is never written.
             """)
 
     @OptionGroup var package: PackageArgument

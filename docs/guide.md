@@ -554,7 +554,7 @@ Choose **Tools > Sync Clip to Track** (Option-Command-G) to move a clip to the p
 
 1. Select one clip. The command is off with no clip, with two or more clips, and with a range. It is also off when no other track has a clip near the clip, and during a take, an import, or another job.
 2. Choose the command. The pop-up **Reference Track** lists the other tracks, each with its role: "Guest (Dialogue)". It starts on the first other track that has a call app as its source and holds a clip near the clip. When no such track exists, it starts on the first other track that holds a clip there. With no call track in the session, the sheet says "No call track: the first track with audio is chosen."
-3. Leave **Correct drift** on to fix the clock drift of the recording too, or clear it to move the clip only. The box is on each time the sheet opens. For a clip that Dirigible recorded, the box is off and you cannot change it, and the sheet says "A take records on the session clock."
+3. Leave **Correct drift** on to fix the clock drift of the recording too, or clear it to move the clip only. The box is on each time the sheet opens, except after a sync with no match (see below). For a clip that Dirigible recorded, the box is off and you cannot change it, and the sheet says "A take records on the session clock."
 4. Click **Sync**. With a reference that has no clip near the clip, the sheet says why and **Sync** is off. When an agent starts a job while the sheet is open, **Sync** shows an alert that tells you to wait, and the clip does not move.
 
 Dirigible searches for the audio of the clip in the reference track, 30 minutes before and after the clip (less for a very long clip, and the line under the pop-up shows the time that the search uses).
@@ -563,7 +563,7 @@ When the audio matches, the clip moves and a banner says by how much: "Moved the
 
 With **Correct drift** on, the banner adds what the fix did: "Corrected a drift of +104.2 ppm (62 ms across the clip) in one resample. The lag stays within 0.0 ms of the line." The clip then plays a new audio file that has the name of the clip file and the word "drift", for example "guest drift".
 
-When the audio does not match, a warning banner says "No match: clip was not found on Guest." and nothing changes. Click **Choose Another Track** to open the sheet again for the same clip. The pop-up starts on another track that holds a clip near the clip, or on the same track when no other track does. A sync is one step in the undo history.
+When the audio does not match, a warning banner says "No match: clip was not found on Guest." and nothing changes. Click **Choose Another Track** to open the sheet again for the same clip. The pop-up starts on another track that holds a clip near the clip, or on the same track when no other track does. **Correct drift** stays as it was for the sync that found no match. A sync is one step in the undo history.
 
 In Terminal, `dirigible clip sync <package> <clip> --to <track>` does the same, and an agent uses the tool `clip_sync`.
 

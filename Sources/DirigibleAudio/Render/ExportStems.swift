@@ -211,7 +211,9 @@ private func samplePeak(
     else { throw .writeFailed(kAudio_ParamError) }
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks, span: chunk)
     let output = options.layout == .mono ? monoBuffer : mixBuffer
-    var filePeak = try FilePeak(client: output.format, fileRate: options.rate.hertz(session: session.sampleRate))
+    var filePeak = try FilePeak(
+        client: output.format, fileRate: options.rate.hertz(session: session.sampleRate),
+        fileFormat: options.format.exportFormat)
     var dither = options.format.bits == .bits16 ? TPDFDither(channels: options.layout.channelCount) : nil
     let first = source.range.lowerBound
     let total = Double(source.range.upperBound.count - first.count)

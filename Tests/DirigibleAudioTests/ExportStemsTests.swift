@@ -224,6 +224,32 @@ struct ExportStemsTests {
         #expect(abs(mixPeak - file) <= 1e-6, "mix peak \(mixPeak), file \(file)")
     }
 
+    /// C15 in FLAC, whose converter resamples at another quality than a WAV or CAF converter: two
+    /// steps apart, so the stem peaks sum over 1.0 and the mix stays under full scale. The result
+    /// of a FLAC mix export and the mix peak pass of FLAC stems are the peak of the mix file within
+    /// one LSB.
+    @Test(arguments: [
+        (BitDepth.bits16, 48_000, ExportRate.hz44100), (.bits24, 48_000, .hz44100),
+        (.bits16, 44_100, .hz48000), (.bits24, 44_100, .hz48000),
+    ])
+    func thePeakIsThePeakOfTheFileAtItsRate(bits: BitDepth, sessionRate: Int, rate: ExportRate) throws {
+        let package = try MixPackage(sampleRate: sessionRate)
+        let silence = [Float](repeating: 0, count: 24_000)
+        try Self.addFloatTrack(package, "a", Self.step(0.6) + silence)
+        try Self.addFloatTrack(package, "b", silence + Self.step(0.6))
+        let url = package.folder.url.appending(path: "mix.flac")
+        let source = try #require(ExportSource(range: 0..<48_000))
+        let options = ExportOptions(format: .flac(bits), layout: .stereo, rate: rate)
+        let mix = try exportMix(package.session, source: source, options: options, to: url, package: { package.url })
+        let file = try readAudio(url).samples.map(abs).max() ?? 0
+        let lsb = Float(1) / Float(1 << (bits.rawValue - 1))
+        #expect(file < 1 && abs(mix.samplePeak - file) <= lsb, "result \(mix.samplePeak), file \(file)")
+        let stems = try Self.stems(
+            package, range: 0..<48_000, options: StemOptions(format: .flac(bits), layout: .stereo, rate: rate))
+        let mixPeak = try #require(stems.mixPeak)
+        #expect(abs(mixPeak - file) <= lsb, "mix peak \(mixPeak), file \(file)")
+    }
+
     /// C15 fixture A: a stem with a sample of `Float(1).nextUp` is over full scale; a stem with a
     /// peak of exactly 1.0 is not. The stem peaks sum over 1.0, so the mix peak is measured.
     @Test func aStemOverFullScaleIsNamedAndTheSumIsNotClaimed() throws {

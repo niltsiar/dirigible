@@ -107,8 +107,8 @@ package struct SyncWork: Sendable {
 
         /// The object of `--json` on one line: `spread` and `headCut` in frames, `spread` null when the
         /// drift was not measured, and `replaced` the IDs of the other clips that the move cut. With the
-        /// drift option, `drift_correction` holds `ppm`, `across_ms`, `segments` (the pieces of the clip),
-        /// and `worst_ms`; it is null when the drift was not corrected, and `drift_not_corrected` gives
+        /// drift option, `driftCorrection` holds `ppm`, `acrossMs`, `segments` (the pieces of the clip),
+        /// and `worstMs`; it is null when the drift was not corrected, and `driftNotCorrected` gives
         /// the cause.
         package var json: String {
             // The decimal text keeps `0.98` and `1.234` as they are: a Double would print 0.97999999999999998.
@@ -123,14 +123,14 @@ package struct SyncWork: Sendable {
             switch outcome {
             case nil: break
             case .corrected(let fix)?:
-                object["drift_correction"] = [
+                object["driftCorrection"] = [
                     "ppm": NSDecimalNumber(string: Self.ppm(fix)),
-                    "across_ms": Self.acrossMilliseconds(fix, sampleRate), "segments": fix.clips.count,
-                    "worst_ms": NSDecimalNumber(string: Self.worstMilliseconds(fix, sampleRate)),
+                    "acrossMs": Self.acrossMilliseconds(fix, sampleRate), "segments": fix.clips.count,
+                    "worstMs": NSDecimalNumber(string: Self.worstMilliseconds(fix, sampleRate)),
                 ]
             case .notCorrected(let cause)?:
-                object["drift_correction"] = NSNull()
-                object["drift_not_corrected"] = cause.text
+                object["driftCorrection"] = NSNull()
+                object["driftNotCorrected"] = cause.text
             }
             // The object holds only strings, numbers, an array of strings, and null, so the encode does not fail.
             let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()

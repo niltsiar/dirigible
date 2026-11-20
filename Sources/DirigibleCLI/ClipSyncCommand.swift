@@ -34,7 +34,7 @@ extension ClipCommand {
                 clip, frames, seconds, match, spread, headCut, and replaced; spread and headCut are in \
                 frames, spread is null when the drift was not measured, replaced lists the IDs of the cut \
                 clips, and frames 0 means that the clip did not move. With --drift, the line also has \
-                drift_correction (ppm, across_ms, segments, worst_ms), or null with drift_not_corrected \
+                driftCorrection (ppm, acrossMs, segments, worstMs), or null with driftNotCorrected \
                 and the cause. Exit 64 \
                 when --within is not a whole number of seconds from 1, or is over the longest search, or the \
                 clip is longer than the longest span. Exit 1 when the clip or the track is unknown, the \

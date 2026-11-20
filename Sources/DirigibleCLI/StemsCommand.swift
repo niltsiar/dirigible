@@ -12,8 +12,9 @@ struct ExportStemsCommand: ParsableCommand {
             Each file has the range length and starts at the range start, so the files line up at 0 in \
             another app. With --by track, each heard track gets the file <NN> <track name>; with --by role, \
             each role of a heard track gets Dialogue, Music, or Effects, and the tracks with no role get \
-            No Role. A muted track, a track that is not soloed while another is, and a stem with no clip in \
-            the range get no file, and a warning names them. When nothing clips, the files add up to the \
+            No Role. A muted track and a track that is not soloed while another is get no file, and a \
+            warning counts them. A stem with no clip in the range gets no file, and a warning names it. \
+            When nothing clips, the files add up to the \
             mix: a warning names each file over 0 dBFS, and one line says when the mix is over. Stdout has \
             one line for each file: the file name and the track IDs, separated by tabs. The folder appears \
             whole or not at all: Control-C or a failure leaves no folder and no stem (exit 130 or 2). Exit \

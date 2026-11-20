@@ -5,7 +5,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Criteria C3, C4, and C15 of the stem export (U4): each stem is the `exportMix` of its own tracks
+/// Criteria C3, C4, and C15 of the stem export: each stem is the `exportMix` of its own tracks
 /// over the plan range, so the stems start at the range start and add up to the mix.
 struct ExportStemsTests {
     static let wav24 = StemOptions(format: .wav(.bits24), layout: .stereo, rate: .session)

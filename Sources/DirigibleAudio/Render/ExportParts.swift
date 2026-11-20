@@ -98,10 +98,11 @@ public func oldPartFiles(in folder: URL, prefix: String, format: ExportFormat, b
 /// caller list of an older session only feeds `replacing`. First it checks every target: an item
 /// that `replacing` does not hold as the same device and inode throws `.exists` with every such
 /// path, and nothing is written. Then `exportItems` runs `exportMix` for each part with
-/// `session.forPart`, so each part file has its own loudness gain, title tag, and chapters. A stop or a failure in part k
-/// throws `.stopped`: the files before part k stay, and part k leaves no file. `progress` gets the
-/// fraction of the set by frames at each new whole percent and at the start of each part. The source
-/// of each part keeps the tracks of `source`. Thread rule: as `exportMix`.
+/// `session.forPart`, so each part file has its own loudness gain, title tag, and chapters. A stop
+/// or a failure in part k throws `.stopped`: the files before part k stay, and part k leaves no
+/// file. `progress` gets the fraction of the set by frames at each new whole percent and at the
+/// start of each part. The source of each part keeps the tracks of `source`. Thread rule: as
+/// `exportMix`.
 public func exportParts(
     _ session: Session, source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, prefix: String,
     replacing: [URL: ConfirmedFile], package: () throws(SessionFileError) -> URL,

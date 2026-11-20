@@ -20,9 +20,10 @@
 #   hooks, and that pid runs with the start time of line 1, as file_live of with-lock.sh; a long
 #   holder waits for that file), the script runs HOOK_JOBS tests at a time, else ncpu / 2 (at least
 #   1). In the hooks pass, HOOK_JOBS is cut to ncpu / 2. Else it runs 1 test at a time, and a
-#   HOOK_JOBS over 1 prints a line that says so: a lock-free call must not load the machine. HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock
-#   (a probe of the 4-job load). A HOOK_JOBS that is not a whole number of 1 or more exits 2, before
-#   the key. The job count is no part of the key. Each job slot has its own clone of the key
+#   HOOK_JOBS over 1 prints a line that says so: a lock-free call must not load the machine.
+#   HOOK_JOBS_PROBE=1 takes HOOK_JOBS with no lock (a probe of the 4-job load). A HOOK_JOBS that
+#   is not a whole number of 1 or more exits 2, before the key.
+#   The job count is no part of the key. Each job slot has its own clone of the key
 #   commit, and each test runs in the process group of the script, with SIGINT at its default. The
 #   script prints "test-hooks: start <test>" at the start of a test, and the output of each test
 #   whole, in list order, after "test-hooks: <test> <passed|FAILED> in <s> s". The last line is

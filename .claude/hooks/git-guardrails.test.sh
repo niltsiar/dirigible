@@ -1904,8 +1904,8 @@ expect_each_lock --live "$tmp/rw-lock" agree "${lock_spellings[@]}"
 expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks' 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'MAKEFLAGS=DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
-# A make option word and an empty HOOK_TESTS= word keep the pass a hooks pass (each was a release call
-# before the pass took no lock), never an ordinary locked call.
+# A make option word and an empty HOOK_TESTS= word keep the pass a hooks pass, never an ordinary
+# locked call.
 expect_each_lock --live "$tmp/rw-lock" allow 'scripts/with-lock.sh make -s test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'scripts/with-lock.sh make -j4 test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make -j 4 test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'scripts/with-lock.sh make -C ../wt test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make --no-print-directory test-hooks DIRIGIBLE_HOOKS_ALL=1' \

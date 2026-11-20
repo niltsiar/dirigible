@@ -52,11 +52,11 @@
 # The CPU-share signal of the TV launcher session reads it.
 # scripts/with-lock.sh --long-holder takes no lock and runs no command, also inside a locked process
 # tree. It prints the --release-holder line and exits 0 when that query exits 0 for a holder or a
-# ticket of the lock (not for the lock-free hooks pass: an ordinary call runs beside it, and only a long
-# holder waits for it). Else, while a live
-# holder runs a long holder (long_words of scripts/lock-words.sh: a bench, a mutation pass, or a flake
-# loop), it prints "holder: <command>" and exits 0, and for a live bench marker it prints "bench marker pid N
-# (<tree>)" and exits 0; else it prints nothing and exits 1. It removes a dead ticket or a dead marker.
+# ticket of the lock (not for the lock-free hooks pass: an ordinary call runs beside it, and only a
+# long holder waits for it). Else, while a live holder runs a long holder (long_words of
+# scripts/lock-words.sh: a bench, a mutation pass, or a flake loop), it prints "holder: <command>"
+# and exits 0, and for a live bench marker it prints "bench marker pid N (<tree>)" and exits 0; else
+# it prints nothing and exits 1. It removes a dead ticket or a dead marker.
 # .claude/hooks/agent-guard.sh reads it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
@@ -107,18 +107,18 @@
 # DIRIGIBLE_HOOKS_ALL=1 and no HOOK_TESTS= word). The file of the hooks pass in dirigible-lock-free/
 # (below) has the kind hooks in line 3, the call start time in line 4, and, while its command runs,
 # the process group of the command in line 5 and, with a hold limit, the second when that limit and
-# WITH_LOCK_HOLD_GRACE end in line 6. The command gets DIRIGIBLE_HOOKS_PASS=<pid of the
-# call>, so scripts/test-hooks.sh runs ncpu / 2 jobs. One pass runs at a time: a pass waits while
+# WITH_LOCK_HOLD_GRACE end in line 6. The command gets DIRIGIBLE_HOOKS_PASS=<pid of the call>, so
+# scripts/test-hooks.sh runs ncpu / 2 jobs. One pass runs at a time: a pass waits while
 # another hooks file is live (the older call keeps its file, the younger one removes its own), while
 # a release call has a live ticket, and while a long holder waits (a live file in
 # dirigible-long-waiting/ of the git common dir). The pass has the hold limit of a release call. It
 # exits 2 and runs nothing when it cannot write its file. INT, TERM, or HUP stops the process group
 # of its command, and its file stays while a process of that group runs, also after a KILL of the
-# call, up to the second in line 6. A long holder (release_call
-# or long_words of lock-words.sh) writes dirigible-long-waiting/<pid> with its command, waits while
-# a hooks file is live before it takes the lock (no idle held lock), polls at most each second, and
-# removes its file after the take. That wait counts in its wait limit and its wait line. An
-# ordinary call does not wait for the hooks pass. test, test-filter, and
+# call, up to the second in line 6. A long holder (release_call or long_words of lock-words.sh)
+# writes dirigible-long-waiting/<pid> with its command, waits while a hooks file is live before it
+# takes the lock (no idle held lock), polls at most each second, and removes its file after the
+# take. That wait counts in its wait limit and its wait line. An ordinary call does not wait for the
+# hooks pass. test, test-filter, and
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
 # run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh

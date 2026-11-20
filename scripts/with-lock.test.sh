@@ -2232,9 +2232,9 @@ rm -rf "$marks"
 
 # The lock-free hooks pass. The fake scripts of $fake/hpl log "start <name> <words>" and
 # "end <name> <words>"; the fake hooks pass also logs whether the lock folder exists and
-# DIRIGIBLE_HOOKS_PASS, writes its pid to $HPL_STATE.pid, and runs until $HPL_GATE goes. hpl_pass [<word>...] starts make test-hooks
-# with the words (default DIRIGIBLE_HOOKS_ALL=1) in the background ($inner), and returns 0 when it
-# runs.
+# DIRIGIBLE_HOOKS_PASS, writes its pid to $HPL_STATE.pid, and runs until $HPL_GATE goes.
+# hpl_pass [<word>...] starts make test-hooks with the words (default DIRIGIBLE_HOOKS_ALL=1) in the
+# background ($inner), and returns 0 when it runs.
 mkdir -p "$fake/hpl/flake-monitor"
 cat > "$fake/hpl/make" << 'EOF'
 #!/bin/bash

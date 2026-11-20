@@ -275,6 +275,7 @@ extension DriftFitFailure {
         case .twoLines: "the lag jumps between two lines that overlap in time"
         case .tooManyOutliers: "too many parts of the clip are off the line"
         case .endOutlier: "an end of the clip is off the line"
+        case .lagStepsBack: "a later part of the clip has less lag than an earlier part"
         case .rateOutOfRange: "the clock of the clip is 1000 ppm or more from the track"
         }
     }

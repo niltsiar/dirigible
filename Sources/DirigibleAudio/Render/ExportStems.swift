@@ -147,7 +147,6 @@ func exportStems(
             session: session, source: source.stem(pair.0.tracks), options: options,
             url: staging.url.appending(path: pair.1))
     }
-    // The stems map to 0...n/(n + 1), and a mix peak pass to the last band.
     let stemsBand = Double(items.count) / Double(items.count + 1)
     let results: [ExportResult]
     do {

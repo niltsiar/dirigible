@@ -209,6 +209,22 @@ struct FolderPublishTests {
         }
     }
 
+    /// A volume with no flock refuses `O_EXLOCK` with ENOTSUP or EOPNOTSUPP, as `exportMix` reads
+    /// it: the lock file opens with no lock, and the folder publishes.
+    @Test(arguments: [ENOTSUP, EOPNOTSUPP]) func aVolumeWithNoFlockStillPublishes(code: Int32) throws {
+        let place = try Place()
+        var seams = FolderPublishSeams()
+        seams.openLock = { path, flags in
+            if flags & O_EXLOCK != 0 { return (-1, code) }
+            let descriptor = open(path, flags, 0o644)
+            return (descriptor, descriptor < 0 ? errno : 0)
+        }
+        let staging = try stageFolder(for: place.target, kind: "stems", seams: seams)
+        try Data("stem".utf8).write(to: staging.url.appending(path: "01.wav"))
+        #expect(Self.publishError(staging) == nil)
+        #expect(try place.names() == ["Stems"])
+    }
+
     /// The lock name `.<name>.<UUID>.stems.lock` fits 255 bytes at a folder name of 206 bytes.
     @Test func theFolderNameLimitFitsTheLockName() throws {
         #expect(folderNameLimit(kind: "stems") == 206)

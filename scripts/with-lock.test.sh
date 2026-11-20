@@ -2225,7 +2225,7 @@ rm -rf "$marks"
 
 # The lock-free hooks pass. The fake scripts of $fake/hpl log "start <name> <words>" and
 # "end <name> <words>"; the fake hooks pass also logs whether the lock folder exists and
-# DIRIGIBLE_HOOKS_PASS, and runs until $HPL_GATE goes. hpl_pass [<word>...] starts make test-hooks
+# DIRIGIBLE_HOOKS_PASS, writes its pid to $HPL_STATE.pid, and runs until $HPL_GATE goes. hpl_pass [<word>...] starts make test-hooks
 # with the words (default DIRIGIBLE_HOOKS_ALL=1) in the background ($inner), and returns 0 when it
 # runs.
 mkdir -p "$fake/hpl/flake-monitor"
@@ -2233,6 +2233,7 @@ cat > "$fake/hpl/make" << 'EOF'
 #!/bin/bash
 echo "start ${0##*/} $*" >> "$HPL_ORDER"
 if [[ " $* " == *" test-hooks "* ]]; then
+    echo $$ > "$HPL_STATE.pid"
     { [[ -d "$HPL_LOCK" ]] && echo lock || echo nolock; echo "${DIRIGIBLE_HOOKS_PASS-unset}"; } > "$HPL_STATE"
     while [[ -e "$HPL_GATE" ]]; do sleep 0.1; done
 fi
@@ -2245,7 +2246,7 @@ hpl_order() { paste -sd'|' - < "$HPL_ORDER" 2>/dev/null; }
 hpl_pass() {
     reset_builders
     rm -rf "$frees"
-    rm -f "$HPL_ORDER" "$HPL_STATE"
+    rm -f "$HPL_ORDER" "$HPL_STATE" "$HPL_STATE.pid"
     touch "$HPL_GATE"
     "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks "${@:-DIRIGIBLE_HOOKS_ALL=1}" > "$tmp/hpl.out" 2>&1 &
     inner=$!
@@ -2269,8 +2270,8 @@ hpl_pass HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1 || fail "HOOK_TESTS= word: the call 
 [[ "$(paste -sd' ' - < "$HPL_STATE")" == 'nolock unset' && -z "$(sed -n 3p "$frees/$inner" 2>/dev/null)" ]] ||
     fail "HOOK_TESTS= word: state [$(paste -sd' ' - < "$HPL_STATE")], file [$(cat "$frees/$inner" 2>/dev/null)]"
 hpl_end
-# A long holder that starts while the hooks pass runs takes the lock, waits, and starts its
-# command only after the pass ends.
+# A long holder that starts while the hooks pass runs waits with no lock, so an ordinary call runs
+# during its wait, and it starts its command only after the pass ends.
 for cmd in "bench.sh NavBench" "bench-pairs.sh /x/main NavBench 3 /x/pairs" "make check-changed BASE=origin/main" "land.sh t pr.md" \
     "make dmg" "test-stress.sh --runs 1 out" "flake-monitor/loop.sh 10 ATests" "mutation-pass.sh $repo batch"; do
     name="${cmd%% *}" name="start ${name##*/} ${cmd#* }"
@@ -2279,14 +2280,18 @@ for cmd in "bench.sh NavBench" "bench-pairs.sh /x/main NavBench 3 /x/pairs" "mak
     waiter=$!
     until_true 50 grep -q 'hooks pass pid' "$tmp/hpl-long.out" || fail "$cmd: no wait line for the hooks pass: $(cat "$tmp/hpl-long.out")"
     sleep 0.3
-    [[ "$(cat "$lock/pid" 2>/dev/null)" == "$waiter" && "$(hpl_order)" != *"$name"* ]] ||
-        fail "$cmd: during the pass: lock pid [$(cat "$lock/pid" 2>/dev/null)] (want $waiter), order [$(hpl_order)]"
+    [[ ! -e "$lock" && "$(hpl_order)" != *"$name"* ]] ||
+        fail "$cmd: during the pass: lock pid [$(cat "$lock/pid" 2>/dev/null)] (want no lock), order [$(hpl_order)]"
+    out="$(WITH_LOCK_MAX_WAIT=2 "$repo/scripts/with-lock.sh" "$fake/hpl/swift" build 2>&1)"
+    code=$?
+    [[ $code -eq 0 && "$(hpl_order)" == *'|start swift build|end swift build' ]] ||
+        fail "$cmd: an ordinary call during the wait of the long holder: exit $code, order [$(hpl_order)]: $out"
     hpl_end
     until_true 50 dead "$waiter"
     wait "$waiter" 2>/dev/null
     code=$?
     waiter=""
-    [[ $code -eq 0 && "$(hpl_order)" == "start make test-hooks DIRIGIBLE_HOOKS_ALL=1|end make test-hooks DIRIGIBLE_HOOKS_ALL=1|$name"* ]] ||
+    [[ $code -eq 0 && "$(hpl_order)" == "start make test-hooks DIRIGIBLE_HOOKS_ALL=1|start swift build|end swift build|end make test-hooks DIRIGIBLE_HOOKS_ALL=1|$name"* ]] ||
         fail "$cmd: exit $code, order [$(hpl_order)]: $(cat "$tmp/hpl-long.out")"
 done
 # An ordinary call (make test-filter, swift build) starts at once while the hooks pass runs.
@@ -2298,6 +2303,127 @@ for cmd in "make test-filter FILTER=ATests" "swift build"; do
         fail "$cmd during the hooks pass: exit $code, order [$(hpl_order)]: $out"
     hpl_end
 done
+# A long holder that waits for the pass starts before a second pass that starts during the wait.
+if hpl_pass; then
+    WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/bench.sh" NavBench > "$tmp/hpl-long.out" 2>&1 &
+    waiter=$!
+    until_true 50 grep -q 'hooks pass pid' "$tmp/hpl-long.out" || fail "long holder before a second pass: no wait line: $(cat "$tmp/hpl-long.out")"
+    WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl2.out" 2>&1 &
+    other=$!
+    sleep 0.5
+    hpl_end
+    until_true 50 dead "$waiter" && until_true 50 dead "$other" || fail "long holder before a second pass: a call did not end: $(hpl_order)"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    wait "$other" 2>/dev/null
+    code2=$?
+    waiter="" other=""
+    hp="make test-hooks DIRIGIBLE_HOOKS_ALL=1"
+    [[ $code -eq 0 && $code2 -eq 0 && "$(hpl_order)" == "start $hp|end $hp|start bench.sh NavBench|end bench.sh NavBench|start $hp|end $hp" ]] ||
+        fail "long holder before a second pass: exit $code and $code2, order [$(hpl_order)]"
+else
+    fail "long holder before a second pass: the hooks pass did not start: $(cat "$tmp/hpl.out")"
+    hpl_end
+fi
+# One hooks pass at a time: a second pass waits until the first one ends, and two passes that start
+# together run one after the other.
+hp="make test-hooks DIRIGIBLE_HOOKS_ALL=1"
+if hpl_pass; then
+    "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl2.out" 2>&1 &
+    other=$!
+    until_true 50 grep -q 'hooks pass pid' "$tmp/hpl2.out" || fail "a second hooks pass: no wait line: $(cat "$tmp/hpl2.out")"
+    sleep 0.3
+    [[ "$(hpl_order)" == "start $hp" ]] || fail "a second hooks pass: it ran beside the first: order [$(hpl_order)]"
+    hpl_end
+    until_true 50 dead "$other" || fail "a second hooks pass: it did not end after the first: $(cat "$tmp/hpl2.out")"
+    wait "$other" 2>/dev/null
+    code=$?
+    other=""
+    [[ $code -eq 0 && "$(hpl_order)" == "start $hp|end $hp|start $hp|end $hp" ]] ||
+        fail "a second hooks pass: exit $code, order [$(hpl_order)]"
+else
+    fail "a second hooks pass: the first pass did not start: $(cat "$tmp/hpl.out")"
+    hpl_end
+fi
+reset_builders
+rm -rf "$frees"
+rm -f "$HPL_ORDER" "$HPL_STATE" "$HPL_STATE.pid"
+touch "$HPL_GATE"
+"$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl.out" 2>&1 &
+inner=$!
+"$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl2.out" 2>&1 &
+other=$!
+sleep 1
+[[ "$(hpl_order)" == "start $hp" ]] || fail "two hooks passes that start together: order after 1 s [$(hpl_order)], want one start"
+rm -f "$HPL_GATE"
+until_true 50 dead "$inner" && until_true 50 dead "$other" || fail "two hooks passes that start together: a pass did not end: $(hpl_order)"
+wait "$inner" 2>/dev/null
+code=$?
+wait "$other" 2>/dev/null
+code2=$?
+inner="" other=""
+[[ $code -eq 0 && $code2 -eq 0 && "$(hpl_order)" == "start $hp|end $hp|start $hp|end $hp" ]] ||
+    fail "two hooks passes that start together: exit $code and $code2, order [$(hpl_order)]"
+# A HUP or a KILL of the call of the hooks pass leaves no command that a long holder misses: HUP
+# stops the process group of the command (it never logs its end), and after KILL the file stays live
+# while that group runs.
+for sig in HUP KILL; do
+    hpl_pass || { fail "$sig: the hooks pass did not start: $(cat "$tmp/hpl.out")"; hpl_end; continue; }
+    WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/bench.sh" NavBench > "$tmp/hpl-long.out" 2>&1 &
+    waiter=$!
+    until_true 50 grep -q 'hooks pass pid' "$tmp/hpl-long.out" || fail "$sig: no wait line for the hooks pass: $(cat "$tmp/hpl-long.out")"
+    kill "-$sig" "$inner"
+    until_true 50 dead "$inner" || fail "$sig: the call of the pass did not end"
+    wait "$inner" 2>/dev/null
+    inner=""
+    sleep 0.5
+    want="start $hp|start bench.sh NavBench|end bench.sh NavBench"
+    if [[ $sig == KILL ]]; then
+        [[ "$(hpl_order)" == "start $hp" ]] || fail "KILL: the long holder did not wait for the command of the pass: order [$(hpl_order)]"
+        want="start $hp|end $hp|start bench.sh NavBench|end bench.sh NavBench"
+    fi
+    rm -f "$HPL_GATE"
+    until_true 50 dead "$(cat "$HPL_STATE.pid")" || fail "$sig: the command of the pass did not end: order [$(hpl_order)]"
+    until_true 50 dead "$waiter" || fail "$sig: the long holder did not end: $(cat "$tmp/hpl-long.out")"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    waiter=""
+    [[ $code -eq 0 && "$(hpl_order)" == "$want" ]] || fail "$sig: exit $code, order [$(hpl_order)], want [$want]"
+done
+# The hooks pass has a hold limit: a pass that never ends gets TERM at the limit and exits 124, and a
+# waiting long holder then starts.
+reset_builders
+rm -rf "$frees"
+rm -f "$HPL_ORDER" "$HPL_STATE" "$HPL_STATE.pid"
+touch "$HPL_GATE"
+WITH_LOCK_MAX_HOLD=1 WITH_LOCK_HOLD_GRACE=1 "$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$tmp/hpl.out" 2>&1 &
+inner=$!
+until_true 50 test -s "$HPL_STATE" || fail "hold limit: the hooks pass did not start: $(cat "$tmp/hpl.out")"
+WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" "$fake/hpl/bench.sh" NavBench > "$tmp/hpl-long.out" 2>&1 &
+waiter=$!
+until_true 100 dead "$inner" || { fail "hold limit: the hooks pass did not stop at WITH_LOCK_MAX_HOLD=1: order [$(hpl_order)]"; rm -f "$HPL_GATE"; }
+dead "$(cat "$HPL_STATE.pid")" || fail "hold limit: the command of the pass runs after the call ended"
+wait "$inner" 2>/dev/null
+code=$?
+until_true 50 dead "$waiter" || fail "hold limit: the long holder did not start after the pass stopped: $(cat "$tmp/hpl-long.out")"
+wait "$waiter" 2>/dev/null
+code2=$?
+hl_pid=$inner inner="" waiter=""
+rm -f "$HPL_GATE"
+[[ $code -eq 124 && $code2 -eq 0 && "$(hpl_order)" == "start $hp|start bench.sh NavBench|end bench.sh NavBench" &&
+    "$(cat "$tmp/hpl.out")" == *'ran past WITH_LOCK_MAX_HOLD (1 s)'* && ! -e "$frees/$hl_pid" ]] ||
+    fail "hold limit: exit $code (want 124), long holder exit $code2, order [$(hpl_order)]: $(cat "$tmp/hpl.out")"
+# A hooks pass that cannot write its lock-free file exits 2 and runs nothing: no long holder could
+# see it.
+reset_builders
+rm -rf "$frees"
+rm -f "$HPL_ORDER" "$HPL_STATE" "$HPL_STATE.pid" "$HPL_GATE"
+mkdir -p "$frees" && chmod a-w "$frees"
+out="$("$repo/scripts/with-lock.sh" "$fake/hpl/make" test-hooks DIRIGIBLE_HOOKS_ALL=1 2>&1)"
+code=$?
+chmod u+w "$frees"
+[[ $code -eq 2 && ! -e "$HPL_ORDER" && "$out" == *'cannot write the lock-free file'*'does not run'* ]] ||
+    fail "unwritable lock-free folder: exit $code (want 2), order [$(hpl_order)]: $out"
 # The hooks pass waits, with no lock, for a long holder that holds the lock.
 HOLDER_COMMAND='make dmg' lockfree freewait "the hooks pass behind make dmg" "$fake/make" test-hooks DIRIGIBLE_HOOKS_ALL=1
 reset_builders

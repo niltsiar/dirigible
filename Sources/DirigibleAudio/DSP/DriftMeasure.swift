@@ -61,9 +61,13 @@ func driftMeasure(
     let reach = searchSeconds * rate
     let block = blockSeconds * rate
     let fineReach = 2 * factor + Int((Double(windowSeconds * rate) * DriftRatio.limit).rounded(.up))
+    /// The full-span scores of the whole-span searches, built at the first one: at 3 h of reference
+    /// they hold about 512 MiB.
+    var fullSpan: (excerptLength: Int, scores: CoarseScores)?
 
     /// The point of the window `range`, searched at the coarse positions `positions` of its first
-    /// frame; nil when it fails the match rule or no block reaches `blockPeak`.
+    /// frame, or over the whole span when nil; nil when it fails the match rule or no block reaches
+    /// `blockPeak`.
     func search(_ range: Range<Int>, at positions: ClosedRange<Int>?) throws(SyncFailure) -> DriftPoint? {
         if isCancelled() { throw .cancelled }
         let frames = try read.clipFrames(range)
@@ -74,12 +78,19 @@ func driftMeasure(
         let wanted = positions ?? 0...last
         guard wanted.overlaps(0...last) else { return nil }
         let searched = wanted.clamped(to: 0...last)
-        let reference = Array(read.reference2k[searched.lowerBound..<searched.upperBound + excerpt.count])
-        guard
-            let coarse = CoarseScores(
-                reference: reference, excerptLength: excerpt.count, separation: matchSeparation(rate: rate),
-                makeSetup: makeSetup)
-        else { throw .read(POSIXError(.ENOMEM)) }
+        let coarse: CoarseScores
+        if positions == nil, let fullSpan, fullSpan.excerptLength == excerpt.count {
+            coarse = fullSpan.scores
+        } else {
+            let reference = Array(read.reference2k[searched.lowerBound..<searched.upperBound + excerpt.count])
+            guard
+                let scores = CoarseScores(
+                    reference: reference, excerptLength: excerpt.count, separation: matchSeparation(rate: rate),
+                    makeSetup: makeSetup)
+            else { throw .read(POSIXError(.ENOMEM)) }
+            coarse = scores
+            if positions == nil { fullSpan = (excerpt.count, scores) }
+        }
         let (position, score) = coarse.match(excerpt)
         guard score.isMatch else { return nil }
         if isCancelled() { throw .cancelled }

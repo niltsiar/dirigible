@@ -1,3 +1,4 @@
+import Accelerate
 import DirigibleCore
 import Foundation
 import Testing
@@ -72,6 +73,30 @@ struct DriftMeasureTests {
     /// within 60 s.
     @Test func aPauseOver60sIsFoundByTheWholeSpan() throws {
         try Self.expectOnePointOnItsLineAroundThePause(DriftPackage(seconds: 720, pause: 90, at: 330))
+    }
+
+    /// The reference holds another voice in cells 1 to 3 and 6 to 8: two runs of windows with no
+    /// match. The 0076 read and the two runs build the full-span coarse scores twice: once for the
+    /// read, and once for both runs.
+    @Test func twoLostRunsBuildTheFullSpanScoresOnce() throws {
+        let (voice, other) = (DriftSignal(seed: 1, seconds: 700), DriftSignal(seed: 2, seconds: 700))
+        let drift = try DriftPackage(
+            seconds: 600, voice: voice,
+            reference: { drift, range in
+                drift.reference(range, voice: voice, other: other, replaced: [1, 2, 3, 6, 7, 8])
+            })
+        var lengths: [vDSP_Length] = []
+        let session = drift.package.session
+        let points = try driftMeasure(
+            of: "C", to: "ref", in: session, package: drift.package.url, span: session.syncSpan("C", to: "ref"),
+            makeSetup: { setup, length, direction in
+                if direction == .FORWARD { lengths.append(length) }
+                return vDSP_DFT_zrop_CreateSetup(setup, length, direction)
+            }
+        ).points
+        #expect(points.map { drift.cellIndex($0.clipFrame) } == [0, 4, 5, 9])
+        let full = try #require(lengths.max())
+        #expect(lengths.filter { $0 == full }.count == 2, "forward setup lengths \(lengths)")
     }
 
     /// Continuous speech from clip second 320 to 341 through a 100 ms and a 20 s skip: the cut is

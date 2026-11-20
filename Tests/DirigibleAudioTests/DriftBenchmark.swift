@@ -106,6 +106,45 @@ struct DriftBenchmark {
         #expect(footprint <= 512 << 20, "peak footprint \(footprint >> 20) MiB")
         expectWithinBudget(Self.median(measure), Self.pausedBudget, "the measure took \(Self.median(measure))")
     }
+
+    /// A 90 s pause at a third of the clip and two 3 min silences of the reference, at 7/12 and
+    /// 10/12 of the clip: three runs of windows with no match search the whole span, so the measure
+    /// builds the full-span coarse scores of a 2 h span for them. The measure and the fit fit 30 s and
+    /// 512 MiB.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func lostRunsFitTheFootprint() throws {
+        let (pause, at, cells) = (90.0, Double(Self.seconds / 3), Self.seconds / 60)
+        let voice = DriftSignal(seed: 1, seconds: 30 + Double(Self.seconds) * 1.01 + pause + 60)
+        let silent = Set([7, 10].flatMap { cells * $0 / 12..<cells * $0 / 12 + 3 })
+        let drift = try Self.twoHourSpan(
+            DriftPackage(
+                seconds: Double(Self.seconds), pause: pause, at: at, voice: voice,
+                reference: { drift, range in
+                    var samples = voice.reference(drift, range)
+                    for cell in silent {
+                        for frame in drift.referenceFrames(of: drift.cell(cell)).clamped(to: range) {
+                            samples[frame - range.lowerBound] = 0
+                        }
+                    }
+                    return samples
+                }))
+        let (session, url) = (drift.package.session, drift.package.url)
+        let span = try session.syncSpan("C", to: "ref")
+        var measure: [Duration] = []
+        for _ in 0..<Self.runs {
+            let clock = ContinuousClock()
+            let start = clock.now
+            let points = try driftMeasure(of: "C", to: "ref", in: session, package: url, span: span).points
+            let fit = try DriftFit(points: points, sampleRate: Double(drift.rate))
+            measure.append(clock.now - start)
+            #expect(fit.segments.count == 2, "\(fit.segments)")
+        }
+        let footprint = peakFootprint()
+
+        Self.report("measure of a \(Self.seconds / 60) min clip with three lost runs", measure, footprint)
+        #expect(footprint <= 512 << 20, "peak footprint \(footprint >> 20) MiB")
+        expectWithinBudget(Self.median(measure), .seconds(30), "the measure took \(Self.median(measure))")
+    }
 }
 
 extension DriftBenchmark {

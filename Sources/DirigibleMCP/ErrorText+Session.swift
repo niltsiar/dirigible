@@ -18,6 +18,7 @@ extension SessionError {
         case .fileIsSource(let id, let file): "file \"\(id)\" is the source of file \"\(file)\"."
         case .invalidOrigin(let id): "file \"\(id)\" has an origin that names no matching source range."
         case .trackInRecording(let id): "track \"\(id)\" is armed in the recording."
+        case .pendingTake: "the session has a take that is not finalized."
         case .layoutMismatch(let track, .file(let file)):
             "file \"\(file)\" does not have the layout of track \"\(track)\"."
         case .layoutMismatch(let track, .route): "the route does not have the layout of track \"\(track)\"."

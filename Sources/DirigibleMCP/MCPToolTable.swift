@@ -33,7 +33,15 @@ enum Arg {
     static let to = Param.required("to", "The frame after the last frame.", .integer())
 }
 
-private let sampleRate = Param.required("sample_rate", "The session sample rate in Hz, more than 0.", .integer())
+private let sampleRate = Param<Int?>.optional(
+    "sample_rate", "The session sample rate in Hz, more than 0, for an empty session. Give this or template.",
+    .integer())
+private let template = Param<String?>.optional(
+    "template",
+    "A session package to copy: the new session has its tracks, clips, markers, show fields, and sample rate, "
+        + "with no transcript and no episode title, number, date, summary, notes, URL, or GUID. Give this or "
+        + "sample_rate.",
+    .string)
 private let infoTracks = Param<[String]?>.optional(
     "tracks", "Only these track IDs, with the files and captures that their clips use.", .strings(minItems: 1))
 private let infoFrom = Param<Int?>.optional(
@@ -45,13 +53,22 @@ private let infoCompact = Param.defaulted(
     false)
 
 let sessionTools = [
-    Tool("session_create", "Make an empty session package.", [sampleRate], saves: false, batch: .alone) {
+    Tool(
+        "session_create", "Make an empty session package, or a new session from a template.", [sampleRate, template],
+        saves: false, batch: .alone
+    ) {
         a throws(ToolError) in
         guard EditRules.isPackagePath(a.package) else { throw ToolError("The package path must end in .dirigible.") }
-        guard let rate = EditRules.sampleRate(try a[sampleRate]) else {
-            throw ToolError("The sample rate must be more than 0.")
+        switch (try a[sampleRate], try a[template]) {
+        case (let rate?, nil):
+            guard let rate = EditRules.sampleRate(rate) else {
+                throw ToolError("The sample rate must be more than 0.")
+            }
+            return .create(.rate(rate))
+        case (nil, let template?): return .create(.template(URL(filePath: template)))
+        case (nil, nil): throw ToolError("Give sample_rate or template.")
+        case (_?, _?): throw ToolError("Give sample_rate or template, not both.")
         }
-        return .create(sampleRate: rate)
     },
     Tool(
         "session_info",

@@ -65,8 +65,11 @@ extension Session {
             guard version >= 8 else { throw .invalidValue(element: "transcripts", attribute: "version") }
             for node in list.sessionElements("transcript") { transcripts.append(try Transcript(node)) }
         }
+        let presets = try ExportPreset.list(in: root, version: version)
 
         self.init(sampleRate: sampleRate)
+        // The reader never refuses a stored name, so the presets skip the collision rule of the edit.
+        exportPresets = presets
         do throws(SessionError) {
             for capture in captures { try addCapture(capture) }
             for file in files { try addFile(file) }

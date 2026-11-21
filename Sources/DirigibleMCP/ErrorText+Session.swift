@@ -104,6 +104,12 @@ extension SessionError {
                 ? "the clip is longer than the longest span that a sync reads."
                 : "the search span is over the longest span that a sync reads; use a within of \(maxWithin) "
                     + "frames or less for this clip."
+        case .invalidPresetName(let name):
+            "the preset name \"\(name)\" must have 1 to \(PresetName.maximumLength) characters, no space at either "
+                + "end, and no control character."
+        case .invalidPreset: "a preset cannot have the float CAF format of render."
+        case .presetNameTaken(let name): "the preset name \"\(name)\" is taken by another preset or a built-in preset."
+        case .unknownPreset(let name): "no preset \"\(name)\"."
         }
     }
 }

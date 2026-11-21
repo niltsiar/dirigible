@@ -52,6 +52,8 @@ import Testing
         session.setEpisode(try EpisodeSessionTests.fullEpisode())
         session.addWords([(1, 0..<4_800, "hello"), (2, 4_800..<9_600, "world")], file: "f1")
         session.addWords([(3, 0..<2_400, "and you")], file: "f2")
+        try session.setExportPreset(ExportPresetTests.preset(#"Feed & "Show""#))
+        try session.setExportPreset(ExportPresetTests.preset("Archive", ExportPresetTests.wav))
         #expect(session.fileVersion == sessionVersion, "the corpus has each versioned feature")
         return session
     }

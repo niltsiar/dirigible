@@ -132,4 +132,15 @@ struct SessionTemplateTests {
 
         #expect(throws: SessionError.pendingTake) { try source.newEpisode() }
     }
+
+    /// E5: a new episode keeps the export presets of the show, in their order.
+    @Test func aNewEpisodeKeepsTheExportPresets() throws {
+        var source = try show()
+        try source.setExportPreset(ExportPresetTests.preset("Show", ExportPresetTests.wav))
+        try source.setExportPreset(ExportPresetTests.preset("Feed"))
+
+        let new = try source.newEpisode().session
+
+        #expect(new.exportPresets == source.exportPresets && ExportPresetTests.names(new) == ["Show", "Feed"])
+    }
 }

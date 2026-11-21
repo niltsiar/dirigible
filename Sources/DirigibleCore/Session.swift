@@ -15,6 +15,9 @@ public struct Session: Hashable, Sendable {
     public private(set) var episode = Episode()
     /// The imported transcripts (decision 0055). `words` shows them.
     var transcripts: [TranscriptID: Transcript] = [:]
+    /// The export presets of the session in the order that the user sees (decision 0080). Empty by
+    /// default; the built-in presets are never stored.
+    public internal(set) var exportPresets: [ExportPreset] = []
 
     public init(sampleRate: Int) {
         precondition(sampleRate > 0, "A sample rate is positive")
@@ -243,8 +246,9 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
-    /// version of the present features: `driftSessionVersion` with a drift link (decision 0077),
-    /// `matchSessionVersion` with a voice match (decision 0074),
+    /// version of the present features: `presetSessionVersion` with an export preset (decision 0080),
+    /// `driftSessionVersion` with a drift link (decision 0077), `matchSessionVersion` with a voice match
+    /// (decision 0074),
     /// `rideSessionVersion` with a ride point, `followSessionVersion`
     /// with a follow track (decision 0073), `preRollSessionVersion` with a pre-roll `<recording>`, 14
     /// with a repair effect in a file origin (decision 0064), 13 with a hum removal in a file origin
@@ -256,6 +260,7 @@ public struct Session: Hashable, Sendable {
     /// else 1.
     public var fileVersion: Int {
         let features = [
+            exportPresets.isEmpty ? nil : presetSessionVersion,
             files.values.contains { $0.drift != nil } ? driftSessionVersion : nil,
             tracks.contains { $0.match != nil } ? matchSessionVersion : nil,
             tracks.contains { $0.clips.contains { !$0.ride.isEmpty } } ? rideSessionVersion : nil,

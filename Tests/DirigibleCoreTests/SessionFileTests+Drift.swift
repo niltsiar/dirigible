@@ -43,7 +43,7 @@ extension SessionFileTests {
 
         let read = try Session(xml: data)
 
-        #expect(driftSessionVersion == matchSessionVersion + 1 && sessionVersion == driftSessionVersion)
+        #expect(driftSessionVersion == matchSessionVersion + 1 && sessionVersion >= driftSessionVersion)
         #expect(text.contains(#"version="19""#), "\(text)")
         #expect(text.contains(#"<drift source="guest" offset="48000" ratio=""#) && text.contains(#"gain="3.01""#))
         let link = try #require(read.files["guest drift"]?.drift)

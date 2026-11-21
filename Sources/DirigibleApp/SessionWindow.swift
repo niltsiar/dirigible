@@ -116,6 +116,7 @@ import SwiftUI
     var exportReport: ExportReportShown?
     var chapterWarnings: ChapterWarningsShown?
     var exportSet: ExportSetShown?
+    var stemsShown: StemsShown?
     /// The cues that the last Export Transcript left out, for its banner at its session revision.
     var transcriptLeftOut: TranscriptLeftOutShown?
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;

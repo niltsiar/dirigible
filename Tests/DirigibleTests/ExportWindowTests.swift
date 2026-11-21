@@ -219,7 +219,7 @@ import os
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
         #expect(model.canExportSelection && model.isOn(.export) && model.isOn(.exportSelection))
 
-        let asking = ExportStep.asking(try #require(model.source(of: .session, in: studio)), [:])
+        let asking = ExportStep.asking(try #require(model.source(of: .session, in: studio)), [:], .mix)
         for (step, record) in [(ExportStep.checking, true), (asking, false), (.choosing, false)] {
             model.exportStep = step
             #expect(!model.canExport && !model.canExportSelection, "\(step)")
@@ -283,11 +283,11 @@ import os
 
         await model.export(.session)
 
-        guard case .asking(_, let faults) = model.exportStep else {
+        guard case .asking(_, let faults, let panel) = model.exportStep else {
             Issue.record("No question: \(String(describing: model.exportStep))")
             return
         }
-        #expect(faults == ["f1": .missing])
+        #expect(faults == ["f1": .missing] && panel == .mix)
         #expect(model.exportQuestionPaths == ["f1.wav"])
         #expect(panelCalls == 0)
         model.answerExportQuestion(export: false)

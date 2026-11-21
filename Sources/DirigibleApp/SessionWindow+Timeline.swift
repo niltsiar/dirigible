@@ -80,7 +80,7 @@ enum TimelineCommand: Hashable, CaseIterable {
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, importTranscript, export,
         exportSelection
     case raiseVolume, lowerVolume, resetVolume
-    case exportChapters, exportTranscript, episodeInfo
+    case exportChapters, exportStems, exportTranscript, episodeInfo
     case autoLevel, autoLevelPerTrack, levelOverTime, removeLevelOverTime, duck, splitStereo, reduceNoise, repairSound
     case restoreOriginal, transcribe
     /// Track > Match Voice > Use as Voice Reference and the same item of the clip menu (decision 0074).
@@ -131,8 +131,8 @@ enum TimelineCommand: Hashable, CaseIterable {
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
-        // Export Transcript and Import Transcript have no key.
-        case .exportTranscript, .importTranscript: false
+        // Export Stems, Export Transcript, and Import Transcript have no key.
+        case .exportStems, .exportTranscript, .importTranscript: false
         case .autoLevel, .autoLevelPerTrack: false
         // A text field does nothing with Shift-Command-L. Remove Level Over Time has no key.
         case .levelOverTime, .removeLevelOverTime: false
@@ -305,6 +305,7 @@ extension SessionWindow {
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }
         case .exportChapters: exportChapters()
+        case .exportStems: Task { await exportStems() }
         case .exportTranscript: exportTranscript()
         case .episodeInfo: showEpisodeInfo()
         case .addGainPoint, .previousGainPoint, .nextGainPoint: runGainPoint(command, studio)

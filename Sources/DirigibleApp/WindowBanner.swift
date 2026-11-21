@@ -69,6 +69,12 @@ enum WindowBanner: Equatable {
     /// A split point that has no file of its own, because it starts at the time of the split point
     /// before it or at the end of the range (decision 0067).
     case exportSetDropped(Marker)
+    /// The file names of the stems over 0 dBFS, where the file writer clips (decision 0078).
+    case stemsClipped([String])
+    /// The mix of the stems is over 0 dBFS, so the stems do not add up to a mix export.
+    case stemsMixClipped
+    /// A stem export that stopped: no stem was written.
+    case stemsStopped
     /// The names of the chapters that the exported file leaves out, because each starts at the
     /// time of another chapter, or at or after the end of the M4A audio (run
     /// 2026-10-11-chapters-in-file, C5f, code gate item D6).
@@ -165,6 +171,9 @@ enum WindowBanner: Equatable {
         case .exportSetDone: "exportSetDone"
         case .exportSetStopped: "exportSetStopped"
         case .exportSetDropped(let marker): "exportSetDropped.\(marker.id)"
+        case .stemsClipped: "stemsClipped"
+        case .stemsMixClipped: "stemsMixClipped"
+        case .stemsStopped: "stemsStopped"
         case .chaptersDropped(_, let file): "chaptersDropped.\(file)"
         case .chapterImagesOmitted(let file): "chapterImagesOmitted.\(file)"
         case .titleMissing(let file): "titleMissing.\(file)"
@@ -195,7 +204,7 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch:
+            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime, .noWordsFound,
@@ -218,6 +227,9 @@ enum WindowBanner: Equatable {
         case .exportSetDone(let files, let low, let high, let old): exportSetDoneText(files, low, high, old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
+        case .stemsClipped(let names): stemsClippedText(names)
+        case .stemsMixClipped: L10n.bannerStemsMixClipped.text
+        case .stemsStopped: L10n.bannerStemsStopped.text
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
@@ -253,8 +265,8 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .chaptersDropped,
-            .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
+        case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .stemsClipped,
+            .stemsMixClipped, .stemsStopped, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .leveledOverTime, .voiceMatched, .voiceMatchRefused,
             .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
@@ -274,6 +286,11 @@ func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [
     }
     if !old.isEmpty { text += " " + L10n.oldFilesText(old) }
     return text
+}
+
+/// "Over 0 dBFS, so these files clip: a.wav, b.wav. ..." `text` gives the value of a key.
+func stemsClippedText(_ names: [String], text: (L10n) -> String = { $0.text }) -> String {
+    String(format: text(.bannerStemsClipped), names.joined(separator: ", "))
 }
 
 /// The text of the take sync banner: "Claude Code moved part of the take audio. Take 4 is out of

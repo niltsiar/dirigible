@@ -2,13 +2,18 @@ import DirigibleCore
 import Foundation
 
 extension Studio {
-    /// Makes a package where nothing exists, then opens it. Throws `.file(.exists)` and changes
-    /// nothing when anything is at the path.
+    /// Makes a package where nothing exists, then opens it: an empty session at a rate, or a copy
+    /// of a template with `copyTemplate` (decision 0079). Throws `.file(.exists)` or
+    /// `.template(_)`, and changes nothing, when anything is at the path.
     public static func create(
-        _ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil, peakCache: URL? = nil,
-        log: DiagnosticLog = .disabled
+        _ package: URL, source: NewSessionSource, recordings: ActiveRecordings? = nil, peakCache: URL? = nil,
+        log: DiagnosticLog = .disabled, copyJobs: CopyJobs? = nil,
+        progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> Studio {
-        try await createPackage(package, sampleRate: sampleRate)
+        switch source {
+        case .rate(let rate): try await createPackage(package, sampleRate: rate)
+        case .template(let template): try await copyTemplate(template, to: package, jobs: copyJobs, progress: progress)
+        }
         return try await open(package, recordings: recordings, peakCache: peakCache, log: log)
     }
 

@@ -26,7 +26,7 @@ extension AppDelegate {
             await open(
                 url,
                 created: try await Studio.create(
-                    url, sampleRate: 48_000, recordings: recordings, peakCache: peakCache, log: log))
+                    url, source: .rate(48_000), recordings: recordings, peakCache: peakCache, log: log))
         } catch {
             return error
         }

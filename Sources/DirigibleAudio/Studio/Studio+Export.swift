@@ -16,6 +16,8 @@ struct ExportJob {
     let report: @MainActor @Sendable (Double) -> Void
     /// A cancel of it reaches the cancel flag of the GCD job; its end is the end of the job.
     let task: Task<Void, Never>
+    /// A Save as Template copy (decision 0079): Remove Unused Files waits for its end.
+    var isTemplate = false
 }
 
 /// The cause of an export or an import end before its end: Cancel in the export sheet or the
@@ -97,15 +99,16 @@ extension Studio {
         if exportJob?.number == job.number { exportJob = nil }
     }
 
-    /// `endExport` and `endReads` of this studio, and `endExport`, `endImport`, and `endReads` of
-    /// each other studio, for a take start (`prepareTake`, off the main actor): capture comes first
-    /// across windows (decisions 0019, 0040, and 0062). Nil when no export, import, or read runs:
-    /// then the start needs no main-actor turn for it. An export, an import, or a read of another
-    /// studio that starts during the take start runs on; the disk check of the take watches the
-    /// export and the import.
+    /// `endExport` and `endReads` of this studio, `endExport`, `endImport`, and `endReads` of each
+    /// other studio, and the end of each job of `copyJobs`, for a take start (`prepareTake`, off
+    /// the main actor): capture comes first across windows (decisions 0019, 0040, 0062, and 0079).
+    /// Nil when no export, import, read, or copy runs: then the start needs no main-actor turn for
+    /// it. An export, an import, a read, or a copy that starts during the take start runs on; the
+    /// disk check of the take watches the export, the import, and the copy.
     func exportEnd() -> (@MainActor @Sendable () async -> Void)? {
         let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil || !$0.readRuns.isEmpty }
-        guard exportJob != nil || !readRuns.isEmpty || !others.isEmpty else { return nil }
+        let copies = copyJobs?.jobs ?? []
+        guard exportJob != nil || !readRuns.isEmpty || !others.isEmpty || !copies.isEmpty else { return nil }
         return { [weak self] in
             self?.endReads(.take)
             await self?.endExport(.take)
@@ -114,17 +117,24 @@ extension Studio {
                 await studio.endExport(.take, yielding: true)
                 studio.endImport(.take)
             }
+            for job in copies { await job.end() }
         }
     }
 
-    /// Ends the exports of the other studios to the volume of the package, and the imports of
-    /// the other studios whose package is on it, for the disk check of a take. True when an export
-    /// ran or when this call set the flag of an import. An import whose flag is already set (by
-    /// Cancel, `settle()`, or another take) does not count, so a stalled import read cannot keep
-    /// the take from its disk-low stop at the next check (code gate 2). The volume reads run off
-    /// the main actor.
+    /// Ends the exports of the other studios and the jobs of `copyJobs` to the volume of the
+    /// package, and the imports of the other studios whose package is on it, for the disk check of
+    /// a take. True when an export or a copy ran or when this call set the flag of an import. An
+    /// import whose flag is already set (by Cancel, `settle()`, or another take) does not count,
+    /// so a stalled import read cannot keep the take from its disk-low stop at the next check (code
+    /// gate 2). The volume reads run off the main actor.
     func endOtherExports(onVolumeOf lock: PackageLock) async -> Bool {
         var ended = false
+        for job in copyJobs?.jobs ?? [] {
+            if await onVolume(job.url.deletingLastPathComponent(), of: lock) {
+                await job.end()
+                ended = true
+            }
+        }
         for studio in otherStudios() {
             if let job = studio.exportJob, await onVolume(job.url.deletingLastPathComponent(), of: lock) {
                 await studio.endExport(.take, yielding: true)
@@ -156,22 +166,31 @@ extension Studio {
     /// caller awaits takes the priority of that caller, so the chunk loop does not run in one (plan
     /// gate 1). On a GCD thread `Task.isCancelled` is false, so a cancel of the job sets a flag that
     /// the loop reads.
-    private func jobTask<Value: Sendable>(
+    func jobTask<Value: Sendable>(
         _ work: @escaping @Sendable (_ package: () throws(SessionFileError) -> URL, _ isCancelled: () -> Bool) -> Value
     ) -> Task<Value, Never> {
         let (lock, step) = (lock, environment.exportChunk)
+        return Self.utilityTask { isCancelled in
+            work(
+                { () throws(SessionFileError) -> URL in try lock.package() },
+                {
+                    step()
+                    return isCancelled()
+                })
+        }
+    }
+
+    /// `work` on a utility GCD thread, with the cancel flag that a cancel of the task sets: the
+    /// thread of `jobTask` and of the template copy of `create`.
+    static func utilityTask<Value: Sendable>(
+        _ work: @escaping @Sendable (_ isCancelled: () -> Bool) -> Value
+    ) -> Task<Value, Never> {
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         return Task {
             await withTaskCancellationHandler {
                 await withCheckedContinuation { continuation in
                     DispatchQueue.global(qos: .utility).async {
-                        let result = work(
-                            { () throws(SessionFileError) -> URL in try lock.package() },
-                            {
-                                step()
-                                return cancelled.withLock { $0 }
-                            })
-                        continuation.resume(returning: result)
+                        continuation.resume(returning: work { cancelled.withLock { $0 } })
                     }
                 }
             } onCancel: {
@@ -181,7 +200,7 @@ extension Studio {
     }
 
     /// The `ExportJob.task` of `task`: its cancel cancels `task`, so it reaches the flag of the job.
-    private static func handle<Value: Sendable>(_ task: Task<Value, Never>) -> Task<Void, Never> {
+    static func handle<Value: Sendable>(_ task: Task<Value, Never>) -> Task<Void, Never> {
         Task {
             await withTaskCancellationHandler {
                 _ = await task.value

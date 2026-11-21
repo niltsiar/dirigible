@@ -41,6 +41,9 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A stem export never throws `.export` or `.exportYielded`; `exportStop` gives the cause of a
     /// stop.
     case exportStems(ExportStemsError)
+    /// A template copy (Save as Template, or a new session from a template) refused or stopped:
+    /// `.cancelled` when a take start, `settle()`, or Cancel ended it (decision 0079).
+    case template(TemplateError)
     /// The import failed or was cancelled (decision 0040).
     case audioImport(ImportError)
     /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session

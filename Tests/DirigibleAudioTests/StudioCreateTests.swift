@@ -13,7 +13,7 @@ struct StudioCreateTests {
     init() throws { folder = try TemporaryFolder() }
 
     @Test func createOpensANewPackage() async throws {
-        let studio = try await Studio.create(url, sampleRate: 48_000)
+        let studio = try await Studio.create(url, source: .rate(48_000))
 
         #expect(studio.session == Session(sampleRate: 48_000))
         #expect(studio.url == packageIdentity(url))
@@ -25,7 +25,7 @@ struct StudioCreateTests {
         try Session(sampleRate: 44_100).write(to: url)
         let before = try Data(contentsOf: url.appending(path: "session.xml"))
 
-        await #expect(throws: StudioError.file(.exists)) { _ = try await Studio.create(url, sampleRate: 48_000) }
+        await #expect(throws: StudioError.file(.exists)) { _ = try await Studio.create(url, source: .rate(48_000)) }
 
         #expect(try Data(contentsOf: url.appending(path: "session.xml")) == before)
     }

@@ -97,6 +97,8 @@ extension SessionName.Refusal {
     private(set) var template: URL?
     /// The fraction of the copy of a template create while it runs; nil with no template or no create.
     private(set) var createProgress: Double?
+    /// The number of the last Create. A progress hop carries the number of its Create.
+    @ObservationIgnored private(set) var createNumber = 0
     /// Counts the picks of Show Templates in Finder: the pop-up takes it as its identity, so it draws the old
     /// choice again.
     private(set) var popUpRefresh = 0
@@ -183,6 +185,13 @@ extension SessionName.Refusal {
     /// Cancel of a template create: the copy ends, and the form shows again with no alert.
     func cancelCreate() { createTask?.cancel() }
 
+    /// A progress hop of Create `number`. A hop comes after the copy thread made it, so it can come after the end
+    /// of its Create: that hop changes nothing.
+    func createProgressed(_ number: Int, _ fraction: Double) {
+        guard number == createNumber, createProgress != nil else { return }
+        createProgress = fraction
+    }
+
     /// Starts the scan of the folder: the first free name and the folder text.
     private func scan() {
         guard let app else { return }
@@ -219,7 +228,8 @@ extension SessionName.Refusal {
     func create() {
         guard !creating, let app, let session = try? SessionName(name) else { return }
         creating = true
-        let template = template
+        createNumber += 1
+        let (template, number) = (template, createNumber)
         createProgress = template == nil ? nil : 0
         let (folder, exists) = (folder, app.exists)
         let makesFolder = folder.path == app.defaultFolder?.path
@@ -227,7 +237,7 @@ extension SessionName.Refusal {
         createTask = Task {
             if makesFolder { await makeFolder(folder, exists: exists) }
             let error = await app.createSession(at: url, template: template) { [weak self] in
-                self?.createProgress = $0
+                self?.createProgressed(number, $0)
             }
             createProgress = nil
             guard let error else { return }
@@ -311,30 +321,6 @@ extension SessionName.Refusal {
         guard !creating else { return }
         app?.showOpenPanel()
     }
-}
-
-/// The first free name ("Episode N" with no package of that name) and the Finder names of the
-/// folder and its parent. It reads the file system, so it runs off the main actor.
-@concurrent nonisolated func scanFolder(
-    _ folder: URL, format: @Sendable (Int) -> String, exists: @Sendable (URL) -> Bool
-) async -> FolderScan {
-    var number = 1
-    while exists(folder.appending(path: "\(format(number)).dirigible")) { number += 1 }
-    let names = [folder.deletingLastPathComponent(), folder].map { FileManager.default.displayName(atPath: $0.path) }
-    return FolderScan(folder: folder, name: format(number), text: names.joined(separator: " › "))
-}
-
-/// Checks that each recent package exists. It reads the file system, so it runs off the main
-/// actor.
-@concurrent nonisolated func scanRecent(_ urls: [URL], exists: @Sendable (URL) -> Bool) async -> [RecentRow] {
-    urls.map { RecentRow(url: $0, exists: exists($0)) }
-}
-
-/// Makes the folder, one level only, when it is missing. A failure shows later as the error of
-/// the Create.
-@concurrent nonisolated func makeFolder(_ folder: URL, exists: @Sendable (URL) -> Bool) async {
-    guard !exists(folder) else { return }
-    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
 }
 
 /// The start window (decision 0027) and its `NSWindowDelegate`. `AppDelegate` owns it while it

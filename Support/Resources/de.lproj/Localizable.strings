@@ -1004,3 +1004,4 @@
 "error.template.write" = "Dirigible kann „%1$@“ nicht kopieren (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.template.exists" = "Ein Objekt mit diesem Namen existiert bereits. Dirigible hat es nicht ersetzt.";
 "error.template.trash" = "Dirigible konnte die alte Vorlage „%@“ nicht in den Papierkorb legen. Es wurde nichts gesichert.";
+"error.template.open" = "Die Vorlage „%@“ ist in einem Fenster geöffnet. Schließe sie und versuche es erneut. Es wurde nichts gesichert.";

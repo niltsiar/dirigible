@@ -1004,3 +1004,4 @@
 "error.template.write" = "O Dirigible não pode copiar “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";
 "error.template.exists" = "Já existe um item com este nome. O Dirigible não o substituiu.";
 "error.template.trash" = "O Dirigible não conseguiu mover o modelo antigo “%@” para o Lixo. Nada foi salvo.";
+"error.template.open" = "O modelo “%@” está aberto em uma janela. Feche-o e tente novamente. Nada foi salvo.";

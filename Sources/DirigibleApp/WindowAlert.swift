@@ -57,6 +57,8 @@ enum WindowAlert: Hashable {
     case transcribeNoData(StudioError, TranscribeRequest)
     /// Replace in Save as Template could not move the old template, named here, to the Trash.
     case templateTrash(String)
+    /// Replace in Save as Template found the old template, named here, open in a window or another process.
+    case templateOpen(String)
 
     /// The alert of a failed transcription job of `request`. Only a fault of the model file of the
     /// user gives Locate...: a missing helper, a helper that does not start, and an engine error

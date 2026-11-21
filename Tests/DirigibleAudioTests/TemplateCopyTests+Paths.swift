@@ -67,6 +67,60 @@ extension TemplateCopyTests {
         }
     }
 
+    /// A case-sensitive template volume holds `A.wav` and `a.wav` as two files. A target that ignores case has one
+    /// name for both, so the copy makes nothing: no clip of the new session plays the audio of the other file.
+    /// Slow: it makes a disk image.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func twoFilesOfOneNameInTwoCasesMakeNothingOnATargetThatIgnoresCase() throws {
+        let fixture = try TemplateFixture()
+        let values = try fixture.folder.url.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
+        try #require(values.volumeSupportsCaseSensitiveNames == false, "the temporary folder must ignore case")
+        try fixture.session.addFile(AudioFile(id: FileID("d"), path: "A.wav", layout: .mono, length: 88_200))
+        try fixture.session.place(
+            Clip(id: ClipID("d"), file: FileID("d"), start: Frames(500_000), offset: 0, length: 88_200), on: "t")
+        try fixture.session.write(to: fixture.template)
+        let image = fixture.folder.url.appending(path: "cased.dmg")
+        let volume = fixture.folder.url.appending(path: "volume")
+        try FullDiskTests.hdiutil(
+            "create", "-size", "20m", "-fs", "Case-sensitive HFS+", "-volname", "DirigibleCased", image.path)
+        try FullDiskTests.hdiutil("attach", image.path, "-nobrowse", "-mountpoint", volume.path)
+        defer { try? FullDiskTests.hdiutil("detach", volume.path, "-force") }
+        let template = volume.appending(path: "Show.dirigible")
+        try FileManager.default.copyItem(at: fixture.template, to: template)
+        try Data(repeating: 1, count: 4_000).write(to: template.appending(path: "Clips/A.wav"))
+        var seams = TemplateCopySeams()
+        seams.freeBytes = { _ in .max }
+
+        #expect(
+            throws: TemplateError.write(file: "Clips/a.wav", errno: EEXIST),
+            "the copy refuses two files that one name holds on the target"
+        ) {
+            try createSession(
+                at: fixture.target, template: template, progress: { _ in }, isCancelled: { false }, seams: seams)
+        }
+        #expect(!FileManager.default.fileExists(atPath: fixture.target.path))
+    }
+
+    /// Two names of one file (a hard link) are two pool paths: the new package has a file for each name.
+    @Test func aHardLinkPairKeepsBothNames() throws {
+        let fixture = try TemplateFixture()
+        let first = fixture.template.appending(path: "Clips/a.wav")
+        try FileManager.default.linkItem(at: first, to: fixture.template.appending(path: "Clips/h.wav"))
+        try fixture.session.addFile(AudioFile(id: FileID("h"), path: "h.wav", layout: .mono, length: 88_200))
+        try fixture.session.place(
+            Clip(id: ClipID("h"), file: FileID("h"), start: Frames(500_000), offset: 0, length: 88_200), on: "t")
+        try fixture.session.write(to: fixture.template)
+
+        try createSession(
+            at: fixture.target, template: fixture.template, progress: { _ in }, isCancelled: { false },
+            seams: TemplateCopySeams())
+
+        #expect(
+            FileManager.default.contents(atPath: fixture.target.appending(path: "Clips/h.wav").path)
+                == FileManager.default.contents(atPath: first.path),
+            "the second name of the hard link has its file")
+    }
+
     @Test func filePathsDropDotComponentsAndRepeats() throws {
         var session = Session(sampleRate: 44_100)
         try session.addTrack("t", name: "Host", layout: .mono)

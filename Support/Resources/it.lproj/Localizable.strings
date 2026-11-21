@@ -585,6 +585,16 @@
 "panel.export.note.one" = "%lld traccia muta o non in assolo: non è nell’esportazione.";
 "panel.export.note.many" = "%lld tracce mute o non in assolo: non sono nell’esportazione.";
 "panel.export.note.silent" = "Nessuna traccia è udibile: il file sarà silenzioso.";
+"panel.stems.folder.name" = "Nome della cartella";
+"panel.stems.scope.whole" = "%1$lld su %2$lld tracce, l’intera sessione";
+"panel.stems.scope.range" = "%1$lld su %2$lld tracce, da %3$@ a %4$@";
+"panel.stems.content" = "Ogni file di stem contiene le sue tracce con il loro guadagno e i loro effetti, come nel mix.";
+"panel.stems.role.none" = "Senza ruolo";
+"panel.stems.name.too.long" = "Il nome della cartella supera %lld byte. Usa un nome più corto.";
+"panel.stems.group" = "Un file per";
+"panel.stems.group.track" = "Traccia";
+"panel.stems.group.role" = "Ruolo";
+"panel.stems.default.name" = "Stem di %@";
 "panel.export.format.wav" = "WAV";
 "panel.export.format.aac" = "AAC (.m4a)";
 "panel.export.format.mp3" = "MP3";

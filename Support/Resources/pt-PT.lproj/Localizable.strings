@@ -585,6 +585,16 @@
 "panel.export.note.one" = "%lld faixa sem som ou sem solo: fora da exportação.";
 "panel.export.note.many" = "%lld faixas sem som ou sem solo: fora da exportação.";
 "panel.export.note.silent" = "Nenhuma faixa é ouvida: o ficheiro ficará em silêncio.";
+"panel.stems.folder.name" = "Nome da pasta";
+"panel.stems.scope.whole" = "%1$lld de %2$lld faixas, a sessão inteira";
+"panel.stems.scope.range" = "%1$lld de %2$lld faixas, de %3$@ a %4$@";
+"panel.stems.content" = "Cada ficheiro de stem contém as suas faixas com o seu ganho e os seus efeitos, como na mistura.";
+"panel.stems.role.none" = "Sem função";
+"panel.stems.name.too.long" = "O nome da pasta excede %lld bytes. Use um nome mais curto.";
+"panel.stems.group" = "Um ficheiro por";
+"panel.stems.group.track" = "Faixa";
+"panel.stems.group.role" = "Função";
+"panel.stems.default.name" = "Stems de %@";
 "panel.export.format.wav" = "WAV";
 "panel.export.format.aac" = "AAC (.m4a)";
 "panel.export.format.mp3" = "MP3";

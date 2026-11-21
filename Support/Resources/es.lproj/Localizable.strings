@@ -585,6 +585,16 @@
 "panel.export.note.one" = "%lld pista silenciada o sin solo: no está en la exportación.";
 "panel.export.note.many" = "%lld pistas silenciadas o sin solo: no están en la exportación.";
 "panel.export.note.silent" = "No se oye ninguna pista: el archivo estará en silencio.";
+"panel.stems.folder.name" = "Nombre de la carpeta";
+"panel.stems.scope.whole" = "%1$lld de %2$lld pistas, toda la sesión";
+"panel.stems.scope.range" = "%1$lld de %2$lld pistas, de %3$@ a %4$@";
+"panel.stems.content" = "Cada archivo de stem contiene sus pistas con su ganancia y sus efectos, como en la mezcla.";
+"panel.stems.role.none" = "Sin función";
+"panel.stems.name.too.long" = "El nombre de la carpeta supera los %lld bytes. Usa un nombre más corto.";
+"panel.stems.group" = "Un archivo por";
+"panel.stems.group.track" = "Pista";
+"panel.stems.group.role" = "Función";
+"panel.stems.default.name" = "Stems de %@";
 "panel.export.format.wav" = "WAV";
 "panel.export.format.aac" = "AAC (.m4a)";
 "panel.export.format.mp3" = "MP3";

@@ -126,7 +126,7 @@ struct StudioTemplateTests {
 
         let host = try await StudioExportTests().start(.startTake, studioA, a)
 
-        await #expect(throws: StudioError.template(.cancelled)) { try await save.value }
+        await #expect(throws: StudioError.templateYielded) { try await save.value }
         #expect(studioB.exportStop == .take)
         #expect(try names(b) == ["Mix.dirigible"], "no template, staging folder, or lock file")
         try await StudioExportTests().recordAndStop(studioA, hal, from: host)
@@ -151,7 +151,7 @@ struct StudioTemplateTests {
         studioA.otherStudios = { [studioB] }
         folderB.value = b.package.folder.url
 
-        await #expect(throws: StudioError.template(.cancelled)) { try await save.value }
+        await #expect(throws: StudioError.templateYielded) { try await save.value }
         #expect(studioB.exportStop == .take)
         #expect(try names(b) == ["Mix.dirigible"], "no template, staging folder, or lock file")
         try? await Task.sleep(for: .milliseconds(300))
@@ -247,7 +247,7 @@ struct StudioTemplateCreateTests {
 
         let host = try await StudioExportTests().start(.startTake, studio, fixture)
 
-        await #expect(throws: StudioError.template(.cancelled)) { _ = try await create.value }
+        await #expect(throws: StudioError.templateYielded) { _ = try await create.value }
         #expect(template.parentNames == ["Show.dirigible"], "no package, staging folder, or lock file")
         #expect(jobs.jobs.isEmpty)
         try await StudioExportTests().recordAndStop(studio, hal, from: host)
@@ -269,7 +269,7 @@ struct StudioTemplateCreateTests {
         studio.copyJobs = jobs
         let (target, source) = (template.target, template.template)
 
-        await #expect(throws: StudioError.template(.cancelled)) {
+        await #expect(throws: StudioError.templateYielded) {
             _ = try await Studio.create(target, source: .template(source), copyJobs: jobs)
         }
 

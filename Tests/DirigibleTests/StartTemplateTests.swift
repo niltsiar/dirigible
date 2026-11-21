@@ -310,4 +310,30 @@ extension StartWindowTests {
         #expect(errors.isEmpty, "a cancel shows no alert")
         await closeAll(app)
     }
+
+    /// A take ends the copy as `exportEnd` and the take disk check do: the start window shows the alert.
+    @Test func aTakeStopOfATemplateCreateShowsAnAlert() async throws {
+        let (app, _, _) = appWithDefaults()
+        let a = try await makeTemplate("Alpha", files: 2)
+        var errors: [StudioError] = []
+        app.showError = { errors.append($0) }
+        let hold = CopyHold()
+        app.copyJobs.beforeCopy = { _ in hold.hold() }
+        let model = try await startModel(app)
+        model.choose(.template(a))
+        model.edit("Ep")
+        model.create()
+        await until("the copy holds in its first file") { hold.isHeld }
+        let job = try #require(app.copyJobs.jobs.first)
+
+        let end = Task { await job.end() }
+        await until("the take end sets the cancel flag") { job.task.isCancelled }
+        hold.release()
+        await end.value
+        await model.createTask?.value
+
+        #expect(errors == [.templateYielded], "a take stop shows its alert")
+        #expect(app.windows.isEmpty && !model.creating, "no window opens, and the form shows again")
+        await closeAll(app)
+    }
 }

@@ -989,4 +989,5 @@ enum L10n: String, CaseIterable {
     case errorTemplateExists = "error.template.exists"
     case errorTemplateTrash = "error.template.trash"
     case errorTemplateOpen = "error.template.open"
+    case errorTemplateYielded = "error.template.yielded"
 }

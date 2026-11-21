@@ -176,6 +176,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .rangeOutsideReference, .syncNoMatch:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .exportStems, .template,
+        .templateYielded,
         .audioImport, .importYielded, .paste,
         .pasteYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,

@@ -6,15 +6,23 @@ import Foundation
 /// each copy, and the disk check of a take ends each copy into a folder on its volume. The app
 /// holds one list, and gives it to `create` and to the studio of each window.
 @MainActor public final class CopyJobs {
-    struct Job {
+    @MainActor final class Job {
         let number: Int
         /// The new package.
         let url: URL
         /// A cancel of it sets the cancel flag of the copy; its end is the end of the copy.
         let task: Task<Void, Never>
+        /// True after `end()`: a take, not the caller, stopped the copy.
+        private(set) var yielded = false
 
-        /// Sets the cancel flag and waits for the end of the copy.
+        init(number: Int, url: URL, task: Task<Void, Never>) {
+            (self.number, self.url, self.task) = (number, url, task)
+        }
+
+        /// The end for a take start or the take disk check: sets the cancel flag and waits for the
+        /// end of the copy.
         func end() async {
+            yielded = true
             task.cancel()
             await task.value
         }
@@ -27,10 +35,11 @@ import Foundation
 
     public init() {}
 
-    func add(_ url: URL, _ task: Task<Void, Never>) -> Int {
+    func add(_ url: URL, _ task: Task<Void, Never>) -> Job {
         count += 1
-        jobs.append(Job(number: count, url: url, task: task))
-        return count
+        let job = Job(number: count, url: url, task: task)
+        jobs.append(job)
+        return job
     }
 
     func remove(_ number: Int) { jobs.removeAll { $0.number == number } }
@@ -38,8 +47,9 @@ import Foundation
 
 extension Studio {
     /// The copy of `create` with a template: `createSession` on a utility thread, a job of `jobs`
-    /// while it runs. A cancel of the caller, a take start, and the take disk check end it; then
-    /// it throws `.template(.cancelled)`. `progress` gets the fraction on the main actor.
+    /// while it runs. A cancel of the caller ends it with `.template(.cancelled)`; a take start
+    /// and the take disk check end it with `.templateYielded`. `progress` gets the fraction on the
+    /// main actor.
     static func copyTemplate(
         _ template: URL, to package: URL, jobs: CopyJobs?, progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) {
@@ -59,13 +69,14 @@ extension Studio {
                 }
             }
         }
-        let number = jobs?.add(package, handle(task))
+        let job = jobs?.add(package, handle(task))
         let result = await withTaskCancellationHandler {
             await task.value
         } onCancel: {
             task.cancel()
         }
-        if let number { jobs?.remove(number) }
+        if let job { jobs?.remove(job.number) }
+        if case .failure(.cancelled) = result, job?.yielded == true { throw .templateYielded }
         do { try result.get() } catch { throw .template(error) }
     }
 }
@@ -74,9 +85,10 @@ extension Studio {
     /// Saves the session of now as a template package at `url` (decision 0079): `newEpisode()`
     /// of the session, and its files from the package, with `copyNewEpisode`. It runs in the
     /// export job slot with the job URL at the template, so it throws `.busy` as `export`, and a
-    /// take start in this or another studio, `settle()`, and the take disk check of another studio
-    /// on its volume end it: then it throws `.template(.cancelled)`, and `exportStop` gives the
-    /// cause. A pending take throws `.busy`. `progress` gets the fraction on the main actor.
+    /// take start in this studio and `settle()` end it with `.template(.cancelled)`, as for
+    /// `export`; a take start and the take disk check of another studio on its volume end it with
+    /// `.templateYielded`. `exportStop` gives the cause. A pending take throws `.busy`. `progress`
+    /// gets the fraction on the main actor.
     public func saveTemplate(
         to url: URL, progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) {
@@ -115,6 +127,7 @@ extension Studio {
             task.cancel()
         }
         if exportJob?.number == number { exportJob = nil }
+        if case .failure(.cancelled) = result, yieldedExport == number { throw .templateYielded }
         do { try result.get() } catch { throw .template(error) }
     }
 }

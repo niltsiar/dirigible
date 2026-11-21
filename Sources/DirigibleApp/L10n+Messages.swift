@@ -47,6 +47,7 @@ extension L10n {
         case .exportStems(.publish(.exists)): return errorExportExists.text
         case .exportStems(.publish(let error)): return message(for: error)
         case .template(let error): return message(for: error)
+        case .templateYielded: return errorTemplateYielded.text
         case .audioImport(.session(let error)): return message(for: error, name: name)
         case .audioImport(let error): return message(for: error)
         case .importYielded(let file): return errorImportYielded.format(file)

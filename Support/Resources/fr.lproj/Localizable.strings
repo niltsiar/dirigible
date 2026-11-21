@@ -1005,3 +1005,4 @@
 "error.template.exists" = "Un élément portant ce nom existe déjà. Dirigible ne l’a pas remplacé.";
 "error.template.trash" = "Dirigible n’a pas pu placer l’ancien modèle « %@ » dans la corbeille. Rien n’a été enregistré.";
 "error.template.open" = "Le modèle « %@ » est ouvert dans une fenêtre. Fermez-le et réessayez. Rien n’a été enregistré.";
+"error.template.yielded" = "Une prise a arrêté la copie du modèle. Rien n’a été créé. Réessayez après la prise.";

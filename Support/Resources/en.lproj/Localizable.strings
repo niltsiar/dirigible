@@ -1005,3 +1005,4 @@
 "error.template.exists" = "An item with this name exists. Dirigible did not replace it.";
 "error.template.trash" = "Dirigible could not move the old template “%@” to the Trash. Nothing was saved.";
 "error.template.open" = "The template “%@” is open in a window. Close it and try again. Nothing was saved.";
+"error.template.yielded" = "A take stopped the template copy. Nothing was made. Try again after the take.";

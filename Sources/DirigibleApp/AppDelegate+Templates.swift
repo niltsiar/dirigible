@@ -145,15 +145,27 @@ struct TemplateKeeps: Equatable, Sendable {
 }
 
 /// The template group of the File menu, after the Export items (T18).
-enum TemplateMenu {
+enum TemplateMenu: CaseIterable {
     case saveAs, showInFinder
-
-    static let group: [TemplateMenu] = [.saveAs, .showInFinder]
 
     var title: L10n {
         switch self {
         case .saveAs: .menuFileSaveTemplate
         case .showInFinder: .menuFileShowTemplates
+        }
+    }
+
+    @MainActor func isOn(in app: AppDelegate) -> Bool {
+        switch self {
+        case .saveAs: app.key?.canSaveTemplate == true
+        case .showInFinder: app.templatesFolder != nil
+        }
+    }
+
+    @MainActor func run(in app: AppDelegate) async {
+        switch self {
+        case .saveAs: await app.key?.saveAsTemplate()
+        case .showInFinder: await app.showTemplatesInFinder()
         }
     }
 }

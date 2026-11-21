@@ -298,9 +298,9 @@ import os
 
     /// T18: the two items are a group of their own, and no Export item is between them.
     @Test func theTemplateItemsAreAGroupOfTheirOwn() {
-        #expect(TemplateMenu.group.map(\.title) == [.menuFileSaveTemplate, .menuFileShowTemplates])
+        #expect(TemplateMenu.allCases.map(\.title) == [.menuFileSaveTemplate, .menuFileShowTemplates])
         let exports = TimelineCommand.fileItems.map(\.title)
-        #expect(TemplateMenu.group.allSatisfy { !exports.contains($0.title) }, "the items are no Export item")
+        #expect(TemplateMenu.allCases.allSatisfy { !exports.contains($0.title) }, "the items are no Export item")
     }
 
     // MARK: T12 and T7

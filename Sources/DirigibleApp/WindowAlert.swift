@@ -62,6 +62,9 @@ enum WindowAlert: Hashable {
     /// Replace in Save as Template moved the old template, named here, to the Trash, and could not rename the new
     /// one to the name: the path of the new one in its temporary folder.
     case templateNewKept(String, path: String)
+    /// Replace in Save as Template saved the new template, named here, and could not move the old one to the Trash
+    /// or back to the name: the path of the old one in its temporary folder.
+    case templateOldKept(String, path: String)
 
     /// The alert of a failed transcription job of `request`. Only a fault of the model file of the
     /// user gives Locate...: a missing helper, a helper that does not start, and an engine error

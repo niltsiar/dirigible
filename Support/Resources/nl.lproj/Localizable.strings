@@ -1005,5 +1005,6 @@
 "error.template.exists" = "Er bestaat al een onderdeel met deze naam. Dirigible heeft het niet vervangen.";
 "error.template.trash" = "Dirigible kon het oude sjabloon '%@' niet naar de prullenmand verplaatsen. Er is niets bewaard.";
 "error.template.open" = "Het sjabloon '%@' is geopend in een venster. Sluit het en probeer het opnieuw. Er is niets bewaard.";
+"error.template.kept.old" = "Het nieuwe sjabloon '%1$@' is bewaard. Dirigible kon het oude sjabloon niet naar de prullenmand verplaatsen. Het oude sjabloon staat in een tijdelijke map: verplaats het om het te houden.\n\n%2$@";
 "error.template.kept.new" = "Het oude sjabloon '%1$@' staat in de prullenmand. Dirigible kon het nieuwe sjabloon niet onder zijn naam bewaren. Het nieuwe sjabloon staat in een tijdelijke map: verplaats het om het te houden.\n\n%2$@";
 "error.template.yielded" = "Een take heeft het kopiëren van het sjabloon gestopt. Er is niets gemaakt. Probeer het opnieuw na de take.";

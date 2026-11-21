@@ -990,5 +990,6 @@ enum L10n: String, CaseIterable {
     case errorTemplateTrash = "error.template.trash"
     case errorTemplateOpen = "error.template.open"
     case errorTemplateKeptNew = "error.template.kept.new"
+    case errorTemplateKeptOld = "error.template.kept.old"
     case errorTemplateYielded = "error.template.yielded"
 }

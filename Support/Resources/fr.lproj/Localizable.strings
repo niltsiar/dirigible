@@ -1005,5 +1005,6 @@
 "error.template.exists" = "Un élément portant ce nom existe déjà. Dirigible ne l’a pas remplacé.";
 "error.template.trash" = "Dirigible n’a pas pu placer l’ancien modèle « %@ » dans la corbeille. Rien n’a été enregistré.";
 "error.template.open" = "Le modèle « %@ » est ouvert dans une fenêtre. Fermez-le et réessayez. Rien n’a été enregistré.";
+"error.template.kept.old" = "Le nouveau modèle « %1$@ » a été enregistré. Dirigible n’a pas pu placer l’ancien modèle dans la corbeille. L’ancien modèle est dans un dossier temporaire : déplacez-le pour le conserver.\n\n%2$@";
 "error.template.kept.new" = "L’ancien modèle « %1$@ » est dans la corbeille. Dirigible n’a pas pu enregistrer le nouveau modèle sous son nom. Le nouveau modèle est dans un dossier temporaire : déplacez-le pour le conserver.\n\n%2$@";
 "error.template.yielded" = "Une prise a arrêté la copie du modèle. Rien n’a été créé. Réessayez après la prise.";

@@ -20,13 +20,13 @@ struct BatchRoleTests {
         "clip_ripple_trim", "silence_edit",
     ]
 
-    /// The 35 tools that are never a step.
+    /// The 36 tools that are never a step.
     static let alone: Set<String> = [
         "session_create", "session_info", "episode_get", "file_prune", "backup_list", "backup_revert",
         "clip_split_stereo", "clip_denoise", "clip_repair", "clip_level_over_time", "clip_sync", "transcript_import",
         "transcript_words", "transcript_cut",
         "transcript_export", "transcribe", "take_map", "record", "transport_play", "transport_stop", "transport_locate",
-        "loudness", "export", "render", "level", "duck", "import", "silences", "nearest_pause", "meter",
+        "loudness", "export", "render", "export_stems", "level", "duck", "import", "silences", "nearest_pause", "meter",
         "chapters_export", "chapters_import", "devices", "apps", "batch",
     ]
 
@@ -83,7 +83,7 @@ struct BatchRoleTests {
     }
 
     @Test func eachToolHasItsBatchRole() {
-        #expect(Self.steps.count == 44 && Self.alone.count == 35 && Self.steps.isDisjoint(with: Self.alone))
+        #expect(Self.steps.count == 44 && Self.alone.count == 36 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)
         let unlisted = Set(names).subtracting(Self.steps).subtracting(Self.alone)
         #expect(unlisted.isEmpty, "BATCH-S2-6 tools in neither list: \(unlisted.sorted())")

@@ -1437,7 +1437,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 79 tools, in groups:
+The 80 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
@@ -1452,7 +1452,7 @@ The 79 tools, in groups:
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
 - Transport: `transport_play`, `transport_stop`, `transport_locate`. They play, stop, and move the playhead in the window of the session. They work only in Dirigible.
-- Audio: `loudness`, `export`, `render`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.
+- Audio: `loudness`, `export`, `render`, `export_stems`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.

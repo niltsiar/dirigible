@@ -5,18 +5,21 @@ import Foundation
 
 /// The result of the last stem export, for its banners at its session revision (decision 0078).
 struct StemsShown: Equatable {
-    let folder: URL
-    /// The stem files in the folder, in plan order. Empty after a stop.
-    let files: [StemFile]
-    /// The peak of the mix of the stems; nil when the stems cannot sum over 1.0.
-    let mixPeak: Float?
-    let stopped: Bool
+    enum Outcome: Equatable {
+        /// A stop: no stem was written.
+        case stopped
+        /// `files` are the stem files in the folder, in plan order. `mixPeak` is the peak of the mix of
+        /// the stems; nil when the stems cannot sum over 1.0.
+        case done(folder: URL, files: [StemFile], mixPeak: Float?)
+    }
+
+    let outcome: Outcome
     let revision: Int
 
     /// The clip warning comes first: the stems over 0 dBFS, then the mix line, then the folder line.
     /// A stop gives only the stop banner.
     var banners: [WindowBanner] {
-        guard !stopped else { return [.stemsStopped] }
+        guard case .done(let folder, let files, let mixPeak) = outcome else { return [.stemsStopped] }
         var banners: [WindowBanner] = []
         let clipped = files.filter(\.isOverFullScale).map(\.name)
         if !clipped.isEmpty { banners.append(.stemsClipped(clipped)) }
@@ -93,12 +96,11 @@ extension SessionWindow {
             let result = try await studio.exportStems(
                 by: target.grouping, source: source, titles: .app(), options: target.options, folder: target.folder)
             stemsShown = StemsShown(
-                folder: target.folder, files: result.files, mixPeak: result.mixPeak, stopped: false,
+                outcome: .done(folder: target.folder, files: result.files, mixPeak: result.mixPeak),
                 revision: revision)
             if !result.faults.isEmpty { alert = .exported(paths(of: result.faults, in: session), nil) }
         } catch .exportStems(.stopped(.cancelled)) {
-            stemsShown = StemsShown(
-                folder: target.folder, files: [], mixPeak: nil, stopped: true, revision: revision)
+            stemsShown = StemsShown(outcome: .stopped, revision: revision)
         } catch {
             alert = .error(error)
         }

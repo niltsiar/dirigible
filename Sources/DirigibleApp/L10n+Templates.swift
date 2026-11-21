@@ -10,7 +10,7 @@ extension L10n {
             String(format: table(key), locale: .current, arguments: arguments)
         }
         switch error {
-        case .read(let error): return message(for: error)
+        case .read(let error), .source(let error): return message(for: error)
         case .pendingTake: return table(.errorTemplatePending)
         case .notRegularFile(let path): return fill(.errorTemplateFile, path)
         case .sourceChanged(let path): return fill(.errorTemplateChanged, path)

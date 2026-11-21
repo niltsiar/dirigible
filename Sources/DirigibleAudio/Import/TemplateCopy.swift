@@ -12,6 +12,9 @@ public enum NewSessionSource: Hashable, Sendable {
 public enum TemplateError: Error, Hashable, Sendable {
     /// The template does not read, or is newer (0024 P3).
     case read(SessionFileError)
+    /// The package that a save copies from is gone or moved (`PackageLock.package()`). A copy from a template
+    /// never throws it.
+    case source(SessionFileError)
     /// The template has a take that is not finalized.
     case pendingTake
     /// A link at any component of the path, a FIFO, a folder, or another item that is not a file.
@@ -27,7 +30,8 @@ public enum TemplateError: Error, Hashable, Sendable {
     case cancelled
     /// The package name is over `templateNameLimit`.
     case nameTooLong
-    /// `.exists`, or a fault of `stageFolder`, `checkPublish`, or the rename.
+    /// `.exists`, or a fault of `stageFolder`, `checkPublish`, the write of `session.xml` with no errno, or the
+    /// rename.
     case publish(SessionFileError)
 }
 
@@ -224,7 +228,7 @@ private func fill(
     guard !isCancelled() else { throw .cancelled }
     do { try seams.writeSession(episode.session, staging) } catch {
         if case .writeFailed(_, let code) = error { throw .write(file: "session.xml", errno: code) }
-        throw .read(error)
+        throw .publish(error)
     }
     guard !isCancelled() else { throw .cancelled }
 }

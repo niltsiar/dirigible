@@ -9,12 +9,18 @@ enum ExportKind {
     case session, selection
 }
 
+/// The save panel that follows the media check of an export.
+enum ExportPanelKind: Hashable {
+    case mix, stems
+}
+
 /// A step of Export before the export runs. The running export is `Studio.exportProgress`.
 enum ExportStep: Hashable {
     /// The media check of the files that the source reads, off the main actor.
     case checking
-    /// The media question: the source and the faults of the files that it reads (decision 0003).
-    case asking(ExportSource, [FileID: MediaFault])
+    /// The media question: the source, the faults of the files that it reads (decision 0003), and
+    /// the panel that the Export answer opens.
+    case asking(ExportSource, [FileID: MediaFault], ExportPanelKind)
     /// The save panel shows.
     case choosing
     /// A split export after the save panel: the checks of the targets and the replace sheet, until the
@@ -68,7 +74,7 @@ extension SessionWindow {
     }
 
     /// The studio when an export can start: idle, no pending take, and no dialog.
-    private var exportStudio: Studio? {
+    var exportStudio: Studio? {
         guard !dialogShowing, let studio = idleStudio, studio.pendingTake == nil else { return nil }
         return studio
     }
@@ -90,6 +96,7 @@ extension SessionWindow {
         case .export: canExport
         case .exportSelection: canExportSelection
         case .exportChapters: canExportChapters
+        case .exportStems: canExportStems
         case .exportTranscript: canExportTranscript
         case .importAudio: canImport
         case .importTranscript: canImportTranscript
@@ -145,6 +152,12 @@ extension SessionWindow {
     /// the save panel. A take or a close during the check drops its result.
     func export(_ kind: ExportKind) async {
         guard let studio = exportStudio, let source = source(of: kind, in: studio) else { return }
+        await checkMedia(of: source, then: .mix, in: studio)
+    }
+
+    /// The media check of `source`, then the question when a file has a fault, then the save panel
+    /// of `panel`.
+    func checkMedia(of source: ExportSource, then panel: ExportPanelKind, in studio: Studio) async {
         exportStep = .checking
         let faults = await studio.exportFaults(source) ?? [:]
         guard exportStep == .checking, idleStudio === studio else {
@@ -152,9 +165,9 @@ extension SessionWindow {
             return
         }
         if faults.isEmpty {
-            choose(source, studio)
+            choose(source, panel, studio)
         } else {
-            exportStep = .asking(source, faults)
+            exportStep = .asking(source, faults, panel)
         }
     }
 
@@ -165,16 +178,23 @@ extension SessionWindow {
 
     /// The paths of the files of the media question.
     var exportQuestionPaths: [String] {
-        guard case .asking(_, let faults) = exportStep, let studio else { return [] }
+        guard case .asking(_, let faults, _) = exportStep, let studio else { return [] }
         return paths(of: faults, in: studio.session)
     }
 
-    /// The media question: Export opens the save panel; Cancel ends the flow.
+    /// The media question: Export opens the save panel that the question names; Cancel ends the flow.
     func answerExportQuestion(export: Bool) {
-        guard case .asking(let source, _) = exportStep else { return }
+        guard case .asking(let source, _, let panel) = exportStep else { return }
         exportStep = nil
         guard export, let studio = idleStudio else { return }
-        choose(source, studio)
+        choose(source, panel, studio)
+    }
+
+    private func choose(_ source: ExportSource, _ panel: ExportPanelKind, _ studio: Studio) {
+        switch panel {
+        case .mix: choose(source, studio)
+        case .stems: chooseStems(source, studio)
+        }
     }
 
     /// The save panel as a sheet of the window. OK runs the export.
@@ -307,13 +327,14 @@ extension SessionWindow {
         exportReport = nil
         chapterWarnings = nil
         exportSet = nil
+        stemsShown = nil
     }
 
     /// The Cancel button of the progress sheet.
     func cancelExport() { studio?.cancelExport() }
 
     /// The pool path of each file, sorted.
-    private func paths(of faults: [FileID: MediaFault], in session: Session) -> [String] {
+    func paths(of faults: [FileID: MediaFault], in session: Session) -> [String] {
         faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted()
     }
 }

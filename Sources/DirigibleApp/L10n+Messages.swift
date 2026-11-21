@@ -41,7 +41,7 @@ extension L10n {
             let count = stop.written.count + stop.remaining.count
             return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
         case .exportStems(.folderNameTooLong): return startNameErrorLong.text
-        case .exportStems(.noStem): return errorExportWrite.format(Int(ENODATA))
+        case .exportStems(.noStem): return errorExportNoStem.text
         case .exportStems(.notEnoughSpace): return errorExportDiskFull.text
         case .exportStems(.stopped(let error)): return message(for: error)
         case .exportStems(.publish(.exists)): return errorExportExists.text

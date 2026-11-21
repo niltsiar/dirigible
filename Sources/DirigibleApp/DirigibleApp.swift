@@ -32,6 +32,11 @@ struct DirigibleApp: App {
                             Button(L10n.menuFileImportTranscript.key) { app.timeline(.importTranscript) }
                                 .disabled(app.key?.isOn(.importTranscript) != true)
                         }
+                        // No key: a rare command, after Export Selection.
+                        if item.command == .exportSelection {
+                            Button(L10n.menuFileExportStems.key) { app.timeline(.exportStems) }
+                                .disabled(app.key?.isOn(.exportStems) != true)
+                        }
                         // No key: a rare command, after the other exports.
                         if item.command == .exportChapters {
                             Button(L10n.menuFileExportTranscript.key) { app.timeline(.exportTranscript) }

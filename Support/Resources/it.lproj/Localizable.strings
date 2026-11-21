@@ -878,6 +878,11 @@
 "banner.export.set.old.many" = "%1$lld file precedenti con questo prefisso restano: %2$@. Dirigible non li elimina.";
 "banner.export.set.show" = "Mostra nel Finder";
 "banner.export.set.dropped" = "“%@” non ha un file proprio: coincide con il punto di divisione precedente o con la fine dell’intervallo.";
+"menu.file.export.stems" = "Esporta stem…";
+"error.export.nostem" = "La sessione non ha più stem da scrivere nell’intervallo di esportazione. Nessun file è stato scritto.";
+"banner.stems.stopped" = "Nessuno stem è stato scritto.";
+"banner.stems.clipped" = "Sopra 0 dBFS, quindi questi file saturano: %@. Gli stem non si sommano al mix.";
+"banner.stems.mix.clipped" = "Il mix degli stem supera 0 dBFS: gli stem non si sommano a un’esportazione del mix.";
 "error.export.nochapter" = "La sessione non ha più capitoli nell’intervallo di esportazione. Nessun file è stato scritto.";
 "error.export.nomarker" = "La sessione non ha più marcatori nell’intervallo di esportazione. Nessun file è stato scritto.";
 "menu.track.follow.ripples" = "Segui lo spostamento";

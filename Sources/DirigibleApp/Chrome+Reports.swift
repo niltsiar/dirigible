@@ -9,6 +9,7 @@ extension ChromeState {
             banners.append(.exportReport(shown.report, file: shown.file))
         }
         if let shown = model.exportSet, shown.revision == studio.sessionRevision { banners += shown.banners }
+        if let shown = model.stemsShown, shown.revision == studio.sessionRevision { banners += shown.banners }
         if let shown = model.chapterWarnings, shown.revision == studio.sessionRevision { banners += shown.banners }
         if let shown = model.transcriptLeftOut, shown.revision == studio.sessionRevision {
             banners.append(.transcriptLeftOut(count: shown.count, file: shown.file))

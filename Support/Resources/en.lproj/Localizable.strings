@@ -878,6 +878,11 @@
 "banner.export.set.old.many" = "%1$lld older files of this prefix stay: %2$@. Dirigible does not delete them.";
 "banner.export.set.show" = "Show in Finder";
 "banner.export.set.dropped" = "“%@” has no file of its own: it starts at the time of the split point before it, or at the end of the range.";
+"menu.file.export.stems" = "Export Stems…";
+"error.export.nostem" = "The session has no stem to write in the export range now. No file was written.";
+"banner.stems.stopped" = "No stem was written.";
+"banner.stems.clipped" = "Over 0 dBFS, so these files clip: %@. The stems do not add up to the mix.";
+"banner.stems.mix.clipped" = "The mix of the stems is over 0 dBFS: the stems do not add up to a mix export.";
 "error.export.nochapter" = "The session has no chapters in the export range now. No file was written.";
 "error.export.nomarker" = "The session has no markers in the export range now. No file was written.";
 "menu.track.follow.ripples" = "Follow in Ripples";

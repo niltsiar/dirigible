@@ -878,6 +878,11 @@
 "banner.export.set.old.many" = "%1$lld oudere bestanden met dit voorvoegsel blijven staan: %2$@. Dirigible verwijdert ze niet.";
 "banner.export.set.show" = "Toon in Finder";
 "banner.export.set.dropped" = "'%@' heeft geen eigen bestand: het valt samen met het vorige splitspunt of met het einde van het bereik.";
+"menu.file.export.stems" = "Exporteer stems…";
+"error.export.nostem" = "De sessie heeft nu geen stem-bestand om te schrijven in het exportbereik. Er is geen bestand geschreven.";
+"banner.stems.stopped" = "Er is geen stem-bestand geschreven.";
+"banner.stems.clipped" = "Boven 0 dBFS, dus deze bestanden clippen: %@. De stems tellen niet op tot de mix.";
+"banner.stems.mix.clipped" = "De mix van de stems is boven 0 dBFS: de stems tellen niet op tot een mixexport.";
 "error.export.nochapter" = "De sessie heeft nu geen hoofdstukken in het exportbereik. Er is geen bestand geschreven.";
 "error.export.nomarker" = "De sessie heeft nu geen markeringen in het exportbereik. Er is geen bestand geschreven.";
 "menu.track.follow.ripples" = "Meeschuiven bij ripple";

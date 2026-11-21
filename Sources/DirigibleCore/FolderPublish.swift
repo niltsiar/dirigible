@@ -70,8 +70,7 @@ public struct StagingFolder: ~Copyable {
 /// throws `.exists` and does not change; a claim that got an item stays with it. A failed rename over the
 /// claim removes the claim while it is empty. A throw leaves `from` and no folder of this call at `to`.
 package func renameFolder(
-    _ from: String, to: String, exclusive: (String, String) -> Int32 = exclusiveRename,
-    plain: (String, String) -> Int32 = plainRename
+    _ from: String, to: String, exclusive: (String, String) -> Int32, plain: (String, String) -> Int32
 ) throws(SessionFileError) {
     let code = exclusive(from, to)
     if code == ENOTSUP || code == EPERM {

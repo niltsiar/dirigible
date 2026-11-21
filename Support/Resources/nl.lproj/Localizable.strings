@@ -998,8 +998,8 @@
 "error.template.pending" = "Het sjabloon bevat een take die niet is afgerond. Open het sjabloon, rond de take af en probeer het opnieuw.";
 "error.template.file" = "Het sjabloon bevat een onderdeel dat geen gewoon bestand is: '%@'. Dirigible kopieert geen alias en geen map. Er is niets gemaakt.";
 "error.template.changed" = "'%@' is gewijzigd terwijl Dirigible het kopieerde. Er is niets gemaakt. Probeer het opnieuw.";
-"error.template.missing" = "Het sjabloon mist het audiobestand '%@'. Er is niets gemaakt.";
-"error.template.download" = "Het audiobestand '%@' van het sjabloon staat niet op deze Mac. Download het en probeer het opnieuw.";
+"error.template.missing" = "Het sjabloon mist het bestand '%@'. Er is niets gemaakt.";
+"error.template.download" = "Het bestand '%@' van het sjabloon staat niet op deze Mac. Download het en probeer het opnieuw.";
 "error.template.space" = "Het kopiëren vraagt %1$@ vrije schijfruimte, en de schijf heeft %2$@. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.template.write" = "Dirigible kan '%1$@' niet kopiëren (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
 "error.template.exists" = "Er bestaat al een onderdeel met deze naam. Dirigible heeft het niet vervangen.";

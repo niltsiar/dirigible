@@ -998,8 +998,8 @@
 "error.template.pending" = "The template has a take that is not finished. Open the template, finish the take, and try again.";
 "error.template.file" = "The template has an item that is not a plain file: “%@”. Dirigible copies no link and no folder. Nothing was made.";
 "error.template.changed" = "“%@” changed while Dirigible copied it. Nothing was made. Try again.";
-"error.template.missing" = "The template has no audio file “%@”. Nothing was made.";
-"error.template.download" = "The audio file “%@” of the template is not on this Mac. Download it and try again.";
+"error.template.missing" = "The template has no file “%@”. Nothing was made.";
+"error.template.download" = "The file “%@” of the template is not on this Mac. Download it and try again.";
 "error.template.space" = "The copy needs %1$@ of free disk space, and the disk has %2$@. Free some disk space and try again.";
 "error.template.write" = "Dirigible cannot copy “%1$@” (error %2$lld). Check the disk and try again.";
 "error.template.exists" = "An item with this name exists. Dirigible did not replace it.";

@@ -998,8 +998,8 @@
 "error.template.pending" = "O modelo tem uma tomada que não foi finalizada. Abra o modelo, finalize a tomada e tente novamente.";
 "error.template.file" = "O modelo tem um item que não é um arquivo comum: “%@”. O Dirigible não copia aliases nem pastas. Nada foi criado.";
 "error.template.changed" = "“%@” mudou enquanto o Dirigible o copiava. Nada foi criado. Tente novamente.";
-"error.template.missing" = "Falta ao modelo o arquivo de áudio “%@”. Nada foi criado.";
-"error.template.download" = "O arquivo de áudio “%@” do modelo não está neste Mac. Baixe-o e tente novamente.";
+"error.template.missing" = "Falta ao modelo o arquivo “%@”. Nada foi criado.";
+"error.template.download" = "O arquivo “%@” do modelo não está neste Mac. Baixe-o e tente novamente.";
 "error.template.space" = "A cópia precisa de %1$@ de espaço livre em disco, e o disco tem %2$@. Libere espaço em disco e tente novamente.";
 "error.template.write" = "O Dirigible não pode copiar “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";
 "error.template.exists" = "Já existe um item com este nome. O Dirigible não o substituiu.";

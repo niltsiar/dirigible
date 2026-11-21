@@ -56,6 +56,27 @@ extension InspectorTests {
         await model.close()
     }
 
+    /// Item 1398: File > Episode Info from Notes puts the focus in Title also when the first focus
+    /// move ends at once and the pane never sees Title.
+    @Test func episodeInfoKeepsItsFocusRequestUntilTitleHasTheFocus() async throws {
+        let (model, _, window, _) = try await open(try await package())
+        model.showEpisodeInfo()
+        try await waitForTitleFocus(model, window)
+        let notes = try #require(textViews(in: window.contentView).first { !$0.isFieldEditor })
+        #expect(window.makeFirstResponder(notes))
+        await until("Notes has the focus") { model.episodeFocus == .notes }
+
+        let (observation, ended) = endNextFieldEdit(in: window)
+        model.run(.episodeInfo)
+        await until(limit: .seconds(10), "the first focus move ends") { ended() }
+        let title = try await episodeFields(window)[0]
+        await until(limit: .seconds(10), "Title edits with the focus") {
+            model.episodeFocus == .title && focusedField(window) === title
+        }
+        observation.invalidate()
+        await model.close()
+    }
+
     func textViews(in view: NSView?) -> [NSTextView] {
         guard let view else { return [] }
         return ((view as? NSTextView).map { [$0] } ?? []) + view.subviews.flatMap { textViews(in: $0) }

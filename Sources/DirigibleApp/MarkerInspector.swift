@@ -28,6 +28,8 @@ struct MarkerInspector: View {
     let model: SessionWindow
     let studio: Studio
     @FocusState private var focus: MarkerField?
+    /// The field of a focus request until the pane reports a field (as in `EpisodeInspector`).
+    @State private var requested: MarkerField?
 
     var body: some View {
         Group {
@@ -45,11 +47,15 @@ struct MarkerInspector: View {
         .onChange(of: focus) { old, new in
             model.markerFocus = new
             if old != nil { model.commitMarker() }
+            if let field = requested {
+                if new == nil { focus = field } else { requested = nil }
+            }
         }
         .task(id: model.markerFocusRequest) {
             guard let field = model.markerFocusRequest else { return }
             // A pane that the request shows gets its fields at the next pass.
             await Task.yield()
+            if focus != field { requested = field }
             focus = field
             model.markerFocusRequest = nil
         }

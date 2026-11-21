@@ -43,6 +43,31 @@ extension InspectorTests {
         }
     }
 
+    /// Item 1398: Markers > Marker Info from Link puts the focus in Name also when the first focus
+    /// move ends at once and the pane never sees Name.
+    @Test func markerInfoKeepsItsFocusRequestUntilNameHasTheFocus() async throws {
+        let (model, _, window, _) = try await open(try await package())
+        addMarkers(model)
+        model.timeline.marker = "c1"
+        model.run(.markerInfo)
+        try await waitForNameFocus(model, window, "One")
+        let link = try await markerFields(window)[1]
+        await until("Link has the focus") {
+            if focusedField(window) !== link { window.makeFirstResponder(link) }
+            return model.markerFocus == .url
+        }
+
+        let (observation, ended) = endNextFieldEdit(in: window)
+        model.run(.markerInfo)
+        await until(limit: .seconds(10), "the first focus move ends") { ended() }
+        let name = try await markerFields(window)[0]
+        await until(limit: .seconds(10), "Name edits with the focus") {
+            model.markerFocus == .name && focusedField(window) === name
+        }
+        observation.invalidate()
+        await model.close()
+    }
+
     /// A square PNG of `side` x `height` px in the test folder.
     func png(_ name: String, side: Int = 64, height: Int? = nil) throws -> URL {
         let url = folder.url.appending(path: name)

@@ -38,4 +38,25 @@ extension TemplateCopyTests {
         #expect(throws: TemplateError.cancelled) { try fixture.copy(seams: seams, isCancelled: { cancelled }) }
         #expect(madeNothing(fixture), "no package, staging folder, or lock file")
     }
+
+    /// A fault of the write of `session.xml` is not a read failure of the template: the CLI text of `.read` names
+    /// the template.
+    @Test func aSessionWriteFaultIsNotAReadFailure() throws {
+        let fixture = try TemplateFixture()
+        var seams = TemplateCopySeams()
+        seams.writeSession = { _, _ throws(SessionFileError) in throw .wouldNotReadBack(nil) }
+
+        #expect(throws: TemplateError.publish(.wouldNotReadBack(nil))) { try fixture.copy(seams: seams) }
+        #expect(madeNothing(fixture))
+    }
+
+    /// A write that fails with an errno names `session.xml` and the errno.
+    @Test func aSessionWriteErrnoIsAWriteFailure() throws {
+        let fixture = try TemplateFixture()
+        var seams = TemplateCopySeams()
+        seams.writeSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "rename", errno: ENOSPC) }
+
+        #expect(throws: TemplateError.write(file: "session.xml", errno: ENOSPC)) { try fixture.copy(seams: seams) }
+        #expect(madeNothing(fixture))
+    }
 }

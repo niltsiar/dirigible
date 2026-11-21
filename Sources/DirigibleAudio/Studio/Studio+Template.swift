@@ -106,7 +106,7 @@ extension Studio {
         let task = jobTask { package, isCancelled -> Result<Void, TemplateError> in
             withoutActuallyEscaping(isCancelled) { isCancelled -> Result<Void, TemplateError> in
                 let source: URL
-                do throws(SessionFileError) { source = try package() } catch { return .failure(.read(error)) }
+                do throws(SessionFileError) { source = try package() } catch { return .failure(.source(error)) }
                 var seams = TemplateCopySeams()
                 seams.canClone = canClone
                 seams.written = written

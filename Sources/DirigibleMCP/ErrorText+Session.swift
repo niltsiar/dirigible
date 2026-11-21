@@ -144,7 +144,7 @@ extension TemplateError {
     /// `default` case: a new error case does not compile until it has a message.
     package func message(template: String, package: String) -> String {
         switch self {
-        case .read(let error): error.message(package: template)
+        case .read(let error), .source(let error): error.message(package: template)
         case .pendingTake: "\(template) has a take that is not finalized."
         case .notRegularFile(let path):
             "\(template)/\(path) is a link, a special file, or an item of the wrong kind, so the template cannot "

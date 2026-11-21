@@ -326,4 +326,17 @@ struct StudioTemplateCreateTests {
         #expect(!FileManager.default.fileExists(atPath: target.appending(path: "Capture/take1.caf").path))
         #expect(studio.session == (try Session(contentsOf: package.url).newEpisode().session))
     }
+
+    /// A session package that went away under the save is a failure of the source, not a read failure of a template.
+    @Test func aMissingSessionPackageIsASourceFailure() async throws {
+        let fixture = try await ExportStudioFixture.make()
+        let studio = try await fixture.open()
+        let target = fixture.package.folder.url.appending(path: "Show.dirigible")
+        try FileManager.default.removeItem(at: fixture.package.url)
+
+        await #expect(throws: StudioError.template(.source(.packageMoved))) {
+            try await studio.saveTemplate(to: target)
+        }
+        #expect(!FileManager.default.fileExists(atPath: target.path), "no template")
+    }
 }

@@ -100,6 +100,7 @@ extension StudioError {
         case .exportYielded: "exportYielded"
         case .exportParts: "exportParts"
         case .exportStems: "exportStems"
+        case .template: "template"
         case .audioImport: "audioImport"
         case .importYielded: "importYielded"
         case .paste: "paste"

@@ -25,7 +25,7 @@ struct StudioLogTests {
             try Session(sampleRate: 48_000).write(to: package)
             studio = try await Studio.open(package, log: log)
         case .create:
-            studio = try await Studio.create(package, sampleRate: 48_000, log: log)
+            studio = try await Studio.create(package, source: .rate(48_000), log: log)
         }
 
         await #expect(throws: StudioError.session(.unknownTrack("t9"))) {

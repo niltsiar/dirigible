@@ -23,12 +23,14 @@ extension Studio {
     /// still lists, so an edit after the list keeps a file that it uses (decision 0047). It saves,
     /// then removes their pool entries from the session and from each undo and redo entry with no
     /// new entry, and only then moves the files. Throws `.busy` as `unusedFiles` does, also for a
-    /// take that starts during the scan. A failed save moves no file, changes no session, and
-    /// sets `saveError` as a failed autosave does. It reads `clipboard` in its turn.
+    /// take that starts during the scan, and while Save as Template copies the files (decision
+    /// 0079). A failed save moves no file, changes no session, and sets `saveError` as a failed
+    /// autosave does. It reads `clipboard` in its turn.
     public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: @autoclosure () -> Clipboard? = nil)
         async throws(StudioError) -> PruneReport
     {
         try checkIdle()
+        guard exportJob?.isTemplate != true else { throw .busy }
         let result = await serialized { () async -> Result<PruneReport, StudioError> in
             let scan: UnusedFiles
             let kept = keptFiles(clipboard())
@@ -36,8 +38,8 @@ extension Studio {
             case .success(let value): scan = value
             case .failure(let error): return .failure(error)
             }
-            // A take can start during the scan (AGENTS.md, Actors).
-            guard isIdle else { return .failure(.busy) }
+            // A take or a template save can start during the scan (AGENTS.md, Actors).
+            guard isIdle, exportJob?.isTemplate != true else { return .failure(.busy) }
             let before = session
             // The pool change comes after the save, so a failed save leaves memory as the disk.
             let apply = { @MainActor (files: UnusedFiles, saved: Session) throws(SessionError) in

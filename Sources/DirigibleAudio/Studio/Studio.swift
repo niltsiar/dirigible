@@ -153,6 +153,8 @@ import Observation
     @ObservationIgnored var exportNumber = 0
     /// The studios of the other windows (decision 0019). The app sets it; the CLI has none.
     @ObservationIgnored public var otherStudios: () -> [Studio] = { [] }
+    /// The template creates that run before a studio exists (decision 0079). The app sets it.
+    @ObservationIgnored public var copyJobs: CopyJobs?
     /// The running agent reads by time (decision 0062), in `Studio+Read.swift`.
     @ObservationIgnored var readRuns: [ReadRun] = []
     /// The waits of `readsEnded()`, resumed when the last read ends.

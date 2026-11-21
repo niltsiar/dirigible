@@ -122,6 +122,21 @@ import Testing
         (window.firstResponder as? NSTextView)?.delegate as? NSTextField
     }
 
+    /// Ends the next field edit of `window` once, before SwiftUI reads the focus: the window takes
+    /// the first responder. AppKit does this when SwiftUI gives the focus again to a field that
+    /// edits already (item 1398). The returned closure gives true after the end.
+    func endNextFieldEdit(in window: NSWindow) -> (NSKeyValueObservation, () -> Bool) {
+        var ended = false
+        let observation = window.observe(\.firstResponder, options: [.new]) { window, _ in
+            MainActor.assumeIsolated {
+                guard !ended, (window.firstResponder as? NSTextView)?.isFieldEditor == true else { return }
+                ended = true
+                _ = window.makeFirstResponder(window)
+            }
+        }
+        return (observation, { ended })
+    }
+
     // MARK: W5
 
     /// W5: the commit sets the clips of the draft, not the clips of the Marks at the focus loss.

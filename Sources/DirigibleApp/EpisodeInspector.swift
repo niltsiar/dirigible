@@ -48,6 +48,9 @@ struct EpisodeInspector: View {
     let model: SessionWindow
     let studio: Studio
     @FocusState private var focus: EpisodeField?
+    /// The field of a focus request until the pane reports a field. AppKit can end the first
+    /// focus move before SwiftUI reports it, and the focus then goes to nil (item 1398).
+    @State private var requested: EpisodeField?
     @State private var linksShown = false
     @State private var notesExpanded = false
 
@@ -123,6 +126,9 @@ struct EpisodeInspector: View {
             } else if old != nil {
                 model.commitEpisode()
             }
+            if let field = requested {
+                if new == nil { focus = field } else { requested = nil }
+            }
         }
         .task(id: model.episodeFocusRequest) {
             guard let field = model.episodeFocusRequest else { return }
@@ -131,6 +137,7 @@ struct EpisodeInspector: View {
                 linksShown = true
                 await Task.yield()
             }
+            if focus != field { requested = field }
             focus = field
             model.episodeFocusRequest = nil
         }

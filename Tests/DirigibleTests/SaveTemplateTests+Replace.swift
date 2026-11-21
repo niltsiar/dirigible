@@ -128,4 +128,38 @@ extension SaveTemplateTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: templates.path) == [], "no claim stays")
         await model.close()
     }
+
+    /// The Trash move and the swap back fail: the new template is at the name, and the alert gives the path of
+    /// the old one, which stays in its folder.
+    @Test func aFailedSwapBackKeepsTheOldTemplate() async throws {
+        defer { clean() }
+        _ = try await existing("Show", tracks: 1)
+        let (model, _) = try await window()
+        trashFails.withLock { $0 = true }
+        let swaps = OSAllocatedUnfairLock(initialState: 0)
+        app.templatePanels.renames.swap = { from, to in
+            guard
+                swaps.withLock({
+                    $0 += 1
+                    return $0
+                }) == 1
+            else { return EIO }
+            return renamex_np(from, to, UInt32(RENAME_SWAP)) == 0 ? 0 : errno
+        }
+        panels.name = "Show"
+        panels.replace = true
+
+        await model.saveAsTemplate()
+
+        guard case .templateOldKept(let name, let path) = model.alert else {
+            Issue.record("the alert is \(String(describing: model.alert))")
+            return await model.close()
+        }
+        let kept = URL(filePath: path)
+        defer { try? FileManager.default.removeItem(at: kept.deletingLastPathComponent()) }
+        #expect(name == "Show")
+        #expect(try templateTracks("Show") == ["t1", "t2", "t3"], "the name holds the new template")
+        #expect(try Session(contentsOf: kept).tracks.map(\.id.rawValue) == ["t1"], "the old one stays")
+        await model.close()
+    }
 }

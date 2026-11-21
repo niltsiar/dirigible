@@ -46,7 +46,8 @@ struct SessionView: View {
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .importChain, .exported, .exportedSet, .noUnusedFiles, .transcriptExport,
-                    .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .templateNewKept:
+                    .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .templateNewKept,
+                    .templateOldKept:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
@@ -318,6 +319,7 @@ extension WindowAlert {
         case .templateTrash(let name): L10n.errorTemplateTrash.format(name)
         case .templateOpen(let name): L10n.errorTemplateOpen.format(name)
         case .templateNewKept(let name, let path): L10n.errorTemplateKeptNew.format(name, path)
+        case .templateOldKept(let name, let path): L10n.errorTemplateKeptOld.format(name, path)
         }
     }
 }

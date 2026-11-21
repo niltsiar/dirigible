@@ -91,6 +91,9 @@ enum TemplateSwap: Equatable, Sendable {
     case trashFailed
     /// The old template is in the Trash, and the new one stays at this path: its rename to the name failed.
     case newKept(String)
+    /// The new template is at the name, and the old one stays at this path: its move to the Trash and the swap
+    /// back failed.
+    case oldKept(String)
     /// The old template was not at the name, and the rename of the new one failed. The new one is gone.
     case failed(SessionFileError)
 }
@@ -111,10 +114,10 @@ enum TemplateSwap: Equatable, Sendable {
     if code == 0 {
         if (try? trash(saved)) != nil {
             result = .replaced
-        } else {
-            let back = renames.swap(saved.path, target.path)
-            guard back == 0 else { return .failed(.writeFailed(step: "rename", errno: back)) }
+        } else if renames.swap(saved.path, target.path) == 0 {
             result = .trashFailed
+        } else {
+            return .oldKept(saved.path)
         }
     } else if code != ENOENT, (try? trash(target)) == nil {
         result = .trashFailed

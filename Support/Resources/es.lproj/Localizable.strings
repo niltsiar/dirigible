@@ -1005,5 +1005,6 @@
 "error.template.exists" = "Ya existe un elemento con este nombre. Dirigible no lo reemplazó.";
 "error.template.trash" = "Dirigible no pudo mover la plantilla anterior «%@» a la Papelera. No se guardó nada.";
 "error.template.open" = "La plantilla «%@» está abierta en una ventana. Ciérrela y vuelva a intentarlo. No se guardó nada.";
+"error.template.kept.old" = "La plantilla nueva «%1$@» se guardó. Dirigible no pudo mover la plantilla anterior a la Papelera. La plantilla anterior está en una carpeta temporal: muévala para conservarla.\n\n%2$@";
 "error.template.kept.new" = "La plantilla anterior «%1$@» está en la Papelera. Dirigible no pudo guardar la plantilla nueva con su nombre. La plantilla nueva está en una carpeta temporal: muévala para conservarla.\n\n%2$@";
 "error.template.yielded" = "Una toma detuvo la copia de la plantilla. No se creó nada. Vuelva a intentarlo después de la toma.";

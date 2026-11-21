@@ -80,6 +80,7 @@ extension SessionWindow {
         case .replaced: break
         case .trashFailed: alert = .templateTrash(name)
         case .newKept(let path): alert = .templateNewKept(name, path: path)
+        case .oldKept(let path): alert = .templateOldKept(name, path: path)
         case .failed(let error): throw .template(.publish(error))
         }
     }

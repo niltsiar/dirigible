@@ -51,6 +51,30 @@ extension SaveTemplateTests {
         await holder.close()
     }
 
+    /// A window holds the key of the old template and no lock: here its open failed, as while an open runs.
+    /// Replace does not move the package of that window.
+    @Test func replaceRefusesATemplateWhoseWindowHasNoLock() async throws {
+        defer { clean() }
+        let old = try await existing("Show", tracks: 1)
+        let unreadable = Data("not a session".utf8)
+        try unreadable.write(to: old.appending(path: "session.xml"))
+        let holder = await app.open(old)
+        await until("the open of the unreadable template fails") {
+            if case .failed = holder.phase { true } else { false }
+        }
+        let (model, _) = try await window()
+        panels.name = "Show"
+        panels.replace = true
+
+        await model.saveAsTemplate()
+
+        #expect(model.alert == .templateOpen("Show"), "a window with the key and no lock keeps Replace off")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: trash.path).isEmpty, "nothing went to the Trash")
+        #expect(FileManager.default.contents(atPath: old.appending(path: "session.xml").path) == unreadable)
+        await model.close()
+        await holder.close()
+    }
+
     /// A save that stops after Replace keeps the old template, and nothing goes to the Trash.
     @Test func aStoppedSaveKeepsTheOldTemplate() async throws {
         defer { clean() }

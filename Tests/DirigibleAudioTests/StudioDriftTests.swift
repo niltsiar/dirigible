@@ -12,7 +12,7 @@ struct StudioDriftTests {
     /// A 10 min clip at 100 ppm. After the fix, the clip plays one new file with a drift link
     /// to its old file, and a second measure gives 10 points within 1 ms of their median lag.
     @Test func aDriftingClipIsWithinOneMillisecondAfterTheFix() async throws {
-        let drift = try DriftPackage(seconds: 600)
+        let drift = try await DriftPackage.make(seconds: 600)
         let studio = try await Self.open(drift)
 
         let report = try await studio.correctDrift("C", to: "ref")
@@ -23,12 +23,12 @@ struct StudioDriftTests {
         let file = try #require(studio.session.files[fix.files[0]])
         #expect(file.path == "c drift.wav" && file.drift?.source == "c", "\(file)")
         #expect(studio.session.clip("C")?.clip.file == file.id)
-        try Self.expectAligned("C", in: studio, drift, points: 10)
+        try await Self.expectAligned("C", in: studio.session, drift, points: 10)
         #expect(try Session(contentsOf: drift.package.url) == studio.session, "the fix did not save")
     }
 
     @Test func aSecondFixFindsNoDrift() async throws {
-        let drift = try DriftPackage(seconds: 600)
+        let drift = try await DriftPackage.make(seconds: 600)
         let studio = try await Self.open(drift)
         _ = try Self.fix(try await studio.correctDrift("C", to: "ref"))
         let names = Self.clipsNames(drift.package.url)
@@ -40,7 +40,7 @@ struct StudioDriftTests {
     }
 
     @Test func undoPutsBackTheDriftingClip() async throws {
-        let drift = try DriftPackage(seconds: 600)
+        let drift = try await DriftPackage.make(seconds: 600)
         let studio = try await Self.open(drift)
         let before = studio.session
 
@@ -54,7 +54,7 @@ struct StudioDriftTests {
     /// A 44.1 kHz original of the drift clip, imported into the 48 kHz session, is corrected as well.
     @Test func anOriginalAt44100IsCorrected() async throws {
         let voice = DriftSignal(seed: 1, seconds: 30 + 600 * 1.01 + 60)
-        let drift = try DriftPackage(seconds: 600, voice: voice)
+        let drift = try await DriftPackage.make(seconds: 600, voice: voice)
         let original = drift.package.folder.url.appending(path: "guest.wav")
         let step = (1 + drift.m) / 44_100
         try writeWAV(original, rate: 44_100, length: 600 * 44_100) { range in
@@ -67,13 +67,13 @@ struct StudioDriftTests {
         let fix = try Self.fix(try await studio.correctDrift(imported, to: "ref"))
 
         #expect(abs(fix.slope - drift.m) * 1e6 < 0.1, "rate \(fix.slope * 1e6) ppm")
-        try Self.expectAligned(imported, in: studio, drift, points: 10)
+        try await Self.expectAligned(imported, in: studio.session, drift, points: 10)
     }
 
     /// A 12 min clip at 100 ppm, whose source skips 20 s at clip minute 5.5. Each piece plays
     /// its own new file and is within 1 ms of its line.
     @Test func aPausedRecordingGivesTwoAlignedClips() async throws {
-        let drift = try DriftPackage(seconds: 720, pause: 20, at: 330)
+        let drift = try await DriftPackage.make(seconds: 720, pause: 20, at: 330)
         let studio = try await Self.open(drift)
 
         let fix = try Self.fix(try await studio.correctDrift("C", to: "ref"))
@@ -83,13 +83,13 @@ struct StudioDriftTests {
         #expect(abs(pause) <= Double(drift.rate) / 1000, "the pause is \(pause) frames off")
         for (clip, file) in zip(fix.clips, fix.files) {
             #expect(studio.session.clip(clip)?.clip.file == file)
-            try Self.expectAligned(clip, in: studio, drift, points: nil)
+            try await Self.expectAligned(clip, in: studio.session, drift, points: nil)
         }
     }
 
     /// A cancel at the first cancel read after the renames removes the new file and saves nothing.
     @Test func aCancelLeavesNoNewFile() async throws {
-        let drift = try DriftPackage(seconds: 300)
+        let drift = try await DriftPackage.make(seconds: 300)
         let studio = try await Self.open(drift)
         let url = drift.package.url
         let renamed = url.appending(path: "\(clipsFolderName)/c drift.wav")
@@ -112,7 +112,7 @@ struct StudioDriftTests {
 
     /// During the job a move and an undo throw `.busy`, and the job goes on to its fix.
     @Test func noEditDuringTheFix() async throws {
-        let drift = try DriftPackage(seconds: 300)
+        let drift = try await DriftPackage.make(seconds: 300)
         let studio = try await Self.open(drift)
         let gate = Gate(limit: Gate.openLimit)
         studio.environment.importStep = { gate.waitOnce() }
@@ -158,7 +158,7 @@ extension StudioDriftTests {
         return try #require(fix, "the drift was not corrected: \(report.outcome)")
     }
 
-    static func clipsNames(_ package: URL) -> [String] {
+    nonisolated static func clipsNames(_ package: URL) -> [String] {
         let names = try? FileManager.default.contentsOfDirectory(atPath: package.appending(path: clipsFolderName).path)
         return (names ?? []).sorted()
     }
@@ -167,13 +167,10 @@ extension StudioDriftTests {
         try Data(contentsOf: package.appending(path: "session.xml"))
     }
 
-    /// A second measure of `clip` against "ref": `points` points (any count when nil), each within
-    /// 1 ms of their median lag, and a fit rate under 1 ppm.
-    static func expectAligned(_ clip: ClipID, in studio: Studio, _ drift: DriftPackage, points: Int?) throws {
-        let session = studio.session
-        let measured = try driftMeasure(
-            of: clip, to: "ref", in: session, package: drift.package.url, span: session.syncSpan(clip, to: "ref")
-        ).points
+    /// A second measure of `clip` in `session` against "ref": `points` points (any count when nil),
+    /// each within 1 ms of their median lag, and a fit rate under 1 ppm.
+    static func expectAligned(_ clip: ClipID, in session: Session, _ drift: DriftPackage, points: Int?) async throws {
+        let measured = try await Self.measure(clip, in: session, drift.package.url)
         if let points { #expect(measured.count == points, "\(clip): \(measured.count) points") }
         let lags = measured.map(\.lag).sorted()
         let median = lags[lags.count / 2]
@@ -184,6 +181,21 @@ extension StudioDriftTests {
         }
         let fit = try DriftFit(points: measured, sampleRate: Double(drift.rate))
         #expect(abs(fit.slope) < 1e-6, "\(clip): rate \(fit.slope * 1e6) ppm after the fix")
+    }
+
+    /// `driftMeasure` of `clip` to "ref" off the main actor.
+    @concurrent nonisolated static func measure(_ clip: ClipID, in session: Session, _ package: URL) async throws
+        -> [DriftPoint]
+    {
+        try driftMeasure(of: clip, to: "ref", in: session, package: package, span: session.syncSpan(clip, to: "ref"))
+            .points
+    }
+
+    /// `syncLag` of `clip` to "ref" off the main actor.
+    @concurrent nonisolated static func lag(of clip: ClipID, in session: Session, _ package: URL) async throws
+        -> Frames
+    {
+        try syncLag(of: clip, to: "ref", in: session, package: package, span: session.syncSpan(clip, to: "ref")).lag
     }
 
     /// A package of the drift signal with a 12 kHz tone at phase pi/4 and `amplitude` in clip

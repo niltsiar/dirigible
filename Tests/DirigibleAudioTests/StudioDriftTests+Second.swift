@@ -12,7 +12,7 @@ extension StudioDriftTests {
     /// drifts by 2 ppm across 10 min (1.2 ms). The new file links to "c" with the composed ratio, the
     /// clip gain is -3 dB plus the returned gain (0 dB), and "first" is unused.
     @Test func aSecondFixResamplesTheFirstSource() async throws {
-        let drift = try DriftPackage(seconds: 600, ppm: 2)
+        let drift = try await DriftPackage.make(seconds: 600, ppm: 2)
         let first = try Self.link(ratio: 1 / 1.0001, addedGain: Gain(dB: 2)!)
         try Self.addCopy("first", of: drift, drift: first)
         try drift.package.session.setGain(Gain(dB: -1)!, clip: "T")
@@ -33,7 +33,7 @@ extension StudioDriftTests {
     /// The played file has a drift link, so a fix that takes the fault of the played file refuses
     /// it; the resample source "c" is a plain file.
     @Test func aSecondFixIsNotRefusedAsATakeFile() async throws {
-        let drift = try DriftPackage(seconds: 300, ppm: 5)
+        let drift = try await DriftPackage.make(seconds: 300, ppm: 5)
         try Self.addCopy("first", of: drift, drift: try Self.link(ratio: 1 / 1.0001))
         let studio = try await Self.open(drift)
 
@@ -75,7 +75,7 @@ extension StudioDriftTests {
     /// Words that Transcribe stored on "first" are on the new file at the same audio, through new
     /// file frame to source frame to "first" frame, and they stay when "first" leaves the pool.
     @Test func aSecondFixKeepsTheWordsOfTheFirstFile() async throws {
-        let drift = try DriftPackage(seconds: 300, ppm: 5)
+        let drift = try await DriftPackage.make(seconds: 300, ppm: 5)
         let first = try Self.link(ratio: 1 / 1.0001)
         try Self.addCopy("first", of: drift, drift: first)
         let words: [(Int, Range<Int>)] = [

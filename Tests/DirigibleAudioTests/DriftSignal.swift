@@ -145,6 +145,15 @@ struct DriftPackage {
             "c", clip: "C", file: "c", start: Frames(30 * rate - offset), offset: 0, length: Frames(length))
     }
 
+    /// `init` off the main actor: the synthesis of a 5 to 12 min package takes seconds in a debug
+    /// build, and the main-actor tests of the process wait for the main actor that long.
+    @concurrent nonisolated static func make(
+        seconds: Double, ppm: Double = 100, pause: Double = 0, at pauseSeconds: Double = 0,
+        voice: DriftSignal? = nil, clip: Make? = nil
+    ) async throws -> sending DriftPackage {
+        try DriftPackage(seconds: seconds, ppm: ppm, pause: pause, at: pauseSeconds, voice: voice, clip: clip)
+    }
+
     /// The source time in seconds of clip frame `c`.
     func sourceTime(_ c: Double) -> Double {
         let played: Double = c * (1 + m) / Double(rate)

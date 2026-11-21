@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -108,7 +109,7 @@ struct StudioMatchTests {
         let quieter = Float(pow(10, -abs(difference) / 20))
         if difference > 0 { first = first.map { $0 * quieter } } else { second = second.map { $0 * quieter } }
         let reference = first + second
-        let target = Self.bursts(Self.flat, seconds: 40)
+        let target = await Self.bursts(Self.flat, seconds: 40)
         let ranged = try await MatchFixture(reference: reference, targets: [target])
         try await ranged.matchVoice(range: 0..<960_000)
         let alone = try await MatchFixture(reference: first, targets: [target])
@@ -196,13 +197,13 @@ struct StudioMatchTests {
     /// the loudness of the bypassed track within 0.5 LU at amounts 1, 75, and 100.
     @Test(arguments: [1, 75, 100])
     func onAndOffKeepTheLoudness(amount: Int) async throws {
-        let bursts = Self.bursts(Self.rising, seconds: 60)
+        let bursts = await Self.bursts(Self.rising, seconds: 60)
         let fixture = try await MatchFixture(reference: repeated(Self.flat, seconds: 30), targets: [bursts])
         try await fixture.matchVoice(amount: amount)
         var session = fixture.studio.session
-        let on = try Self.loudness(fixture.package, session)
+        let on = try await Self.loudness(fixture.package.url, session)
         try session.setMatchBypassed(true, tracks: ["t1"])
-        let off = try Self.loudness(fixture.package, session)
+        let off = try await Self.loudness(fixture.package.url, session)
         let curve = try fixture.match().curve.decibels
         print(
             "StudioMatchTests: amount \(amount), on \(on) LUFS, off \(off) LUFS, change \(on - off) LU, "
@@ -212,8 +213,9 @@ struct StudioMatchTests {
     }
 
     /// `seconds` of `noise` in bursts of 2 s, with hiss 40 dB under the burst RMS in the 2 s
-    /// pauses, so the noise estimate of a target is low and no noise guard stops a boost.
-    static func bursts(_ noise: [Float], seconds: Double) -> [Float] {
+    /// pauses, so the noise estimate of a target is low and no noise guard stops a boost. It runs
+    /// off the main actor.
+    @concurrent nonisolated static func bursts(_ noise: [Float], seconds: Double) async -> [Float] {
         let samples = repeated(noise, seconds: seconds)
         let rms = sqrt(samples.map { Double($0 * $0) }.reduce(0, +) / Double(samples.count))
         var hiss = ProbeNoise()
@@ -229,12 +231,14 @@ struct StudioMatchTests {
         return try #require(meter.result().integrated).value
     }
 
-    /// The integrated loudness of track t1 through `MixReader`.
-    static func loudness(_ package: MixPackage, _ session: Session) throws -> Double {
-        let mix = MixReader(package: package.url, session: session, tracks: ["t1"])
-        let channels = try package.render(mix, 0..<2_880_000)
+    /// The integrated loudness of the first 60 s of track t1 through `MixReader`, off the main actor.
+    @concurrent nonisolated static func loudness(_ package: URL, _ session: Session) async throws -> Double {
+        let mix = MixReader(package: package, session: session, tracks: ["t1"])
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 2_880_000))
+        mix.render(0..<2_880_000, into: buffer)
         var meter = try #require(LoudnessMeter(sampleRate: 48_000, layout: .stereo))
-        meter.feed(try pcmBuffer(channels))
+        meter.feed(try pcmBuffer(channels(buffer)))
         return try #require(meter.result().integrated).value
     }
 }

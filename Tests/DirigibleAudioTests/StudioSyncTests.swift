@@ -13,10 +13,20 @@ struct StudioSyncTests {
     static func studio(
         start: Frames = 1_680_000, reference: [Float]? = nil, edit: (MixPackage) throws -> Void = { _ in }
     ) async throws -> (MixPackage, Studio) {
-        let package = try syncPackage(start: start, reference: reference)
+        let package = try await Self.package(start: start, reference: reference)
         try edit(package)
         try package.session.write(to: package.url)
         return (package, try await Studio.open(package.url))
+    }
+
+    /// `syncPackage` off the main actor.
+    @concurrent nonisolated static func package(start: Frames, reference: [Float]?) async throws -> sending MixPackage {
+        try syncPackage(start: start, reference: reference)
+    }
+
+    /// 100 s of speech that is not the speech of `syncPackage`, made off the main actor.
+    @concurrent nonisolated static func unrelatedSpeech() async -> [Float] {
+        SpeechLike(seconds: 100, rate: 48_000, seed: 7).frames(0..<4_800_000)
     }
 
     static func sessionBytes(_ package: MixPackage) throws -> Data {
@@ -48,7 +58,7 @@ struct StudioSyncTests {
     }
 
     @Test func noMatchChangesNothing() async throws {
-        let unrelated = SpeechLike(seconds: 100, rate: 48_000, seed: 7).frames(0..<4_800_000)
+        let unrelated = await Self.unrelatedSpeech()
         let (package, studio) = try await Self.studio(reference: unrelated)
         let bytes = try Self.sessionBytes(package)
         await #expect {

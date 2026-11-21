@@ -16,6 +16,15 @@ struct TemplatePanels {
     }
     /// Moves an item to the Trash. It runs off the main actor.
     var trash: @Sendable (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
+    var renames = TemplateRenames()
+}
+
+/// The renames of a Replace: `RENAME_SWAP`, then the two renames of `renameFolder`. Each gives 0 or the errno.
+/// They run off the main actor.
+struct TemplateRenames: Sendable {
+    var swap: @Sendable (String, String) -> Int32 = { renamex_np($0, $1, UInt32(RENAME_SWAP)) == 0 ? 0 : errno }
+    var exclusive: @Sendable (String, String) -> Int32 = exclusiveRename
+    var plain: @Sendable (String, String) -> Int32 = plainRename
 }
 
 extension AppDelegate {
@@ -80,30 +89,43 @@ enum TemplateSwap: Equatable, Sendable {
     case replaced
     /// The old template is at its name again, and the new one is gone.
     case trashFailed
-    case failed(errno: Int32)
+    /// The old template is in the Trash, and the new one stays at this path: its rename to the name failed.
+    case newKept(String)
+    /// The old template was not at the name, and the rename of the new one failed. The new one is gone.
+    case failed(SessionFileError)
 }
 
 /// Puts the template `saved` at `target` and moves the old one to the Trash with `trash`, off the main actor,
 /// while `lock` holds the old one. `RENAME_SWAP` exchanges the two in one step, and a failed move to the Trash
-/// swaps them back. A volume with no swap moves the old template to the Trash, then renames. At the end the
-/// folder of `saved` goes, unless a failed swap back left the old template in it.
+/// swaps them back. A volume with no swap moves the old template to the Trash, then publishes with
+/// `renameFolder`, the claim rename of a volume with no exclusive rename. At the end the folder of `saved` goes,
+/// unless it holds a template that is not at the name.
 @concurrent nonisolated func swapTemplate(
-    _ target: URL, with saved: URL, holding lock: PackageLock, trash: @Sendable (URL) throws -> Void
+    _ target: URL, with saved: URL, holding lock: PackageLock, trash: @Sendable (URL) throws -> Void,
+    renames: TemplateRenames
 ) async -> TemplateSwap {
     defer { withExtendedLifetime(lock) {} }
     let folder = saved.deletingLastPathComponent()
     let result: TemplateSwap
-    if renamex_np(saved.path, target.path, UInt32(RENAME_SWAP)) == 0 {
+    let code = renames.swap(saved.path, target.path)
+    if code == 0 {
         if (try? trash(saved)) != nil {
             result = .replaced
         } else {
-            guard renamex_np(saved.path, target.path, UInt32(RENAME_SWAP)) == 0 else { return .failed(errno: errno) }
+            let back = renames.swap(saved.path, target.path)
+            guard back == 0 else { return .failed(.writeFailed(step: "rename", errno: back)) }
             result = .trashFailed
         }
-    } else if errno != ENOENT, (try? trash(target)) == nil {
+    } else if code != ENOENT, (try? trash(target)) == nil {
         result = .trashFailed
     } else {
-        result = renamex_np(saved.path, target.path, UInt32(RENAME_EXCL)) == 0 ? .replaced : .failed(errno: errno)
+        do throws(SessionFileError) {
+            try renameFolder(saved.path, to: target.path, exclusive: renames.exclusive, plain: renames.plain)
+            result = .replaced
+        } catch {
+            if code != ENOENT { return .newKept(saved.path) }
+            result = .failed(error)
+        }
     }
     try? FileManager.default.removeItem(at: folder)
     return result

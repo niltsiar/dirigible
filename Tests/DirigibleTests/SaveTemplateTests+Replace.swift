@@ -80,4 +80,52 @@ extension SaveTemplateTests {
         #expect(model.alert == nil, "Cancel shows no alert")
         await model.close()
     }
+
+    /// A volume with no swap and no exclusive rename, as exFAT: the claim rename puts the new template at the
+    /// name, and the old one goes to the Trash.
+    @Test func replaceWithNoSwapPublishesWithTheClaim() async throws {
+        defer { clean() }
+        _ = try await existing("Show", tracks: 1)
+        let (model, _) = try await window()
+        app.templatePanels.renames.swap = { _, _ in ENOTSUP }
+        app.templatePanels.renames.exclusive = { _, _ in ENOTSUP }
+        panels.name = "Show"
+        panels.replace = true
+
+        await model.saveAsTemplate()
+
+        #expect(model.alert == nil)
+        #expect(try templateTracks("Show") == ["t1", "t2", "t3"], "the name holds the new template")
+        #expect(try Session(contentsOf: trash.appending(path: "Show.dirigible")).tracks.map(\.id.rawValue) == ["t1"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: templates.path) == ["Show.dirigible"])
+        await model.close()
+    }
+
+    /// The claim rename fails too: the new template stays in its folder, and the alert names the Trash and the
+    /// path of the new template.
+    @Test func aFailedRenameWithNoSwapKeepsTheNewTemplate() async throws {
+        defer { clean() }
+        _ = try await existing("Show", tracks: 1)
+        let (model, _) = try await window()
+        app.templatePanels.renames.swap = { _, _ in ENOTSUP }
+        app.templatePanels.renames.exclusive = { _, _ in ENOTSUP }
+        app.templatePanels.renames.plain = { _, _ in EIO }
+        panels.name = "Show"
+        panels.replace = true
+
+        await model.saveAsTemplate()
+
+        guard case .templateNewKept(let name, let path) = model.alert else {
+            Issue.record("the alert is \(String(describing: model.alert))")
+            return await model.close()
+        }
+        let kept = URL(filePath: path)
+        defer { try? FileManager.default.removeItem(at: kept.deletingLastPathComponent()) }
+        #expect(name == "Show")
+        #expect(kept.lastPathComponent == "Show.dirigible")
+        #expect(try Session(contentsOf: kept).tracks.map(\.id.rawValue) == ["t1", "t2", "t3"], "the new one stays")
+        #expect(try Session(contentsOf: trash.appending(path: "Show.dirigible")).tracks.map(\.id.rawValue) == ["t1"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: templates.path) == [], "no claim stays")
+        await model.close()
+    }
 }

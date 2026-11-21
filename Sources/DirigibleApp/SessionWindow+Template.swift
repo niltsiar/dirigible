@@ -55,7 +55,7 @@ extension SessionWindow {
         exportStep = nil
         do throws(StudioError) {
             if let old {
-                try await replace(target, holding: old, name: name.text, studio: studio, trash: panels.trash)
+                try await replace(target, holding: old, name: name.text, studio: studio, panels: panels)
             } else {
                 try await studio.saveTemplate(to: target)
             }
@@ -67,8 +67,7 @@ extension SessionWindow {
 
     /// The save of a Replace into a folder on the volume of `target`, then `swapTemplate`.
     private func replace(
-        _ target: URL, holding lock: PackageLock, name: String, studio: Studio,
-        trash: @escaping @Sendable (URL) throws -> Void
+        _ target: URL, holding lock: PackageLock, name: String, studio: Studio, panels: TemplatePanels
     ) async throws(StudioError) {
         let folder: URL
         do { folder = try await replacementFolder(for: target) } catch { throw .template(error) }
@@ -77,10 +76,11 @@ extension SessionWindow {
             await removeItem(folder)
             throw error
         }
-        switch await swapTemplate(target, with: saved, holding: lock, trash: trash) {
+        switch await swapTemplate(target, with: saved, holding: lock, trash: panels.trash, renames: panels.renames) {
         case .replaced: break
         case .trashFailed: alert = .templateTrash(name)
-        case .failed(let code): throw .template(.publish(.writeFailed(step: "rename", errno: code)))
+        case .newKept(let path): alert = .templateNewKept(name, path: path)
+        case .failed(let error): throw .template(.publish(error))
         }
     }
 }

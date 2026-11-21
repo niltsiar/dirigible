@@ -1005,4 +1005,5 @@
 "error.template.exists" = "Já existe um item com este nome. O Dirigible não o substituiu.";
 "error.template.trash" = "O Dirigible não conseguiu mover o modelo antigo “%@” para o Lixo. Nada foi salvo.";
 "error.template.open" = "O modelo “%@” está aberto em uma janela. Feche-o e tente novamente. Nada foi salvo.";
+"error.template.kept.new" = "O modelo antigo “%1$@” está no Lixo. O Dirigible não conseguiu salvar o novo modelo com o nome dele. O novo modelo está em uma pasta temporária: mova-o para mantê-lo.\n\n%2$@";
 "error.template.yielded" = "Uma tomada interrompeu a cópia do modelo. Nada foi criado. Tente novamente depois da tomada.";

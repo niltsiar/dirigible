@@ -30,8 +30,8 @@ import Foundation
 
     private(set) var jobs: [Job] = []
     private var count = 0
-    /// Runs on the copy thread between the check of a path and its copy. Tests hold a copy with it.
-    var beforeCopy: @Sendable (String) -> Void = { _ in }
+    /// The test seams of a copy that runs before its studio exists.
+    var environment = CaptureEnvironment.live
 
     public init() {}
 
@@ -54,7 +54,7 @@ extension Studio {
         _ template: URL, to package: URL, jobs: CopyJobs?, progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) {
         let beforeCopy: @Sendable (String) -> Void
-        if let jobs { beforeCopy = jobs.beforeCopy } else { beforeCopy = { _ in } }
+        if let jobs { beforeCopy = jobs.environment.templateBeforeCopy } else { beforeCopy = { _ in } }
         let hop: @Sendable (Double) -> Void = { fraction in Task { @MainActor in progress(fraction) } }
         let task = utilityTask { isCancelled -> Result<Void, TemplateError> in
             withoutActuallyEscaping(isCancelled) { isCancelled -> Result<Void, TemplateError> in

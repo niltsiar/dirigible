@@ -103,6 +103,8 @@ struct CaptureEnvironment: Sendable {
     var exportChunk: @Sendable () -> Void = {}
     /// The clone choice of a template copy (decision 0079): a test gives false for a data copy.
     var templateCanClone: @Sendable (URL, URL) -> Bool = { cloneWorks($0, into: $1) }
+    /// A step on the copy thread between the check of a path and its copy: tests hold a template copy with it.
+    var templateBeforeCopy: @Sendable (String) -> Void = { _ in }
     /// A step on the copy thread at each write of a template data copy: the path and the bytes.
     var templateWritten: @Sendable (String, Int64) -> Void = { _, _ in }
     /// A step on the import thread at each cancel check (decision 0040). Tests record the thread

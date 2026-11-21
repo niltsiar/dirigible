@@ -6,7 +6,7 @@ extension SessionWindow {
     /// The text of the progress sheet: the template text while this window saves a template, else the place of
     /// the file in hand for a split export, else "Exporting...".
     var sheetTitle: String {
-        savesTemplate ? L10n.sheetTemplateTitle.text : exportSheetTitle(studio?.exportFile)
+        studio?.savesTemplate == true ? L10n.sheetTemplateTitle.text : exportSheetTitle(studio?.exportFile)
     }
 
     /// File > Save as Template... is on when an export could start and the app has a templates folder.
@@ -53,8 +53,6 @@ extension SessionWindow {
             }
         }
         exportStep = nil
-        savesTemplate = true
-        defer { savesTemplate = false }
         do throws(StudioError) {
             if let old {
                 try await replace(target, holding: old, name: name.text, studio: studio, trash: panels.trash)

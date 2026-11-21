@@ -33,6 +33,9 @@ extension Studio {
     /// The number, the count, and the name of the file in hand of a running split export.
     public var exportFile: ExportPartsProgress? { exportJob?.file }
 
+    /// True while the job in the export slot is a Save as Template copy (decision 0079).
+    public var savesTemplate: Bool { exportJob?.isTemplate == true }
+
     /// The faults of the files that `source` reads, off the main actor: the media question
     /// before an export (decision 0003). Nil when the check cannot run: the package left its
     /// volume, or the process has no free descriptor.

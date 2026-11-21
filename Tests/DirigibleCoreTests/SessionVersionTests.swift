@@ -166,6 +166,7 @@ struct SessionVersionTests {
             #expect(try Session(xml: try session.checkedData()) == session)
         }
         #expect(rideSessionVersion > followSessionVersion && matchSessionVersion > rideSessionVersion)
-        #expect(driftSessionVersion > matchSessionVersion && sessionVersion == driftSessionVersion)
+        #expect(driftSessionVersion > matchSessionVersion && presetSessionVersion > driftSessionVersion)
+        #expect(sessionVersion == presetSessionVersion)
     }
 }

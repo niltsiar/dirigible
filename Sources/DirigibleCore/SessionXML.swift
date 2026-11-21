@@ -178,6 +178,7 @@ extension Session {
         root.addChild(markerList)
         if !episode.isEmpty { root.addChild(episodeElement(episode)) }
         if !transcripts.isEmpty { root.addChild(transcriptsElement()) }
+        if !exportPresets.isEmpty { root.addChild(exportPresetsElement()) }
 
         if let recording {
             let node = element(
@@ -205,6 +206,26 @@ extension Session {
                 element(
                     "transcript", ("id", transcript.id.description), ("name", transcript.name),
                     ("file", transcript.file.description)))
+        }
+        return list
+    }
+
+    /// `<exportPresets>` (decision 0080): one `<preset>` for each session preset, in list order,
+    /// with `bits` or `bitRate` by format and `loudness` only with a target.
+    fileprivate func exportPresetsElement() -> XMLElement {
+        let list = element("exportPresets")
+        for preset in exportPresets {
+            let options = preset.options
+            let node = element("preset", ("name", preset.name.text), ("format", options.format.fileToken))
+            switch options.format {
+            case .wav(let bits), .flac(let bits): add(("bits", String(bits.rawValue)), to: node)
+            case .aac(let rate), .mp3(let rate): add(("bitRate", String(rate.rawValue)), to: node)
+            case .floatCAF: preconditionFailure("PresetOptions refuses .floatCAF")
+            }
+            add(("channels", options.layout.rawValue), to: node)
+            add(("rate", options.rate.fileToken), to: node)
+            if let loudness = options.loudness { add(("loudness", loudness.rawValue), to: node) }
+            list.addChild(node)
         }
         return list
     }

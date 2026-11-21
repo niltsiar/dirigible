@@ -317,7 +317,7 @@ extension L10n {
             .foreignFile, .emptyExcerpt,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo,
-            .noJoin, .followOverlap, .pendingTake:
+            .noJoin, .followOverlap, .pendingTake, .invalidPresetName, .invalidPreset, .presetNameTaken, .unknownPreset:
             return errorSessionOther.text
         case .noRippleTrack: return errorRippleFollowOnly.text
         case .noMatch: return errorSessionMatchNone.text

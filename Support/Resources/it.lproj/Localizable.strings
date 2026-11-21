@@ -26,7 +26,7 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
-"track.role.help" = "Un’etichetta per la traccia. Non cambia il suono. “Abbassa la musica sotto la voce” la usa per trovare la voce e la musica. “Riduci rumore” salta le tracce di musica e di effetti.";
+"track.role.help" = "Un’etichetta per la traccia. Non cambia il suono. “Abbassa la musica sotto la voce” la usa per trovare la voce e la musica. “Riduci rumore” salta le tracce di musica e di effetti. “Esporta stem” può scrivere un file per ruolo.";
 "track.role.header" = "Un’etichetta. Non cambia il suono.";
 "menu.track.volume.up" = "Alza volume traccia";
 "menu.track.volume.down" = "Abbassa volume traccia";

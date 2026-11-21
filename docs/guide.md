@@ -696,10 +696,11 @@ A role tells what a track holds: dialogue, music, or effects. A role is a label.
 - Choose **Track > Role**, then **Dialogue**, **Music**, **Effects**, or **None**. The role goes to the selected tracks. You can also right-click a track header and choose **Role**.
 - A track with a role has a color strip at the left edge of its header and a letter before its name: teal and **D** for dialogue, green and **M** for music, yellow and **E** for effects. A track with no role shows neither.
 - The Role submenu starts with a line that says the role is a label and changes no sound. The tip of the letter shows the role name and the same help.
-- Three things read the role:
+- Four things read the role:
   - The header shows the color strip and the letter.
   - A duck takes the speech from the dialogue tracks and the tracks to lower from the music tracks (see [Duck the music under the speech](#duck-the-music-under-the-speech)).
   - **Reduce Noise** with noise reduction on skips the clips of tracks with the music or effects role. Remove hum alone takes every role (see [Reduce noise](#reduce-noise)).
+  - **File > Export Stems** with **One File for Each** set to **Role** writes one file for each role (see [Export stems](#export-stems)).
 - Each change is one step of **Edit > Undo**, and the session saves it.
 - A session with a role does not open in a version of Dirigible from before roles.
 - In Terminal, `dirigible track role <package> <track> dialogue` sets a role (`music`, `effects`, or `none` to remove it). `dirigible info` shows the role of each track. The command prints nothing. The tool `track_role` answers `OK` and a second line that says the role is a label and changes no sound.
@@ -838,6 +839,20 @@ Choose **File > Export Chapters** (Option-Command-E) to write the chapters to a 
 - Two chapters at the same time, to the millisecond, cannot both be in the file. The export keeps the first one and shows a banner with the name of the other one.
 - Upload the file to a host that reads Podcasting 2.0 chapters. Not every host does. Upload the images to the same folder, or change each image name in the file to the web address of the image.
 - If an export of the chapters stops with an alert, export them again before you upload the files. Dirigible writes the images before the JSON file, so the images can be new while the JSON file is old.
+
+### Export stems
+
+Choose **File > Export Stems** to write one file for each track, or one for each role, into a new folder. Take the files into a mixer or another editor. The item has no key.
+
+![The save panel of Export Stems over the Loud session: the line "2 of 2 tracks, the whole session", the Folder name field, and the options One File for Each, Format, Bit depth, Channels, and Sample rate.](images/screenshot-export-stems.png)
+
+- The item is on when the scope has a stem. The scope is the selected tracks, or every track when none is selected. The range is the range between the in and out marks, or the whole session when the marks have no range. **Export Selection** does not change the scope.
+- The save panel names a new folder. Its first line says how many tracks the export has and the range. Its options are **One File for Each** (**Track** or **Role**), **Format**, **Bit depth**, **Channels**, and **Sample rate**. The panel keeps its own options. Each stem file has its tracks with their gain and effects, as in the mix.
+- With **Track**, the files are `01 loud1.wav`, `02 loud2.wav`, and so on: a number, then the track name. With **Role**, each file has the name of its role, in the language of the app. With the app in Spanish, a session with a dialogue track and a music track gives `Diálogo.wav` and `Música.wav`. In Terminal and in the tools, the role names are in English.
+- A sheet shows the progress, with a **Cancel** button. After **Cancel**, no folder exists and a banner says that no stem was written.
+- When the export ends, a banner says how many files Dirigible wrote and where, with **Show in Finder**.
+- The files add up to the mix export only when no stem and no mix is over 0 dBFS. A WAV or FLAC file clips at 0 dBFS. When the sum of the stems is over 0 dBFS, a warning above the folder line says that the stems do not add up to a mix export.- A folder name that exists gets the question of the save panel, **Replace**. Dirigible never replaces a folder: an alert says that an item with this name exists and the export did not replace it. The old folder stays. Choose another name.
+- The same export is `dirigible export-stems` in Terminal and the tool `export_stems`.
 
 ### Export the transcript
 
@@ -1017,6 +1032,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |
+| **Export Stems** | **Exportar stems** | None |
 | **Export Chapters** | **Exportar capítulos** | Option-Command-E |
 | **Export Transcript** | **Exportar transcripción** | None |
 | **Episode Info** | **Información del episodio** | Shift-Command-I |

@@ -30,7 +30,7 @@ extension Studio {
         async throws(StudioError) -> PruneReport
     {
         try checkIdle()
-        guard exportJob?.isTemplate != true else { throw .busy }
+        guard !savesTemplate else { throw .busy }
         let result = await serialized { () async -> Result<PruneReport, StudioError> in
             let scan: UnusedFiles
             let kept = keptFiles(clipboard())
@@ -39,7 +39,7 @@ extension Studio {
             case .failure(let error): return .failure(error)
             }
             // A take or a template save can start during the scan (AGENTS.md, Actors).
-            guard isIdle, exportJob?.isTemplate != true else { return .failure(.busy) }
+            guard isIdle, !savesTemplate else { return .failure(.busy) }
             let before = session
             // The pool change comes after the save, so a failed save leaves memory as the disk.
             let apply = { @MainActor (files: UnusedFiles, saved: Session) throws(SessionError) in

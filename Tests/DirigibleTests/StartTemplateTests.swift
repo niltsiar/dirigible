@@ -261,7 +261,7 @@ extension StartWindowTests {
         let (app, _, _) = appWithDefaults()
         let a = try await makeTemplate("Alpha", files: 2)
         let hold = CopyHold()
-        app.copyJobs.beforeCopy = { _ in hold.hold() }
+        app.copyJobs.environment.templateBeforeCopy = { _ in hold.hold() }
         let model = try await startModel(app)
         model.choose(.template(a))
         model.edit("Ep")
@@ -292,7 +292,7 @@ extension StartWindowTests {
         var errors: [StudioError] = []
         app.showError = { errors.append($0) }
         let hold = CopyHold()
-        app.copyJobs.beforeCopy = { _ in hold.hold() }
+        app.copyJobs.environment.templateBeforeCopy = { _ in hold.hold() }
         let model = try await startModel(app)
         model.choose(.template(a))
         model.edit("Ep")
@@ -318,7 +318,7 @@ extension StartWindowTests {
         var errors: [StudioError] = []
         app.showError = { errors.append($0) }
         let hold = CopyHold()
-        app.copyJobs.beforeCopy = { _ in hold.hold() }
+        app.copyJobs.environment.templateBeforeCopy = { _ in hold.hold() }
         let model = try await startModel(app)
         model.choose(.template(a))
         model.edit("Ep")
@@ -363,7 +363,7 @@ extension StartWindowTests {
         let (app, _, _) = appWithDefaults()
         let a = try await makeTemplate("Alpha", files: 2)
         let first = CopyHold()
-        app.copyJobs.beforeCopy = { _ in first.hold() }
+        app.copyJobs.environment.templateBeforeCopy = { _ in first.hold() }
         let model = try await startModel(app)
         model.choose(.template(a))
         model.edit("Ep")
@@ -379,7 +379,7 @@ extension StartWindowTests {
 
         #expect(model.createProgress == nil, "a hop of an ended create sets no bar")
         let second = CopyHold()
-        app.copyJobs.beforeCopy = { _ in second.hold() }
+        app.copyJobs.environment.templateBeforeCopy = { _ in second.hold() }
         model.create()
         await until("the second copy holds in its first file") { second.isHeld }
         try #require(model.createNumber != ended && model.createProgress == 0, "the second create has its own bar")

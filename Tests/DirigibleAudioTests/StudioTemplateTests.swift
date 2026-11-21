@@ -50,6 +50,30 @@ struct StudioTemplateTests {
         #expect(try names(fixture) == ["Mix.dirigible"], "no template, staging folder, or lock file")
     }
 
+    /// The studio says when the job in its export slot is a Save as Template: the window reads it for the title of
+    /// the progress sheet. An export is no template save.
+    @Test func theStudioSaysWhenItSavesATemplate() async throws {
+        let fixture = try await ExportStudioFixture.make()
+        let seam = ChunkSeam(pause: longChunk)
+        let studio = try await fixture.open(seam: seam)
+        let target = fixture.package.folder.url.appending(path: "Show.dirigible")
+        #expect(!studio.savesTemplate, "no job")
+        let save = Task { try await studio.saveTemplate(to: target) }
+        await until(limit: .seconds(30), "the copy did not read its cancel flag") { seam.calls > 0 }
+        #expect(studio.savesTemplate, "the copy runs")
+        await studio.settle()
+        await #expect(throws: StudioError.template(.cancelled)) { try await save.value }
+        #expect(!studio.savesTemplate, "the copy ended")
+
+        let calls = seam.calls
+        let (source, options, out) = (fixture.source, fixture.options, fixture.out)
+        let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
+        await until(limit: .seconds(30), "the export did not start") { seam.calls > calls }
+        #expect(studio.exportProgress != nil && !studio.savesTemplate, "an export is no template save")
+        studio.cancelExport()
+        await #expect(throws: StudioError.export(.cancelled)) { try await export.value }
+    }
+
     /// T7: during an export, Save as Template throws `.busy` and makes nothing; the export goes on.
     @Test func saveTemplateDuringAnExportIsBusy() async throws {
         let fixture = try await ExportStudioFixture.make()
@@ -226,7 +250,7 @@ struct StudioTemplateCreateTests {
     func slowJobs() -> (CopyJobs, LockedBox<Int>) {
         let jobs = CopyJobs()
         let copies = LockedBox<Int>()
-        jobs.beforeCopy = { _ in
+        jobs.environment.templateBeforeCopy = { _ in
             copies.value = (copies.value ?? 0) + 1
             Thread.sleep(forTimeInterval: longChunk)
         }

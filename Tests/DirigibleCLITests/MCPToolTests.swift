@@ -182,6 +182,46 @@ struct MCPToolTests {
         #expect(!FileManager.default.fileExists(atPath: cli.folder.appending(path: "Zero.dirigible").path))
     }
 
+    @Test func sessionCreateWithATemplate() async throws {
+        let show = try TemplateShow()
+        let target = show.target.path
+        let answers = try await mcp([
+            toolCall(1, "session_create", ["package": target, "template": show.template.path]),
+            toolCall(2, "session_create", ["package": target, "template": show.template.path]),
+            toolCall(
+                3, "session_create", ["package": target, "template": show.template.path, "sample_rate": 48_000]),
+            toolCall(4, "session_create", ["package": target]),
+        ])
+
+        #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
+        #expect(
+            try Session(contentsOf: show.target) == (try Session(contentsOf: show.template.url).newEpisode().session))
+        #expect(
+            try Data(contentsOf: show.target.appending(path: "Clips/used.wav"))
+                == Data(contentsOf: show.template.url.appending(path: "Clips/used.wav")))
+        #expect(toolResult(answer(answers, id: 2)) == ("\(target) exists.", true), "a package that exists")
+        let both = toolResult(answer(answers, id: 3))
+        #expect(both.isError && both.text == "Give sample_rate or template, not both.", "\(both)")
+        let neither = toolResult(answer(answers, id: 4))
+        #expect(neither.isError && neither.text == "Give sample_rate or template.", "\(neither)")
+        #expect(show.folderNames == ["New.dirigible", "Show.dirigible"])
+    }
+
+    @Test func sessionCreateWithATemplateDropsTheTranscript() async throws {
+        let show = try TemplateShow()
+        #expect(TemplateShow.transcriptFiles(show.template.url).count == 1, "control: the template has a transcript")
+
+        let answers = try await mcp([
+            toolCall(1, "session_create", ["package": show.target.path, "template": show.template.path])
+        ])
+
+        #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
+        #expect(TemplateShow.transcriptFiles(show.target).isEmpty)
+        let new = try Session(contentsOf: show.target)
+        #expect(new.words().isEmpty)
+        #expect(new.captures.keys.map(\.rawValue) == ["k1"], "the unused file and the orphan capture are gone")
+    }
+
     @Test func aLockedPackageIsRefused() async throws {
         let before = try package.xml()
         let rename = toolCall(1, "track_rename", ["package": package.path, "track": "a", "name": "X"])

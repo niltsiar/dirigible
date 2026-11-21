@@ -32,7 +32,8 @@ enum ToolWork: Sendable {
     case takeImport(take: Int, TakeImportEdit)
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).
     case info(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool)
-    case create(sampleRate: Int)
+    /// `session_create`: an empty session or a copy of a template, with no lock (decision 0079).
+    case create(NewSessionSource)
     /// A paste from another package (decision 0042): files copy or convert under the lock.
     case paste(PasteWork)
     /// `backup_list`: no lock, as `session_info` (decision 0043).

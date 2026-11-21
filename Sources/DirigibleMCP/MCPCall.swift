@@ -72,12 +72,20 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         } catch {
             throw ToolError(error.message(package: path))
         }
-    case .create(let sampleRate):
+    case .create(.rate(let sampleRate)):
         do throws(SessionFileError) {
             try Session.create(at: package, sampleRate: sampleRate)
             return "OK"
         } catch {
             throw ToolError(error.message(package: path))
+        }
+    case .create(.template(let template)):
+        do throws(TemplateError) {
+            try createSession(
+                at: package, template: template, progress: control.report, isCancelled: control.isCancelled)
+            return "OK"
+        } catch {
+            throw ToolError(error.message(template: template.path, package: path))
         }
     case .info(let tracks, let range, let compact):
         return try info(package, path: path, tracks: tracks, range: range, compact: compact)

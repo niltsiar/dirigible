@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -133,6 +134,32 @@ extension SessionFileError {
         case .unsafeItem(let item):
             "\(package)/\(item) is a link, a special file, or an item of the wrong kind, so Dirigible does not open the "
                 + "package. Replace that item with a plain file or folder, or remove it."
+        }
+    }
+}
+
+extension TemplateError {
+    /// The text of a template copy that made nothing, for `dirigible create` and `session_create`.
+    /// `template` is the path of the template and `package` the path of the new package. No
+    /// `default` case: a new error case does not compile until it has a message.
+    package func message(template: String, package: String) -> String {
+        switch self {
+        case .read(let error): error.message(package: template)
+        case .pendingTake: "\(template) has a take that is not finalized."
+        case .notRegularFile(let path):
+            "\(template)/\(path) is a link, a special file, or an item of the wrong kind, so the template cannot "
+                + "make a new session. Replace that item with a plain file, or remove it."
+        case .sourceChanged(let path): "\(template)/\(path) changed during the copy. Make the session again."
+        case .missing(let path): "\(template)/\(path) is missing."
+        case .notDownloaded(let path):
+            "\(template)/\(path) is not on this Mac. Download it, then make the session again."
+        case .space(let needed, let free):
+            "the new session needs \(needed) bytes free on the disk of \(package); \(free) bytes are free."
+        case .write(let file, let code): "cannot write \(package)/\(file): \(String(cString: strerror(code)))."
+        case .cancelled: "the copy was cancelled, so \(package) was not made."
+        case .nameTooLong:
+            "the name of \(package) has more than \(templateNameLimit) bytes before .dirigible, so it is too long."
+        case .publish(let error): error.message(package: package)
         }
     }
 }

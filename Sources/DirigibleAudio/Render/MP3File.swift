@@ -1,5 +1,6 @@
 import AVFoundation
 import CLame
+import DirigibleCore
 import Foundation
 
 /// `lame_init` fills a global log table with no lock (`init_log_table` in `util.c`). This `let`

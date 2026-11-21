@@ -1,4 +1,5 @@
 import AVFoundation
+import DirigibleCore
 
 /// The sample peak of the samples that `ExtAudioFile` writes to a `fileFormat` file at `fileRate`
 /// from buffers in the `client` format. At another rate it runs the buffers through an

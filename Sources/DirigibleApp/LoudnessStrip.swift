@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleAudio
+import DirigibleCore
 import QuartzCore
 import SwiftUI
 

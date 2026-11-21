@@ -1,5 +1,6 @@
 import AVFoundation
 import AudioToolbox
+import DirigibleCore
 
 /// The file type and the file format of `format` at `rate` Hz with `channels` (probe P1). WAV
 /// has the RF64 type, as `ClipWriter`: a plain RIFF WAV under 4 GiB and RF64 above it.

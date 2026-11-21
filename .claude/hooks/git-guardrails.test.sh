@@ -2089,7 +2089,7 @@ rw_agent 6 5460 open 5458 allow
 # after its run started, and records over 24 h old do not count.
 rw_agent r1 10800 open 600 block
 release_has "agr1: Agent \"d toolu_agr1\""
-release_has "its run started $(date -r $(($(date +%s) - 600)) +%H:%M)"
+release_has "its run started $(date -r "$(stat -f %m "$rw_sub/agent-agr1.meta.json")" +%H:%M)"
 rw_agent r2 10800 true 60 allow
 rw_agent r3 10800 open 5460 allow
 rw_agent r4 10800 open 5340 block

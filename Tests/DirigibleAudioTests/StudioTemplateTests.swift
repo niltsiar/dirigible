@@ -279,6 +279,8 @@ struct StudioTemplateCreateTests {
 
     /// T7: the disk check of a take ends a template create into a folder on its volume, and the
     /// take runs on. The free space is 0 while the folder of the copy has more than the template.
+    /// A gate holds the copy at its first file until the disk check ends the job: under load one
+    /// check takes longer than a copy.
     @Test func aTakeDiskCheckEndsATemplateCreateOnItsVolume() async throws {
         let fixture = try await ExportStudioFixture.make()
         let studio = try await fixture.open()
@@ -289,14 +291,17 @@ struct StudioTemplateCreateTests {
             return names.count > 1 ? 0 : 100_000_000_000
         }
         try await studio.startRecording(armed: ["t1"])
-        let (jobs, _) = slowJobs()
+        let jobs = CopyJobs()
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        jobs.environment.templateBeforeCopy = { _ in gate.waitOnce() }
         studio.copyJobs = jobs
         let (target, source) = (template.target, template.template)
+        let create = Task { try await Studio.create(target, source: .template(source), copyJobs: jobs) }
+        await until(limit: .seconds(30), "the disk check did not end the copy") { jobs.jobs.first?.yielded == true }
+        gate.open()
 
-        await #expect(throws: StudioError.templateYielded) {
-            _ = try await Studio.create(target, source: .template(source), copyJobs: jobs)
-        }
-
+        await #expect(throws: StudioError.templateYielded) { _ = try await create.value }
         #expect(template.parentNames == ["Show.dirigible"], "no package, staging folder, or lock file")
         try? await Task.sleep(for: .milliseconds(300))
         #expect(studio.transport == .recording(take: 1))

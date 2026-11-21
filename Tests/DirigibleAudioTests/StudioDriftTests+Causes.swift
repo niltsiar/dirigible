@@ -33,7 +33,7 @@ extension StudioDriftTests {
             ),
         ]
         for (name, cause, edit, clip) in cases {
-            let drift = try DriftPackage(seconds: 300, voice: voice, clip: clip)
+            let drift = try await DriftPackage.make(seconds: 300, voice: voice, clip: clip)
             try edit(drift)
             try await Self.expectMovedByTheLag("T", drift, cause: cause, name)
         }
@@ -42,7 +42,7 @@ extension StudioDriftTests {
     /// A split half of a take has a capture that is not its own ID: it is no take file, and it is
     /// not corrected either.
     @Test func aSplitHalfOfATakeIsNotCorrected() async throws {
-        let drift = try DriftPackage(seconds: 300)
+        let drift = try await DriftPackage.make(seconds: 300)
         try Self.addCopy("half", of: drift, capture: "take")
         #expect(drift.package.session.files["half"]?.isTakeFile == false)
         try await Self.expectMovedByTheLag("T", drift, cause: .takeFile, "split half")
@@ -52,11 +52,11 @@ extension StudioDriftTests {
     /// 1 - 950e-6: the composed ratio is about 1 - 1050e-6, so the fix writes no file. With a link
     /// of ratio 1 - 800e-6 the composed ratio is about 1 - 900e-6, and the fix resamples "c".
     @Test func aComposedRatioOverTheLimitWritesNoFile() async throws {
-        let over = try DriftPackage(seconds: 300)
+        let over = try await DriftPackage.make(seconds: 300)
         try Self.addCopy("first", of: over, drift: try Self.link(ratio: 1 - 950e-6))
         try await Self.expectMovedByTheLag("T", over, cause: .composedRateOutOfRange, "1050 ppm")
 
-        let under = try DriftPackage(seconds: 300)
+        let under = try await DriftPackage.make(seconds: 300)
         let first = try Self.link(ratio: 1 - 800e-6)
         try Self.addCopy("first", of: under, drift: first)
         let studio = try await Self.open(under)
@@ -67,8 +67,9 @@ extension StudioDriftTests {
 
     /// A 10 min line whose lag changes by 0.9 ms (1.5 ppm) is not corrected; 1.1 ms is.
     @Test func theOneMillisecondLine() async throws {
-        try await Self.expectMovedByTheLag("C", try DriftPackage(seconds: 600, ppm: 1.5), cause: .underOneMillisecond)
-        let drift = try DriftPackage(seconds: 600, ppm: 1.1 / 600 * 1000)
+        try await Self.expectMovedByTheLag(
+            "C", try await DriftPackage.make(seconds: 600, ppm: 1.5), cause: .underOneMillisecond)
+        let drift = try await DriftPackage.make(seconds: 600, ppm: 1.1 / 600 * 1000)
         let studio = try await Self.open(drift)
         _ = try Self.fix(try await studio.correctDrift("C", to: "ref"))
     }
@@ -76,15 +77,15 @@ extension StudioDriftTests {
     /// The source of a 12 min clip steps back 30 s at clip minute 5.5, as when the producer cut 30 s
     /// out of the reference: no piece is placed over another.
     @Test func aLagStepDownIsNotCorrected() async throws {
-        let drift = try DriftPackage(seconds: 720, pause: -30, at: 330)
+        let drift = try await DriftPackage.make(seconds: 720, pause: -30, at: 330)
         try await Self.expectMovedByTheLag("C", drift, cause: .noFit(.lagStepsBack))
     }
 
     /// A cancel that comes after the last cancel read of the measure, on a clip with points in 2
     /// cells of 5 (no fit), saves no move.
-    @Test func aCancelAfterTheMeasureOfANoFitClipThrows() throws {
+    @Test func aCancelAfterTheMeasureOfANoFitClipThrows() async throws {
         let voice = DriftSignal(seed: 1, seconds: 30 + 300 * 1.01 + 60)
-        let drift = try DriftPackage(
+        let drift = try await DriftPackage.make(
             seconds: 300, voice: voice,
             clip: { drift, range in
                 var samples = voice.clip(drift, range)
@@ -93,51 +94,56 @@ extension StudioDriftTests {
                 }
                 return samples
             })
-        final class Flag { var on = false }
-        let cancel = Flag()
-        #expect(throws: DriftFailure.cancelled) {
-            try driftRequest(
-                "C", to: "ref", within: nil, of: drift.package.session, in: drift.package.url, freeBytes: { .max },
-                progress: { if $0 >= 0.49 { cancel.on = true } }, isCancelled: { cancel.on })
+        let (session, url) = (drift.package.session, drift.package.url)
+        try await offMainActor {
+            final class Flag { var on = false }
+            let cancel = Flag()
+            #expect(throws: DriftFailure.cancelled) {
+                try driftRequest(
+                    "C", to: "ref", within: nil, of: session, in: url, freeBytes: { .max },
+                    progress: { if $0 >= 0.49 { cancel.on = true } }, isCancelled: { cancel.on })
+            }
+            #expect(cancel.on, "the measure did not end")
         }
-        #expect(cancel.on, "the measure did not end")
     }
 
     /// A 12 min clip with no drift whose source skips 5 s at clip minute 5.5: the fix splits the
     /// clip, and each piece is within 1 ms of its line.
     @Test func aPauseWithNoDriftSplitsTheClip() async throws {
-        let drift = try DriftPackage(seconds: 720, ppm: 0, pause: 5, at: 330)
+        let drift = try await DriftPackage.make(seconds: 720, ppm: 0, pause: 5, at: 330)
         let studio = try await Self.open(drift)
 
         let fix = try Self.fix(try await studio.correctDrift("C", to: "ref"))
 
         #expect(fix.clips.count == 2 && fix.splits.count == 1, "\(fix)")
-        for clip in fix.clips { try Self.expectAligned(clip, in: studio, drift, points: nil) }
+        for clip in fix.clips { try await Self.expectAligned(clip, in: studio.session, drift, points: nil) }
     }
 
     /// A session whose transcript did not load (decision 0055) cannot take a drift file: the clip
     /// of 5 min moves by the lag of `syncLag`, and no file is written.
-    @Test func anUnloadedTranscriptMovesTheClip() throws {
-        let drift = try DriftPackage(seconds: 300)
+    @Test func anUnloadedTranscriptMovesTheClip() async throws {
+        let drift = try await DriftPackage.make(seconds: 300)
         var session = drift.package.session
         session.transcripts[TranscriptID(1)] = Transcript(id: TranscriptID(1), name: "t1", words: nil)
         let url = drift.package.url
-        let lag = try syncLag(of: "C", to: "ref", in: session, package: url, span: session.syncSpan("C", to: "ref")).lag
+        let lag = try await Self.lag(of: "C", in: session, url)
         let start = try #require(session.clip("C")?.clip.start)
         let names = Self.clipsNames(url)
 
-        let (moved, report, made) = try driftRequest(
-            "C", to: "ref", within: nil, of: session, in: url, freeBytes: { .max })
+        try await offMainActor { [session] in
+            let (moved, report, made) = try driftRequest(
+                "C", to: "ref", within: nil, of: session, in: url, freeBytes: { .max })
 
-        #expect(report.outcome == .notCorrected(.transcriptNotLoaded), "\(report.outcome)")
-        #expect(report.sync.lag == lag && moved.clip("C")?.clip.start == start + lag)
-        #expect(made.isEmpty && Self.clipsNames(url) == names, "a file was written")
+            #expect(report.outcome == .notCorrected(.transcriptNotLoaded), "\(report.outcome)")
+            #expect(report.sync.lag == lag && moved.clip("C")?.clip.start == start + lag)
+            #expect(made.isEmpty && Self.clipsNames(url) == names, "a file was written")
+        }
     }
 
     /// A clip of 299 s is not measured; a clip of 300 s is corrected.
     @Test func theFiveMinuteLine() async throws {
-        try await Self.expectMovedByTheLag("C", try DriftPackage(seconds: 299), cause: .clipTooShort)
-        let drift = try DriftPackage(seconds: 300)
+        try await Self.expectMovedByTheLag("C", try await DriftPackage.make(seconds: 299), cause: .clipTooShort)
+        let drift = try await DriftPackage.make(seconds: 300)
         let studio = try await Self.open(drift)
         _ = try Self.fix(try await studio.correctDrift("C", to: "ref"))
     }
@@ -151,9 +157,7 @@ extension StudioDriftTests {
     ) async throws {
         let session = drift.package.session
         let url = drift.package.url
-        let lag = try syncLag(
-            of: clip, to: "ref", in: session, package: url, span: session.syncSpan(clip, to: "ref")
-        ).lag
+        let lag = try await Self.lag(of: clip, in: session, url)
         let start = try #require(session.clip(clip)?.clip.start)
         let studio = try await Self.open(drift)
         let names = Self.clipsNames(url)
@@ -199,5 +203,5 @@ extension StudioDriftTests {
 
 extension DriftPackage {
     /// The samples of a frame range of the clip file.
-    typealias Make = (DriftPackage, Range<Int>) -> [Float]
+    typealias Make = @Sendable (DriftPackage, Range<Int>) -> [Float]
 }

@@ -18,15 +18,21 @@ struct StudioPreRollTests {
         latency: 0)!
     nonisolated static let hostNow: UInt64 = 9_900_000_000
 
-    init() throws {
-        package = try MixPackage()
+    init() async throws {
+        package = try await Self.makePackage()
+        hal = TestHAL([Self.mic])
+    }
+
+    /// The package of the suite, made off the main actor.
+    @concurrent nonisolated static func makePackage() async throws -> sending MixPackage {
+        let package = try MixPackage()
         try package.addFile("f1", channels: [ramp(frames: 192_000)])
         try package.addFile("f2", channels: [ramp(frames: 192_000, channel: 1)])
         try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 192_000)
         try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 192_000)
         try package.session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         try package.session.write(to: package.url)
-        hal = TestHAL([Self.mic])
+        return package
     }
 
     func studio(access: MicrophoneAccess? = nil, free: FreeBytes = FreeBytes()) async throws -> Studio {

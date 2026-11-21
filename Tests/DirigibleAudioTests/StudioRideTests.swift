@@ -24,13 +24,15 @@ struct StudioRideTests {
         let report = try await fixture.ride()
         let clip = try fixture.clip()
         let gain = clip.layerGain(at: stepCentre(275)) - whole
-        let (loud, quiet) = (try heardLoudness(samples, clip, 5, 15), try heardLoudness(samples, clip, 22, 33))
-        let numbers = "passage \(passage), whole \(whole): heard gain \(gain), loud \(loud), passage \(quiet)"
         #expect(report.leveled == ["c1"] && !clip.ride.isEmpty, "\(report)")
-        if passage == -6 {
-            #expect(gain <= 6.5, "\(numbers)")
-        } else {
-            #expect(abs(loud - quiet) <= 1, "\(numbers)")
+        try await offMainActor {
+            let (loud, quiet) = (try heardLoudness(samples, clip, 5, 15), try heardLoudness(samples, clip, 22, 33))
+            let numbers = "passage \(passage), whole \(whole): heard gain \(gain), loud \(loud), passage \(quiet)"
+            if passage == -6 {
+                #expect(gain <= 6.5, "\(numbers)")
+            } else {
+                #expect(abs(loud - quiet) <= 1, "\(numbers)")
+            }
         }
     }
 
@@ -43,8 +45,10 @@ struct StudioRideTests {
         }
         try await fixture.ride()
         let clip = try fixture.clip()
-        let (gain, b) = (clip.layerGain(at: stepCentre(275)), try sourceRide(samples).dB[275])
-        #expect(gain >= -6.5, "heard gain \(gain), ride \(clip.ride.gain(at: stepCentre(275))), b \(b)")
+        try await offMainActor {
+            let (gain, b) = (clip.layerGain(at: stepCentre(275)), try sourceRide(samples).dB[275])
+            #expect(gain >= -6.5, "heard gain \(gain), ride \(clip.ride.gain(at: stepCentre(275))), b \(b)")
+        }
     }
 
     /// A duck dip (fixture B, music -3 +/- 3 dB, runs 20..40 s and 55..70 s) keeps its depth.
@@ -53,7 +57,7 @@ struct StudioRideTests {
     /// with a -16 and a -5 dB duck, also with a whole-clip gain of -3 dB after the duck.
     @Test(arguments: [(-16.0, 0.0), (-5.0, 0.0), (-16.0, -3.0), (-5.0, -3.0)])
     func duckDipKeepsItsDepth(depth: Double, whole: Double) async throws {
-        let samples = rideMusic(seconds: 90) { -3 + 3 * sin(2 * .pi * $0 / 8) }
+        let samples = await Self.dipMusic()
         let defaults = DuckShape.defaults(sampleRate: 48_000)
         let shape = DuckShape(
             depth: Gain(dB: depth)!, attack: defaults.attack, release: defaults.release, threshold: defaults.threshold,
@@ -69,14 +73,21 @@ struct StudioRideTests {
         let envelope = try fixture.clip().envelope
         try await fixture.ride()
         let clip = try fixture.clip()
-        let source = try sourceRide(samples)
-        let over = (205..<395).map { clip.ride.gain(at: stepCentre($0)) - max(0, source.dB[$0]) }.max()!
-        let heard = try heardLoudness(samples, clip, 5, 15)
-        let alone = heardLoudness(try heardSteps(samples) { whole + source.layer.gain(at: $0) }, 5, 15)
-        let numbers = "depth \(depth), whole \(whole): dip ride - max(0, b) \(over), heard \(heard), alone \(alone)"
-        #expect(over <= 0.1, "\(numbers)")
         #expect(clip.envelope == envelope, "the ride changed the envelope")
-        #expect(abs(heard - alone) <= 0.1, "\(numbers)")
+        try await offMainActor {
+            let source = try sourceRide(samples)
+            let over = (205..<395).map { clip.ride.gain(at: stepCentre($0)) - max(0, source.dB[$0]) }.max()!
+            let heard = try heardLoudness(samples, clip, 5, 15)
+            let alone = heardLoudness(try heardSteps(samples) { whole + source.layer.gain(at: $0) }, 5, 15)
+            let numbers = "depth \(depth), whole \(whole): dip ride - max(0, b) \(over), heard \(heard), alone \(alone)"
+            #expect(over <= 0.1, "\(numbers)")
+            #expect(abs(heard - alone) <= 0.1, "\(numbers)")
+        }
+    }
+
+    /// The music of fixture B, made off the main actor.
+    @concurrent nonisolated static func dipMusic() async -> [Float] {
+        rideMusic(seconds: 90) { -3 + 3 * sin(2 * .pi * $0 / 8) }
     }
 
     /// A split speech clip with a duck across the cut, or a manual point on one part, is one

@@ -336,4 +336,40 @@ extension StartWindowTests {
         #expect(app.windows.isEmpty && !model.creating, "no window opens, and the form shows again")
         await closeAll(app)
     }
+
+    /// Code gate 1, item 5: a progress hop that comes after its create ended changes nothing, also while the
+    /// next create runs. A bar left on screen would keep the form on the bar with Cancel off.
+    @Test func aLateProgressHopOfAnEndedCreateChangesNothing() async throws {
+        let (app, _, _) = appWithDefaults()
+        let a = try await makeTemplate("Alpha", files: 2)
+        let first = CopyHold()
+        app.copyJobs.beforeCopy = { _ in first.hold() }
+        let model = try await startModel(app)
+        model.choose(.template(a))
+        model.edit("Ep")
+        model.create()
+        await until("the first copy holds in its first file") { first.isHeld }
+        let ended = model.createNumber
+        model.cancelCreate()
+        first.release()
+        await model.createTask?.value
+        try #require(model.createProgress == nil && !model.creating, "the first create ended")
+
+        model.createProgressed(ended, 0.5)
+
+        #expect(model.createProgress == nil, "a hop of an ended create sets no bar")
+        let second = CopyHold()
+        app.copyJobs.beforeCopy = { _ in second.hold() }
+        model.create()
+        await until("the second copy holds in its first file") { second.isHeld }
+        try #require(model.createNumber != ended && model.createProgress == 0, "the second create has its own bar")
+
+        model.createProgressed(ended, 0.9)
+
+        #expect(model.createProgress == 0, "a hop of the first create does not move the bar of the second")
+        model.cancelCreate()
+        second.release()
+        await model.createTask?.value
+        await closeAll(app)
+    }
 }

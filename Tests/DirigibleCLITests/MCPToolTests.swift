@@ -191,6 +191,7 @@ struct MCPToolTests {
             toolCall(
                 3, "session_create", ["package": target, "template": show.template.path, "sample_rate": 48_000]),
             toolCall(4, "session_create", ["package": target]),
+            toolCall(5, "session_create", ["package": target, "template": "Show.dirigible"]),
         ])
 
         #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
@@ -205,6 +206,7 @@ struct MCPToolTests {
         let neither = toolResult(answer(answers, id: 4))
         #expect(neither.isError && neither.text == "Give sample_rate or template.", "\(neither)")
         #expect(show.folderNames == ["New.dirigible", "Show.dirigible"])
+        #expect(toolResult(answer(answers, id: 5)) == ("The argument \"template\" must be an absolute path.", true))
     }
 
     @Test func sessionCreateWithATemplateDropsTheTranscript() async throws {

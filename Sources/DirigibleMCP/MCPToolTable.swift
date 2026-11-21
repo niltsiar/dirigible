@@ -38,7 +38,8 @@ private let sampleRate = Param<Int?>.optional(
     .integer())
 private let template = Param<String?>.optional(
     "template",
-    "A session package to copy: the new session has its tracks, clips, markers, show fields, and sample rate, "
+    "The absolute path of a session package to copy: the new session has its tracks, clips, markers, show "
+        + "fields, and sample rate, "
         + "with no transcript and no episode title, number, date, summary, notes, URL, or GUID. Give this or "
         + "sample_rate.",
     .string)
@@ -65,7 +66,11 @@ let sessionTools = [
                 throw ToolError("The sample rate must be more than 0.")
             }
             return .create(.rate(rate))
-        case (nil, let template?): return .create(.template(URL(filePath: template)))
+        case (nil, let template?):
+            guard template.hasPrefix("/") else {
+                throw ToolError("The argument \"template\" must be an absolute path.")
+            }
+            return .create(.template(URL(filePath: template)))
         case (nil, nil): throw ToolError("Give sample_rate or template.")
         case (_?, _?): throw ToolError("Give sample_rate or template, not both.")
         }

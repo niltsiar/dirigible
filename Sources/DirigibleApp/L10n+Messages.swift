@@ -40,6 +40,12 @@ extension L10n {
         case .exportParts(.stopped(let stop)):
             let count = stop.written.count + stop.remaining.count
             return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
+        case .exportPresets(.exists): return errorExportExists.text
+        case .exportPresets(.duplicateTargets): return errorSessionOther.text
+        case .exportPresets(.rateNotSupported(_, let rate)): return errorExportRate.format(rate)
+        case .exportPresets(.stopped(let stop)):
+            let count = stop.written.count + stop.remaining.count
+            return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
         case .exportStems(.folderNameTooLong): return startNameErrorLong.text
         case .exportStems(.noStem): return errorExportNoStem.text
         case .exportStems(.notEnoughSpace): return errorExportDiskFull.text

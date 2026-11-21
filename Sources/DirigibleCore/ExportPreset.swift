@@ -60,6 +60,39 @@ public enum BuiltInPreset: String, CaseIterable, Hashable, Sendable {
 public enum PresetRef: Hashable, Sendable {
     case builtIn(BuiltInPreset)
     case session(PresetName)
+
+    /// The ID of a built-in or the name of a session preset: the token of the CLI and the tools, and
+    /// the name in a file name.
+    public var text: String {
+        switch self {
+        case .builtIn(let preset): preset.rawValue
+        case .session(let name): name.text
+        }
+    }
+}
+
+extension Session {
+    /// The file names of a preset set (decision 0080), in the order of `presets`. With one preset for
+    /// each extension, each name is `<prefix>.<pathExtension>`. When two presets have one extension,
+    /// each name is `<prefix>-<text>.<pathExtension>`, with the `PresetRef.text` in NFC and cleaned by
+    /// `fileNameText`. A name over `limit` UTF-8 bytes loses characters from the end of the text,
+    /// then from the end of the prefix, never the extension. The prefix is not cleaned.
+    public static func presetFileNames(
+        _ presets: [(preset: PresetRef, pathExtension: String)], prefix: String, limit: Int
+    ) -> [String] {
+        let named = Set(presets.map(\.pathExtension)).count < presets.count
+        return presets.map { preset in
+            var text = named ? fileNameText(preset.preset.text.precomposedStringWithCanonicalMapping) : ""
+            var prefix = prefix
+            func name() -> String { "\(prefix)\(text.isEmpty ? "" : "-\(text)").\(preset.pathExtension)" }
+            while name().utf8.count > limit, !text.isEmpty {
+                text.removeLast()
+                while text.last == " " { text.removeLast() }
+            }
+            while name().utf8.count > limit, !prefix.isEmpty { prefix.removeLast() }
+            return name()
+        }
+    }
 }
 
 public struct ExportPreset: Hashable, Sendable {

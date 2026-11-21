@@ -18,6 +18,8 @@ struct ExportJob {
     let task: Task<Void, Never>
     /// A Save as Template copy (decision 0079): Remove Unused Files waits for its end.
     var isTemplate = false
+    /// The presets of a preset set, in file order (decision 0080).
+    var presets: [PresetRef]?
 }
 
 /// The cause of an export or an import end before its end: Cancel in the export sheet or the

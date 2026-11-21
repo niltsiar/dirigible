@@ -246,6 +246,12 @@ extension StudioError {
         case .exportYielded: "a take in another studio stopped the export."
         // `liveExport` catches each `.exportParts` case first, and no command exports a set through Studio.
         case .exportParts(let error): "the export of the files failed (\(error))."
+        case .exportPresets(.exists(let urls)): "an item is at \(urls.map(\.path).joined(separator: ", "))."
+        case .exportPresets(.duplicateTargets(let urls)):
+            "two presets give one file name: \(urls.map(\.path).joined(separator: ", "))."
+        case .exportPresets(.rateNotSupported(let preset, let rate)):
+            "preset \"\(preset.text)\" cannot write \(rate) Hz."
+        case .exportPresets(.stopped(let stop)): "the preset export stopped (\(stop.error))."
         // `liveStems` catches each `.exportStems` case first, and no command exports stems through Studio.
         case .exportStems(let error): "the stem export failed (\(error))."
         case .template(let error): "the template copy failed (\(error))."

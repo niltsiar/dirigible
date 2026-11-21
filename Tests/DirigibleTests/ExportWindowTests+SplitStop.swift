@@ -53,7 +53,7 @@ extension ExportWindowTests {
 
         let file = try #require(studio.exportFile)
         #expect((file.number, file.count, file.name) == (2, 3, "Ep-02-Talk.wav"))
-        #expect(exportSheetTitle(file) == L10n.sheetExportFile.format(2, 3, "Ep-02-Talk.wav"))
+        #expect(model.sheetTitle == L10n.sheetExportFile.format(2, 3, "Ep-02-Talk.wav"))
         #expect(exportSheetTitle(nil) == L10n.sheetExportTitle.text)
         hold.release()
         await task.value

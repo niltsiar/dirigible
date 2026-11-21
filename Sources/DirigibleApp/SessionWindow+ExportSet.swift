@@ -29,10 +29,17 @@ struct ReplaceParts: Hashable {
         ? L10n.alertExportReplaceOne.format(folder) : L10n.alertExportReplaceMany.format(names.count, folder)
     let kept = set.old.isEmpty ? "" : "\n\n" + L10n.oldFilesText(set.old.map(\.lastPathComponent))
     alert.informativeText = L10n.firstNames(names) + kept
+    addReplaceButtons(to: alert, confirm: L10n.alertExportReplaceConfirm)
+    return alert
+}
+
+/// The buttons of a question that replaces an item: Cancel is the first button and the default, so
+/// Return cancels, and the destructive `confirm` has no key.
+@MainActor func addReplaceButtons(to alert: NSAlert, confirm: L10n) {
     let cancel = alert.addButton(withTitle: L10n.alertCancel.text)
     cancel.keyEquivalent = "\r"
     alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
-    alert.addButton(withTitle: L10n.alertExportReplaceConfirm.text).hasDestructiveAction = true
+    alert.addButton(withTitle: confirm.text).hasDestructiveAction = true
     // A button has one key and Return is the key of Cancel, so a transparent button presses Cancel at Esc
     // in each language.
     let escape = NSButton(frame: .zero)
@@ -44,7 +51,6 @@ struct ReplaceParts: Hashable {
     escape.target = cancel
     escape.action = #selector(NSButton.performClick(_:))
     alert.window.contentView?.addSubview(escape)
-    return alert
 }
 
 /// The text of the progress sheet: the place of the file in hand for a split export, else "Exporting...".

@@ -4,6 +4,7 @@
 - Date: 2026-10-14
 - Amends: 0040 (import renames with `moveNew`, never a replace; import makes `Clips/` when it is missing), 0042 (paste writes through the same batch).
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). `addDerivedFile` takes an origin. A file with an origin gets no word. A file with none gets the words of the span, read through the root of the source.
+- Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). The copy of a whole package into a new package keeps each file ID, path, and capture. It is not a new clip file: it does not use `NewClipFiles` and derives no ID or stem.
 
 ## Context
 

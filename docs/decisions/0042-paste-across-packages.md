@@ -8,6 +8,7 @@
 - Amended: 2026-10-14, run `2026-10-14-architecture-seams` (see 0056). A paste from another package writes its files through `NewClipFiles`: one space check, the temp names, the renames with `moveNew`, and one flush of `Clips/`. Each copied file keeps its own flush before the rename. The copy order and the rule that nothing deletes a renamed WAV do not change.
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). An excerpt copies the words of a clip on a rendered file from the root of its chain, clamped to the file. A paste into another package gives the copy no origin.
 - Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (see 0053). One `PasteMode` value gives the position and the kind of each paste: `.over(at:)` (Paste), `.insert(at:)` (Insert), `.replace(range)` (Replace), and `.fill(range)` (Paste to Fill Selection). It replaces the `at:` and `insert:` parameters of the paste path. `mode.ripples` (Insert and Replace) gives the `ripple:` flag of `Studio.edit` and of `blockingRun`, so a Replace under a pending or split take refuses with `.rippleBlocked` (0037). A Replace or a fill from another package copies each file once and shows the paste banner and the paste errors.
+- Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). The copy of a template into a new package uses the file steps of this paste: `copyNeed`, `spaceShortfall`, `copyCallback`, and `sourceIsDownloaded`. It adds a regular-file check and a device and inode check, and it copies from the checked descriptor.
 
 ## Context
 

@@ -54,6 +54,18 @@ Dirigible saves the session in the Music folder, in the Dirigible folder. To use
 
 There is no Save command. Dirigible saves each change to the session. It also keeps backups of the session: see [Go back to an earlier state of the session](#go-back-to-an-earlier-state-of-the-session).
 
+### Start from a template
+
+A template is a session that you copy to start each episode of a show. Save a session as a template once, then start each new episode from it.
+
+1. Open the session. Choose **File > Save as Template**. The item has no key. A sheet asks for a **Name**. A line under the field says what the template keeps, for example "Keeps 2 clips, 1.9 MB of audio." The size is the size of the audio files that the clips use. A file that no clip uses stays out of the template.
+2. Type a name and click **Save**. **Save** is off while the name is empty, has “/” or “:”, starts with a period, or is too long.
+3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one.
+
+Dirigible saves templates in the Templates folder of its folder in Music, also when you chose another folder for new sessions. To see them, choose **File > Show Templates in Finder**. Rename or delete a template in Finder.
+
+To start from a template, open the start window and choose a template from the **Template** pop-up under **New Session**. The pop-up shows only when you have a template. **None** starts an empty session. Dirigible keeps your choice for the next new session. The last item of the pop-up, **Show Templates in Finder**, opens the folder and keeps your choice. Click **Create**. While Dirigible copies the audio files, the window shows a bar and a **Cancel** button. **Cancel** stops the copy and makes no session.
+
 ### Open a session
 
 The start window and **File > Open Recent** list the 10 sessions that you opened last. The list stays after an update of Dirigible. When you move an open session in Finder, the list shows the new place after the next change to the session. Double-click a session, or select it and press Return. A session that Dirigible cannot find shows **Not found**. You can still open it: if the open fails, the session window shows the reason. To empty the list, choose **File > Open Recent > Clear Menu**. To open another session, click **Open Other…** or choose **File > Open**. The start window shows again when you close the last session window.
@@ -1036,6 +1048,8 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Export Stems** | **Exportar stems** | None |
 | **Export Chapters** | **Exportar capítulos** | Option-Command-E |
 | **Export Transcript** | **Exportar transcripción** | None |
+| **Save as Template** | **Guardar como plantilla** | None |
+| **Show Templates in Finder** | **Mostrar plantillas en el Finder** | None |
 | **Episode Info** | **Información del episodio** | Shift-Command-I |
 | **Revert To** | **Volver a** | None |
 | **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
@@ -1257,6 +1271,8 @@ swift run dirigible --help
 swift run dirigible create Demo.dirigible --sample-rate 48000
 swift run dirigible info Demo.dirigible
 ```
+
+`dirigible create Next.dirigible --template Show.dirigible` makes a new session from a template package, in place of `--sample-rate`. Use only one of the two options.
 
 `dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain and without the envelope. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**. It prints one line for each clip, then one report line on stderr, for example `Clips changed: 3.` or `No change: the clips are at the target level.` When no gain changes, it does not write the session.
 

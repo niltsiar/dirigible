@@ -43,6 +43,12 @@ struct DirigibleApp: App {
                                 .disabled(app.key?.isOn(.exportTranscript) != true)
                         }
                     }
+                    // The template items are a group of their own after the Export items (decision 0079).
+                    Divider()
+                    Button(TemplateMenu.saveAs.title.key) { Task { await app.key?.saveAsTemplate() } }
+                        .disabled(app.key?.canSaveTemplate != true)
+                    Button(TemplateMenu.showInFinder.title.key) { Task { await app.showTemplatesInFinder() } }
+                        .disabled(app.templatesFolder == nil)
                     Divider()
                     // The submenu stays on; each item is off while the window is busy (decision 0043).
                     Menu(L10n.menuFileRevertTo.key) {

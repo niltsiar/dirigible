@@ -14,6 +14,22 @@ struct LocalizationTests {
         #expect(tableProblems(tables, keys: L10n.allCases.map(\.rawValue)) == [])
     }
 
+    /// T11: each key of the template texts is in each of the eight tables, with its value.
+    @Test(arguments: AppLanguage.allCases.map(\.rawValue))
+    func eachTemplateKeyHasAValue(language: String) throws {
+        let keys = [
+            "session.template.label", "session.template.none", "session.template.show.finder", "template.save.keeps",
+            "template.save.keeps.one", "template.save.keeps.none", "template.save.title", "template.save.button",
+            "template.replace.title", "template.replace.info", "template.replace.replace", "menu.file.save.template",
+            "menu.file.show.templates", "sheet.template.title", "start.template.copying", "error.template.pending",
+            "error.template.file", "error.template.changed", "error.template.missing", "error.template.download",
+            "error.template.space", "error.template.write", "error.template.exists", "error.template.trash",
+        ]
+        let table = try stringsTable(language)
+        #expect(keys.filter { table[$0]?.isEmpty != false } == [], "\(language) lacks a template text")
+        #expect(L10n.allCases.map(\.rawValue).filter { keys.contains($0) }.sorted() == keys.sorted())
+    }
+
     @Test func checkerFindsAMissingKeyInAnyLanguage() {
         let problems = tableProblems(
             [

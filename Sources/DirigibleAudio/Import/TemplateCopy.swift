@@ -155,16 +155,19 @@ private func fill(
     _ staging: URL, with episode: NewEpisode, from source: URL, progress: @escaping (Double) -> Void,
     isCancelled: @escaping () -> Bool, seams: TemplateCopySeams
 ) throws(TemplateError) {
-    let paths = episode.filePaths
     // A link to the package itself is followed: the user chose it.
     let packageFD = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
     guard packageFD >= 0 else { throw .read(.readFailed(errno: errno)) }
     defer { close(packageFD) }
-    var checked: [CheckedFile] = []
-    for path in paths {
+    var (paths, checked): ([String], [CheckedFile]) = ([], [])
+    for path in episode.filePaths {
         let (descriptor, file) = try openChecked(path, in: packageFD)
         close(descriptor)
         guard seams.isDownloaded(source.appending(path: path)) else { throw .notDownloaded(path) }
+        // On a volume that ignores case, `A.wav` and `a.wav` open one file: it copies once.
+        let lower = path.lowercased()
+        if zip(paths, checked).contains(where: { $0.lowercased() == lower && $1 == file }) { continue }
+        paths.append(path)
         checked.append(file)
     }
     let pairs = zip(paths, checked).map { (source: source.appending(path: $0), size: $1.size, target: staging) }
@@ -180,7 +183,8 @@ private func fill(
             if !folders.contains(folder) { folders.append(folder) }
         }
     }
-    for folder in folders where mkdir(staging.appending(path: folder).path, 0o755) != 0 {
+    // The staging folder is new, so an item there is a folder of this loop under another case.
+    for folder in folders where mkdir(staging.appending(path: folder).path, 0o755) != 0 && errno != EEXIST {
         throw .write(file: folder, errno: errno)
     }
     let stagingFD = open(staging.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)

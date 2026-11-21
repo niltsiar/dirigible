@@ -7,9 +7,13 @@ public struct NewEpisode: Hashable, Sendable {
     fileprivate init(session: Session) { self.session = session }
 
     /// The package-relative path of each file that the new package needs, in copy order: each pool
-    /// path in `Clips/` (sorted), the episode artwork, and each marker image in `Artwork/`.
+    /// path in `Clips/` (sorted, once, with no `.` or empty component), the episode artwork, and each
+    /// marker image in `Artwork/`.
     public var filePaths: [String] {
-        let clips = Set(session.files.values.map(\.path)).sorted().map { "\(clipsFolderName)/\($0)" }
+        let pool = session.files.values.map {
+            $0.path.split(separator: "/").filter { $0 != "." }.joined(separator: "/")
+        }
+        let clips = Set(pool).sorted().map { "\(clipsFolderName)/\($0)" }
         var images: [String] = []
         for name in [session.episode.artwork] + session.sortedMarkers.map(\.image) {
             guard let name, !images.contains(name.name) else { continue }

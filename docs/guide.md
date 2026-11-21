@@ -851,7 +851,8 @@ Choose **File > Export Stems** to write one file for each track, or one for each
 - With **Track**, the files are `01 loud1.wav`, `02 loud2.wav`, and so on: a number, then the track name. With **Role**, each file has the name of its role, in the language of the app. With the app in Spanish, a session with a dialogue track and a music track gives `Diálogo.wav` and `Música.wav`. In Terminal and in the tools, the role names are in English.
 - A sheet shows the progress, with a **Cancel** button. After **Cancel**, no folder exists and a banner says that no stem was written.
 - When the export ends, a banner says how many files Dirigible wrote and where, with **Show in Finder**.
-- The files add up to the mix export only when no stem and no mix is over 0 dBFS. A WAV or FLAC file clips at 0 dBFS. When the sum of the stems is over 0 dBFS, a warning above the folder line says that the stems do not add up to a mix export.- A folder name that exists gets the question of the save panel, **Replace**. Dirigible never replaces a folder: an alert says that an item with this name exists and the export did not replace it. The old folder stays. Choose another name.
+- The files add up to the mix export only when no stem and no mix is over 0 dBFS. A WAV or FLAC file clips at 0 dBFS. When the sum of the stems is over 0 dBFS, a warning above the folder line says that the stems do not add up to a mix export.
+- A folder name that exists gets the question of the save panel, **Replace**. Dirigible never replaces a folder: an alert says that an item with this name exists and the export did not replace it. The old folder stays. Choose another name.
 - The same export is `dirigible export-stems` in Terminal and the tool `export_stems`.
 
 ### Export the transcript

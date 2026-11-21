@@ -337,6 +337,26 @@ extension StartWindowTests {
         await closeAll(app)
     }
 
+    /// Code gate 1, item 8: a pick that comes while the rescan runs is the choice that stays, also None.
+    @Test func aPickDuringARescanWins() async throws {
+        let (app, _, _) = appWithDefaults()
+        let a = try await makeTemplate("Alpha")
+        let b = try await makeTemplate("Bravo")
+        let model = try await startModel(app)
+        model.choose(.template(a))
+
+        model.scanTemplates()
+        model.choose(.template(b))
+        await model.templatesTask?.value
+        #expect(model.template == b, "the pick of Bravo stays")
+
+        model.scanTemplates()
+        model.choose(.none)
+        await model.templatesTask?.value
+        #expect(model.template == nil, "the pick of None stays")
+        await closeAll(app)
+    }
+
     /// Code gate 1, item 5: a progress hop that comes after its create ended changes nothing, also while the
     /// next create runs. A bar left on screen would keep the form on the bar with Cancel off.
     @Test func aLateProgressHopOfAnEndedCreateChangesNothing() async throws {

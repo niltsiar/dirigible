@@ -154,15 +154,16 @@ extension SessionName.Refusal {
     }
 
     /// Lists `Templates/` again, so a template that the user saved later shows. The stored choice, or the
-    /// choice of now, stays when its template is still there; else the choice is None.
+    /// choice of now, stays when its template is still there; else the choice is None. The choice is read after the
+    /// listing, so a pick during the scan wins.
     func scanTemplates() {
         guard let app, let folder = app.templatesFolder else { return }
-        let wanted = template?.path ?? app.defaults?.string(forKey: AppDelegate.templateKey)
         templatesTask?.cancel()
         templatesTask = Task {
             let found = await listTemplates(in: folder)
             guard !Task.isCancelled else { return }
             templates = found
+            let wanted = template?.path ?? app.defaults?.string(forKey: AppDelegate.templateKey)
             template = found.first { $0.path == wanted }
         }
     }

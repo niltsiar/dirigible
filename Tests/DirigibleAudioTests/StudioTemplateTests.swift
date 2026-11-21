@@ -12,20 +12,30 @@ struct StudioTemplateTests {
         try FileManager.default.contentsOfDirectory(atPath: fixture.package.folder.url.path).sorted()
     }
 
+    /// A chunk seam that holds the first cancel read of a copy (the staging folder exists then)
+    /// until `gate` opens. Open it after the stop sets `exportStop`: a stop under load is slow.
+    func heldSeam(_ gate: Gate) -> ChunkSeam { ChunkSeam(at: [1: { gate.waitOnce() }]) }
+
     /// T7: a take start in this window ends the copy, which throws `.template(.cancelled)` and
     /// leaves no package, no staging folder, and no lock file.
     @Test func aTakeStartEndsSaveTemplate() async throws {
         let fixture = try await ExportStudioFixture.make()
         let hal = TestHAL([fixture.mic])
-        let seam = ChunkSeam(pause: longChunk)
-        let studio = try await fixture.open(hal, seam: seam)
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let studio = try await fixture.open(hal, seam: heldSeam(gate))
         let target = fixture.package.folder.url.appending(path: "Show.dirigible")
         let save = Task { try await studio.saveTemplate(to: target) }
-        await until(limit: .seconds(30), "the copy did not read its cancel flag") { seam.calls > 0 }
+        await gate.entered()
 
-        _ = try await studio.startTake(armed: ["t1"], devices: [fixture.mic], hostTimeNanos: takeStart)
+        let start = Task {
+            _ = try await studio.startTake(armed: ["t1"], devices: [fixture.mic], hostTimeNanos: takeStart)
+        }
+        await until(limit: .seconds(30), "the take start did not end the copy") { studio.exportStop == .take }
+        gate.open()
 
         await #expect(throws: StudioError.template(.cancelled)) { try await save.value }
+        try await start.value
         #expect(studio.exportStop == .take)
         #expect(try names(fixture) == ["Mix.dirigible"], "no template, staging folder, or lock file")
         let input = SyntheticInput(hal, "mic")
@@ -37,15 +47,19 @@ struct StudioTemplateTests {
     /// T7: `settle()` (the close of the window) ends the copy and leaves nothing.
     @Test func settleEndsSaveTemplate() async throws {
         let fixture = try await ExportStudioFixture.make()
-        let seam = ChunkSeam(pause: longChunk)
-        let studio = try await fixture.open(seam: seam)
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let studio = try await fixture.open(seam: heldSeam(gate))
         let target = fixture.package.folder.url.appending(path: "Show.dirigible")
         let save = Task { try await studio.saveTemplate(to: target) }
-        await until(limit: .seconds(30), "the copy did not read its cancel flag") { seam.calls > 0 }
+        await gate.entered()
 
-        await studio.settle()
+        let settle = Task { await studio.settle() }
+        await until(limit: .seconds(30), "settle did not end the copy") { studio.exportStop == .close }
+        gate.open()
 
         await #expect(throws: StudioError.template(.cancelled)) { try await save.value }
+        await settle.value
         #expect(studio.exportStop == .close)
         #expect(try names(fixture) == ["Mix.dirigible"], "no template, staging folder, or lock file")
     }
@@ -141,16 +155,20 @@ struct StudioTemplateTests {
         let hal = TestHAL([a.mic])
         let studioA = try await a.open(hal)
         let b = try await ExportStudioFixture.make()
-        let seam = ChunkSeam(pause: longChunk)
-        let studioB = try await b.open(seam: seam)
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let studioB = try await b.open(seam: heldSeam(gate))
         let target = b.package.folder.url.appending(path: "Show.dirigible")
         let save = Task { try await studioB.saveTemplate(to: target) }
-        await until(limit: .seconds(30), "the copy did not read its cancel flag") { seam.calls > 0 }
+        await gate.entered()
         studioA.otherStudios = { [studioB] }
 
-        let host = try await StudioExportTests().start(.startTake, studioA, a)
+        let start = Task { try await StudioExportTests().start(.startTake, studioA, a) }
+        await until(limit: .seconds(30), "the take start did not end the copy") { studioB.exportStop == .take }
+        gate.open()
 
         await #expect(throws: StudioError.templateYielded) { try await save.value }
+        let host = try await start.value
         #expect(studioB.exportStop == .take)
         #expect(try names(b) == ["Mix.dirigible"], "no template, staging folder, or lock file")
         try await StudioExportTests().recordAndStop(studioA, hal, from: host)
@@ -168,12 +186,16 @@ struct StudioTemplateTests {
         }
         try await studioA.startRecording(armed: ["t1"])
         let b = try await ExportStudioFixture.make()
-        let studioB = try await b.open(seam: ChunkSeam(pause: longChunk))
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let studioB = try await b.open(seam: heldSeam(gate))
         let target = b.package.folder.url.appending(path: "Show.dirigible")
         let save = Task { try await studioB.saveTemplate(to: target) }
-        await until(limit: .seconds(30), "the copy made no staging folder") { (try? names(b))?.count ?? 0 > 1 }
+        await gate.entered()
         studioA.otherStudios = { [studioB] }
         folderB.value = b.package.folder.url
+        await until(limit: .seconds(30), "the disk check did not end the copy") { studioB.exportStop == .take }
+        gate.open()
 
         await #expect(throws: StudioError.templateYielded) { try await save.value }
         #expect(studioB.exportStop == .take)
@@ -246,15 +268,12 @@ struct StudioTemplateTests {
 /// `Studio.create` with a template (T6, T7, T13): the copy runs before a studio exists.
 @MainActor
 struct StudioTemplateCreateTests {
-    /// A copy job list whose copy pauses `longChunk` before each file.
-    func slowJobs() -> (CopyJobs, LockedBox<Int>) {
+    /// A copy job list whose copy holds before its first file until `gate` opens. Open it after
+    /// the stop ends the job (`yielded`): a stop under load is slow.
+    func heldJobs(_ gate: Gate) -> CopyJobs {
         let jobs = CopyJobs()
-        let copies = LockedBox<Int>()
-        jobs.environment.templateBeforeCopy = { _ in
-            copies.value = (copies.value ?? 0) + 1
-            Thread.sleep(forTimeInterval: longChunk)
-        }
-        return (jobs, copies)
+        jobs.environment.templateBeforeCopy = { _ in gate.waitOnce() }
+        return jobs
     }
 
     /// T7: a take start in a window ends the template create through `exportEnd`.
@@ -263,15 +282,20 @@ struct StudioTemplateCreateTests {
         let hal = TestHAL([fixture.mic])
         let studio = try await fixture.open(hal)
         let template = try TemplateFixture()
-        let (jobs, copies) = slowJobs()
+        let gate = Gate(limit: nil)
+        defer { gate.open() }
+        let jobs = heldJobs(gate)
         studio.copyJobs = jobs
         let (target, source) = (template.target, template.template)
         let create = Task { try await Studio.create(target, source: .template(source), copyJobs: jobs) }
-        await until(limit: .seconds(30), "the copy did not start") { copies.value != nil }
+        await gate.entered()
 
-        let host = try await StudioExportTests().start(.startTake, studio, fixture)
+        let start = Task { try await StudioExportTests().start(.startTake, studio, fixture) }
+        await until(limit: .seconds(30), "the take start did not end the copy") { jobs.jobs.first?.yielded == true }
+        gate.open()
 
         await #expect(throws: StudioError.templateYielded) { _ = try await create.value }
+        let host = try await start.value
         #expect(template.parentNames == ["Show.dirigible"], "no package, staging folder, or lock file")
         #expect(jobs.jobs.isEmpty)
         try await StudioExportTests().recordAndStop(studio, hal, from: host)
@@ -279,8 +303,6 @@ struct StudioTemplateCreateTests {
 
     /// T7: the disk check of a take ends a template create into a folder on its volume, and the
     /// take runs on. The free space is 0 while the folder of the copy has more than the template.
-    /// A gate holds the copy at its first file until the disk check ends the job: under load one
-    /// check takes longer than a copy.
     @Test func aTakeDiskCheckEndsATemplateCreateOnItsVolume() async throws {
         let fixture = try await ExportStudioFixture.make()
         let studio = try await fixture.open()
@@ -291,10 +313,9 @@ struct StudioTemplateCreateTests {
             return names.count > 1 ? 0 : 100_000_000_000
         }
         try await studio.startRecording(armed: ["t1"])
-        let jobs = CopyJobs()
         let gate = Gate(limit: nil)
         defer { gate.open() }
-        jobs.environment.templateBeforeCopy = { _ in gate.waitOnce() }
+        let jobs = heldJobs(gate)
         studio.copyJobs = jobs
         let (target, source) = (template.target, template.template)
         let create = Task { try await Studio.create(target, source: .template(source), copyJobs: jobs) }

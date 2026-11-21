@@ -165,13 +165,15 @@ private func fill(
     guard packageFD >= 0 else { throw .read(.readFailed(errno: errno)) }
     defer { close(packageFD) }
     var (paths, checked): ([String], [CheckedFile]) = ([], [])
+    // On a source that ignores case, `A.wav` and `a.wav` open one file. It copies once only when the staging
+    // folder also ignores case; a case-sensitive one needs a copy for each spelling.
+    let mergesCase = pathconf(staging.path, _PC_CASE_SENSITIVE) == 0
     for path in episode.filePaths {
         let (descriptor, file) = try openChecked(path, in: packageFD)
         close(descriptor)
         guard seams.isDownloaded(source.appending(path: path)) else { throw .notDownloaded(path) }
-        // On a volume that ignores case, `A.wav` and `a.wav` open one file: it copies once.
         let lower = path.lowercased()
-        if zip(paths, checked).contains(where: { $0.lowercased() == lower && $1 == file }) { continue }
+        if mergesCase, zip(paths, checked).contains(where: { $0.lowercased() == lower && $1 == file }) { continue }
         paths.append(path)
         checked.append(file)
     }

@@ -1,4 +1,5 @@
 import DirigibleAudio
+import DirigibleCore
 import Foundation
 import Testing
 

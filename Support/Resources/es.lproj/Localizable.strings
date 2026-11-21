@@ -1004,3 +1004,4 @@
 "error.template.write" = "Dirigible no puede copiar «%1$@» (error %2$lld). Revise el disco y vuelva a intentarlo.";
 "error.template.exists" = "Ya existe un elemento con este nombre. Dirigible no lo reemplazó.";
 "error.template.trash" = "Dirigible no pudo mover la plantilla anterior «%@» a la Papelera. No se guardó nada.";
+"error.template.open" = "La plantilla «%@» está abierta en una ventana. Ciérrela y vuelva a intentarlo. No se guardó nada.";

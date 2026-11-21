@@ -55,13 +55,67 @@ extension AppDelegate {
     return exists(target)
 }
 
-/// Moves `url` to the Trash with `trash`, off the main actor.
-@concurrent nonisolated func moveToTrash(_ url: URL, using trash: @Sendable (URL) throws -> Void) async throws {
-    try trash(url)
+/// The window key of the old template of a Replace and its lock, off the main actor. The lock keeps each window
+/// off the package until it is in the Trash. It throws `.locked` when a window or another process holds it.
+@concurrent nonisolated func lockOldTemplate(_ target: URL) async throws(SessionFileError) -> (
+    key: URL, lock: PackageLock
+) {
+    (packageIdentity(target), try PackageLock(target))
+}
+
+/// A new folder on the volume of `target` that the system empties, for the new template of a Replace: the swap
+/// needs one volume.
+@concurrent nonisolated func replacementFolder(for target: URL) async throws(TemplateError) -> URL {
+    do {
+        return try FileManager.default.url(
+            for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: target, create: true)
+    } catch {
+        let code = ((error as? CocoaError)?.underlying as? POSIXError)?.code.rawValue ?? EIO
+        throw .write(file: target.deletingLastPathComponent().lastPathComponent, errno: code)
+    }
+}
+
+/// The end of `swapTemplate`.
+enum TemplateSwap: Equatable, Sendable {
+    case replaced
+    /// The old template is at its name again, and the new one is gone.
+    case trashFailed
+    case failed(errno: Int32)
+}
+
+/// Puts the template `saved` at `target` and moves the old one to the Trash with `trash`, off the main actor,
+/// while `lock` holds the old one. `RENAME_SWAP` exchanges the two in one step, and a failed move to the Trash
+/// swaps them back. A volume with no swap moves the old template to the Trash, then renames. At the end the
+/// folder of `saved` goes, unless a failed swap back left the old template in it.
+@concurrent nonisolated func swapTemplate(
+    _ target: URL, with saved: URL, holding lock: PackageLock, trash: @Sendable (URL) throws -> Void
+) async -> TemplateSwap {
+    defer { withExtendedLifetime(lock) {} }
+    let folder = saved.deletingLastPathComponent()
+    let result: TemplateSwap
+    if renamex_np(saved.path, target.path, UInt32(RENAME_SWAP)) == 0 {
+        if (try? trash(saved)) != nil {
+            result = .replaced
+        } else {
+            guard renamex_np(saved.path, target.path, UInt32(RENAME_SWAP)) == 0 else { return .failed(errno: errno) }
+            result = .trashFailed
+        }
+    } else if errno != ENOENT, (try? trash(target)) == nil {
+        result = .trashFailed
+    } else {
+        result = renamex_np(saved.path, target.path, UInt32(RENAME_EXCL)) == 0 ? .replaced : .failed(errno: errno)
+    }
+    try? FileManager.default.removeItem(at: folder)
+    return result
+}
+
+/// Removes `url`, off the main actor.
+@concurrent nonisolated func removeItem(_ url: URL) async {
+    try? FileManager.default.removeItem(at: url)
 }
 
 /// The Replace question of Save as Template (T-Q4): it names the template, Cancel is the default, and Replace
-/// moves the old template to the Trash before the save.
+/// moves the old template to the Trash after the save.
 @MainActor func templateReplaceAlert(name: String) -> NSAlert {
     let alert = NSAlert()
     alert.messageText = L10n.templateReplaceTitle.format(name)

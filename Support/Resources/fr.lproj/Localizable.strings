@@ -1004,3 +1004,4 @@
 "error.template.write" = "Dirigible ne peut pas copier « %1$@ » (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.template.exists" = "Un élément portant ce nom existe déjà. Dirigible ne l’a pas remplacé.";
 "error.template.trash" = "Dirigible n’a pas pu placer l’ancien modèle « %@ » dans la corbeille. Rien n’a été enregistré.";
+"error.template.open" = "Le modèle « %@ » est ouvert dans une fenêtre. Fermez-le et réessayez. Rien n’a été enregistré.";

@@ -31,7 +31,7 @@ extension SessionWindow {
     /// The scope of File > Export Stems... (decision 0078): the selected tracks, or every track when
     /// none is selected, over the Marks range, or the whole session when the Marks have no range.
     /// Export Selection does not change it.
-    func stemScope(in studio: Studio) -> ExportSource? {
+    private func stemScope(in studio: Studio) -> ExportSource? {
         let session = studio.session
         let selected = timeline.selection.headerTracks(in: session)
         var range = Frames.zero..<session.end

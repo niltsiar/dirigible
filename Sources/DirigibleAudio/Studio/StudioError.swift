@@ -37,6 +37,10 @@ public enum StudioError: Error, Hashable, Sendable {
     /// stopped or failed after it (decision 0067). A split export never throws `.export` or
     /// `.exportYielded`; `exportStop` gives the cause of a stop.
     case exportParts(ExportPartsError)
+    /// A preset set refused its targets or a rate before its first write, or it stopped or failed
+    /// after it (decision 0080). A preset set never throws `.export` or `.exportYielded`;
+    /// `exportStop` gives the cause of a stop.
+    case exportPresets(ExportPresetsError)
     /// A stem export refused its folder before its job, or refused, stopped, or failed in its job.
     /// A stem export never throws `.export` or `.exportYielded`; `exportStop` gives the cause of a
     /// stop.

@@ -131,7 +131,7 @@ extension Session {
 
 - A user with no template sets a preset in each session. A template (0079) carries the presets to each new episode, as the Hindenburg default session carries its settings.
 - An older build refuses a session with a preset (0024 P3). A session with no preset keeps its version.
-- A set of n presets renders the mix n times, plus the loudness passes of each file. A shared render is later item 1266. The run measures the time of the two built-in presets against one export before both are the checked default.
+- A set of n presets renders the mix n times, plus the loudness passes of each file. A shared render is later item 1266. The two built-in presets take more than 2.5 times the time of one WAV export of the mix (the MP3 encode and its loudness passes), so the app checks only the podcast preset the first time.
 - 0002, 0003, 0011, 0019, 0024, and 0041 get an Amended line.
 
 ## Alternatives considered

@@ -58,9 +58,7 @@ func exportMix(
 ) throws(ExportError) -> ExportResult {
     let flush = flush ?? { fullFlush(path: $0) }
     let rate = options.rate.hertz(session: session.sampleRate)
-    if case .aac = options.format, rate > 48_000 { throw .rateNotSupported(rate) }
-    // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
-    if case .mp3 = options.format, ![32_000, 44_100, 48_000].contains(rate) { throw .rateNotSupported(rate) }
+    guard exportSupports(options.format, rate: rate) else { throw .rateNotSupported(rate) }
     let artwork = try readArtwork(of: session.episode, format: options.format, package: package)
     let aac = if case .aac = options.format { true } else { false }
     let mp3 = if case .mp3 = options.format { true } else { false }
@@ -375,6 +373,16 @@ private func leftoverPrefix(_ url: URL) -> String { ".\(url.lastPathComponent)."
 
 /// The suffix of the tagged copy of an M4A export.
 private let tagSuffix = ".tag.tmp"
+
+/// False when `exportMix` refuses `format` at `rate` hertz with `.rateNotSupported` before any file.
+func exportSupports(_ format: ExportFormat, rate: Int) -> Bool {
+    switch format {
+    case .aac: rate <= 48_000
+    // The MPEG-1 rates, where LAME keeps each bit rate of `BitRate` (probes U3 and U7).
+    case .mp3: [32_000, 44_100, 48_000].contains(rate)
+    case .wav, .flac, .floatCAF: true
+    }
+}
 
 /// The longest target name in UTF-8 bytes whose `.<name>.<UUID>.tag.tmp` name fits the 255 bytes
 /// of a file name on APFS: 209.

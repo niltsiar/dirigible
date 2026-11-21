@@ -175,7 +175,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .rippleBlocked, .silencesStale, .outputTermUnavailable, .preRollStopped, .tooLittleVoice, .noTargetTrack,
         .rangeOutsideReference, .syncNoMatch:
         editRefused
-    case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .exportStems, .template,
+    case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .exportPresets, .exportStems,
+        .template,
         .templateYielded,
         .audioImport, .importYielded, .paste,
         .pasteYielded,

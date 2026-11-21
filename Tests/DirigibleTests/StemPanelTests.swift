@@ -2,6 +2,7 @@ import AppKit
 import DirigibleAudio
 import DirigibleCore
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -81,5 +82,42 @@ import Testing
         #expect(
             text(es, .panelStemsContent)
                 == "Cada archivo de stem contiene sus pistas con su ganancia y sus efectos, como en la mezcla.")
+    }
+
+    /// The item titles of each pop-up that `view` shows, in order.
+    func popUps(_ view: some View) -> [[String]] {
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(origin: .zero, size: host.fittingSize)
+        host.layoutSubtreeIfNeeded()
+        func walk(_ view: NSView) -> [[String]] {
+            let own = (view as? NSPopUpButton).map { [$0.itemTitles] } ?? []
+            return own + view.subviews.flatMap(walk)
+        }
+        return walk(host)
+    }
+
+    /// The mix panel and the stem panel list the same bit depths, channels, and sample rates, so a new
+    /// case cannot show in one panel only.
+    @Test func bothPanelsOfferTheSameFormatPickers() throws {
+        let sessionRate = 48_000
+        let mix = popUps(
+            ExportAccessory(
+                settings: ExportSettings(defaults: nil), sessionRate: sessionRate, note: nil, name: { "Show" },
+                changed: {}))
+        let stems = popUps(StemAccessory(settings: StemSettings(defaults: nil), sessionRate: sessionRate))
+        let expected = [
+            BitDepth.allCases.map { "\($0.rawValue)" },
+            [L10n.panelExportChannelsStereo.text, L10n.panelExportChannelsMono.text],
+            [
+                L10n.panelExportRateSession.format(sessionRate), L10n.panelExportRate44100.text,
+                L10n.panelExportRate48000.text,
+            ],
+        ]
+
+        try #require(!mix.isEmpty && !stems.isEmpty, "the pop-ups were not found: mix \(mix), stems \(stems)")
+        for list in expected {
+            #expect(mix.contains(list), "the mix panel lacks \(list): \(mix)")
+            #expect(stems.contains(list), "the stem panel lacks \(list): \(stems)")
+        }
     }
 }

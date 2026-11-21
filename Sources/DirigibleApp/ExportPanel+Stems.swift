@@ -118,7 +118,7 @@ extension ExportPanel {
     }
 }
 
-private struct StemAccessory: View {
+struct StemAccessory: View {
     @Bindable var settings: StemSettings
     let sessionRate: Int
 
@@ -132,18 +132,8 @@ private struct StemAccessory: View {
                 Text(L10n.panelExportFormatWAV.key).tag(StemSettings.Format.wav)
                 Text(L10n.panelExportFormatFLAC.key).tag(StemSettings.Format.flac)
             }
-            Picker(L10n.panelExportBits.key, selection: $settings.bits) {
-                ForEach(BitDepth.allCases, id: \.self) { bits in Text(verbatim: "\(bits.rawValue)").tag(bits) }
-            }
-            Picker(L10n.panelExportChannels.key, selection: $settings.layout) {
-                Text(L10n.panelExportChannelsStereo.key).tag(ChannelLayout.stereo)
-                Text(L10n.panelExportChannelsMono.key).tag(ChannelLayout.mono)
-            }
-            Picker(L10n.panelExportRate.key, selection: $settings.rate) {
-                Text(verbatim: L10n.panelExportRateSession.format(sessionRate)).tag(ExportRate.session)
-                Text(L10n.panelExportRate44100.key).tag(ExportRate.hz44100)
-                Text(L10n.panelExportRate48000.key).tag(ExportRate.hz48000)
-            }
+            ExportFormatPickers(
+                bits: $settings.bits, layout: $settings.layout, rate: $settings.rate, sessionRate: sessionRate)
             Text(L10n.panelStemsContent.key).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding()

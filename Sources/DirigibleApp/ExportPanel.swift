@@ -285,7 +285,7 @@ private struct TranscriptAccessory: View {
     }
 }
 
-private struct ExportAccessory: View {
+struct ExportAccessory: View {
     @Bindable var settings: ExportSettings
     let sessionRate: Int
     let note: String?
@@ -303,26 +303,17 @@ private struct ExportAccessory: View {
                 Text(L10n.panelExportFormatFLAC.key).tag(ExportSettings.Format.flac)
             }
             if let plan = settings.plan { filesPicker(plan) }
-            if settings.format == .aac || settings.format == .mp3 {
+            let lossy = settings.format == .aac || settings.format == .mp3
+            if lossy {
                 Picker(L10n.panelExportBitrate.key, selection: $settings.bitRate) {
                     ForEach(BitRate.allCases, id: \.self) { rate in
                         Text(verbatim: L10n.panelExportBitrateValue.format(rate.rawValue)).tag(rate)
                     }
                 }
-            } else {
-                Picker(L10n.panelExportBits.key, selection: $settings.bits) {
-                    ForEach(BitDepth.allCases, id: \.self) { bits in Text(verbatim: "\(bits.rawValue)").tag(bits) }
-                }
             }
-            Picker(L10n.panelExportChannels.key, selection: $settings.layout) {
-                Text(L10n.panelExportChannelsStereo.key).tag(ChannelLayout.stereo)
-                Text(L10n.panelExportChannelsMono.key).tag(ChannelLayout.mono)
-            }
-            Picker(L10n.panelExportRate.key, selection: $settings.rate) {
-                Text(verbatim: L10n.panelExportRateSession.format(sessionRate)).tag(ExportRate.session)
-                Text(L10n.panelExportRate44100.key).tag(ExportRate.hz44100)
-                Text(L10n.panelExportRate48000.key).tag(ExportRate.hz48000)
-            }
+            ExportFormatPickers(
+                bits: $settings.bits, layout: $settings.layout, rate: $settings.rate, sessionRate: sessionRate,
+                showsBits: !lossy)
             Picker(L10n.panelExportLoudness.key, selection: $settings.loudness) {
                 Text(L10n.panelExportLoudnessOff.key).tag(LoudnessTarget?.none)
                 ForEach(LoudnessTarget.allCases, id: \.self) { target in

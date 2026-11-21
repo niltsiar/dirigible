@@ -86,8 +86,9 @@ func createSession(
 /// can skip the rule. The order: the name limit, the staging folder, the `lstat` of `package`,
 /// `checkPublish()`; a first pass that checks each file of `filePaths` on its own descriptor;
 /// one space check; a copy pass from the checked descriptor; the flush of the files, then of the
-/// folders deepest first, then of the staging folder; `session.xml`; the publish. A throw leaves
-/// nothing at `package` and no staging folder.
+/// folders deepest first, then of the staging folder; `session.xml`; the publish. A cancel counts
+/// before each file, before `session.xml`, and before the publish. A throw leaves nothing at
+/// `package` and no staging folder.
 func copyNewEpisode(
     _ episode: NewEpisode, files source: URL, to package: URL, progress: @escaping (Double) -> Void,
     isCancelled: @escaping () -> Bool, seams: TemplateCopySeams = TemplateCopySeams()
@@ -220,10 +221,12 @@ private func fill(
         _ = seams.flush(staging.appending(path: folder).path)
     }
     _ = seams.flush(staging.path)
+    guard !isCancelled() else { throw .cancelled }
     do { try seams.writeSession(episode.session, staging) } catch {
         if case .writeFailed(_, let code) = error { throw .write(file: "session.xml", errno: code) }
         throw .read(error)
     }
+    guard !isCancelled() else { throw .cancelled }
 }
 
 /// A clone (`fclonefileat`) or a data copy (`fcopyfile` with the 0042 callback, which quits at the

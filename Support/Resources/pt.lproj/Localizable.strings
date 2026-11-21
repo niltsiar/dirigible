@@ -26,7 +26,7 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
-"track.role.help" = "Um rótulo para a pista. Ele não muda o som. “Abaixar Música sob a Voz” usa o rótulo para achar a voz e a música. “Reduzir Ruído” pula as pistas de música e de efeitos.";
+"track.role.help" = "Um rótulo para a pista. Ele não muda o som. “Abaixar Música sob a Voz” usa o rótulo para achar a voz e a música. “Reduzir Ruído” pula as pistas de música e de efeitos. “Exportar Stems” pode escrever um arquivo por função.";
 "track.role.header" = "Um rótulo. Ele não muda o som.";
 "menu.track.volume.up" = "Aumentar Volume da Pista";
 "menu.track.volume.down" = "Diminuir Volume da Pista";

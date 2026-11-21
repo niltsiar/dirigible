@@ -26,7 +26,7 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
-"track.role.help" = "Una etiqueta de la pista. No cambia el sonido. «Atenuar la música bajo la voz» la usa para encontrar la voz y la música. «Reducir ruido» omite las pistas de música y de efectos.";
+"track.role.help" = "Una etiqueta de la pista. No cambia el sonido. «Atenuar la música bajo la voz» la usa para encontrar la voz y la música. «Reducir ruido» omite las pistas de música y de efectos. «Exportar stems» puede escribir un archivo por función.";
 "track.role.header" = "Una etiqueta. No cambia el sonido.";
 "menu.track.volume.up" = "Subir volumen de pista";
 "menu.track.volume.down" = "Bajar volumen de pista";

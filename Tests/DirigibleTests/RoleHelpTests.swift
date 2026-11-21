@@ -21,12 +21,13 @@ struct RoleHelpTests {
         #expect(name(en, "menu.tools.reduce.noise") == "Reduce Noise")
     }
 
-    @Test func eachTableHelpNamesTheDuckAndReduceNoiseTitlesOfItsOwnTable() throws {
+    @Test func eachTableHelpNamesTheDuckReduceNoiseAndExportStemsTitlesOfItsOwnTable() throws {
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try stringsTable(language)
             let help = try #require(table["track.role.help"], "\(language): no value for track.role.help")
             #expect(help.contains(name(table, "menu.tools.duck")), "\(language): the duck title")
             #expect(help.contains(name(table, "menu.tools.reduce.noise")), "\(language): the Reduce Noise title")
+            #expect(help.contains(name(table, "menu.file.export.stems")), "\(language): the Export Stems title")
         }
     }
 

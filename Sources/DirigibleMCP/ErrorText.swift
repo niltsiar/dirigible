@@ -249,6 +249,7 @@ extension StudioError {
         // `liveStems` catches each `.exportStems` case first, and no command exports stems through Studio.
         case .exportStems(let error): "the stem export failed (\(error))."
         case .template(let error): "the template copy failed (\(error))."
+        case .templateYielded: "a take stopped the template copy."
         // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
         case .audioImport(let error): "the import failed (\(error))."
         case .importYielded: "a take in another studio stopped the import."

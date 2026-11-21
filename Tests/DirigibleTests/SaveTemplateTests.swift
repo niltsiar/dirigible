@@ -344,4 +344,31 @@ import os
         #expect(try templateTracks("Show") == ["t1"])
         await model.close()
     }
+
+    /// A take in another window ends the save as `exportEnd` does: the window shows the alert.
+    @Test func aTakeInAnotherWindowStopsTheSaveWithAnAlert() async throws {
+        defer { clean() }
+        let (model, studio) = try await window(tracks: 1, seconds: 40)
+        studio.environment.templateCanClone = { _, _ in false }
+        let held = OSAllocatedUnfairLock(initialState: false)
+        let gate = DispatchSemaphore(value: 0)
+        studio.environment.templateWritten = { _, _ in
+            held.withLock { $0 = true }
+            gate.wait()
+            gate.signal()
+        }
+        panels.name = "Show"
+
+        let save = Task { await model.saveAsTemplate() }
+        await until("the copy holds in a write") { held.withLock { $0 } }
+        let end = Task { await studio.endExport(.take, yielding: true) }
+        await until("the take end sets the cancel flag") { studio.exportStop == .take }
+        gate.signal()
+        await end.value
+        await save.value
+
+        #expect(model.alert == .error(.templateYielded), "a take stop shows its alert")
+        #expect(!FileManager.default.fileExists(atPath: templates.appending(path: "Show.dirigible").path))
+        await model.close()
+    }
 }

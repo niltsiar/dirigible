@@ -1005,3 +1005,4 @@
 "error.template.exists" = "Ya existe un elemento con este nombre. Dirigible no lo reemplazó.";
 "error.template.trash" = "Dirigible no pudo mover la plantilla anterior «%@» a la Papelera. No se guardó nada.";
 "error.template.open" = "La plantilla «%@» está abierta en una ventana. Ciérrela y vuelva a intentarlo. No se guardó nada.";
+"error.template.yielded" = "Una toma detuvo la copia de la plantilla. No se creó nada. Vuelva a intentarlo después de la toma.";

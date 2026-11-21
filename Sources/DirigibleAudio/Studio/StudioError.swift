@@ -42,8 +42,11 @@ public enum StudioError: Error, Hashable, Sendable {
     /// stop.
     case exportStems(ExportStemsError)
     /// A template copy (Save as Template, or a new session from a template) refused or stopped:
-    /// `.cancelled` when a take start, `settle()`, or Cancel ended it (decision 0079).
+    /// `.cancelled` when a take start in its own studio, `settle()`, or Cancel ended it (decision 0079).
     case template(TemplateError)
+    /// A take in another studio, or the take disk check of another studio, ended a template copy
+    /// (decision 0079). Nothing was made.
+    case templateYielded
     /// The import failed or was cancelled (decision 0040).
     case audioImport(ImportError)
     /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session

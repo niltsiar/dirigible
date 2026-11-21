@@ -1005,3 +1005,4 @@
 "error.template.exists" = "Ein Objekt mit diesem Namen existiert bereits. Dirigible hat es nicht ersetzt.";
 "error.template.trash" = "Dirigible konnte die alte Vorlage „%@“ nicht in den Papierkorb legen. Es wurde nichts gesichert.";
 "error.template.open" = "Die Vorlage „%@“ ist in einem Fenster geöffnet. Schließe sie und versuche es erneut. Es wurde nichts gesichert.";
+"error.template.yielded" = "Ein Take hat das Kopieren der Vorlage gestoppt. Es wurde nichts erstellt. Versuche es nach dem Take erneut.";

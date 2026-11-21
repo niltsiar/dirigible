@@ -585,6 +585,16 @@
 "panel.export.note.one" = "%lld track muted or not soloed: not in the export.";
 "panel.export.note.many" = "%lld tracks muted or not soloed: not in the export.";
 "panel.export.note.silent" = "No track is heard: the file will be silent.";
+"panel.stems.folder.name" = "Folder name";
+"panel.stems.scope.whole" = "%1$lld of %2$lld tracks, the whole session";
+"panel.stems.scope.range" = "%1$lld of %2$lld tracks, %3$@ to %4$@";
+"panel.stems.content" = "Each stem file holds its tracks with their gain and effects, as in the mix.";
+"panel.stems.role.none" = "No Role";
+"panel.stems.name.too.long" = "The folder name is over %lld bytes. Use a shorter name.";
+"panel.stems.group" = "One File for Each";
+"panel.stems.group.track" = "Track";
+"panel.stems.group.role" = "Role";
+"panel.stems.default.name" = "%@ Stems";
 "panel.export.format.wav" = "WAV";
 "panel.export.format.aac" = "AAC (.m4a)";
 "panel.export.format.mp3" = "MP3";

@@ -585,6 +585,16 @@
 "panel.export.note.one" = "%lld spoor met geluid uit of zonder solo: niet in de export.";
 "panel.export.note.many" = "%lld sporen met geluid uit of zonder solo: niet in de export.";
 "panel.export.note.silent" = "Er is geen spoor te horen: het bestand bevat alleen stilte.";
+"panel.stems.folder.name" = "Mapnaam";
+"panel.stems.scope.whole" = "%1$lld van %2$lld sporen, de hele sessie";
+"panel.stems.scope.range" = "%1$lld van %2$lld sporen, %3$@ tot %4$@";
+"panel.stems.content" = "Elk stem-bestand bevat zijn sporen met hun niveau en effecten, zoals in de mix.";
+"panel.stems.role.none" = "Geen rol";
+"panel.stems.name.too.long" = "De mapnaam is langer dan %lld bytes. Gebruik een kortere naam.";
+"panel.stems.group" = "Eén bestand per";
+"panel.stems.group.track" = "Spoor";
+"panel.stems.group.role" = "Rol";
+"panel.stems.default.name" = "Stems van %@";
 "panel.export.format.wav" = "WAV";
 "panel.export.format.aac" = "AAC (.m4a)";
 "panel.export.format.mp3" = "MP3";

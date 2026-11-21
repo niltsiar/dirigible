@@ -60,7 +60,7 @@ struct ExportTarget {
         loudness = Self.loudness(token: defaults?.string(forKey: Self.loudnessKey))
     }
 
-    private static func name(of rate: ExportRate) -> String {
+    static func name(of rate: ExportRate) -> String {
         switch rate {
         case .session: "session"
         case .hz44100: "44100"

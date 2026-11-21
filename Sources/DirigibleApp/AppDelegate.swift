@@ -143,6 +143,12 @@ import Observation
         (NSWindow, String, Int, ExportSettings, String?, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
             ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, note: $4, done: $5)
         }
+    /// The save panel of Export Stems as a sheet of a window: the folder name, the session rate, the
+    /// settings of the pop-ups, the message, and the answer. Tests give their own.
+    @ObservationIgnored var chooseStemsExport:
+        (NSWindow, String, Int, StemSettings, String, @escaping @MainActor (StemsTarget?) -> Void) -> Void = {
+            ExportPanel.beginStems(for: $0, name: $1, sessionRate: $2, settings: $3, message: $4, done: $5)
+        }
     /// The save panel of Export Chapters as a sheet of a window: the name, the message, and the
     /// answer. Tests give their own.
     @ObservationIgnored var chooseChaptersExport:

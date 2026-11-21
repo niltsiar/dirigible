@@ -998,8 +998,8 @@
 "error.template.pending" = "Die Vorlage enthält einen Take, der nicht abgeschlossen ist. Öffne die Vorlage, schließe den Take ab und versuche es erneut.";
 "error.template.file" = "Die Vorlage enthält ein Objekt, das keine normale Datei ist: „%@“. Dirigible kopiert keine Verknüpfungen und keine Ordner. Es wurde nichts erstellt.";
 "error.template.changed" = "„%@“ hat sich geändert, während Dirigible es kopiert hat. Es wurde nichts erstellt. Versuche es erneut.";
-"error.template.missing" = "Der Vorlage fehlt die Audiodatei „%@“. Es wurde nichts erstellt.";
-"error.template.download" = "Die Audiodatei „%@“ der Vorlage ist nicht auf diesem Mac. Lade sie herunter und versuche es erneut.";
+"error.template.missing" = "Der Vorlage fehlt die Datei „%@“. Es wurde nichts erstellt.";
+"error.template.download" = "Die Datei „%@“ der Vorlage ist nicht auf diesem Mac. Lade sie herunter und versuche es erneut.";
 "error.template.space" = "Das Kopieren benötigt %1$@ freien Speicherplatz, und die Festplatte hat %2$@. Gib Speicherplatz frei und versuche es erneut.";
 "error.template.write" = "Dirigible kann „%1$@“ nicht kopieren (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.template.exists" = "Ein Objekt mit diesem Namen existiert bereits. Dirigible hat es nicht ersetzt.";

@@ -998,8 +998,8 @@
 "error.template.pending" = "Le modèle contient une prise non terminée. Ouvrez le modèle, terminez la prise et réessayez.";
 "error.template.file" = "Le modèle contient un élément qui n’est pas un fichier ordinaire : « %@ ». Dirigible ne copie ni alias ni dossier. Rien n’a été créé.";
 "error.template.changed" = "« %@ » a changé pendant que Dirigible le copiait. Rien n’a été créé. Réessayez.";
-"error.template.missing" = "Il manque au modèle le fichier audio « %@ ». Rien n’a été créé.";
-"error.template.download" = "Le fichier audio « %@ » du modèle n’est pas sur ce Mac. Téléchargez-le et réessayez.";
+"error.template.missing" = "Il manque au modèle le fichier « %@ ». Rien n’a été créé.";
+"error.template.download" = "Le fichier « %@ » du modèle n’est pas sur ce Mac. Téléchargez-le et réessayez.";
 "error.template.space" = "La copie nécessite %1$@ d’espace disque libre, et le disque dispose de %2$@. Libérez de l’espace disque et réessayez.";
 "error.template.write" = "Dirigible ne peut pas copier « %1$@ » (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.template.exists" = "Un élément portant ce nom existe déjà. Dirigible ne l’a pas remplacé.";

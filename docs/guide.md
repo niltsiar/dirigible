@@ -60,7 +60,7 @@ A template is a session that you copy to start each episode of a show. Save a se
 
 1. Open the session. Choose **File > Save as Template**. The item has no key. A sheet asks for a **Name**. A line under the field says what the template keeps, for example "Keeps 2 clips, 1.9 MB of audio." The size is the size of the audio files that the clips use. A file that no clip uses stays out of the template.
 2. Type a name and click **Save**. **Save** is off while the name is empty, has “/” or “:”, starts with a period, or is too long.
-3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one.
+3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one. If a window has the old template open, an alert says so and nothing is saved. Close that window and try again.
 
 Dirigible saves templates in the Templates folder of its folder in Music, also when you chose another folder for new sessions. To see them, choose **File > Show Templates in Finder**. Rename or delete a template in Finder.
 

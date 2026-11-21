@@ -64,7 +64,10 @@ import Testing
         let call = panels.stems[before]
         call.done(target(name))
         await until("the run ends") {
-            studio.exportProgress == nil && model.stemsShown?.folder.lastPathComponent == name
+            guard studio.exportProgress == nil, case .done(let done, _, _)? = model.stemsShown?.outcome else {
+                return false
+            }
+            return done.lastPathComponent == name
         }
         let files = try FileManager.default.contentsOfDirectory(atPath: folder.url.appending(path: name).path)
         return (call.message, files.sorted())

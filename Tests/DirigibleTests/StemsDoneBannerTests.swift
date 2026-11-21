@@ -12,8 +12,8 @@ struct StemsDoneBannerTests {
 
     func file(_ name: String, peak: Float) -> StemFile { StemFile(name: name, tracks: ["t1"], samplePeak: peak) }
 
-    func shown(_ files: [StemFile], mixPeak: Float? = nil, stopped: Bool = false) -> StemsShown {
-        StemsShown(folder: folder, files: files, mixPeak: mixPeak, stopped: stopped, revision: 3)
+    func shown(_ files: [StemFile], mixPeak: Float? = nil) -> StemsShown {
+        StemsShown(outcome: .done(folder: folder, files: files, mixPeak: mixPeak), revision: 3)
     }
 
     @Test func theClipWarningComesFirst() {
@@ -30,7 +30,7 @@ struct StemsDoneBannerTests {
     }
 
     @Test func aStopSaysNoStemWasWritten() throws {
-        let banners = shown([], stopped: true).banners
+        let banners = StemsShown(outcome: .stopped, revision: 3).banners
 
         #expect(banners == [.stemsStopped])
         #expect(try stringsTable("en")["banner.stems.stopped"] == "No stem was written.")

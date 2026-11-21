@@ -22,6 +22,8 @@ public enum SessionError: Error, Hashable, Sendable {
     /// a range past it. A drift link also needs a source with no fault (`Session.driftSourceFault`).
     case invalidOrigin(FileID)
     case trackInRecording(TrackID)
+    /// The session has a take that is not finalized, so it gives no new episode.
+    case pendingTake
     case layoutMismatch(TrackID, LayoutConflict)
     /// A device channel less than 1, or an empty app ID.
     case invalidRoute

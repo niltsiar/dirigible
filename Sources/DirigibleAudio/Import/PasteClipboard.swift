@@ -213,6 +213,16 @@ public func cloneWorks(_ file: URL, into folder: URL) -> Bool {
     return (try? folder.resourceValues(forKeys: [.volumeSupportsFileCloningKey]).volumeSupportsFileCloning) == true
 }
 
+/// Which pairs clone (`canClone(source, target folder)`), and the bytes of the pairs that do not:
+/// a clone needs no space and uses clonefile, which never falls back to a copy; a data copy needs
+/// the file size.
+func copyNeed(_ pairs: [(source: URL, size: Int64, target: URL)], canClone: (URL, URL) -> Bool)
+    -> (clones: [Bool], bytes: Int64)
+{
+    let clones = pairs.map { canClone($0.source, $0.target) }
+    return (clones, zip(pairs, clones).reduce(0) { $0 + ($1.1 ? 0 : $1.0.size) })
+}
+
 /// The file half of `pasteClipboard`: the checks, the copies or conversions (at `rate`), the
 /// read-back, `beforeRenames` with the frames and the gain of each converted file, and the renames,
 /// with `NewClipFiles` (decision 0056).
@@ -224,8 +234,8 @@ private func copyFiles(
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
 ) throws(PasteError) {
     var sizes: [Int64] = []
-    var clones: [Bool] = []
-    var needed: Int64 = 0
+    var pairs: [(source: URL, size: Int64, target: URL)] = []
+    var convertedBytes: Int64 = 0
     for (record, copy) in copies {
         // A link in Clips/ of the source copies as its target: clonefile and copyfile follow it.
         let url = source.appending(path: "\(clipsFolderName)/\(record.path)")
@@ -237,17 +247,16 @@ private func copyFiles(
         // A FIFO would hold the AVAudioFile read below until a writer came.
         guard info.st_mode & S_IFMT == S_IFREG else { throw .sourceChanged(file: record.path) }
         sizes.append(Int64(info.st_size))
-        // A clone needs no space and uses clonefile, which never falls back to a copy; a data copy
-        // needs the file size; a conversion reads the whole file, so its frames count (0040).
-        clones.append(rate == nil && canClone(url, package))
+        pairs.append((url, Int64(info.st_size), package))
+        // A conversion reads the whole file, so its frames count (0040).
         if let rate {
             let frames = (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)
             let converted = (frames * Int64(rate.target) + Int64(rate.source) - 1) / Int64(rate.source)
-            needed += wavFileBytes(frames: converted, channels: copy.layout.channelCount)
-        } else if !clones[clones.count - 1] {
-            needed += Int64(info.st_size)
+            convertedBytes += wavFileBytes(frames: converted, channels: copy.layout.channelCount)
         }
     }
+    let (clones, needed) =
+        rate == nil ? copyNeed(pairs, canClone: canClone) : (pairs.map { _ in false }, convertedBytes)
     // One check for all files, so a paste cannot pass file by file and fill the disk late.
     var files: NewClipFiles
     do throws(NewClipFault) {
@@ -370,9 +379,9 @@ func copyFile(_ source: URL, to target: URL, clone: Bool, context: CopyContext) 
     }
 }
 
-/// The status callback of `copyFile`. It is a C function pointer with no isolation (AGENTS.md,
-/// Audio callbacks): it runs on the thread of the `copyfile` call.
-private let copyCallback: copyfile_callback_t = { _, stage, state, _, _, context in
+/// The status callback of `copyFile` and of the template copy. It is a C function pointer with no
+/// isolation (AGENTS.md, Audio callbacks): it runs on the thread of the `copyfile` call.
+let copyCallback: copyfile_callback_t = { _, stage, state, _, _, context in
     guard let context else { return COPYFILE_QUIT }
     let copy = Unmanaged<CopyContext>.fromOpaque(context).takeUnretainedValue()
     if stage == COPYFILE_ERR || copy.isCancelled() { return COPYFILE_QUIT }

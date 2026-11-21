@@ -6,6 +6,14 @@ import Foundation
 /// only the size of a CAF file and take 3 for each 4 bytes of it (decision 0013).
 func wavFileBytes(frames: Int64, channels: Int) -> Int64 { frames * Int64(channels) * 3 }
 
+/// Nil when `bytes` is 0 or the volume has `bytes` plus `diskMargin` free; else the need and the
+/// free bytes. A batch of 0 bytes (clones only) reads no free bytes.
+func spaceShortfall(bytes: Int64, freeBytes: () -> Int64) -> (needed: Int64, free: Int64)? {
+    guard bytes > 0 else { return nil }
+    let free = freeBytes()
+    return free >= bytes + diskMargin ? nil : (bytes + diskMargin, free)
+}
+
 /// Why a batch of new clip files stopped (decision 0056). Each caller maps it to its own error.
 enum NewClipFault: Error, Hashable {
     /// The batch and `diskMargin` need `needed` free bytes, and the volume has `free`.
@@ -42,9 +50,8 @@ struct NewClipFiles: ~Copyable {
         in package: URL, bytes: Int64, freeBytes: () -> Int64,
         flush: @escaping (String) -> Int32? = NewClipFiles.flushToDisk
     ) throws(NewClipFault) {
-        if bytes > 0 {
-            let free = freeBytes()
-            guard free >= bytes + diskMargin else { throw .space(needed: bytes + diskMargin, free: free) }
+        if let short = spaceShortfall(bytes: bytes, freeBytes: freeBytes) {
+            throw .space(needed: short.needed, free: short.free)
         }
         let clips = package.appending(path: clipsFolderName)
         if mkdir(clips.path, 0o755) != 0, errno != EEXIST { throw .folder(errno: errno) }

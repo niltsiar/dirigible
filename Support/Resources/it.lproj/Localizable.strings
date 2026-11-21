@@ -1005,4 +1005,5 @@
 "error.template.exists" = "Esiste già un elemento con questo nome. Dirigible non lo ha sostituito.";
 "error.template.trash" = "Dirigible non è riuscito a spostare il vecchio modello “%@” nel Cestino. Non è stato salvato nulla.";
 "error.template.open" = "Il modello “%@” è aperto in una finestra. Chiudilo e riprova. Non è stato salvato nulla.";
+"error.template.kept.new" = "Il vecchio modello “%1$@” è nel Cestino. Dirigible non è riuscito a salvare il nuovo modello con il suo nome. Il nuovo modello è in una cartella temporanea: spostalo per conservarlo.\n\n%2$@";
 "error.template.yielded" = "Un take ha interrotto la copia del modello. Non è stato creato nulla. Riprova dopo il take.";

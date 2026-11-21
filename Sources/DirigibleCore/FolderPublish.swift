@@ -2,8 +2,8 @@ import Foundation
 
 /// The calls of a folder publish that a test replaces. Each rename gives 0 or the errno.
 struct FolderPublishSeams {
-    var exclusiveRename: (String, String) -> Int32 = { renamex_np($0, $1, UInt32(RENAME_EXCL)) == 0 ? 0 : errno }
-    var plainRename: (String, String) -> Int32 = { rename($0, $1) == 0 ? 0 : errno }
+    var exclusiveRename: (String, String) -> Int32 = DirigibleCore.exclusiveRename
+    var plainRename: (String, String) -> Int32 = DirigibleCore.plainRename
     /// The `VOL_CAP_INT_RENAME_EXCL` bit of the volume of a path.
     var hasExclusiveRename: (String) -> Bool = volumeHasExclusiveRename
     /// `fullFlush(path:)` of the parent folder after the rename: nil, or the errno.
@@ -42,31 +42,15 @@ public struct StagingFolder: ~Copyable {
         if code != 0 { throw .writeFailed(step: "rename test", errno: code) }
     }
 
-    /// Renames the folder to the target with `renamex_np(RENAME_EXCL)`; on ENOTSUP or EPERM, claims
-    /// the target with `mkdir` and renames over the empty claim (decision 0078). An item at the
-    /// target throws `.exists` and does not change; a claim that got an item stays with it. A failed
-    /// rename over the claim removes the claim while it is empty. A throw removes the staging folder
-    /// and the lock file, and leaves no folder of this call at the target. After the rename it
-    /// flushes the parent folder with no throw, as `exportMix` after its move: the folder is at the
-    /// target. Then it removes the lock file.
+    /// Renames the folder to the target with `renameFolder`. A throw removes the staging folder and
+    /// the lock file. After the rename it flushes the parent folder with no throw, as `exportMix`
+    /// after its move: the folder is at the target. Then it removes the lock file.
     public consuming func publish() throws(SessionFileError) {
-        let (from, to) = (url.path, target.path)
-        let code = seams.exclusiveRename(from, to)
-        if code == ENOTSUP || code == EPERM {
-            guard mkdir(to, 0o755) == 0 else {
-                let claim = errno
-                removeFiles()
-                throw claim == EEXIST ? .exists : .writeFailed(step: "claim", errno: claim)
-            }
-            let moved = seams.plainRename(from, to)
-            if moved != 0 {
-                rmdir(to)
-                removeFiles()
-                throw moved == ENOTEMPTY || moved == EEXIST ? .exists : .writeFailed(step: "rename", errno: moved)
-            }
-        } else if code != 0 {
+        do {
+            try renameFolder(url.path, to: target.path, exclusive: seams.exclusiveRename, plain: seams.plainRename)
+        } catch {
             removeFiles()
-            throw code == EEXIST || code == ENOTEMPTY ? .exists : .writeFailed(step: "rename", errno: code)
+            throw error
         }
         _ = seams.flushFolder(target.deletingLastPathComponent().path)
         lock.remove()
@@ -80,6 +64,38 @@ public struct StagingFolder: ~Copyable {
         lock.remove()
     }
 }
+
+/// Renames the folder `from` to `to` with `exclusive` (`renamex_np(RENAME_EXCL)`); on ENOTSUP or EPERM,
+/// claims `to` with `mkdir` and renames over the empty claim with `plain` (decision 0078). An item at `to`
+/// throws `.exists` and does not change; a claim that got an item stays with it. A failed rename over the
+/// claim removes the claim while it is empty. A throw leaves `from` and no folder of this call at `to`.
+package func renameFolder(
+    _ from: String, to: String, exclusive: (String, String) -> Int32 = exclusiveRename,
+    plain: (String, String) -> Int32 = plainRename
+) throws(SessionFileError) {
+    let code = exclusive(from, to)
+    if code == ENOTSUP || code == EPERM {
+        guard mkdir(to, 0o755) == 0 else {
+            let claim = errno
+            throw claim == EEXIST ? .exists : .writeFailed(step: "claim", errno: claim)
+        }
+        let moved = plain(from, to)
+        if moved != 0 {
+            rmdir(to)
+            throw moved == ENOTEMPTY || moved == EEXIST ? .exists : .writeFailed(step: "rename", errno: moved)
+        }
+    } else if code != 0 {
+        throw code == EEXIST || code == ENOTEMPTY ? .exists : .writeFailed(step: "rename", errno: code)
+    }
+}
+
+/// `renamex_np(RENAME_EXCL)`: 0 or the errno.
+package func exclusiveRename(_ from: String, _ to: String) -> Int32 {
+    renamex_np(from, to, UInt32(RENAME_EXCL)) == 0 ? 0 : errno
+}
+
+/// `rename(2)`: 0 or the errno.
+package func plainRename(_ from: String, _ to: String) -> Int32 { rename(from, to) == 0 ? 0 : errno }
 
 /// The lock file of a staging folder. The flock comes with the open (`O_EXLOCK`), so a sweep never
 /// sees the file unlocked. The deinit closes it, which ends the flock; a dropped staging folder is

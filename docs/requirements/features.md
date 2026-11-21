@@ -74,7 +74,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F60 | Session XML file and clips folder | GarageBand, Logic Pro | done, Release 1 run 1 | R5, R6 |
 | F61 | Import audio files into a track | Hindenburg PRO, GarageBand, Logic Pro | done, Release 2 run 13 | R7 |
 | F62 | Autosave and session backups | Logic Pro | done, Release 2 run 14; Later: open a backup as a copy, as in Final Cut Pro | R5 |
-| F63 | Session templates | Hindenburg PRO | Release 7 | R10 |
+| F63 | Session templates | Hindenburg PRO | done, Release 7 run 3 (New from Template in the start window and the File menu, Save as Template, and dirigible create --template) | R10 |
 | F64 | User-defined keyboard shortcuts | brief R7 | Later | R7 |
 | F65 | UI text in English and Spanish, follows macOS | GarageBand, Logic Pro | done, Release 1 run 3 | R13 |
 | F66 | Language preference in the app | brief R13 | done, Release 2 run 15 | R13 |

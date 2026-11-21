@@ -81,6 +81,10 @@ import Observation
     @ObservationIgnored private var watchdog: HangWatchdog?
     /// The windows and the collect of Report a Problem. Tests give their own.
     @ObservationIgnored var panels = ReportPanels()
+    /// The template copies that no studio holds yet: a take start in any window ends them (decision 0079).
+    @ObservationIgnored let copyJobs = CopyJobs()
+    /// The sheets and the Trash call of Save as Template. Tests give their own.
+    @ObservationIgnored var templatePanels = TemplatePanels()
     /// The notice after an unclean end of the earlier launch (decision 0059).
     var uncleanNotice = UncleanNotice(previousEndedUnclean: false)
     /// True after the first window show or report read the end of the earlier journal. The

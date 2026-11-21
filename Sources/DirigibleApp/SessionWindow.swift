@@ -31,6 +31,8 @@ import SwiftUI
     /// True when the list of active recordings had the package at launch.
     private(set) var recovering = false
     var alert: WindowAlert?
+    /// True while this window saves a template: the progress sheet says so (decision 0079).
+    var savesTemplate = false
     /// Window state, not saved: at open, the tracks with a route; a new route arms (decision 0014).
     var armed: Set<TrackID> = []
     /// The typed name of each track that no rename has saved yet. A name field shows its draft,
@@ -308,6 +310,7 @@ import SwiftUI
         studio.otherStudios = { [weak app, weak studio] in
             app?.windows.values.compactMap(\.studio).filter { $0 !== studio } ?? []
         }
+        studio.copyJobs = app?.copyJobs
         phase = .open(studio)
         follow(studio)
         followRows(studio)

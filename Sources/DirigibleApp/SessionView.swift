@@ -46,7 +46,7 @@ struct SessionView: View {
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .importChain, .exported, .exportedSet, .noUnusedFiles, .transcriptExport,
-                    .transcriptImport, .placedWithNoClip:
+                    .transcriptImport, .placedWithNoClip, .templateTrash:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
@@ -261,7 +261,7 @@ private struct ExportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(verbatim: exportSheetTitle(studio.exportFile)).font(.headline)
+            Text(verbatim: model.sheetTitle).font(.headline)
             ProgressView(value: studio.exportProgress ?? 1).frame(width: 320)
             if let refusal = model.recordRefusal {
                 Text(verbatim: L10n.message(for: refusal, session: studio.session)).foregroundStyle(.red)
@@ -315,6 +315,7 @@ extension WindowAlert {
                 L10n.message(for: error)
             }
         case .transcribeNoData(let error, _): L10n.message(for: error)
+        case .templateTrash(let name): L10n.errorTemplateTrash.format(name)
         }
     }
 }

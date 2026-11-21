@@ -27,6 +27,7 @@
 - Amended: 2026-11-18, run `2026-10-28-waveform-sync` (see 0076). The tool `clip_sync` (`clip`, `to`, `within`) gives the lines of `dirigible clip sync`. On an open session in the app it runs through `Studio.syncClip`.
 - Amended: 2026-11-20, run `2026-11-19-waveform-drift` (see 0077). The tool `clip_sync` gets the argument `drift` (default false). On a closed package it calls `driftRequest` under the package lock; on an open session in the app it runs through `Studio.correctDrift`, a long job with progress. `session_info` gives a drift-corrected file the `drift` key.
 - Amended: 2026-11-20, run `2026-10-28-stem-export` (see 0078). `dirigible export-stems` gives the tool `export_stems`, by the name rule. On a closed package it reads the saved files with no lock, as `export`; on an open session it runs through `Studio.exportStems` in the export job of the window.
+- Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). The tool `session_create` takes `template`, the absolute path of a template package, in place of `sample_rate`.
 
 ## Context
 

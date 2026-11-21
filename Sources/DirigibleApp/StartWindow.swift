@@ -31,18 +31,33 @@ struct SessionName {
         case empty, character, dot, long
     }
 
+    /// Which byte limit the name has: a session, or a template copy (decision 0079).
+    enum Limit {
+        case session, template
+    }
+
     /// 255 bytes of a file name less the 10 bytes of ".dirigible".
     static let byteLimit = 245
     let text: String
 
-    init(_ text: String) throws(Refusal) {
+    init(_ text: String, limit: Limit = .session) throws(Refusal) {
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw .empty }
         // Finder shows ":" as "/", and "/" separates the path.
         if text.contains("/") || text.contains(":") { throw .character }
         // Finder hides a name that starts with a period.
         if text.hasPrefix(".") { throw .dot }
-        if text.utf8.count > Self.byteLimit { throw .long }
+        if Self.isTooLong(text, limit) { throw .long }
         self.text = text
+    }
+
+    private static func isTooLong(_ text: String, _ limit: Limit) -> Bool {
+        switch limit {
+        case .session: return text.utf8.count > byteLimit
+        case .template:
+            // The copy counts the bytes of the URL component, which Foundation gives decomposed.
+            let component = URL(filePath: "/").appending(path: "\(text).dirigible").lastPathComponent
+            return component.utf8.count > templateNameLimit + ".dirigible".utf8.count
+        }
     }
 }
 
@@ -69,10 +84,36 @@ extension SessionName.Refusal {
     private(set) var creating = false
     /// The folder of new sessions. Change… sets it.
     private(set) var folder: URL
-    /// Why the name cannot be a session, or nil. Create is off while it is set.
+    /// One item of the Template pop-up (decision 0079).
+    enum TemplateChoice: Hashable {
+        case none
+        case template(URL)
+        case showInFinder
+    }
+
+    /// The templates in `Templates/`, by name. The pop-up shows only when there is one.
+    private(set) var templates: [URL] = []
+    /// The chosen template, or nil for None. The app preferences keep it in `session.template`.
+    private(set) var template: URL?
+    /// The fraction of the copy of a template create while it runs; nil with no template or no create.
+    private(set) var createProgress: Double?
+    /// Counts the picks of Show Templates in Finder: the pop-up takes it as its identity, so it draws the old
+    /// choice again.
+    private(set) var popUpRefresh = 0
+    @ObservationIgnored private(set) var templatesTask: Task<Void, Never>?
+    var showsTemplates: Bool { !templates.isEmpty }
+    var templateChoice: TemplateChoice { template.map { .template($0) } ?? .none }
+    /// The items of the pop-up, in order; none with no template.
+    var templateChoices: [TemplateChoice] {
+        templates.isEmpty ? [] : [.none] + templates.map { .template($0) } + [.showInFinder]
+    }
+    /// Cancel of a template create shows while its copy runs.
+    var canCancelCreate: Bool { creating && createProgress != nil }
+    /// Why the name cannot be a session, or nil. Create is off while it is set. With a template the name has
+    /// the limit of the copy.
     var refusal: SessionName.Refusal? {
         do throws(SessionName.Refusal) {
-            _ = try SessionName(name)
+            _ = try SessionName(name, limit: template == nil ? .session : .template)
             return nil
         } catch {
             return error
@@ -107,7 +148,40 @@ extension SessionName.Refusal {
         self.app = app
         self.folder = folder
         scan()
+        scanTemplates()
     }
+
+    /// Lists `Templates/` again, so a template that the user saved later shows. The stored choice, or the
+    /// choice of now, stays when its template is still there; else the choice is None.
+    func scanTemplates() {
+        guard let app, let folder = app.templatesFolder else { return }
+        let wanted = template?.path ?? app.defaults?.string(forKey: AppDelegate.templateKey)
+        templatesTask?.cancel()
+        templatesTask = Task {
+            let found = await listTemplates(in: folder)
+            guard !Task.isCancelled else { return }
+            templates = found
+            template = found.first { $0.path == wanted }
+        }
+    }
+
+    /// A pick in the Template pop-up. Show Templates in Finder opens the folder and keeps the choice.
+    func choose(_ choice: TemplateChoice) {
+        switch choice {
+        case .none:
+            template = nil
+            app?.defaults?.removeObject(forKey: AppDelegate.templateKey)
+        case .template(let url):
+            template = url
+            app?.defaults?.set(url.path, forKey: AppDelegate.templateKey)
+        case .showInFinder:
+            if let folder = app?.templatesFolder { app?.openURL(folder) }
+            popUpRefresh += 1
+        }
+    }
+
+    /// Cancel of a template create: the copy ends, and the form shows again with no alert.
+    func cancelCreate() { createTask?.cancel() }
 
     /// Starts the scan of the folder: the first free name and the folder text.
     private func scan() {
@@ -145,13 +219,21 @@ extension SessionName.Refusal {
     func create() {
         guard !creating, let app, let session = try? SessionName(name) else { return }
         creating = true
+        let template = template
+        createProgress = template == nil ? nil : 0
         let (folder, exists) = (folder, app.exists)
         let makesFolder = folder.path == app.defaultFolder?.path
         let url = folder.appending(path: "\(session.text).dirigible")
         createTask = Task {
             if makesFolder { await makeFolder(folder, exists: exists) }
-            guard let error = await app.createSession(at: url) else { return }
+            let error = await app.createSession(at: url, template: template) { [weak self] in
+                self?.createProgress = $0
+            }
+            createProgress = nil
+            guard let error else { return }
             creating = false
+            // Cancel is the user's own choice: the form shows again and no alert.
+            if case .template(.cancelled) = error { return }
             app.showError(error)
         }
     }
@@ -283,6 +365,7 @@ extension SessionName.Refusal {
 
     func show() {
         window?.makeKeyAndOrderFront(nil)
+        model.scanTemplates()
         app?.noticeWindowShown(window)
         selectName()
     }

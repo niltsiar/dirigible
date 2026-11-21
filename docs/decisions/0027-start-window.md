@@ -4,6 +4,7 @@
 - Date: 2026-09-30
 - Accepted: 2026-09-30, after plan gate 1 of run `2026-09-30-start-window` and the architect synthesis of that run.
 - Amends: 0014 (the launch shows the start window, not the Open panel; New Session shows the start window, not a save panel; the app keeps its own list of recent sessions).
+- Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). The app also makes `Templates/` in its default folder, with the default folder when it is missing, at File > Save as Template. It never makes it in a folder that the user chose. The New Session form has a Template pop-up when `Templates/` has a template: None, each template by name, and Show Templates in Finder. The choice is in the key `session.template`. With a template, a name has at most 193 UTF-8 bytes, counted in the URL component (decomposed), in place of 245. A Create with a template shows a bar and Cancel while the copy runs.
 
 ## Context
 

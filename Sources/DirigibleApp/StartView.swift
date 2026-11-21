@@ -55,34 +55,72 @@ struct StartView: View {
             if let message = model.refusal?.message {
                 Text(message.key).font(.callout).foregroundStyle(.red)
             }
-            // Change… and Create are one stack of one width, beside the folder and the hint (P5).
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label(L10n.startFolder.format(model.folderText), systemImage: "folder").font(.callout)
-                        .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                    Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-                VStack(spacing: 10) {
-                    Button {
-                        model.changeFolder()
-                    } label: {
-                        Text(L10n.startChange.key).frame(maxWidth: .infinity)
-                    }
-                    .disabled(model.creating)
-                    Button {
-                        model.create()
-                    } label: {
-                        Text(L10n.startCreate.key).frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent).disabled(model.creating || model.refusal != nil)
-                }
-                .fixedSize()
-            }
+            // Only with a template in Templates/ (decision 0079).
+            if model.showsTemplates { templatePicker }
+            if let progress = model.createProgress { copying(progress) } else { folderRow }
         }
         .padding(16)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// The Template pop-up: None, each template by name, and Show Templates in Finder.
+    private var templatePicker: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(L10n.sessionTemplateLabel.key)
+            Picker(
+                selection: Binding(get: { model.templateChoice }, set: { model.choose($0) }),
+                content: {
+                    Text(L10n.sessionTemplateNone.key).tag(StartModel.TemplateChoice.none)
+                    ForEach(model.templates, id: \.self) { url in
+                        Text(verbatim: url.deletingPathExtension().lastPathComponent)
+                            .tag(StartModel.TemplateChoice.template(url))
+                    }
+                    Divider()
+                    Text(L10n.sessionTemplateShowFinder.key).tag(StartModel.TemplateChoice.showInFinder)
+                },
+                label: { Text(L10n.sessionTemplateLabel.key) }
+            )
+            .labelsHidden().id(model.popUpRefresh).disabled(model.creating)
+        }
+    }
+
+    /// The bar and Cancel of a template create while its copy runs (T19).
+    private func copying(_ progress: Double) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.startTemplateCopying.key).font(.callout).foregroundStyle(.secondary)
+            HStack {
+                ProgressView(value: progress)
+                Button(L10n.alertCancel.text) { model.cancelCreate() }.disabled(!model.canCancelCreate)
+            }
+        }
+    }
+
+    // Change… and Create are one stack of one width, beside the folder and the hint (P5).
+    private var folderRow: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(L10n.startFolder.format(model.folderText), systemImage: "folder").font(.callout)
+                    .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                Text(L10n.startHint.key).font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            VStack(spacing: 10) {
+                Button {
+                    model.changeFolder()
+                } label: {
+                    Text(L10n.startChange.key).frame(maxWidth: .infinity)
+                }
+                .disabled(model.creating)
+                Button {
+                    model.create()
+                } label: {
+                    Text(L10n.startCreate.key).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).disabled(model.creating || model.refusal != nil)
+            }
+            .fixedSize()
+        }
     }
 
     /// Return in the list opens the selection through `onKeyPress` (macOS 14). It returns

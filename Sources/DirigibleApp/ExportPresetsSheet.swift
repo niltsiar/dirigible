@@ -110,6 +110,10 @@ func presetSummary(_ options: PresetOptions) -> String {
         }
     }
 
+    func toggle(_ ref: PresetRef) {
+        if checked.remove(ref) == nil { checked.insert(ref) }
+    }
+
     /// The built-in presets, then the session presets.
     func presets(in session: Session) -> [(ref: PresetRef, options: PresetOptions)] { session.allExportPresets }
 
@@ -192,6 +196,11 @@ struct ExportPresetsSheet: View {
                 ForEach(sheet.presets(in: studio.session), id: \.ref) { preset in
                     row(preset.ref, preset.options).tag(preset.ref)
                 }
+            }
+            .onKeyPress(.space) {
+                guard let ref = sheet.selection else { return .ignored }
+                sheet.toggle(ref)
+                return .handled
             }
             .frame(height: 160)
             HStack(spacing: 0) {

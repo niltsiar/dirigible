@@ -867,6 +867,21 @@ Choose **File > Export Stems** to write one file for each track, or one for each
 - A folder name that exists gets the question of the save panel, **Replace**. Dirigible never replaces a folder: an alert says that an item with this name exists and the export did not replace it. The old folder stays. Choose another name.
 - The same export is `dirigible export-stems` in Terminal and the tool `export_stems`.
 
+### Export with presets
+
+Choose **File > Export with Presets** to write one file for each checked preset into one folder, in one run. For example, write a WAV master and an MP3 for your podcast host at the same time. The item has no key.
+
+- The sheet lists the presets, each with a check box. A row shows the name and the options: the format, the bit depth or the bit rate, the channels, and the loudness target when the preset has one. The two built-in presets are **Master (WAV)** (WAV, 24-bit, stereo, at the session rate) and **Podcast (MP3)** (MP3, 128 kbit/s, mono, 44.1 kHz, -19 LUFS). Your session presets come after them.
+- The first time, only **Podcast (MP3)** is checked. The sheet keeps your checks for the next time.
+- Click a row to select it. Space checks or clears the check box of the selected row, and the arrow keys select the next row.
+- **+** makes a session preset with the options of the selected row, with the name `<name> copy`. **-** removes the selected session preset. **Edit...** shows the name and the options of the selected session preset in the same sheet. **Save** (Return) stores them. **-** and **Edit...** are off for a built-in preset, because a built-in preset cannot change.
+- In the save panel of **File > Export**, **Save as Preset** shows a **Preset name** field and **Save**. **Save** stores the settings of the panel as a session preset.
+- **Choose Folder...** opens a save panel for the folder and the first part of the file names. A line then shows the first file name and the count, for example "Writes Show.wav and 1 other file." A file is `<prefix>.<ext>`. When two checked presets have the same extension, each file is `<prefix>-<preset>.<ext>`: `Show-master.wav`, `Show-podcast.mp3`, and `Show-Show MP3.mp3`. A built-in preset gives `master` or `podcast` to the name, in each language.
+- **Export** is off when no preset is checked or no folder is chosen, and a line says why. Return clicks **Export** when it is on.
+- When files with these names exist, one sheet lists them. **Replace** replaces them.
+- The progress sheet names the preset of the file in hand, for example "Exporting Show MP3". When the set is done, a banner shows the number of files, the folder, the lowest and the highest loudness, and **Show in Finder**.
+- The session presets are in the session package. The same export is `dirigible export --preset` in Terminal and the `export` tool with `preset`. `dirigible preset set` and `dirigible preset remove`, and the tools `preset_set` and `preset_remove`, change the session presets.
+
 ### Export the transcript
 
 Choose **File > Export Transcript** to write the transcript as subtitles for your podcast host or video editor. The file is the file of `dirigible transcript export`: one cue for each word or cue of the transcript, on the timeline as it is when you click **Save**. An edit of an agent while the save panel shows is in the file.
@@ -1046,6 +1061,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |
 | **Export Stems** | **Exportar stems** | None |
+| **Export with Presets** | **Exportar con preajustes** | None |
 | **Export Chapters** | **Exportar capítulos** | Option-Command-E |
 | **Export Transcript** | **Exportar transcripción** | None |
 | **Save as Template** | **Guardar como plantilla** | None |
@@ -1318,6 +1334,8 @@ These commands change clips and the export. `info` shows the clip IDs. A length 
 - `dirigible clip fill Demo.dirigible --track <track> --from 0 --to 24000 --at 96000 --until 480000` copies the frames from 0 to 24000 of each `--track` and pastes them again and again from 96000, with butt joins, and cuts the last copy at 480000. Nothing moves. `--at` must be less than `--until`, else it exits 64, and `clip_fill` refuses the call. More than 1000 new clips exit 1, and the text gives the count and the limit. It writes the pasted IDs.
 - `dirigible export Demo.dirigible --out Episode.mp3 --split chapters` writes one file for each chapter, `Episode-01-<title>.mp3` and so on, as **One for Each Chapter** of the export panel; `--split markers` splits at every marker. It prints one line for each file. It exits with 2 and writes nothing when a file exists, unless you add `--replace`. After Control-C or a failed file, the files that are done stay, and a line on stderr names the files that were not written.
 - `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
+- `dirigible export Demo.dirigible --out Exports/Episode --preset master --preset podcast` writes one file for each preset into the folder `Exports`, as **File > Export with Presets**: `Episode.wav` and `Episode.mp3`. It prints the path of each file, and with a loudness target a tab and the loudness line. A preset cannot go with `--bits`, `--bitrate`, `--mono`, `--rate`, `--loudness`, or `--split`. A session preset with the name of a built-in preset hides that built-in from `--preset`.
+- `dirigible preset set Demo.dirigible "Show MP3" --format mp3 --bitrate 128 --mono --loudness podcast` adds a session preset, or changes the preset with that name. `--rename <old name>` renames a preset. `dirigible preset remove Demo.dirigible "Show MP3"` removes it. `dirigible info` lists the presets of the session.
 - `dirigible export-stems Demo.dirigible --out Stems` writes one 24-bit WAV file for each track that you hear into the new folder `Stems`: `01 Host.wav`, `02 Music.wav`, and so on. With `--by role`, it writes one file for each role: `Dialogue.wav`, `Music.wav`, `Effects.wav`, and `No Role.wav` for the tracks with no role; the command writes these names in English. Each file starts at the start of the range and has the length of the range, so the files line up at 0 in another app. When nothing clips, the files add up to the mix. A warning names each file over 0 dBFS, and one warning says when the mix of the files is over 0 dBFS: then the files do not add up to a mix export. A muted track gets no file, and a warning counts it. `--format flac`, `--bits`, `--mono`, `--rate`, `--from`, `--to`, `--track`, and `--allow-missing` work as for `dirigible export`. It prints one line for each file: the file name and the track IDs, separated by tabs. The folder appears whole or not at all: Control-C or a failure leaves no folder. An `--out` that exists exits 2 and does not change. After a crash, an empty folder with the `--out` name can stay on an exFAT or FAT32 disk; remove it, then export again.
 - `dirigible import Demo.dirigible Jingle.wav --track <track> --at 48000` imports an audio file, as **File > Import Audio**. The clip replaces the clips under it. The same call can shape the clip: `--id` names it, `--offset` and `--length` take a range of the made WAV (frames at the session rate; a length past the end stops at the end), `--db` sets the gain relative to the level of the file, in place of the auto level, and `--fade-in` and `--fade-out` set the fades in frames. A file with the same audio as a file of the session is not copied again: the new clip uses the first WAV. Each import still converts the whole file, so for more parts of one file, import it once and place the parts with `dirigible clip place` and the file ID.
 - `dirigible info Demo.dirigible --json --compact` writes only `sampleRate`, `tracks` with their clips, and `markers`. In place of the envelope points of a clip, it writes their count, `points`.
@@ -1470,7 +1488,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 80 tools, in groups:
+The 82 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
@@ -1485,7 +1503,8 @@ The 80 tools, in groups:
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
 - Transport: `transport_play`, `transport_stop`, `transport_locate`. They play, stop, and move the playhead in the window of the session. They work only in Dirigible.
-- Audio: `loudness`, `export`, `render`, `export_stems`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.
+- Audio: `loudness`, `export`, `render`, `export_stems`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it. `export` with `preset` writes one file for each preset, as `dirigible export --preset`.
+- Preset: `preset_set`, `preset_remove`. They change the export presets of the session, as `dirigible preset set` and `dirigible preset remove`. They are not batch steps.
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.

@@ -2,14 +2,18 @@ import Foundation
 
 extension ExportPreset {
     /// The presets of `<exportPresets>` (decision 0080), from `presetSessionVersion` on, in file
-    /// order. Empty with no element.
+    /// order. Empty with no element. Of two presets with one exact name, only the first stays.
     static func list(in root: XMLElement, version: Int) throws(SessionFileError) -> [ExportPreset] {
         guard let list = root.sessionElements("exportPresets").first else { return [] }
         guard version >= presetSessionVersion else {
             throw .invalidValue(element: "exportPresets", attribute: "version")
         }
         var presets: [ExportPreset] = []
-        for node in list.sessionElements("preset") { presets.append(try ExportPreset(node)) }
+        var names: Set<PresetName> = []
+        for node in list.sessionElements("preset") {
+            let preset = try ExportPreset(node)
+            if names.insert(preset.name).inserted { presets.append(preset) }
+        }
         return presets
     }
 

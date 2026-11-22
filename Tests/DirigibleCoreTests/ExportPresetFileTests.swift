@@ -69,6 +69,17 @@ struct ExportPresetFileTests {
         #expect(try Session(xml: session.checkedData()) == session)
     }
 
+    /// E4: of two stored presets with one exact name (a hand edit), the reader keeps the first, so
+    /// each stored preset has its own `PresetRef`.
+    @Test func aSecondStoredPresetOfOneExactNameIsDropped() throws {
+        let wav = #"<preset name="Show" format="wav" bits="16" channels="stereo" rate="session"/>"#
+        let session = try read(
+            ExportPresetTests.element("Show") + wav + ExportPresetTests.element("show") + wav)
+
+        #expect(ExportPresetTests.names(session) == ["Show", "show"])
+        #expect(session.exportPresets.first?.options == ExportPresetTests.mp3)
+    }
+
     /// E4: the reader applies only the non-empty and storable rules to a name, so a name that the edit
     /// rules refuse (a long combining sequence, a space at an end) reads back and does not refuse the
     /// session.

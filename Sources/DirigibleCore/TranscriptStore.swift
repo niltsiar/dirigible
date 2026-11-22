@@ -85,12 +85,14 @@ extension Session {
     var transcriptFiles: Set<TranscriptFileName> { Set(transcripts.values.map(\.file)) }
 
     /// Loads the words of each transcript from `Transcripts/<name>.xml` of `package`. A transcript
-    /// whose file is missing, does not decode, or breaks a rule of the import keeps no words.
-    mutating func loadTranscripts(from package: URL) {
+    /// whose file is missing, does not decode, breaks a rule of the import, or gets false from
+    /// `loads` keeps no words; `loads` comes before the read of the file.
+    mutating func loadTranscripts(from package: URL, loads: (URL) -> Bool = { _ in true }) {
         let folder = package.appending(path: transcriptsFolderName)
         resolveTranscripts { transcript in
-            (try? Data(contentsOf: folder.appending(path: "\(transcript.file).xml")))
-                .flatMap { try? TranscriptStore.decode($0) }
+            let file = folder.appending(path: "\(transcript.file).xml")
+            guard loads(file) else { return nil }
+            return (try? Data(contentsOf: file)).flatMap { try? TranscriptStore.decode($0) }
         }
     }
 

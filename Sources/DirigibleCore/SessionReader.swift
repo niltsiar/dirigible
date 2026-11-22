@@ -5,8 +5,9 @@ extension Session {
     /// pool paths (`checkPoolPaths`), then the words of each transcript from `Transcripts/`
     /// (decision 0055). The reader parses the XML into domain
     /// values, then builds the session through the same edits that the app uses, so each rule has
-    /// one check.
-    public init(contentsOf package: URL) throws(SessionFileError) {
+    /// one check. `loadsTranscript` gets the URL of each transcript file before its read: false
+    /// keeps that transcript with no words, as a missing file does.
+    public init(contentsOf package: URL, loadsTranscript: (URL) -> Bool = { _ in true }) throws(SessionFileError) {
         try checkItems(of: package)
         let data: Data
         do {
@@ -16,7 +17,7 @@ extension Session {
         }
         try self.init(xml: data)
         try checkPoolPaths(of: self, in: package)
-        loadTranscripts(from: package)
+        loadTranscripts(from: package, loads: loadsTranscript)
     }
 
     /// `newest` is the newest version that the reader accepts. A test gives a lower one to act as

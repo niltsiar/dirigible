@@ -67,9 +67,16 @@ extension SessionWindow {
         paste(mode: insert ? .insert(at: studio.playhead) : .over(at: studio.playhead), from: clipboard)
     }
 
-    /// Opens the name field of a bin or an item. An open field commits first. A take or a run does nothing.
+    /// Opens the name field of a bin or an item. An open field commits first. A take or a run, or a
+    /// target that the session does not have, does nothing.
     func beginBinRename(_ target: BinRename) {
-        guard canEdit else { return }
+        guard canEdit, let bins = studio?.session.bins else { return }
+        let known =
+            switch target {
+            case .bin(let id): bins.contains { $0.id == id }
+            case .item(let id): bins.contains { $0.items.contains { $0.id == id } }
+            }
+        guard known else { return }
         finishBinRename(save: true)
         leadingPane.binRename = target
         leadingPane.binsTable?.source?.openField()

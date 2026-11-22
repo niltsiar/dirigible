@@ -104,6 +104,13 @@ final class BinsTableView: NSTableView {
     func update(rows: [BinsRow], rate: Int) {
         guard rows != self.rows || rate != self.rate, let table else { return }
         (self.rows, self.rate) = (rows, rate)
+        // An undo or an agent edit can remove the selected item or the row of the open rename.
+        if let model {
+            if let id = model.leadingPane.selectedBinItem, row(of: .item(id)) == nil {
+                model.leadingPane.selectedBinItem = nil
+            }
+            if let target = model.leadingPane.binRename, row(of: target) == nil { model.finishBinRename(save: false) }
+        }
         // A reload and the reselect write no selection of the pane.
         updating = true
         table.reloadData()

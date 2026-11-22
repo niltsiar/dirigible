@@ -172,8 +172,28 @@ extension TimelineCommand {
         KeylessItem(after: .exportChapters, command: .exportTranscript, title: .menuFileExportTranscript),
     ]
 
-    /// The titles of the timeline items of the File menu, in menu order.
-    static var fileMenuTitles: [L10n] {
-        fileItems.flatMap { item in [item.title] + keylessFileItems.filter { $0.after == item.command }.map(\.title) }
+    /// A timeline item of the File menu.
+    enum FileEntry {
+        case keyed(MenuItem)
+        case keyless(KeylessItem)
+
+        var command: TimelineCommand {
+            switch self {
+            case .keyed(let item): item.command
+            case .keyless(let item): item.command
+            }
+        }
+
+        var title: L10n {
+            switch self {
+            case .keyed(let item): item.title
+            case .keyless(let item): item.title
+            }
+        }
+    }
+
+    /// The timeline items of the File menu, in menu order: each `fileItems` item, then its keyless items.
+    static let fileMenu: [FileEntry] = fileItems.flatMap { item in
+        [.keyed(item)] + keylessFileItems.filter { $0.after == item.command }.map(FileEntry.keyless)
     }
 }

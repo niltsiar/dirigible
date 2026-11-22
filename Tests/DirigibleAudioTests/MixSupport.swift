@@ -18,17 +18,19 @@ final class MixPackage {
     let url: URL
     var session: Session
 
-    init(sampleRate: Int = 48_000) throws {
+    init(sampleRate: Int = 48_000, name: String = "Mix") throws {
         folder = try TemporaryFolder()
-        url = folder.url.appending(path: "Mix.dirigible")
+        url = folder.url.appending(path: "\(name).dirigible")
         try FileManager.default.createDirectory(
             at: url.appending(path: clipsFolderName), withIntermediateDirectories: true)
         session = Session(sampleRate: sampleRate)
     }
 
     /// Writes a 24-bit WAV with the finalize writer and adds it to the pool with `origin` and `drift`.
+    /// `path` in `Clips/` is "<id>.wav" by default; its folders must exist.
     func addFile(
-        _ id: FileID, channels: [[Float]], rate: Int? = nil, origin: RenderOrigin? = nil, drift: DriftOrigin? = nil
+        _ id: FileID, channels: [[Float]], rate: Int? = nil, origin: RenderOrigin? = nil, drift: DriftOrigin? = nil,
+        path: String? = nil
     ) throws {
         let rate = rate ?? session.sampleRate
         let format = try #require(
@@ -39,7 +41,7 @@ final class MixPackage {
         for (index, samples) in channels.enumerated() {
             buffer.floatChannelData![index].update(from: samples, count: samples.count)
         }
-        let path = "\(id.rawValue).wav"
+        let path = path ?? "\(id.rawValue).wav"
         let writer = try ClipWriter(url: url.appending(path: "\(clipsFolderName)/\(path)"), file: path, format: format)
         try writer.write(buffer)
         try writer.close()

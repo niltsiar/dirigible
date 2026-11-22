@@ -16,20 +16,14 @@ extension SessionView {
         init(_ preset: ExportPreset) {
             let options = preset.options
             name = preset.name.text
+            format = options.format.fileToken
             switch options.format {
-            case .wav(let depth): (format, bits, bitRate) = ("wav", depth.rawValue, nil)
-            case .flac(let depth): (format, bits, bitRate) = ("flac", depth.rawValue, nil)
-            case .aac(let kbits): (format, bits, bitRate) = ("aac", nil, kbits.rawValue)
-            case .mp3(let kbits): (format, bits, bitRate) = ("mp3", nil, kbits.rawValue)
+            case .wav(let depth), .flac(let depth): (bits, bitRate) = (depth.rawValue, nil)
+            case .aac(let kbits), .mp3(let kbits): (bits, bitRate) = (nil, kbits.rawValue)
             case .floatCAF: preconditionFailure("PresetOptions refuses .floatCAF")
             }
             channels = options.layout.rawValue
-            rate =
-                switch options.rate {
-                case .session: "session"
-                case .hz44100: "44100"
-                case .hz48000: "48000"
-                }
+            rate = options.rate.fileToken
             loudness = options.loudness?.rawValue
         }
     }

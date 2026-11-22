@@ -15,12 +15,10 @@ func toolbarTooltip(_ command: WindowCommand, format: String? = nil, text: (L10n
     return String(format: format ?? text(tooltipKey(command)), locale: .current, arguments: arguments)
 }
 
-/// The tooltip and the accessibility label of the Index item: "Hide Session Index (⇧⌘2)" while the
-/// pane shows Index, else "Show Session Index (⇧⌘2)".
+/// The tooltip and the accessibility label of the Sidebar item: "Hide Sidebar" while the leading pane
+/// shows, else "Show Sidebar". It names no segment and no key: the item shows the last segment (C19).
 func indexTooltip(shown: Bool, text: (L10n) -> String = { $0.text }) -> String {
-    String(
-        format: text(.toolbarTooltip), locale: .current, text(shown ? .menuViewIndexHide : .menuViewIndexShow),
-        keyText(MenuKeys.showIndex))
+    text(shown ? .toolbarSidebarHide : .toolbarSidebarShow)
 }
 
 /// Gives the Index item and its button the tooltip and the accessibility label of the state.

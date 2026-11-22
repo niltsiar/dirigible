@@ -245,7 +245,9 @@ The waveform zoom changes how tall the waveform is, not the time scale (see [Zoo
 
 ### Find a clip, a marker, or a chapter
 
-Choose **View > Show Session Index** (Shift-Command-2), or click **Index** (**Índice** in Spanish) at the left end of the toolbar, to show the index at the left of the window. Choose **View > Hide Session Index** (Shift-Command-2), or click **Index** again, to hide it. Each new window shows the index or not, with the width, as you left it. If you changed the toolbar before, choose **View > Customize Toolbar** and drag **Index** to the toolbar.
+The index and the bins share one pane at the left of the window, the sidebar. A switch at the top of the pane shows **Index** (**Índice** in Spanish) or **Bins** (**Bandejas**).
+
+Choose **View > Show Session Index** (Shift-Command-2) to show the pane at the index. When the pane shows the bins, the same command switches it to the index. Choose **View > Hide Session Index** (Shift-Command-2) to hide the pane while it shows the index. Click **Sidebar** (**Panel**) at the left end of the toolbar to hide the pane, or to show it again at the part that you used last. Each new window shows the pane or not, at the same part and with the same width, as you left it. If you changed the toolbar before, choose **View > Customize Toolbar** and drag **Sidebar** to the toolbar.
 
 - The index lists the clips, markers, and chapters of the session in time order. Each row has a symbol for its kind, its name, and its start time.
 - Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents. Choose **Edit > Find in Session Index** (Shift-Command-F) to show the index and put the cursor in the search field. In the field, Esc clears the text, and Esc again goes back to the lanes. Down Arrow selects the first row.
@@ -264,6 +266,18 @@ Choose **View > Show Session Index** (Shift-Command-2), or click **Index** (**Í
 - Control-click or right-click a column header to choose the columns. The menu lists **Track**, **Duration**, and **End**, with a check mark on each column that shows. The menu has no item for Name and Start: they cannot be hidden. Dirigible keeps your choice between launches, and all windows use it. **Track** shows the track of a clip. **Duration** shows the length of a clip, or of a chapter, which lasts to the next chapter or to the end of the session. **End** shows the start plus the duration of a clip or a chapter. A marker has no duration and no end. Only a clip has a track. When the columns do not fit in the pane, scroll the list sideways, or drag the line between the index and the lanes to make the pane wider.
 - VoiceOver lists these actions for each row: **Go to** (**Ir a**), **Show Info**, **Rename**, **Play from here**, and **Delete**. A clip row has no **Rename**. **Delete** on a selected row removes all selected rows. **Delete** on another row removes that row alone.
 - The commands that change the audio or the tracks, such as **Edit > Cut**, **Edit > Copy**, **Edit > Split**, and **Delete and Close Gap** (Shift-Delete), beep in the list. To use them, click the lanes first. Return, F2, Shift-Return, and **Delete Marker** act on one row, and beep when two or more rows are selected.
+
+### Keep clips in bins
+
+A bin keeps a copy of a part of the session, for example a jingle or a sound effect, so that you can paste it again. The bins are part of the session.
+
+- Choose **View > Show Bins** (Option-Command-C) to show the pane at the bins. When the pane shows the index, the same command switches it to the bins. Choose **View > Hide Bins** (Option-Command-C) to hide the pane while it shows the bins.
+- To add a clip to a bin, select a range or clips in the lanes, then choose **Edit > Add to Bin** (**Añadir a bandeja**) and the name of a bin. Choose **New Bin** in the same submenu to make a bin and add to it. The item is a copy, as **Edit > Copy** makes: the lanes do not change. The pane shows the bins, and a name field opens with the first track name and the start time, for example "Host 0:01". Type a name and press Return, or press Esc to keep the name.
+- A session with no bin shows "No Bins", the hint "Select audio, then choose Edit > Add to Bin.", and a **New Bin** button. **New Bin** under the list makes an empty bin.
+- Each item shows its name and its length. An item whose audio file is missing shows a red mark, and a paste of it shows an alert and changes nothing.
+- To paste an item at the playhead, double-click it, or select it and press Command-Return. Press Shift-Return to insert it at the playhead: the clips after the playhead on all tracks move right by the length of the item. Press Return to rename the item. Control-click an item for **Paste at Playhead**, **Insert at Playhead**, **Rename**, and **Delete**. Control-click a bin for **Rename** and **Delete**.
+- Press Delete to remove the selected item. Each add, rename, and remove is one step of **Edit > Undo**.
+- With the focus in the list, Space, J, K, and L run their menu items, and the commands that change the tracks beep.
 
 ## Select and edit
 
@@ -1121,6 +1135,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Heal Clips** | **Unir clips** | None |
 | **Drag Mode** | **Modo de arrastre** | None |
 | **Find in Session Index** | **Buscar en el índice de la sesión** | Shift-Command-F |
+| **Add to Bin** | **Añadir a bandeja** | None |
 | **Add Gain Point** | **Añadir punto de ganancia** | Option-K |
 
 ### View
@@ -1145,6 +1160,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Snap** | **Ajuste** | N |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
 | **Show Session Index** / **Hide Session Index** | **Mostrar índice de la sesión** / **Ocultar índice de la sesión** | Shift-Command-2 |
+| **Show Bins** / **Hide Bins** | **Mostrar bandejas** / **Ocultar bandejas** | Option-Command-C |
 | **Show Inspector** / **Hide Inspector** | **Mostrar inspector** / **Ocultar inspector** | Option-Command-I |
 | **Show Transcript** / **Hide Transcript** | **Mostrar transcripción** / **Ocultar transcripción** | Shift-Command-T |
 | **Follow Playhead in Transcript** | **Seguir el cursor en la transcripción** | None |

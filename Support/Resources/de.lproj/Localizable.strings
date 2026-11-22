@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible hat die Session \U201E%@\U201C nicht importiert: Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.import.session.copy" = "Dirigible hat die Session \U201E%1$@\U201C nicht importiert: Das Audio wurde nicht kopiert (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.import.session.convert" = "Dirigible hat die Session \U201E%1$@\U201C nicht importiert: Das Audio wurde nicht konvertiert (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Seitenleiste";
+"toolbar.sidebar.show" = "Seitenleiste einblenden";
+"toolbar.sidebar.hide" = "Seitenleiste ausblenden";
+"index.pane.segment.bins" = "Ablagen";
+"menu.view.bins.show" = "Ablagen einblenden";
+"menu.view.bins.hide" = "Ablagen ausblenden";
+"menu.edit.add.to.bin" = "Zu Ablage hinzufügen";
+"bins.new" = "Neue Ablage";
+"bins.new.name" = "Ablage %lld";
+"bins.empty" = "Keine Ablagen";
+"bins.empty.hint" = "Wähle Audio aus und wähle dann „Bearbeiten“ > „Zu Ablage hinzufügen“.";
+"bins.paste" = "An Abspielposition einsetzen";
+"bins.insert" = "An Abspielposition einfügen";
+"bins.rename" = "Umbenennen";
+"bins.remove" = "Löschen";
+"bins.missing" = "Die Audiodatei dieses Clips fehlt.";
+"error.bin.missing" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";

@@ -81,6 +81,8 @@ struct DirigibleApp: App {
                         .keyboardShortcut(MenuKeys.loudnessMeter).disabled(!app.loudnessItem.enabled)
                     Button(app.indexItem.title.key) { app.key?.run(.toggleIndex) }
                         .keyboardShortcut(MenuKeys.showIndex).disabled(!app.indexItem.enabled)
+                    Button(app.binsItem.title.key) { app.key?.toggleBins() }
+                        .keyboardShortcut(MenuKeys.showBins).disabled(!app.binsItem.enabled)
                     Button(app.inspectorItem.title.key) { app.key?.run(.toggleInspector) }
                         .keyboardShortcut(MenuKeys.inspector).disabled(!app.inspectorItem.enabled)
                     Button(app.transcriptItem.title.key) { app.key?.toggleTranscript() }
@@ -95,6 +97,18 @@ struct DirigibleApp: App {
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).
                 CommandGroup(replacing: .pasteboard) {
                     ForEach(TimelineCommand.pasteboardItems, id: \.command) { item in menuButton(item) }
+                    // A disabled state is a disabled item, not an empty submenu (see the Track menu).
+                    if let key = app.key, key.canAddToBin {
+                        Menu(L10n.menuEditAddToBin.key) {
+                            ForEach(Array(key.addToBinItems.enumerated()), id: \.offset) { _, item in
+                                Button(item.title) { key.addToBin(item.bin) }
+                            }
+                            Divider()
+                            Button(L10n.binsNew.key) { key.addToBin(nil) }
+                        }
+                    } else {
+                        Button(L10n.menuEditAddToBin.key) {}.disabled(true)
+                    }
                     Divider()
                     ForEach(TimelineCommand.rippleItems, id: \.command) { item in menuButton(item) }
                     Divider()

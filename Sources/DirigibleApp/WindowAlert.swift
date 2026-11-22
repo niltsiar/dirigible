@@ -65,6 +65,8 @@ enum WindowAlert: Hashable {
     /// Replace in Save as Template saved the new template, named here, and could not move the old one to the Trash
     /// or back to the name: the path of the old one in its temporary folder.
     case templateOldKept(String, path: String)
+    /// A paste of a bin item whose file, at this path in `Clips/`, is missing (C32).
+    case binFileMissing(String)
 
     /// The alert of a failed transcription job of `request`. Only a fault of the model file of the
     /// user gives Locate...: a missing helper, a helper that does not start, and an engine error

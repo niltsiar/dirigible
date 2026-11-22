@@ -12,9 +12,9 @@ extension SessionWindow {
     /// source tracks for the same package, and a new last track for a source track that is gone.
     /// Paste and Insert give a new last track to each lane past the last track; Replace and Paste to
     /// Fill Selection refuse too few tracks. A file that an undo removed beeps; another refusal shows
-    /// its alert. What follows a paste is `finish`.
-    func paste(mode: PasteMode) {
-        guard let studio = idleStudio, let clipboard = app?.clipboard else { return }
+    /// its alert. What follows a paste is `finish`. A bin item pastes its own clipboard (F22).
+    func paste(mode: PasteMode, from item: Clipboard? = nil) {
+        guard let studio = idleStudio, let clipboard = item ?? app?.clipboard else { return }
         let target: PasteTarget
         if case .range(let marks) = timeline.selection, marks.tracks.isEmpty {
             target = .unselected

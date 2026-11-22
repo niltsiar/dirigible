@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible did not import the session \U201C%@\U201D: the disk of this session does not have enough free space. Free some disk space and try again.";
 "error.import.session.copy" = "Dirigible did not import the session \U201C%1$@\U201D: the audio did not copy (error %2$lld). Check the disk and try again.";
 "error.import.session.convert" = "Dirigible did not import the session \U201C%1$@\U201D: the audio did not convert (error %2$lld). Check the disk and try again.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Sidebar";
+"toolbar.sidebar.show" = "Show Sidebar";
+"toolbar.sidebar.hide" = "Hide Sidebar";
+"index.pane.segment.bins" = "Bins";
+"menu.view.bins.show" = "Show Bins";
+"menu.view.bins.hide" = "Hide Bins";
+"menu.edit.add.to.bin" = "Add to Bin";
+"bins.new" = "New Bin";
+"bins.new.name" = "Bin %lld";
+"bins.empty" = "No Bins";
+"bins.empty.hint" = "Select audio, then choose Edit > Add to Bin.";
+"bins.paste" = "Paste at Playhead";
+"bins.insert" = "Insert at Playhead";
+"bins.rename" = "Rename";
+"bins.remove" = "Delete";
+"bins.missing" = "The audio file of this clip is missing.";
+"error.bin.missing" = "Dirigible cannot paste the bin clip. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";

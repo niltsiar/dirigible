@@ -108,7 +108,8 @@ struct ToolbarMenuTests {
             case .timeline(let command): app.timeline(command, event: nil, in: window)
             case .transport(let command): app.transport(command, event: nil, in: window)
             case .recordPreRoll: app.recordPreRoll(event: nil, in: window)
-            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleIndex, .toggleSnap:
+            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleIndex, .toggleSnap,
+                .toggleSidebar:
                 app.key?.run(command)
             }
             let menu = model.leafCalls ?? []
@@ -244,6 +245,8 @@ struct ToolbarMenuTests {
             #expect(item.possibleLabels == [id.label.text])
             guard let command = id.command else { continue }
             #expect(item.paletteLabel == command.menuItem.title.text, "palette label of \(id)")
+            // The Sidebar item names no key (`BinsSegmentTests.theToolbarItemNamesTheSidebar`).
+            if id == .index { continue }
             let key = try #require(Self.keys(id))
             #expect(item.toolTip == toolbarTooltip(command), "tooltip of \(id)")
             // The test process has no app tables, so the format comes from each table.

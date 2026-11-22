@@ -47,7 +47,7 @@ struct SessionView: View {
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .importChain, .exported, .exportedSet, .noUnusedFiles, .transcriptExport,
                     .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .templateNewKept,
-                    .templateOldKept:
+                    .templateOldKept, .binFileMissing:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
@@ -86,7 +86,7 @@ struct SessionView: View {
             HStack(spacing: 0) {
                 if model.leadingPane.shown {
                     HStack(spacing: 0) {
-                        SessionIndexView(model: model, studio: studio).frame(width: model.leadingPane.width.points - 1)
+                        LeadingPane(model: model, studio: studio).frame(width: model.leadingPane.width.points - 1)
                         // Centered on the divider, so its trailing half is over the lanes (0023).
                         Divider().overlay { PaneHandle(model: model, edge: .leading).frame(width: 6) }
                     }
@@ -327,6 +327,7 @@ extension WindowAlert {
         case .templateOpen(let name): L10n.errorTemplateOpen.format(name)
         case .templateNewKept(let name, let path): L10n.errorTemplateKeptNew.format(name, path)
         case .templateOldKept(let name, let path): L10n.errorTemplateKeptOld.format(name, path)
+        case .binFileMissing(let path): L10n.errorBinMissing.format(path)
         }
     }
 }

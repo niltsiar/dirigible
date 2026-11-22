@@ -28,7 +28,7 @@ extension ExportWindowTests {
 
     @Test func twoCopiesGetTheNumberedNames() async throws {
         let (model, studio, _, sheet) = try await presetSheet()
-        let long = try preset(String(repeating: "a", count: 64), BuiltInPreset.master.options)
+        let long = try preset(String(repeating: "e\u{301}", count: 32), BuiltInPreset.master.options)
         try await english {
             sheet.selection = Self.podcastRef
             model.copyPreset()
@@ -41,8 +41,8 @@ extension ExportWindowTests {
         #expect(
             studio.session.exportPresets.map(\.name.text) == [
                 "Podcast (MP3) copy", "Podcast (MP3) copy 2", long.name.text,
-                String(repeating: "a", count: 59) + " copy",
-            ], "the last copy is cut to 64 characters")
+                String(repeating: "e\u{301}", count: 29) + "e copy",
+            ], "the last copy is cut to 64 scalars")
         model.cancelPresets()
         await model.close()
     }

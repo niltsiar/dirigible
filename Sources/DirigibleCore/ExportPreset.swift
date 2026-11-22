@@ -20,18 +20,26 @@ public struct PresetOptions: Hashable, Sendable {
     }
 }
 
-/// 1 to `maximumLength` characters that the session can store, with no space at either end and no
-/// control character. It keeps the exact text, and `==` compares the exact text, so a case-only
-/// rename changes the session.
+/// 1 to `maximumLength` Unicode scalars that the session can store, with no space at either end and
+/// no control character. It keeps the exact text, and `==` compares the exact text, so a case-only
+/// rename changes the session. The limit counts scalars because the character count of a combining
+/// sequence depends on the Unicode tables of the OS.
 public struct PresetName: Hashable, Sendable {
     public static let maximumLength = 64
     public let text: String
 
     public init(_ text: String) throws(SessionError) {
-        guard (1...Self.maximumLength).contains(text.count), text.first?.isWhitespace == false,
+        guard (1...Self.maximumLength).contains(text.unicodeScalars.count), text.first?.isWhitespace == false,
             text.last?.isWhitespace == false,
             text.unicodeScalars.allSatisfy({ $0.isStorableInSession && $0.properties.generalCategory != .control })
         else { throw .invalidPresetName(text) }
+        self.text = text
+    }
+
+    /// A stored name: only the non-empty and storable rules, so a name that one build writes reads
+    /// back in each build.
+    init?(stored text: String) {
+        guard !text.isEmpty, text.unicodeScalars.allSatisfy(\.isStorableInSession) else { return nil }
         self.text = text
     }
 

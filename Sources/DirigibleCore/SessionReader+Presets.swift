@@ -16,7 +16,8 @@ extension ExportPreset {
     /// `<preset name format bits bitRate channels rate loudness>`: `bits` only with `wav` and `flac`,
     /// `bitRate` only with `aac` and `mp3`, and an absent `loudness` is Off. Each value outside its
     /// list refuses the file with its attribute; these rules do not widen in a later build. The name
-    /// is never checked against a built-in or another name, so a stored name always reads back.
+    /// gets only the non-empty and storable rules, and is never checked against a built-in or another
+    /// name, so a stored name always reads back.
     init(_ node: XMLElement) throws(SessionFileError) {
         func invalid(_ attribute: String) -> SessionFileError { .invalidValue(element: "preset", attribute: attribute) }
         func absent(_ attribute: String) throws(SessionFileError) {
@@ -43,7 +44,7 @@ extension ExportPreset {
             loudness = target
         }
         let text = try node.string("name")
-        guard let name = try? PresetName(text) else { throw invalid("name") }
+        guard let name = PresetName(stored: text) else { throw invalid("name") }
         // A file format of `wav`, `flac`, `aac`, or `mp3` is never `.floatCAF`, the one refusal.
         self.init(
             name: name, options: try! PresetOptions(format: format, layout: layout, rate: rate, loudness: loudness))

@@ -29,9 +29,11 @@ extension SessionWindow {
         if leadingPane.shown { hidePane() } else { showPane(at: leadingPane.segment) }
     }
 
-    /// The switch at the pane top. It changes the segment, not the width.
+    /// The switch at the pane top. It changes the segment, not the width. A switch away from Bins saves
+    /// the open rename, as a hide does: the list leaves the window, so its field gets no focus loss.
     func selectSegment(_ segment: PaneSegment) {
         let focused = paneHasFocus
+        if segment != .bins { finishBinRename(save: true) }
         leadingPane.segment = segment
         app?.defaults?.set(segment.rawValue, forKey: LeadingPaneState.segmentKey)
         if focused { focusLanes() }

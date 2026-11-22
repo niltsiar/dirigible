@@ -6,10 +6,14 @@ import DirigibleTimeline
 /// The edits of the Bins segment (F22). Each one is one session edit through `edit`, so one undo entry,
 /// and none runs during a take or a run.
 extension SessionWindow {
-    /// Edit > Add to Bin is on with a range or a clip set to copy (C15).
+    /// Edit > Add to Bin is on with a range or a clip set to copy (C15), as `Selection.excerpt(in:)`
+    /// gives one. The menu reads it at each update, so it builds no excerpt.
     var canAddToBin: Bool {
         guard canEdit, let session = studio?.session else { return false }
-        return (try? timeline.selection.excerpt(in: session)) != nil
+        return switch timeline.selection {
+        case .range(let marks): marks.rippleScope(selectedOnly: false, in: session)?.selected.isEmpty == false
+        case .clips: !timeline.selection.selectedClips(in: session).isEmpty
+        }
     }
 
     /// The bins of the Add to Bin submenu, in user order. New Bin follows them (C22).

@@ -40,6 +40,7 @@ extension ExportCommandTests {
     /// `--replace`, so no export, render, or chapters file can replace a take.
     @Test(arguments: [
         ["export", "PKG", "--out", "Clips/f1.wav", "--replace"],
+        ["export", "PKG", "--preset", "master", "--out", "Clips/f1", "--replace"],
         ["render", "PKG", "--out", "Clips/new.caf"],
         ["chapters", "export", "PKG", "--out", "Clips/f1.json", "--replace"],
     ])

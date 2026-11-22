@@ -71,7 +71,8 @@ extension StartLimitTests {
     /// then queues a job that releases the held `box` writer. The deadline resumes the stop during
     /// the hold, so the stop takes the answers before that job: `box` is late and `mic` is on time.
     /// A deadline that needs the main actor resumes the stop after the release, and `box` answers.
-    /// The hold past the deadline is longer than a pool hop under load.
+    /// The hold past the deadline is longer than a pool hop under load. `mic` finishes before the
+    /// stop: its file close under suite load can take longer than the 100 ms limit.
     @Test func aMainActorHoldAtTheStopDoesNotDelayItsDeadline() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
@@ -80,6 +81,7 @@ extension StartLimitTests {
         try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio.writer("box"), hal, "box")
+        try await #require(studio.writer("mic")).finish()
 
         let stopping = Task { @MainActor () -> StudioError? in
             do throws(StudioError) { try await studio.stopRecording() } catch { return error }

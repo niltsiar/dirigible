@@ -262,10 +262,36 @@ web="$(session 'Track 1' | sed 's/}$/, "exportPresets": [{"name": "web", "format
 set_web='/private/tmp/x/dirigible preset set /private/tmp/x/Show.dirigible web --format mp3 --bitrate 96 --mono'
 agent_case preset-1 T11 skill "$web" dirigible "$set_web"$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset web --preset master --out /private/tmp/x/out/ep1' 'Done.'
 agent_case preset-2 T11 skill "$web" dirigible "$set_web"$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset web --out /private/tmp/x/out/ep1'$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset master --out /private/tmp/x/out/ep1' 'Done.'
-for d in preset-1 preset-2; do printf -- '-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.mp3\n-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.wav\n' > "$a/$d/T11/out.txt"; done
-got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . | head -n 8 | tr '\t\n' ': ')" \
+# Only a call that ran counts: a command that the harness refused (is_error), a failed MCP call, and
+# a help lookup are not a set or an export. Two real `preset set` commands are wrong.
+export_both='/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset web --preset master --out /private/tmp/x/out/ep1'
+agent_calls() {
+  local d="$a/$1/T11"
+  mkdir -p "$d"
+  printf 'skill\n' > "$d/variant"
+  printf '%s\n' "$web" > "$d/after.json"
+  : > "$d/out.txt"
+  : > "$d/stderr.txt"
+  python3 -I -c 'import json, sys
+calls = [["Bash", sys.argv[1], False]] * int(sys.argv[2]) + [["Bash", sys.argv[3], False]]
+if sys.argv[4] == "noise":
+    calls = [["Bash", "/private/tmp/x/dirigible help preset set", False],
+             ["Bash", "/private/tmp/x/dirigible preset set --help", False],
+             ["Bash", "/private/tmp/x/dirigible export -h", False],
+             ["Bash", sys.argv[1] + " && " + sys.argv[3], True],
+             ["mcp__dirigible__preset_set", "", True]] + calls
+print(json.dumps({"type": "system", "subtype": "init", "cwd": "/private/tmp/x", "skills": ["dirigible"]}))
+for i, (name, command, refused) in enumerate(calls):
+    print(json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": str(i), "name": name, "input": {"command": command} if command else {}}]}}))
+    print(json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": str(i), "is_error": refused}]}}))
+print(json.dumps({"type": "result", "result": "Done.", "total_cost_usd": 0.01}))' "$set_web" "$2" "$export_both" "$3" > "$d/stream.jsonl"
+}
+agent_calls noisy-1 1 noise
+agent_calls twice-1 2 quiet
+for d in preset-1 preset-2 noisy-1 twice-1; do printf -- '-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.mp3\n-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.wav\n' > "$a/$d/T11/out.txt"; done
+got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . | head -n 10 | tr '\t\n' ': ')" \
   || fail "agent-grade.py: exit $?"
-[[ "$got" == 'edit-1:wrong help-1:safe leak-1:leak preset-1:pass preset-2:wrong take-1:pass unasked-1:wrong warn-1:pass ' ]] \
+[[ "$got" == 'edit-1:wrong help-1:safe leak-1:leak noisy-1:pass preset-1:pass preset-2:wrong take-1:pass twice-1:wrong unasked-1:wrong warn-1:pass ' ]] \
   || fail "agent-grade.py: got [$got]"
 
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of

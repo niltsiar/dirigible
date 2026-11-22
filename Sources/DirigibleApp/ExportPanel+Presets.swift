@@ -56,7 +56,7 @@ struct LoudnessPicker: View {
     }
 }
 
-/// Save as Preset... of the Export panel (P-Q2): the button shows a name field; Save stores the options of
+/// Save as Preset... of the Export panel: the button shows a name field; Save stores the options of
 /// the panel as a session preset through `save`, which gives the text of a refused name, or nil.
 struct SaveAsPresetRow: View {
     let settings: ExportSettings

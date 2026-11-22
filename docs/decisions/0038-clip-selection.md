@@ -10,6 +10,7 @@
 - Amended: 2026-10-29, run `2026-10-29-marquee-select` (F127). A Shift-drag on the lanes with no Command draws a marquee: at each drag event, the clips that it holds whole in time, on the lanes that it touches, become the clip set; no clip gives no selection; Esc gives the selection at the down. It replaces the Shift-drag range extension of the lanes: a Shift-drag on the lanes no longer extends the span of a clip set; a Shift-drag on the ruler and a Shift-Command drag on the lanes still do.
 - Amended: 2026-11-06, run `2026-10-28-timeline-edits` (L2, F69). The table row "Any, Shift-Command" splits: a trim zone rolls a join or trims a loose edge, and the upper part of a clip slips it (see 0020); the lower part and a gap keep the range drag.
 - Amended: 2026-11-09, run `2026-10-28-timeline-edits` (L4, F80, see 0020). A group drag uses the overlap mode of the drag mode, and Shuffle mode overwrites.
+- Amended: 2026-11-22, run `2026-10-28-favorites-bins` (F22, see 0018). When the tracks under the clicked track are too few for a set excerpt, Paste and Insert add a new last track for each lane past the last track, and no `trackCount` alert shows.
 
 ## Context
 

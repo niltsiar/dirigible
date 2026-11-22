@@ -139,26 +139,39 @@ import Testing
         await model.close()
     }
 
-    /// Too few tracks under the first selected track: nothing changes, and the alert gives the
-    /// track count of the copy (code gate 1 item 4). A source track that an edit removed: nothing
-    /// changes, and no alert shows. Controls: a paste on every selected track with no count check
-    /// pastes one lane on t3; a nil for too few tracks shows no alert.
-    @Test func pasteWithTooFewTracksChangesNothing() async throws {
+    /// Too few tracks under the first selected track: a Replace changes nothing, and the alert gives
+    /// the track count of the copy (code gate 1 item 4); a Paste adds a new last track for the lane
+    /// past t3, named after the lane, in one undo entry (C9). With no selected track, a source track
+    /// that an edit removed gets a new last track (C9 case a). Control: `.extending` for every mode
+    /// fails the Replace.
+    @Test func pasteWithTooFewTracksAddsALastTrack() async throws {
         let (model, studio, _, _) = try await open()
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1", "t2"])
         model.run(.copy)
+        let source = try #require(studio.session.track("t2"))
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t3"])
         var before = studio.session
-        model.run(.paste)
+        model.run(.replace)
         #expect(studio.session == before && !studio.canUndo)
         #expect(model.alert == .error(.session(.trackCount(2))))
-
         model.alert = nil
+
+        model.run(.paste)
+        let added = try #require(studio.session.tracks.last)
+        #expect(studio.session.tracks.map(\.id) == before.tracks.map(\.id) + [added.id])
+        #expect(added.name == source.name && added.layout == source.layout && added.clips.count == 1)
+        #expect(model.alert == nil)
+        model.undo()
+        #expect(studio.session == before)
+
+        let host = try #require(studio.session.track("t1"))
         try studio.edit(ripple: false) { s throws(SessionError) in try s.removeTrack("t1") }
         model.timeline.marks = Marks()
         before = studio.session
         model.run(.paste)
-        #expect(studio.session == before && model.alert == nil)
+        let restored = try #require(studio.session.tracks.last)
+        #expect(studio.session.tracks.map(\.id) == before.tracks.map(\.id) + [restored.id] && model.alert == nil)
+        #expect(restored.name == host.name && restored.clips.count == 1)
         await model.close()
     }
 

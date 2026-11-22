@@ -61,8 +61,9 @@ import Testing
         await model.close()
     }
 
-    /// K11: a click on the last track leaves one track under it for two clips, so Paste refuses.
-    @Test func aPasteOfAClipSetPastTheLastTrackRefuses() async throws {
+    /// K11: a click on the last track leaves one track under it for two clips, so Paste adds a new
+    /// last track, named after the lane of c2, for the copy of c2 (C9).
+    @Test func aPasteOfAClipSetPastTheLastTrackAddsATrack() async throws {
         let (model, studio, view) = try await open()
         try copyTwoClips(model, view)
         try click(view, 200, 190)
@@ -71,8 +72,11 @@ import Testing
 
         model.run(.paste)
 
-        #expect(model.alert == .error(.session(.trackCount(2))), "\(String(describing: model.alert))")
-        #expect(studio.session == before)
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let added = try #require(studio.session.tracks.last)
+        #expect(studio.session.tracks.map(\.id) == before.tracks.map(\.id) + [added.id])
+        #expect(studio.session.track("t4")?.clips.map(\.start) == [0, 96_000], "t4: its clip and the copy of c1")
+        #expect(added.name == before.track("t2")?.name && added.clips.map(\.start) == [96_000])
         await model.close()
     }
 

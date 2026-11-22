@@ -177,7 +177,7 @@ package struct BatchWork: Sendable {
                 episode.edit(&session)
                 return ["OK"]
             }
-        case .takeImport, .info, .create, .paste, .backups, .revert, .episodeInfo, .words, .prune, .record,
+        case .takeImport, .info, .create, .paste, .backups, .bins, .revert, .episodeInfo, .words, .prune, .record,
             .transport, .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice, .importFile, .splitStereo,
             .importSession, .clipRender,
             .chapters,

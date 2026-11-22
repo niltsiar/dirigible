@@ -2,13 +2,16 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// A paste from another session package (decision 0042): the data of `clip paste --source` and
-/// `clip paste-clips --source`, and of their MCP tools. The command and the server run it in
-/// `editPackageCore`, under the lock of the target. The source is read with no lock, as `info`.
+/// A paste from another session package (decision 0042): the data of `clip paste --source`,
+/// `clip paste-clips --source`, and `bin paste --source`, and of their MCP tools. The command and the
+/// server run it in `editPackageCore`, under the lock of the target. The source is read with no lock,
+/// as `info`.
 package struct PasteWork: Sendable {
     package enum Selection: Sendable {
         case range(Range<Frames>, tracks: [TrackID])
         case clips([ClipID])
+        /// A bin item of the source, with the pool records of the source at the paste.
+        case binItem(BinItemID)
     }
 
     let source: URL
@@ -38,6 +41,9 @@ package struct PasteWork: Sendable {
                 targets = onto.isEmpty ? tracks : onto.map { TrackID($0) }
             case .clips(let ids):
                 excerpt = try read.excerpt(of: ids)
+                targets = EditRules.laneTargets(of: excerpt, onto: onto)
+            case .binItem(let item):
+                excerpt = try read.excerpt(of: item)
                 targets = EditRules.laneTargets(of: excerpt, onto: onto)
             }
         } catch {

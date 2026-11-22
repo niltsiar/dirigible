@@ -75,10 +75,17 @@ private let healFrom = Param<Int?>.optional(
 private let healTo = Param<Int?>.optional(
     "to", "Only the joins to this timeline frame, a join at this frame too. Give it with from.", .integer())
 
+/// The `onto` and `source` arguments of each paste tool (decision 0042), and the note of `source`.
+extension Arg {
+    static let pasteOnto = onto
+    static let pasteSource = source
+    static let pasteSourceNote = sourceNote
+}
+
 extension Arguments {
     /// The paste from another package of `source` (decision 0042), or nil with no `source`. The
     /// path is absolute, as `package`, and another package needs `onto`.
-    fileprivate func paste(_ selection: PasteWork.Selection, mode: PasteMode, onto: [String]) throws(ToolError)
+    func paste(_ selection: PasteWork.Selection, mode: PasteMode, onto: [String]) throws(ToolError)
         -> PasteWork?
     {
         guard let path = try self[source] else { return nil }

@@ -93,6 +93,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         if let message = missingSessionFile(package, path: path) { throw ToolError(message) }
         let names = Backup.all(in: package).map(\.fileName)
         return names.isEmpty ? "No backups." : names.joined(separator: "\n")
+    case .bins:
+        return BinWork.list(try read(package, path: path))
     case .episodeInfo:
         // EpisodeView holds only strings, numbers, and a flag, so the encode does not fail.
         return (try? EpisodeView(try read(package, path: path).episode).json(pretty: false)) ?? "{}"

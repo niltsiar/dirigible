@@ -24,7 +24,8 @@ extension TimelineCommand {
             .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .waveformZoomIn, .waveformZoomOut,
             .waveformZoomReset, .setIn, .setOut, .previousMarker, .nextMarker,
             .previousGainPoint, .nextGainPoint, .showInFinder, .importAudio, .importTranscript, .export,
-            .exportSelection, .exportChapters, .exportStems, .exportTranscript, .episodeInfo, .findSilences:
+            .exportSelection, .exportChapters, .exportStems, .exportPresets, .exportTranscript, .episodeInfo,
+            .findSilences:
             .lanes
         }
     }

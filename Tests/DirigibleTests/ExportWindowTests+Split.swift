@@ -70,7 +70,7 @@ extension ExportWindowTests {
     /// chapters give 4 files and the markers give 5. The count is not the count of the points (3).
     @Test func eachSplitItemShowsItsFileCount() async throws {
         var plan: ExportSplitPlan?
-        app.chooseExport = { _, _, _, given, _, done in
+        app.chooseExport = { _, _, _, given, _, _, done in
             plan = given.plan
             done(nil)
         }
@@ -110,7 +110,7 @@ extension ExportWindowTests {
 
     @Test func aSplitItemIsOffWithNoPointOfItsKind() async throws {
         var plans: [ExportSplitPlan] = []
-        app.chooseExport = { _, _, _, given, _, done in
+        app.chooseExport = { _, _, _, given, _, _, done in
             plans.append(contentsOf: given.plan.map { [$0] } ?? [])
             done(nil)
         }
@@ -151,7 +151,7 @@ extension ExportWindowTests {
 
     @Test func theLineNamesTheCountTheFirstFileAndTheStemFile() async throws {
         var plan: ExportSplitPlan?
-        app.chooseExport = { _, _, _, given, _, done in
+        app.chooseExport = { _, _, _, given, _, _, done in
             plan = given.plan
             done(nil)
         }

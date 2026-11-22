@@ -10,7 +10,7 @@ import Testing
 extension ExportWindowTests {
     @Test func thePanelGetsTheNoteOfAnUnheardTrack() async throws {
         var notes: [String?] = []
-        app.chooseExport = { _, _, _, _, note, done in
+        app.chooseExport = { _, _, _, _, note, _, done in
             notes.append(note)
             done(nil)
         }

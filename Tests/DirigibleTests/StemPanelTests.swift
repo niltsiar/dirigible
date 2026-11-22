@@ -102,7 +102,9 @@ import Testing
         let sessionRate = 48_000
         let mix = popUps(
             ExportAccessory(
-                settings: ExportSettings(defaults: nil), sessionRate: sessionRate, note: nil, name: { "Show" },
+                settings: ExportSettings(defaults: nil), sessionRate: sessionRate, note: nil,
+                savePreset: { _, _ in nil },
+                name: { "Show" },
                 changed: {}))
         let stems = popUps(StemAccessory(settings: StemSettings(defaults: nil), sessionRate: sessionRate))
         let expected = [

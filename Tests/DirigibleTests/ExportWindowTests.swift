@@ -30,7 +30,7 @@ import os
         let (target, panels) = (
             ExportTarget(url: folder.url.appending(path: "mix.wav"), options: Self.options, confirmed: nil), panels
         )
-        app.chooseExport = { _, _, _, _, _, done in
+        app.chooseExport = { _, _, _, _, _, _, done in
             panels.withLock { $0 += 1 }
             done(target)
         }
@@ -347,7 +347,7 @@ import os
         defaults.set("flac", forKey: "export.format")
         let app = AppDelegate(recordings: nil, defaults: defaults)
         var settings: ExportSettings?
-        app.chooseExport = { _, _, _, given, _, done in
+        app.chooseExport = { _, _, _, given, _, _, done in
             settings = given
             done(nil)
         }
@@ -365,7 +365,7 @@ import os
     /// Criterion C3: with no app defaults, the panel gets the default values and writes nothing.
     @Test func thePanelWithNoAppDefaultsUsesTheDefaultValues() async throws {
         var settings: ExportSettings?
-        app.chooseExport = { _, _, _, given, _, done in
+        app.chooseExport = { _, _, _, given, _, _, done in
             settings = given
             done(nil)
         }

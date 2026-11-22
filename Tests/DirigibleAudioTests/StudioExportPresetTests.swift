@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -97,5 +98,31 @@ struct StudioExportPresetTests {
         #expect(files.map(\.preset) == presets.map(\.ref))
         #expect(studio.exportPresetRefs == nil)
         #expect(studio.exportFile == nil)
+    }
+
+    /// The app passes the chapter title of its language, as the Export panel does (`ExportSettings.options`):
+    /// an M4A file gets a chapter at the start when its first chapter starts later.
+    @Test func aPresetSetGivesTheIntroTitle() async throws {
+        let fixture = try await ExportStudioFixture.make { package in
+            try package.session.setMarker(Marker(id: "m", name: "Talk", position: 96_000, kind: .chapter))
+        }
+        let studio = try await fixture.open()
+        let web = [
+            (
+                PresetRef.session(try PresetName("Web")),
+                try PresetOptions(format: .aac(.k128), layout: .stereo, rate: .session, loudness: nil)
+            )
+        ]
+        let files = try await studio.export(
+            presets: web, source: ExportSource(range: 0..<480_000)!, folder: fixture.package.folder.url,
+            prefix: "Ep", replacing: [:], introTitle: "Inicio")
+        let url = try #require(files.first?.url)
+        let groups = try await AVURLAsset(url: url).loadChapterMetadataGroups(
+            withTitleLocale: Locale(identifier: "en"), containingItemsWithCommonKeys: [])
+        var titles: [String] = []
+        for group in groups {
+            for item in group.items { titles.append(try await item.load(.stringValue) ?? "") }
+        }
+        #expect(titles == ["Inicio", "Talk"])
     }
 }

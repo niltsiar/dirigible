@@ -64,7 +64,8 @@ public func presetTargets(
 /// Thread rule: as `exportMix`.
 public func exportPresets(
     _ session: Session, source: ExportSource, presets: [(ref: PresetRef, options: PresetOptions)], folder: URL,
-    prefix: String, replacing: [URL: ConfirmedFile], package: () throws(SessionFileError) -> URL,
+    prefix: String, introTitle: String = "Intro", replacing: [URL: ConfirmedFile],
+    package: () throws(SessionFileError) -> URL,
     progress: (ExportPartsProgress) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled }
 ) throws(ExportPresetsError) -> [ExportedPreset] {
     let targets = try presetTargets(presets, folder: folder, prefix: prefix)
@@ -73,7 +74,8 @@ public func exportPresets(
         guard exportSupports(target.options.format, rate: rate) else { throw .rateNotSupported(target.preset, rate) }
     }
     let items = targets.map {
-        ExportItem(session: session, source: source, options: ExportOptions($0.options), url: $0.url)
+        ExportItem(
+            session: session, source: source, options: ExportOptions($0.options, introTitle: introTitle), url: $0.url)
     }
     func files(_ results: [ExportResult]) -> [ExportedPreset] {
         zip(targets, results).map { ExportedPreset(preset: $0.preset, url: $0.url, result: $1) }
@@ -99,8 +101,10 @@ public func exportPresets(
 }
 
 extension ExportOptions {
-    /// The export options of a preset.
-    public init(_ preset: PresetOptions) {
-        self.init(format: preset.format, layout: preset.layout, rate: preset.rate, loudness: preset.loudness)
+    /// The export options of a preset. `introTitle` names the chapter before a first chapter after the start.
+    public init(_ preset: PresetOptions, introTitle: String = "Intro") {
+        self.init(
+            format: preset.format, layout: preset.layout, rate: preset.rate, loudness: preset.loudness,
+            introTitle: introTitle)
     }
 }

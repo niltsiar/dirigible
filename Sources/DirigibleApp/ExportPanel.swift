@@ -113,9 +113,10 @@ func exportNote(_ session: Session, _ source: ExportSource) -> ExportNote? {
 /// The save panel of Export with its accessory pop-ups, as a sheet of `window`.
 enum ExportPanel {
     /// Calls `done` with the target at OK, or with nil at Cancel. `note` is one line under the
-    /// pop-ups; the panel asks nothing more.
+    /// pop-ups. Save as Preset... stores the options through `savePreset` (P-Q2).
     @MainActor static func begin(
         for window: NSWindow, name: String, sessionRate: Int, settings: ExportSettings, note: String?,
+        savePreset: @escaping @MainActor (ExportOptions, String) -> String?,
         done: @escaping @MainActor (ExportTarget?) -> Void
     ) {
         let panel = NSSavePanel()
@@ -125,7 +126,7 @@ enum ExportPanel {
         let button: String = panel.prompt ?? ""
         panel.accessoryView = NSHostingView(
             rootView: ExportAccessory(
-                settings: settings, sessionRate: sessionRate, note: note,
+                settings: settings, sessionRate: sessionRate, note: note, savePreset: savePreset,
                 name: { [weak panel] in panel?.nameFieldStringValue ?? name },
                 changed: { [weak panel] in
                     if let panel { Self.follow(settings, panel, nameLabel: nameLabel, button: button) }
@@ -289,6 +290,7 @@ struct ExportAccessory: View {
     @Bindable var settings: ExportSettings
     let sessionRate: Int
     let note: String?
+    let savePreset: @MainActor (ExportOptions, String) -> String?
     /// The name field of the panel now.
     let name: () -> String
     /// The files choice or the format changed: the panel follows.
@@ -314,12 +316,7 @@ struct ExportAccessory: View {
             ExportFormatPickers(
                 bits: $settings.bits, layout: $settings.layout, rate: $settings.rate, sessionRate: sessionRate,
                 showsBits: !lossy)
-            Picker(L10n.panelExportLoudness.key, selection: $settings.loudness) {
-                Text(L10n.panelExportLoudnessOff.key).tag(LoudnessTarget?.none)
-                ForEach(LoudnessTarget.allCases, id: \.self) { target in
-                    Text(verbatim: name(target)).tag(Optional(target))
-                }
-            }
+            LoudnessPicker(settings: settings)
             if let note {
                 Text(verbatim: note).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
@@ -336,6 +333,7 @@ struct ExportAccessory: View {
                     Text(L10n.panelExportLoudnessNote.key).foregroundStyle(.secondary)
                 }
             }
+            SaveAsPresetRow(settings: settings, save: savePreset)
         }
         .padding()
         .frame(width: 420)
@@ -351,17 +349,5 @@ struct ExportAccessory: View {
                 Text(verbatim: plan.title(files)).tag(files).disabled(help != nil).help(help.map(\.text) ?? "")
             }
         }
-    }
-
-    /// The preset name with its value for the chosen channels: -16 stereo, -19 mono for Podcast.
-    private func name(_ target: LoudnessTarget) -> String {
-        let key: L10n =
-            switch target {
-            case .podcast: .panelExportLoudnessPodcast
-            case .speech: .panelExportLoudnessSpeech
-            case .ebu: .panelExportLoudnessEBU
-            case .atsc: .panelExportLoudnessATSC
-            }
-        return key.format(Int(target.integrated(for: settings.layout).value))
     }
 }

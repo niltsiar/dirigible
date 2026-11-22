@@ -13,9 +13,10 @@ extension Studio {
     /// finished files on disk; `exportStop` gives the cause. Two presets of one file name throw
     /// `.exportPresets(.duplicateTargets(_))` and start no job. With no preset it starts no job and
     /// returns no file. `exportFile` gives the file in hand, and `exportPresetRefs` its preset.
+    /// `introTitle` names the chapter that the export adds before a first chapter after the start.
     public func export(
         presets: [(ref: PresetRef, options: PresetOptions)], source: ExportSource, folder: URL, prefix: String,
-        replacing: [URL: ConfirmedFile],
+        replacing: [URL: ConfirmedFile], introTitle: String = "Intro",
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> [ExportedPreset] {
         try checkIdle()
@@ -37,7 +38,8 @@ extension Studio {
         let task = jobTask { package, isCancelled in
             Result { () throws(ExportPresetsError) in
                 try exportPresets(
-                    session, source: source, presets: presets, folder: folder, prefix: prefix, replacing: replacing,
+                    session, source: source, presets: presets, folder: folder, prefix: prefix, introTitle: introTitle,
+                    replacing: replacing,
                     package: package, progress: hop, isCancelled: isCancelled)
             }
         }

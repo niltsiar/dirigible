@@ -24,6 +24,7 @@ struct LocalizationCopyTests {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -50,6 +51,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
+        "export.presets.podcast", "export.presets.summary.lufs",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -69,6 +71,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -92,6 +95,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
@@ -113,6 +117,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -141,6 +146,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "panel.transcript.choice", "inspector.hertz",
     ],
     "pt": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
@@ -160,6 +166,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "pt-PT": [
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",

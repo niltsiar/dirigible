@@ -175,8 +175,8 @@ struct BinTests {
 
     /// C7. The item keeps the kind, the length, and the lanes of the excerpt; `excerpt(of:)` gives the
     /// excerpt again with the pool records also after the source clips are gone. A clip set of "A" alone
-    /// keeps its crossfade with no partner, as the excerpt does. An excerpt at another rate and a clip of
-    /// another pool are refused.
+    /// keeps its crossfade with no partner, as the excerpt does. An excerpt at another rate, a clip of
+    /// another pool, and an excerpt of length 0 are refused.
     @Test func addItemChecks() throws {
         var session = try Self.session()
         let bin = try session.addBin(named: "Bin")
@@ -210,6 +210,12 @@ struct BinTests {
         #expect(bed.length == 8_000, "control: the clips A and B end at the item end")
         let short = Excerpt(kind: .clips, length: 7_999, lanes: bed.lanes, sampleRate: 48_000, pool: session.files)
         #expect(throws: SessionError.clipPastItemEnd("B")) { try session.addItem(short, named: "Short", to: bin) }
+        #expect(throws: SessionError.emptyExcerpt) {
+            try session.addItem(try session.excerpt(of: 6_000..<6_000, on: ["t1"]), named: "Empty", to: bin)
+        }
+        #expect(throws: SessionError.emptyExcerpt) {
+            try session.addItem(try session.excerpt(of: [ClipID]()), named: "None", to: bin)
+        }
         #expect(session == before)
     }
 
@@ -247,7 +253,7 @@ struct BinTests {
 
     /// C34. The reader checks each bin clip as a track clip: a clip of an unknown file, past the end of
     /// its file, of a file with another layout than its lane, over another clip of its lane, or past the
-    /// end of its item refuses the file. The same file with no change reads.
+    /// end of its item, and an item of length 0, refuse the file. The same file with no change reads.
     @Test func damagedBinClipRefusedAtRead() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "fb", path: "b.wav", layout: .mono, length: 10_000))
@@ -266,6 +272,7 @@ struct BinTests {
             (#"name="Bin lane" layout="mono""#, #"name="Bin lane" layout="stereo""#, .layoutMismatch("t", .file("fb"))),
             (#"start="1000""#, #"start="500""#, .overlap("Y", "X")),
             (#"length="1500""#, #"length="1499""#, .clipPastItemEnd("Y")),
+            (#"length="1500""#, #"length="0""#, .emptyExcerpt),
         ]
         for (old, new, error) in cases {
             let damaged = text.replacingOccurrences(of: old, with: new)
@@ -289,12 +296,14 @@ struct BinTests {
                 for _ in 0..<Int.random(in: 0...4, using: &random) {
                     try session.setRides(["B": rides.randomElement(using: &random)!])
                     let start = Int.random(in: 0..<90_000, using: &random)
+                    var picked = clips.filter { _ in Bool.random(using: &random) }
+                    if picked.isEmpty { picked = [clips.randomElement(using: &random)!] }
                     let excerpt =
                         Bool.random(using: &random)
                         ? try session.excerpt(
                             of: Frames(start)..<Frames(start + Int.random(in: 1...30_000, using: &random)),
                             on: tracks.shuffled(using: &random))
-                        : try session.excerpt(of: clips.filter { _ in Bool.random(using: &random) })
+                        : try session.excerpt(of: picked)
                     try session.addItem(excerpt, named: words.randomElement(using: &random)!, to: id)
                 }
             }

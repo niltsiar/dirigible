@@ -53,11 +53,11 @@ extension Session {
     }
 
     /// Adds the kind, the length, and the lanes of `excerpt` at the end of `bin`. It refuses an excerpt
-    /// at another rate, a used ID, a clip whose file record differs from the pool record (`.foreignFile`),
-    /// and a lane that a track with its layout could not hold: each clip passes the checks of a track
-    /// clip and ends at or before the excerpt length, and the clips of a lane are in start order with no
-    /// overlap, so a damaged `<item>` refuses its file at the read. A crossfade with no partner stays, as
-    /// in the excerpt: a paste repairs it.
+    /// at another rate, an excerpt of length 0 (`.emptyExcerpt`), a used ID, a clip whose file record
+    /// differs from the pool record (`.foreignFile`), and a lane that a track with its layout could not
+    /// hold: each clip passes the checks of a track clip and ends at or before the excerpt length, and
+    /// the clips of a lane are in start order with no overlap, so a damaged `<item>` refuses its file at
+    /// the read. A crossfade with no partner stays, as in the excerpt: a paste repairs it.
     @discardableResult
     public mutating func addItem(_ excerpt: Excerpt, named name: String, to bin: BinID, id: BinItemID = BinItemID())
         throws(SessionError) -> BinItemID
@@ -67,6 +67,7 @@ extension Session {
         let index = try binIndex(bin)
         guard excerpt.sampleRate == sampleRate else { throw .otherSampleRate(excerpt.sampleRate) }
         guard excerpt.length.isInRange else { throw .frameOutOfRange }
+        guard excerpt.length > .zero else { throw .emptyExcerpt }
         guard !bins.contains(where: { $0.items.contains { $0.id == id } }) else { throw .duplicateID(id.rawValue) }
         for lane in excerpt.lanes {
             try Self.checkText(lane.source.rawValue, lane.name)

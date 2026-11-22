@@ -1,8 +1,8 @@
 # 0080. Export presets: named export options in session.xml, two built-in presets in code, and one export job for several presets
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-28
-- Amends: 0003 (the `<exportPresets>` element), 0024 (a new `session.xml` version), 0019 (one export job writes one file for each preset), 0002 (the stored export values move to `DirigibleCore`), 0011 (`dirigible preset set`, `dirigible preset remove`, `dirigible export --preset`), 0041 (the tools `preset_set` and `preset_remove`, and the `presets` argument of `export`). Depends on: 0067 (the set job of chapter export) and 0078 (the item loop `exportItems`), both on main.
+- Amends: 0003 (the `<exportPresets>` element), 0024 (a new `session.xml` version), 0019 (one export job writes one file for each preset), 0002 (the stored export values move to `DirigibleCore`), 0011 (`dirigible preset set`, `dirigible preset remove`, `dirigible export --preset`), 0041 (the tools `preset_set` and `preset_remove`, and the `preset` argument of `export`). Depends on: 0067 (the set job of chapter export) and 0078 (the item loop `exportItems`), both on main.
 
 In this file, "..." in a menu item stands for U+2026 (a write hook refuses the character); the strings use U+2026.
 

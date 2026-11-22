@@ -120,4 +120,25 @@ extension BinsSegmentTests {
         #expect(reads < excerpt, "ten reads of the state took \(reads), one excerpt \(excerpt)")
         await model.close()
     }
+
+    /// A switch to Index and a window close each keep the typed name of an open rename.
+    @Test func aSegmentSwitchKeepsTheTypedName() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window, route, _) = try await focusedList()
+        route.press(chord("\r", code: 36, [], in: window), in: window)
+        var editor = try await renameEditor(model, window)
+        editor.insertText("Theme", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        model.selectSegment(.index)
+
+        #expect(model.leadingPane.binRename == nil, "the rename stays open at Index")
+        #expect(studio.session.bins.first?.items.first?.name == "Theme", "the switch lost the typed name")
+
+        model.selectSegment(.bins)
+        await until("the Bins list shows") { model.leadingPane.binsTable?.window != nil }
+        model.beginBinRename(.item("item1"))
+        editor = try await renameEditor(model, window)
+        editor.insertText("Closed", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        await model.close()
+        #expect(studio.session.bins.first?.items.first?.name == "Closed", "the close lost the typed name")
+    }
 }

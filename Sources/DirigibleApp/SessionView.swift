@@ -116,8 +116,8 @@ struct SessionView: View {
                     if let scan = model.unusedFiles { UnusedFilesSheet(model: model, scan: scan) }
                 }
             }
-            // Tools > Duck Music Under Speech... (decision 0060) and Sync Clip to Track... (decision 0076).
-            // Only their buttons close them.
+            // Tools > Duck Music Under Speech... (decision 0060), Sync Clip to Track... (decision 0076), and
+            // File > Export with Presets... (decision 0080). Only their buttons close them.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.duckDraft != nil }, set: { _ in })) {
                     if let draft = model.duckDraft {
@@ -125,6 +125,7 @@ struct SessionView: View {
                     }
                 }
                 syncSheet(studio)
+                presetSheet(studio)
             }
             // Tools > Reduce Noise... (decision 0054). Only its buttons close it.
             .background {
@@ -152,6 +153,12 @@ struct SessionView: View {
             }
         case .closing(nil), .closed:
             EmptyView()
+        }
+    }
+
+    private func presetSheet(_ studio: Studio) -> some View {
+        Color.clear.sheet(isPresented: Binding(get: { model.presetSheet != nil }, set: { _ in })) {
+            if let sheet = model.presetSheet { ExportPresetsSheet(model: model, studio: studio, sheet: sheet) }
         }
     }
 

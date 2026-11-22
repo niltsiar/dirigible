@@ -21,13 +21,18 @@ struct ReplaceParts: Hashable {
 /// prefix that stay. Cancel is the first button and the default, so Return cancels. Replace is
 /// destructive and has no key.
 @MainActor func replaceQuestion(_ set: ReplaceParts) -> NSAlert {
-    let names = set.names
-    let folder = set.split.folder.path(percentEncoded: false)
+    replaceQuestion(names: set.names, folder: set.split.folder, old: set.old)
+}
+
+/// The replace sheet of a set in `folder`: the question, the first five of the sorted `names`, and the older
+/// files of the prefix that stay.
+@MainActor func replaceQuestion(names: [String], folder url: URL, old: [URL]) -> NSAlert {
+    let folder = url.path(percentEncoded: false)
     let alert = NSAlert()
     alert.messageText =
         names.count == 1
         ? L10n.alertExportReplaceOne.format(folder) : L10n.alertExportReplaceMany.format(names.count, folder)
-    let kept = set.old.isEmpty ? "" : "\n\n" + L10n.oldFilesText(set.old.map(\.lastPathComponent))
+    let kept = old.isEmpty ? "" : "\n\n" + L10n.oldFilesText(old.map(\.lastPathComponent))
     alert.informativeText = L10n.firstNames(names) + kept
     addReplaceButtons(to: alert, confirm: L10n.alertExportReplaceConfirm)
     return alert
@@ -145,6 +150,66 @@ extension SessionWindow {
         alert = .exportedSet(
             media: faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted(),
             parts: faulty.map(\.url.lastPathComponent))
+    }
+}
+
+extension SessionWindow {
+    /// The preset set of the preset sheet (decision 0080): the check of its targets, the replace sheet when an
+    /// item is at a target, then `Studio.export(presets:)`. `exportStep` is `.starting` until the set starts or
+    /// the user cancels. A stop shows the count banner, a fault its alert, and a finish the done banner.
+    func runPresetSet(
+        _ source: ExportSource, _ presets: [(ref: PresetRef, options: PresetOptions)], _ target: PresetFolder,
+        _ studio: Studio
+    ) async {
+        defer { if exportStep == .starting { exportStep = nil } }
+        let urls: [URL]
+        do throws(ExportPresetsError) {
+            urls = try presetTargets(presets, folder: target.folder, prefix: target.prefix).map(\.url)
+        } catch {
+            alert = .error(.exportPresets(error))
+            return
+        }
+        let existing = await confirmations(of: urls)
+        if !existing.isEmpty {
+            let names = existing.keys.map(\.lastPathComponent).sorted()
+            guard let window,
+                await replaceQuestion(names: names, folder: target.folder, old: []).beginSheetModal(for: window)
+                    == .alertSecondButtonReturn, idleStudio === studio
+            else { return }
+        }
+        // `Studio.export` sets its job before its first suspension: the progress takes the place of the step.
+        exportStep = nil
+        recordRefusal = nil
+        clearExportBanners()
+        defer { recordRefusal = nil }
+        let (revision, session) = (studio.sessionRevision, studio.session)
+        do throws(StudioError) {
+            let files = try await studio.export(
+                presets: presets, source: source, folder: target.folder, prefix: target.prefix, replacing: existing,
+                introTitle: L10n.exportChapterIntro.text)
+            // A finished set has one file for each preset, in preset order.
+            let warnings = zip(files, presets).compactMap { file, preset in
+                ChapterWarningsShown(
+                    file.result.droppedChapters, imagesOmitted: file.result.chapterImagesOmitted,
+                    titleMissing: ExportText.lacksTitleTag(session, format: preset.options.format),
+                    file: file.url.lastPathComponent, revision: revision)
+            }
+            exportSet = ExportSetShown(
+                files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: [],
+                warnings: warnings, revision: revision)
+            let faulty = files.filter { !$0.result.faults.isEmpty }
+            guard !faulty.isEmpty else { return }
+            let faults = faulty.reduce(into: [FileID: MediaFault]()) {
+                $0.merge($1.result.faults) { first, _ in first }
+            }
+            alert = .exportedSet(media: paths(of: faults, in: session), parts: faulty.map(\.url.lastPathComponent))
+        } catch .exportPresets(.stopped(let stop)) where stop.error == .cancelled {
+            exportSet = ExportSetShown(
+                files: stop.written.map(\.url), count: stop.written.count + stop.remaining.count, loudness: [],
+                old: [], revision: revision)
+        } catch {
+            alert = .error(error)
+        }
     }
 }
 

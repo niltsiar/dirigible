@@ -28,7 +28,7 @@ import Testing
         folder = try TemporaryFolder()
         let panels = panels
         app.chooseStemsExport = { _, _, _, _, message, done in panels.stems.append((message, done)) }
-        app.chooseExport = { _, _, _, _, _, done in
+        app.chooseExport = { _, _, _, _, _, _, done in
             panels.mix += 1
             done(nil)
         }

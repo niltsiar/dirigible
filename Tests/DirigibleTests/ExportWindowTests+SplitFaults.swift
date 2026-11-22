@@ -36,7 +36,7 @@ extension ExportWindowTests {
         try threeChapters(studio)
         try await runSet(model, studio, setTarget())
         let target = setTarget()
-        app.chooseExport = { _, _, _, _, _, done in
+        app.chooseExport = { _, _, _, _, _, _, done in
             self.panels.withLock { $0 += 1 }
             done(target)
         }

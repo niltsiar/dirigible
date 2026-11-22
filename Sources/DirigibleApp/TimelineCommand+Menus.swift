@@ -154,4 +154,26 @@ extension TimelineCommand {
         MenuItem(command: .exportChapters, title: .menuFileExportChapters, key: "e", modifiers: [.command, .option]),
         MenuItem(command: .episodeInfo, title: .menuFileEpisodeInfo, key: "i", modifiers: [.command, .shift]),
     ]
+
+    /// A File item with no key, after the `fileItems` item of `after`.
+    struct KeylessItem {
+        let after: TimelineCommand
+        let command: TimelineCommand
+        let title: L10n
+    }
+
+    /// The rare File commands, with no key: Import Transcript after Import Audio, Export Stems and Export with
+    /// Presets after Export Selection (Option-Command-E is Export Chapters), and Export Transcript after the
+    /// other exports.
+    static let keylessFileItems = [
+        KeylessItem(after: .importAudio, command: .importTranscript, title: .menuFileImportTranscript),
+        KeylessItem(after: .exportSelection, command: .exportStems, title: .menuFileExportStems),
+        KeylessItem(after: .exportSelection, command: .exportPresets, title: .menuFileExportPresets),
+        KeylessItem(after: .exportChapters, command: .exportTranscript, title: .menuFileExportTranscript),
+    ]
+
+    /// The titles of the timeline items of the File menu, in menu order.
+    static var fileMenuTitles: [L10n] {
+        fileItems.flatMap { item in [item.title] + keylessFileItems.filter { $0.after == item.command }.map(\.title) }
+    }
 }

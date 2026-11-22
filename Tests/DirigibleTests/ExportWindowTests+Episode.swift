@@ -12,7 +12,7 @@ extension ExportWindowTests {
     @Test func aTypedTitleIsInTheExportTag() async throws {
         let (model, studio, _) = try await window()
         let mp3 = folder.url.appending(path: "mix.mp3")
-        app.chooseExport = { _, _, _, _, _, done in
+        app.chooseExport = { _, _, _, _, _, _, done in
             done(
                 ExportTarget(
                     url: mp3, options: ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session),

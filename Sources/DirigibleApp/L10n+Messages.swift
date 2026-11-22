@@ -41,7 +41,9 @@ extension L10n {
             let count = stop.written.count + stop.remaining.count
             return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
         case .exportPresets(.exists): return errorExportExists.text
-        case .exportPresets(.duplicateTargets): return errorSessionOther.text
+        case .exportPresets(.duplicateTargets(let urls)):
+            return errorExportPresetsDuplicate.format(
+                Set(urls.map(\.lastPathComponent)).sorted().joined(separator: ", "))
         case .exportPresets(.rateNotSupported(_, let rate)): return errorExportRate.format(rate)
         case .exportPresets(.stopped(let stop)):
             let count = stop.written.count + stop.remaining.count
@@ -323,8 +325,10 @@ extension L10n {
             .foreignFile, .emptyExcerpt,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo,
-            .noJoin, .followOverlap, .pendingTake, .invalidPresetName, .invalidPreset, .presetNameTaken, .unknownPreset:
+            .noJoin, .followOverlap, .pendingTake, .invalidPreset, .unknownPreset:
             return errorSessionOther.text
+        case .invalidPresetName: return errorPresetName.format(PresetName.maximumLength)
+        case .presetNameTaken(let name): return errorPresetNameTaken.format(name)
         case .noRippleTrack: return errorRippleFollowOnly.text
         case .noMatch: return errorSessionMatchNone.text
         case .syncSameTrack: return errorSyncSameTrack.text

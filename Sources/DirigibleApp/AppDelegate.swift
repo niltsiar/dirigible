@@ -85,6 +85,7 @@ import Observation
     @ObservationIgnored let copyJobs = CopyJobs()
     /// The sheets and the Trash call of Save as Template. Tests give their own.
     @ObservationIgnored var templatePanels = TemplatePanels()
+    @ObservationIgnored var presetPanels = PresetPanels()
     /// The notice after an unclean end of the earlier launch (decision 0059).
     var uncleanNotice = UncleanNotice(previousEndedUnclean: false)
     /// True after the first window show or report read the end of the earlier journal. The
@@ -141,12 +142,11 @@ import Observation
         panel.allowedContentTypes = AppDelegate.importTypes
         panel.beginSheetModal(for: window) { done($0 == .OK ? panel.url : nil) }
     }
-    /// The save panel of Export as a sheet of a window: the name, the session rate, the
-    /// settings of the pop-ups, the note of unheard tracks, and the answer. Tests give their own.
-    @ObservationIgnored var chooseExport:
-        (NSWindow, String, Int, ExportSettings, String?, @escaping @MainActor (ExportTarget?) -> Void) -> Void = {
-            ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, note: $4, done: $5)
-        }
+    /// The save panel of Export as a sheet of a window: the name, the session rate, the settings of the
+    /// pop-ups, the note of unheard tracks, Save as Preset, and the answer. Tests give their own.
+    @ObservationIgnored var chooseExport: ExportChoice = {
+        ExportPanel.begin(for: $0, name: $1, sessionRate: $2, settings: $3, note: $4, savePreset: $5, done: $6)
+    }
     /// The save panel of Export Stems as a sheet of a window: the folder name, the session rate, the
     /// settings of the pop-ups, the message, and the answer. Tests give their own.
     @ObservationIgnored var chooseStemsExport:

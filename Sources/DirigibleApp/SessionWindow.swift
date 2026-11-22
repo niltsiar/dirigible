@@ -111,6 +111,8 @@ import SwiftUI
     func copy(_ excerpt: Excerpt, of studio: Studio) { app?.clipboard = studio.clipboard(of: excerpt) }
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
+    /// The preset sheet of File > Export with Presets... while it shows (decision 0080).
+    var presetSheet: PresetSheet?
     /// The last clean export with a target (decision 0032), its chapter warnings, and its split result, for
     /// their banners. The next export or take start removes them; each shows at its session revision only.
     var exportReport: ExportReportShown?

@@ -311,7 +311,7 @@ import Testing
         model.undo()
         model.undo()
         try await type("-3", in: try await paneFields(window)[0], window, model)
-        app.chooseExport = { _, _, _, _, _, done in done(nil) }
+        app.chooseExport = { _, _, _, _, _, _, done in done(nil) }
         model.run(.export)
         #expect(gain(studio, "A") == -3, "Export acts on the typed gain: \(String(describing: gain(studio, "A")))")
         await until("the export flow ends") { model.exportStep == nil || model.isAskingExportQuestion }

@@ -3,10 +3,15 @@ import DirigibleCore
 import Foundation
 
 extension SessionWindow {
-    /// The text of the progress sheet: the template text while this window saves a template, else the place of
-    /// the file in hand for a split export, else "Exporting...".
+    /// The text of the progress sheet: the template text while this window saves a template, else the preset of
+    /// the file in hand for a preset set (decision 0080), else the place of the file in hand for a split export,
+    /// else "Exporting...".
     var sheetTitle: String {
-        studio?.savesTemplate == true ? L10n.sheetTemplateTitle.text : exportSheetTitle(studio?.exportFile)
+        if studio?.savesTemplate == true { return L10n.sheetTemplateTitle.text }
+        if let presets = studio?.exportPresetRefs, let file = studio?.exportFile {
+            return L10n.exportPresetsProgress.format(presetTitle(presets[file.number - 1]))
+        }
+        return exportSheetTitle(studio?.exportFile)
     }
 
     /// File > Save as Template... is on when an export could start and the app has a templates folder.

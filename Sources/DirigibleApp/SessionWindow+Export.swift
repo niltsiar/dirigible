@@ -11,7 +11,7 @@ enum ExportKind {
 
 /// The save panel that follows the media check of an export.
 enum ExportPanelKind: Hashable {
-    case mix, stems
+    case mix, stems, presets
 }
 
 /// A step of Export before the export runs. The running export is `Studio.exportProgress`.
@@ -97,6 +97,7 @@ extension SessionWindow {
         case .exportSelection: canExportSelection
         case .exportChapters: canExportChapters
         case .exportStems: canExportStems
+        case .exportPresets: canExport
         case .exportTranscript: canExportTranscript
         case .importAudio: canImport
         case .importTranscript: canImportTranscript
@@ -194,6 +195,7 @@ extension SessionWindow {
         switch panel {
         case .mix: choose(source, studio)
         case .stems: chooseStems(source, studio)
+        case .presets: openPresetSheet(source, studio)
         }
     }
 
@@ -201,10 +203,13 @@ extension SessionWindow {
     func choose(_ source: ExportSource, _ studio: Studio) {
         guard let window, let app else { return }
         exportStep = .choosing
+        let savePreset: @MainActor (ExportOptions, String) -> String? = { [weak self] in
+            self?.savePreset($0, name: $1)
+        }
         app.chooseExport(
             window, url.deletingPathExtension().lastPathComponent, studio.session.sampleRate,
             ExportSettings(defaults: app.defaults, plan: ExportSplitPlan(session: studio.session, source: source)),
-            exportNote(studio.session, source)?.text
+            exportNote(studio.session, source)?.text, savePreset
         ) { [weak self] target in
             guard let self, exportStep == .choosing else { return }
             exportStep = nil

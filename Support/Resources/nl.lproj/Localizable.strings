@@ -1045,6 +1045,8 @@
 "import.session.added.other" = "%lld sporen toegevoegd op de opgenomen posities.";
 "import.session.muted.one" = "Bij 1 gespreksspoor staat het geluid uit: het herhaalt de andere stem.";
 "import.session.muted.other" = "Bij %lld gesprekssporen staat het geluid uit: ze herhalen de andere stem.";
+"import.session.left.out.one" = "1 markering is weggelaten: de positie ligt na het einde van de tijdlijn.";
+"import.session.left.out.other" = "%lld markeringen zijn weggelaten: de posities liggen na het einde van de tijdlijn.";
 "undo.import.session" = "Herstel sessie-import";
 "redo.import.session" = "Sessie-import opnieuw";
 "error.import.session.same" = "Je kunt een sessie niet in zichzelf importeren. Kies een andere sessie.";

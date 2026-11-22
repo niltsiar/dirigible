@@ -133,7 +133,7 @@ import Testing
 
         await imported(model, from: try await source())
 
-        let line = L10n.sessionImportLine(tracks: 3, muted: 0)
+        let line = L10n.sessionImportLine(tracks: 3, muted: 0, leftOut: 0)
         let banners = ChromeState.reportBanners(model, studio)
         #expect(banners.contains { $0 == .sessionImported(line, press: 1) }, "\(banners)")
         #expect(dock.announced.contains(line), "\(dock.announced)")
@@ -142,17 +142,28 @@ import Testing
         await model.close()
     }
 
-    /// C16: the one and the many forms of each sentence, and no second sentence with no muted call track.
+    /// C16: the one and the many forms of each sentence, no muted sentence with no muted call track,
+    /// and no left-out sentence with no marker left out.
     @Test func theResultLineHasOneAndManyForms() throws {
         let english = try stringsTable("en")
         let table = { (key: L10n) in english[key.rawValue] ?? key.rawValue }
         #expect(
-            L10n.sessionImportLine(tracks: 4, muted: 2, table: table)
+            L10n.sessionImportLine(tracks: 4, muted: 2, leftOut: 0, table: table)
                 == "Added 4 tracks at their recorded positions. 2 call tracks are muted: they repeat the other voice.")
-        #expect(L10n.sessionImportLine(tracks: 1, muted: 0, table: table) == "Added 1 track at its recorded position.")
         #expect(
-            L10n.sessionImportLine(tracks: 2, muted: 1, table: table)
+            L10n.sessionImportLine(tracks: 1, muted: 0, leftOut: 0, table: table)
+                == "Added 1 track at its recorded position.")
+        #expect(
+            L10n.sessionImportLine(tracks: 2, muted: 1, leftOut: 0, table: table)
                 == "Added 2 tracks at their recorded positions. 1 call track is muted: it repeats the other voice.")
+        #expect(
+            L10n.sessionImportLine(tracks: 2, muted: 0, leftOut: 1, table: table)
+                == "Added 2 tracks at their recorded positions. 1 marker is left out: its position is after the end "
+                + "of the timeline.")
+        #expect(
+            L10n.sessionImportLine(tracks: 1, muted: 1, leftOut: 3, table: table)
+                == "Added 1 track at its recorded position. 1 call track is muted: it repeats the other voice. "
+                + "3 markers are left out: their positions are after the end of the timeline.")
     }
 
     /// C12: a refused source names the source session, then gives the open refusal text unchanged.

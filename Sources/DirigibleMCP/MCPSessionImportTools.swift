@@ -18,7 +18,8 @@ let sessionImportTools = [
             + "new last track with its clips at their positions plus at, and each file that a clip names is copied "
             + "into Clips/ under a new file ID. A track name that is taken gets the source session name, a track "
             + "with an app route imports muted, and the source does not change. The text is the new track IDs, one "
-            + "per line." + editCancelNote("no track is added"),
+            + "per line, then \"marker <id>\" for each new marker, then a \"Left out:\" line with the count of the "
+            + "markers that land before frame 0 or after frame 2^40." + editCancelNote("no track is added"),
         [importSource, importOffset, importMarkers], batch: .alone
     ) { a throws(ToolError) in
         let (source, at, markers) = (try a[importSource], try a[importOffset], try a[importMarkers])

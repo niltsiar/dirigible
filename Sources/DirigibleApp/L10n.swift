@@ -1029,6 +1029,8 @@ enum L10n: String, CaseIterable {
     case importSessionAddedOther = "import.session.added.other"
     case importSessionMutedOne = "import.session.muted.one"
     case importSessionMutedOther = "import.session.muted.other"
+    case importSessionLeftOutOne = "import.session.left.out.one"
+    case importSessionLeftOutOther = "import.session.left.out.other"
     case undoImportSession = "undo.import.session"
     case redoImportSession = "redo.import.session"
     case errorImportSessionSame = "error.import.session.same"

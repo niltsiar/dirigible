@@ -51,6 +51,24 @@ struct MCPImportSessionToolTests {
         }
     }
 
+    /// The tool gives the lines of the command: the new track IDs, a `marker <ID>` line for each
+    /// new marker, and the line with the count of the markers left out.
+    @Test func importSessionToolReportsTheMarkers() async throws {
+        let (package, source) = try fixture()
+        try ImportSessionCommandTests.addMarkers(to: source)
+        let arguments: [String: Any] = ["package": package.path, "source": source.path, "markers": true, "at": -24_000]
+
+        let result = toolResult(answer(try await mcp([toolCall(1, "import_session", arguments)]), id: 1))
+
+        let session = try package.read()
+        let late = try #require(session.sortedMarkers.first { $0.name == "Late" })
+        let lines =
+            session.tracks.dropFirst().map(\.id.rawValue) + [
+                "marker \(late.id.rawValue)", ImportSessionCommandTests.leftOutOne,
+            ]
+        #expect(result == (lines.joined(separator: "\n"), false), "\(result)")
+    }
+
     /// C10: progress grows before the answer at another rate, where each file converts.
     @Test func importSessionToolReportsProgress() async throws {
         let (package, source) = try fixture(rate: 44_100)

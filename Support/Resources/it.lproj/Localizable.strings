@@ -1045,6 +1045,8 @@
 "import.session.added.other" = "Aggiunte %lld tracce nelle loro posizioni registrate.";
 "import.session.muted.one" = "1 traccia di chiamata ha l’audio disattivato: ripete l’altra voce.";
 "import.session.muted.other" = "%lld tracce di chiamata hanno l’audio disattivato: ripetono l’altra voce.";
+"import.session.left.out.one" = "1 marcatore è stato escluso: la sua posizione è dopo la fine della timeline.";
+"import.session.left.out.other" = "%lld marcatori sono stati esclusi: le loro posizioni sono dopo la fine della timeline.";
 "undo.import.session" = "Annulla importazione sessione";
 "redo.import.session" = "Ripristina importazione sessione";
 "error.import.session.same" = "Non puoi importare una sessione in se stessa. Scegli un’altra sessione.";

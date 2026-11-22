@@ -1045,6 +1045,8 @@
 "import.session.added.other" = "Added %lld tracks at their recorded positions.";
 "import.session.muted.one" = "1 call track is muted: it repeats the other voice.";
 "import.session.muted.other" = "%lld call tracks are muted: they repeat the other voice.";
+"import.session.left.out.one" = "1 marker is left out: its position is after the end of the timeline.";
+"import.session.left.out.other" = "%lld markers are left out: their positions are after the end of the timeline.";
 "undo.import.session" = "Undo Import Session";
 "redo.import.session" = "Redo Import Session";
 "error.import.session.same" = "You cannot import a session into itself. Choose a different session.";

@@ -1045,6 +1045,8 @@
 "import.session.added.other" = "%lld faixas adicionadas nas posições gravadas.";
 "import.session.muted.one" = "1 faixa de chamada está sem som: repete a outra voz.";
 "import.session.muted.other" = "%lld faixas de chamada estão sem som: repetem a outra voz.";
+"import.session.left.out.one" = "1 marcador foi omitido: a posição está depois do fim da linha cronológica.";
+"import.session.left.out.other" = "%lld marcadores foram omitidos: as posições estão depois do fim da linha cronológica.";
 "undo.import.session" = "Desfazer importação de sessão";
 "redo.import.session" = "Refazer importação de sessão";
 "error.import.session.same" = "Não é possível importar uma sessão para si própria. Escolha outra sessão.";

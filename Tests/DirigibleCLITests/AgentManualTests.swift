@@ -271,6 +271,20 @@ struct AgentManualTests {
         }
     }
 
+    /// The preset tools are in the tool list and the skill only (decision 0051): the skill table names
+    /// each, and one skill line gives the `preset` argument of `export` and the name rule. The core
+    /// and the recipes do not change.
+    @Test func theSkillNamesThePresetTools() {
+        let skill = AgentManual.skill
+        for text in [
+            "| preset_set | dirigible preset set |", "| preset_remove | dirigible preset remove |",
+            "`export` with `preset`", "`out` is then <folder>/<prefix>", "hides that built-in",
+        ] {
+            #expect(skill.contains(text), "the skill does not say \(text)")
+        }
+        #expect(!AgentManual.core(pathLine: "x").contains("preset"), "the core has no room")
+    }
+
     /// A chapters file keeps each image at its time, and a chapter whose image
     /// the file leaves out is removed first.
     @Test func theChapterRecipeImportsAFileAndKeepsTheImages() {

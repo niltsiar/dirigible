@@ -224,6 +224,8 @@ package struct SessionView: Encodable {
     let recording: RecordingView?
     /// Left out when empty (decision 0045).
     let episode: EpisodeView?
+    /// The session presets in list order; left out with none (decision 0080).
+    let exportPresets: [PresetView]?
     /// One entry for each take with audio, in take order; left out with none (decision 0061).
     let takeSync: [TakeSyncView]?
     /// One entry for each anchor read fault, the fault of `Capture/` first, then in take order; left
@@ -269,6 +271,7 @@ package struct SessionView: Encodable {
                 url: $0.url?.text, image: $0.image?.path)
         }
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
+        exportPresets = session.exportPresets.isEmpty ? nil : session.exportPresets.map(PresetView.init)
         let sync = takeMap.map.sync
         takeSync = sync.isEmpty ? nil : sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
         let faults = takeMap.faults.map { FaultView(file: $0.error.fault.file, errno: $0.error.fault.errno) }

@@ -43,6 +43,15 @@ private let split = Param<String?>.optional(
         + "and the format; each file is <prefix>-<NN>-<title>, and replace takes the files that exist.",
     .string)
 
+private let presetNames = Param<[String]?>.optional(
+    "preset",
+    "Write one file for each preset: the names of session presets or of the built-in presets master (WAV, 24 bit, "
+        + "session rate) and podcast (MP3, mono, 44100 Hz, -19 LUFS). out is then <folder>/<prefix>, with no file "
+        + "extension; each file is <prefix>.<ext>, or <prefix>-<preset>.<ext> when two presets have one extension. "
+        + "A session preset wins over a built-in of the same name. The options of each file come from its preset, so "
+        + "preset cannot go with bits, bitrate, mono, rate, loudness, or split. replace takes the files that exist.",
+    .strings(minItems: 1))
+
 private let chosenClips = Param<[String]?>.optional(
     "clips", "The IDs of the clips to level. The default is every clip.", .strings())
 private let perTrack = Param.defaulted(
@@ -150,9 +159,11 @@ let audioTools = [
             + "file in the range that is missing, short, or unreadable refuses the export, unless allow_missing. With "
             + "split, the text is the path of each file, with its loudness line, then the warning lines; a stop or a "
             + "failure names the files that were written and the files that were not." + cancelNote
-            + " With split, a cancel keeps the files that were done.",
-        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing, split], saves: false,
-        batch: .alone
+            + " With split, a cancel keeps the files that were done. With preset, the text is the path of each "
+            + "file, with its loudness line, then the warning lines; a stop or a failure names the files that were "
+            + "written and the files that were not, and a cancel keeps the files that were done.",
+        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing, split, presetNames],
+        saves: false, batch: .alone
     ) { a throws(ToolError) in
         // The type of each argument first, then the path, then the option rules.
         let (depth, kbits, folds, hertz, target) = (
@@ -161,8 +172,20 @@ let audioTools = [
         let (first, end, ids, replaces, allows) = (
             try a[from], try a[to], try a[tracks] ?? [], try a[replace], try a[allowMissing]
         )
-        let kind = try ExportText.splitKind(try a[split], spelling: .tool)
+        let (word, names) = (try a[split], try a[presetNames])
+        let kind = try ExportText.splitKind(word, spelling: .tool)
         let path = try outPath(a, out)
+        if let names {
+            let given = [
+                ("bits", depth != nil), ("bitrate", kbits != nil), ("mono", folds), ("rate", hertz != nil),
+                ("loudness", target != nil), ("split", word != nil),
+            ].filter { $0.1 }.map { $0.0 }
+            try ExportText.checkPresets(out: path, given: given, spelling: .tool)
+            return .export(
+                ExportWork(
+                    presets: names, out: path, from: first, to: end, tracks: ids.map { TrackID($0) },
+                    replace: replaces, allowMissing: allows, spelling: .tool))
+        }
         let options = try ExportText.options(
             out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target, spelling: .tool)
         return .export(

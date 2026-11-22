@@ -96,6 +96,38 @@ struct LiveExportTests {
         await studio.settle()
     }
 
+    /// E11: `preset` is one job of the window, as `split`: the window has the file in hand and the
+    /// preset list, and the reply is the text of the command.
+    @Test func aLivePresetSetRunsInTheWindowJob() async throws {
+        let hold = PartHold(folder: package.folder, prefix: ".Ep.mp3")
+        defer { hold.release() }
+        let studio = try await package.open()
+        studio.environment.exportChunk = { hold.step() }
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let set = package.folder.appending(path: "Ep").path
+        let arguments: [String: any Sendable] = ["package": package.path, "out": set, "preset": ["master", "podcast"]]
+        let socket = folder.socket
+        let call = Task { await send(socket, "export", arguments) }
+        await until("the set does not hold in file 2") { hold.isHeld }
+        await until("the window has no file in hand") { studio.exportFile?.number == 2 }
+
+        #expect(studio.exportFile?.count == 2 && studio.exportFile?.name == "Ep.mp3")
+        #expect(studio.exportPresetRefs == [.builtIn(.master), .builtIn(.podcast)])
+        #expect(studio.exportProgress != nil, "the set is the one export job of the window")
+        hold.release()
+        let outcome = await call.value
+
+        guard case .reply(.result(let text, let isError)) = outcome else {
+            Issue.record("\(outcome)")
+            return
+        }
+        #expect(!isError && text.hasPrefix(set + ".wav\n" + set + ".mp3\tloudness "), "\(text)")
+        #expect(try outputs().sorted() == ["Ep.mp3", "Ep.wav"])
+        #expect(studio.exportProgress == nil && studio.exportPresetRefs == nil)
+        await studio.settle()
+    }
+
     /// Cancel in the export sheet and a take start end the export, and the agent gets the cause.
     @Test(arguments: [
         (ExportStop.user, "The user cancelled the export in Dirigible. No file was written."),

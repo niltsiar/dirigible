@@ -42,14 +42,19 @@ package enum ExportText {
             throw ToolError("\(o("out")) must end in .wav, .m4a, .mp3, or .flac.")
         }
         let fileRate = try exportRate(rate, spelling: o)
-        var target: LoudnessTarget?
-        if let loudness {
-            guard let value = LoudnessTarget(rawValue: loudness) else {
-                throw ToolError("\(o("loudness")) must be podcast, speech, ebu, or atsc.")
-            }
-            target = value
-        }
+        let target = try loudnessTarget(loudness, spelling: o)
         return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
+    }
+
+    /// The loudness target that `loudness` gives: nil for nil.
+    package static func loudnessTarget(_ loudness: String?, spelling o: OptionSpelling) throws(ToolError)
+        -> LoudnessTarget?
+    {
+        guard let loudness else { return nil }
+        guard let value = LoudnessTarget(rawValue: loudness) else {
+            throw ToolError("\(o("loudness")) must be podcast, speech, ebu, or atsc.")
+        }
+        return value
     }
 
     /// The bit depth of WAV and FLAC that `bits` gives: 24 for nil.

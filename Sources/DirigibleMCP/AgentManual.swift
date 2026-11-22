@@ -193,6 +193,15 @@ package enum AgentManual {
         + "`drift`, it moves the whole clip by one lag and does not correct a drift. With `drift` true, a clip of "
         + "5 min or more also gets its clock drift fixed, with new audio files."
 
+    /// What the preset tools and `preset` take (decision 0080). In the skill only: the manual has no room
+    /// under its 6000 characters.
+    static let presetLine =
+        "`preset_set` and `preset_remove` change the export presets of a session. A preset has a name, a `format` "
+        + "(wav, flac, aac, or mp3), and the options of that format. `export` with `preset` writes one file for each "
+        + "preset: the name of a session preset, or the built-in master or podcast. `out` is then <folder>/<prefix>, "
+        + "with no file extension, and the options of the call must not go with `preset`. A session preset with the "
+        + "name of a built-in hides that built-in."
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -251,6 +260,8 @@ package enum AgentManual {
             \(matchLine)
 
             \(syncLine)
+
+            \(presetLine)
 
             | Tool | Command |
             |---|---|

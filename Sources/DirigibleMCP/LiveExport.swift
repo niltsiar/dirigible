@@ -12,12 +12,18 @@ func liveExport(
 ) async throws(ToolError) -> String {
     let session = studio.session
     let source = try work.source(in: session)
+    let presets = try work.presetList(in: session)
     // A render writes a bad file as silence, so it reads no media state.
     if !work.isRender {
         guard let faults = await studio.exportFaults(source) else { throw ToolError(noMediaCheck) }
         try work.check(faults, in: session)
         // The user can open a dialog or start an export during the media check.
         if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
+    }
+    if !presets.isEmpty {
+        return try await livePresets(
+            work, presets: presets, studio: studio, session: session, source: source, path: path,
+            sheetCause: sheetCause, report: report)
     }
     if let kind = work.split {
         return try await liveSet(
@@ -146,4 +152,55 @@ private func setStopMessage(_ work: ExportWork, _ stop: ExportPartsStop, cause: 
 /// The folder read for the older files of the prefix, off the main actor.
 @concurrent private func oldFiles(_ work: ExportWork, besides files: [ExportedPart]) async -> [URL] {
     work.oldFiles(besides: files)
+}
+
+/// The set of `export` with `presets` through `Studio.export(presets:...)`: one job of the window
+/// (decision 0080). The job renders the session that it starts with, and `presets` are the options that
+/// the caller read from the session of the call.
+@MainActor
+private func livePresets(
+    _ work: ExportWork, presets: [PresetEntry], studio: Studio, session: Session, source: ExportSource,
+    path: String, sheetCause: @MainActor () -> AgentBusy?, report: @escaping @Sendable (Double) -> Void
+) async throws(ToolError) -> String {
+    let replacing: [URL: ConfirmedFile]
+    do throws(ExportPresetsError) { replacing = try await presetConfirmations(work, presets) } catch {
+        throw ToolError(work.presetRefusal(error))
+    }
+    // The user can open a dialog during the check of the targets.
+    if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
+    let files: [ExportedPreset]
+    do throws(StudioError) {
+        files = try await studio.export(
+            presets: presets, source: source, folder: work.folder, prefix: work.presetPrefix, replacing: replacing,
+            progress: report)
+    } catch .exportPresets(.stopped(let stop)) {
+        if Task.isCancelled { throw ToolError(cancelledMessage) }
+        throw ToolError(presetStopMessage(work, stop, cause: studio.exportStop))
+    } catch .exportPresets(let error) {
+        throw ToolError(work.presetRefusal(error))
+    } catch .busy {
+        throw ToolError((exportBusy(studio) ?? .task).message(package: path))
+    } catch {
+        throw ToolError(error.message(package: path))
+    }
+    do throws(SetFaults) {
+        let (stdout, stderr) = try work.presetLines(of: files, list: presets, session: session, source: source)
+        return (stdout + stderr).joined(separator: "\n")
+    } catch {
+        throw ToolError(error.text)
+    }
+}
+
+/// The text of a preset set that stopped, as `setStopMessage`.
+private func presetStopMessage(_ work: ExportWork, _ stop: ExportPresetsStop, cause: ExportStop?) -> String {
+    guard stop.error == .cancelled else { return work.presetStopText(stop) }
+    let sentence = stopMessage(cause, noun: work.noun, nothing: ExportText.presetStopCounts(stop))
+    return (stop.written.map(ExportText.presetLine) + [sentence]).joined(separator: "\n")
+}
+
+/// The check of the targets of a preset set off the main actor: an lstat for each file is file I/O.
+@concurrent private func presetConfirmations(_ work: ExportWork, _ presets: [PresetEntry])
+    async throws(ExportPresetsError) -> [URL: ConfirmedFile]
+{
+    try work.presetConfirmations(presets)
 }

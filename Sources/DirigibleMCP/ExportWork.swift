@@ -21,13 +21,17 @@ package struct ExportWork: Sendable {
     /// Nil for one file. Else one file for each part of the range (decision 0067): `out` gives the
     /// folder, the prefix, and the format.
     let split: SplitKind?
+    /// The names of the presets of a preset set (decision 0080), in order; empty for the other forms.
+    /// `out` gives the folder and the prefix, and the work reads no `options`.
+    let presets: [String]
 
     package init(
         out: String, options: ExportOptions, from: Int, to: Int?, tracks: [TrackID], replace: Bool,
-        allowMissing: Bool, spelling: OptionSpelling = .tool, split: SplitKind? = nil
+        allowMissing: Bool, spelling: OptionSpelling = .tool, split: SplitKind? = nil, presets: [String] = []
     ) {
         (self.out, self.options, self.from, self.to, self.tracks) = (out, options, from, to, tracks)
         (self.replace, self.allowMissing, self.spelling, self.split) = (replace, allowMissing, spelling, split)
+        self.presets = presets
     }
 
     var isRender: Bool { options == .render }
@@ -123,6 +127,7 @@ package struct ExportWork: Sendable {
             throw ToolError(error.message(package: path))
         }
         let source = try source(in: session)
+        if !presets.isEmpty { return try runPresets(session, source: source, package: package, control: control) }
         try checkFiles(session, package: package, source: source)
         if let kind = split { return try runSet(session, source: source, by: kind, package: package, control: control) }
         let result: ExportResult

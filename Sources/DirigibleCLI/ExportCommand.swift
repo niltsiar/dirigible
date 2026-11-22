@@ -38,11 +38,20 @@ struct Export: ParsableCommand {
             names the files that were not written (exit 130 or 2). A set with files that only the export \
             found bad prints the path of each file, then names each file with such a fault (exit 2, unless \
             --allow-missing). After a set, stderr names the older \
-            files of the prefix; Dirigible keeps them. The file <prefix>.<ext> is never written.
+            files of the prefix; Dirigible keeps them. The file <prefix>.<ext> is never written. \
+            With --preset, --out is <folder>/<prefix>, with no file extension, and the export writes one \
+            file for each preset, named <prefix>.<ext>, or <prefix>-<preset>.<ext> when two presets have \
+            one extension. A preset is a preset of the session or a built-in preset: master (WAV, 24 bit, \
+            session rate) or podcast (MP3, mono, 44100 Hz, -19 LUFS). A session preset wins over a \
+            built-in of the same name. Each file has the options of its preset, so --preset cannot go with \
+            --bits, --bitrate, --mono, --rate, --loudness, or --split (exit 64, also for an unknown \
+            preset). It prints the path of each file, and with a loudness target a tab and the loudness \
+            line. Exit 2, before any file is written, when two presets give one file name, or a file is \
+            at a target (unless --replace). The older files of the prefix stay.
             """)
 
     @OptionGroup var package: PackageArgument
-    @Option(help: "The output file: .wav, .m4a, .mp3, or .flac.") var out: String
+    @Option(help: "The output file: .wav, .m4a, .mp3, or .flac. With --preset: <folder>/<prefix>.") var out: String
     @Option(help: "The bit depth of WAV and FLAC: 16 or 24. The default is 24.") var bits: Int?
     @Option(help: "The AAC or MP3 bit rate in kbit/s: 64, 96, 128, 160, 192, or 256. The default is 128.")
     var bitrate: Int?
@@ -62,10 +71,36 @@ struct Export: ParsableCommand {
     @Flag(help: "Export the clips of a missing, short, or unreadable file as silence, with a warning.")
     var allowMissing = false
     @Option(help: "Write one file for each chapter or marker of the range: chapters or markers.") var split: String?
+    @Option(
+        help:
+            "Write one file for each preset: a session preset or master or podcast. Repeat it for more presets. --out is then <folder>/<prefix>."
+    )
+    var preset: [String] = []
 
     func validate() throws {
+        guard preset.isEmpty else {
+            _ = try presetWork()
+            return
+        }
         _ = try options()
         _ = try splitKind()
+    }
+
+    /// The work of `--preset`, or a usage error: no option that a preset sets, and an `--out` that
+    /// is a folder and a prefix.
+    func presetWork() throws(ValidationError) -> ExportWork {
+        let given = [
+            ("bits", bits != nil), ("bitrate", bitrate != nil), ("mono", mono), ("rate", rate != nil),
+            ("loudness", loudness != nil), ("split", split != nil),
+        ].filter { $0.1 }.map { $0.0 }
+        do throws(ToolError) {
+            try ExportText.checkPresets(out: out, given: given, spelling: .cli)
+        } catch {
+            throw ValidationError(error.message)
+        }
+        return ExportWork(
+            presets: preset, out: out, from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
+            allowMissing: allowMissing, spelling: .cli)
     }
 
     /// The split that `--split` gives, or a usage error.
@@ -86,6 +121,10 @@ struct Export: ParsableCommand {
     }
 
     func run() throws {
+        if !preset.isEmpty {
+            try runPresets(try presetWork(), package: package.url, session: try readPackage(package))
+            return
+        }
         let kind = try splitKind()
         let work = ExportWork(
             out: out, options: try options(), from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
@@ -129,6 +168,47 @@ func runSet(_ work: ExportWork, by kind: SplitKind, package: URL, session: Sessi
     do {
         lines = try work.setLines(
             of: result, session: session, source: source, old: work.oldFiles(besides: result.files))
+    } catch {
+        for line in error.stdout { print(line) }
+        warn(error.warnings + error.refusals.map { "Error: " + $0 })
+        throw ExitCode(packageError)
+    }
+    warn(lines.stderr)
+    for line in lines.stdout { print(line) }
+}
+
+/// The steps of `export --preset` from `ExportWork`: exit 64 for an unknown preset, and exit 2 for a
+/// refused file, two presets of one file name, a file at a target, or a failed job. A stop or a
+/// failure prints the files on disk and the stop line.
+func runPresets(_ work: ExportWork, package: URL, session: Session) throws {
+    let source: ExportSource
+    do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
+    let list: [PresetEntry]
+    do { list = try work.presetList(in: session) } catch { throw ValidationError(error.message) }
+    do { try work.checkFiles(session, package: package, source: source) } catch {
+        throw fail(error.message, code: packageError)
+    }
+    let replacing: [URL: ConfirmedFile]
+    do { replacing = try work.presetConfirmations(list) } catch {
+        throw fail(work.presetRefusal(error), code: packageError)
+    }
+    let interrupt = cancelOnInterrupt()
+    defer { interrupt.source.cancel() }
+    let files: [ExportedPreset]
+    do {
+        files = try work.exportPresetSet(
+            session, source: source, list: list, replacing: replacing, package: package,
+            isCancelled: interrupt.isCancelled)
+    } catch {
+        guard case .stopped(let stop) = error else { throw fail(work.presetRefusal(error), code: packageError) }
+        let lines = work.presetStopLines(stop)
+        for line in lines.stdout { print(line) }
+        warn(lines.stderr)
+        throw ExitCode(stop.error == .cancelled ? 128 + SIGINT : packageError)
+    }
+    let lines: (stdout: [String], stderr: [String])
+    do {
+        lines = try work.presetLines(of: files, list: list, session: session, source: source)
     } catch {
         for line in error.stdout { print(line) }
         warn(error.warnings + error.refusals.map { "Error: " + $0 })

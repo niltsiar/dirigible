@@ -162,11 +162,12 @@ extension TimelineCommand {
         let title: L10n
     }
 
-    /// The rare File commands, with no key: Import Transcript after Import Audio, Export Stems and Export with
-    /// Presets after Export Selection (Option-Command-E is Export Chapters), and Export Transcript after the
-    /// other exports.
+    /// The rare File commands, with no key: Import Transcript and Import Session after Import Audio, in that
+    /// order, Export Stems and Export with Presets after Export Selection (Option-Command-E is Export
+    /// Chapters), and Export Transcript after the other exports.
     static let keylessFileItems = [
         KeylessItem(after: .importAudio, command: .importTranscript, title: .menuFileImportTranscript),
+        KeylessItem(after: .importAudio, command: .importSession, title: .menuFileImportSession),
         KeylessItem(after: .exportSelection, command: .exportStems, title: .menuFileExportStems),
         KeylessItem(after: .exportSelection, command: .exportPresets, title: .menuFileExportPresets),
         KeylessItem(after: .exportChapters, command: .exportTranscript, title: .menuFileExportTranscript),

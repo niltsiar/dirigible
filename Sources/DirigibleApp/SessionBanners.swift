@@ -301,7 +301,7 @@ extension ImportRun {
     /// The text of the banner of an import or of a paste from another package (decision 0042).
     var bannerText: String {
         switch kind {
-        case .file: L10n.importBanner.format(name)
+        case .file, .session: L10n.importBanner.format(name)
         case .paste: L10n.pasteBanner.format(name)
         case .split: L10n.splitBanner.text
         case .clipRender: L10n.denoiseBanner.text

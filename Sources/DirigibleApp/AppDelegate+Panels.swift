@@ -4,7 +4,7 @@ import DirigibleCore
 import UniformTypeIdentifiers
 
 extension AppDelegate {
-    private static let sessionType = UTType(filenameExtension: "dirigible", conformingTo: .package) ?? .package
+    static let sessionType = UTType(filenameExtension: "dirigible", conformingTo: .package) ?? .package
 
     func showOpenPanel() {
         let panel = NSOpenPanel()

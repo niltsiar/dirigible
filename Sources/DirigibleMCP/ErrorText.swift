@@ -260,6 +260,8 @@ extension StudioError {
         case .audioImport(let error): "the import failed (\(error))."
         case .importYielded: "a take in another studio stopped the import."
         case .paste(let error, _): "the paste failed (\(error))."
+        case .sessionImport(let error, let source): error.message(source: source, package: package)
+        case .sessionImportYielded: "a take in another studio stopped the session import."
         case .pasteYielded: "a take in another studio stopped the paste."
         case .split(let error): error.message
         case .splitYielded: "a take in another studio stopped the split."

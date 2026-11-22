@@ -76,6 +76,33 @@ import Testing
         await model.close()
     }
 
+    /// Decision 0075 (C12): after a session import, Undo and Redo name it; after another edit the
+    /// plain titles return.
+    @Test func undoTitleNamesTheImportSession() async throws {
+        let (model, window) = try await openWithOneTrack()
+        #expect(window.makeFirstResponder(nil))
+        let studio = try #require(model.studio)
+        let parent = folder.url.appending(path: "source")
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let source = try await timelinePackage(in: parent, tracks: 1, seconds: 1, audio: true)
+        FileManager.default.createFile(atPath: source.appending(path: ".lock").path, contents: nil)
+        let undo = NSMenuItem(title: "Undo", action: #selector(UndoRoutingWindow.undo(_:)), keyEquivalent: "z")
+        let redo = NSMenuItem(title: "Redo", action: #selector(UndoRoutingWindow.redo(_:)), keyEquivalent: "Z")
+        let plain = UndoManager().undoMenuItemTitle
+
+        _ = try await studio.importSession(source, markers: false) { _ in }
+        #expect(window.validateMenuItem(undo))
+        #expect(undo.title == L10n.undoImportSession.text && undo.accessibilityLabel() == undo.title, "\(undo.title)")
+        try studio.undo()
+        #expect(window.validateMenuItem(redo))
+        #expect(redo.title == L10n.redoImportSession.text, "\(redo.title)")
+        try studio.redo()
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
+        #expect(window.validateMenuItem(undo))
+        #expect(undo.title == plain, "\(undo.title)")
+        await model.close()
+    }
+
     @Test func aTextViewIsTheTextTargetAndAnythingElseTheSession() {
         #expect(undoTarget(firstResponder: NSTextView()) == .text)
         #expect(undoTarget(firstResponder: nil) == .session)

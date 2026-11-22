@@ -179,7 +179,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .template,
         .templateYielded,
         .audioImport, .importYielded, .paste,
-        .pasteYielded,
+        .pasteYielded, .sessionImport, .sessionImportYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,
         .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
         .duckRead, .rideCancelled, .rideRead, .rideFault, .silencesCancelled, .silencesRead, .silencesFaults,

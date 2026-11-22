@@ -48,6 +48,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveMatchVoice(work, request, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
+    case .importSession(let work):
+        return await liveImportSession(work, studio: studio, call: call, report: report)
     case .splitStereo(let work):
         return await liveSplit(work, studio: studio, call: call, report: report)
     case .clipRender(let work):
@@ -76,7 +78,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveStems(work, target: target, path: call.path, report: report)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
-        .record, .transport, .words, .importSession,
+        .record, .transport, .words,
         .takeMap, .batch:
         return .notOpen
     }
@@ -339,7 +341,7 @@ private func liveTranscriptExport(_ work: TranscriptExportWork, studio: Studio) 
 @concurrent private func checkTarget(_ work: ChaptersWork) async throws(ToolError) { try work.checkTarget() }
 
 private let noClip = "No clip was added."
-private let noTrack = "No track was added."
+let noTrack = "No track was added."
 private let noChange = "No clip changed."
 
 /// The text of an export, an import, or a split that the app stopped: the agent must not try again before

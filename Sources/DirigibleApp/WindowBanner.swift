@@ -132,6 +132,8 @@ enum WindowBanner: Equatable {
     case noWordsFound(press: Int)
     /// A Delete in the index list removed `count` rows. The window posts the same text itself.
     case rowsDeleted(count: Int, press: Int)
+    /// The result line of File > Import Session (decision 0075, C16). The window posts the same text itself.
+    case sessionImported(String, press: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -196,6 +198,7 @@ enum WindowBanner: Equatable {
         case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
         case .noWordsFound(let press): "noWordsFound.\(press)"
         case .rowsDeleted(_, let press): "rowsDeleted.\(press)"
+        case .sessionImported(_, let press): "sessionImported.\(press)"
         }
     }
 
@@ -208,7 +211,7 @@ enum WindowBanner: Equatable {
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime, .noWordsFound,
-            .exportSetDone, .rowsDeleted, .voiceMatched, .syncMoved:
+            .exportSetDone, .rowsDeleted, .voiceMatched, .syncMoved, .sessionImported:
             .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
@@ -258,6 +261,7 @@ enum WindowBanner: Equatable {
         case .transcriptionStopped: L10n.transcribeStopped.text
         case .noWordsFound: L10n.transcribeNoWords.text
         case .rowsDeleted(let count, _): L10n.indexPostDeleted.format(count)
+        case .sessionImported(let text, _): text
         }
     }
 
@@ -272,7 +276,7 @@ enum WindowBanner: Equatable {
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound, .syncMoved, .syncNoMatch:
             .medium
-        case .rowsDeleted: nil
+        case .rowsDeleted, .sessionImported: nil
         }
     }
 }

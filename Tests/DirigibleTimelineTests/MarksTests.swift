@@ -132,7 +132,7 @@ struct MarksTests {
 
     /// Edit-commands criterion 16: the first selected track in session order and the tracks under
     /// it, one per lane; with no selected track in the session, the source tracks. Too few tracks
-    /// under it give a short list, so Core refuses with `trackCount` (code gate 1 item 4). Controls:
+    /// under it give a short list: a Paste adds new last tracks, a Replace refuses (C9). Controls:
     /// always the source tracks fails the first row; a nil for a short list fails the t4 row.
     @Test func pasteTracks() throws {
         var session = try Self.session()

@@ -19,13 +19,15 @@ struct PastePlan {
         self.session = session
         switch target {
         case .tracks(let ids): tracks = ids
-        case .unselected where same: tracks = excerpt.lanes.map(\.source)
-        case .unselected:
+        case .extending(let ids):
+            tracks = ids
+            for lane in excerpt.lanes.dropFirst(ids.count) { tracks.append(try addTrack(for: lane)) }
+        case .unselected where same:
             for lane in excerpt.lanes {
-                let id = TrackID()
-                try self.session.addTrack(id, name: lane.name, layout: lane.layout)
-                tracks.append(id)
+                tracks.append(self.session.track(lane.source) != nil ? lane.source : try addTrack(for: lane))
             }
+        case .unselected:
+            for lane in excerpt.lanes { tracks.append(try addTrack(for: lane)) }
         }
         var pasted = excerpt
         if !same {
@@ -47,5 +49,12 @@ struct PastePlan {
             pasted = try pasted.mapped(to: records)
         }
         clips = try self.session.paste(pasted, mode: mode, on: tracks)
+    }
+
+    /// A new last track named after `lane`, with its layout.
+    private mutating func addTrack(for lane: Excerpt.Lane) throws(SessionError) -> TrackID {
+        let id = TrackID()
+        try session.addTrack(id, name: lane.name, layout: lane.layout)
+        return id
     }
 }

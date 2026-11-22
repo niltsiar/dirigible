@@ -143,8 +143,9 @@ public struct Marks: Hashable, Sendable {
     /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. Tracks
     /// by default also give the source tracks when each is in the session (decision 0073), so a Cut
     /// and an Insert at one place restore the lanes. When the tracks under the first one are too
-    /// few, the list is short, and Core refuses the paste with `trackCount`, so the alert gives the
-    /// count (code gate 1). Nil when a source track is gone and no track is selected.
+    /// few, the list is short: a Paste or an Insert adds a new last track for each lane past it, and
+    /// a Replace or a Paste to Fill Selection refuses with `trackCount`. Nil when a source track is
+    /// gone and no track is selected.
     public func pasteTracks(for excerpt: Excerpt, in session: Session) -> [TrackID]? {
         let ids = session.tracks.map(\.id)
         let sources = excerpt.lanes.map(\.source)

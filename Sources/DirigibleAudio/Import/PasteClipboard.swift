@@ -21,8 +21,11 @@ public struct Clipboard: Hashable, Sendable {
 /// Where a paste puts lane i (decision 0042).
 public enum PasteTarget: Hashable, Sendable {
     case tracks([TrackID])
+    /// Those tracks, then a new last track for each lane after them.
+    case extending([TrackID])
     /// No track is selected: new last tracks named after the source tracks for a clipboard of
-    /// another package, the source tracks for a clipboard of the same package.
+    /// another package; for a clipboard of the same package, the source tracks, and a new last track
+    /// for a lane whose source track is gone.
     case unselected
 }
 
@@ -119,9 +122,6 @@ func pasteClipboard(
     let same = PackageID.same(clipboard.origin, identity)
     let rate = session.sampleRate
     let converts = !same && excerpt.sampleRate != rate
-    if same, case .unselected = target, !excerpt.lanes.allSatisfy({ session.track($0.source) != nil }) {
-        return (session, [], [])  // The fallback of a same-package paste today: the source tracks, or nothing.
-    }
     // The scale rule has one owner: `Excerpt.resampled` gives the predicted converted lengths.
     let predicted = (converts ? excerpt.resampled(to: rate, lengths: [:]) : excerpt).files.mapValues(\.length)
     let plan: PastePlan

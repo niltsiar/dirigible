@@ -105,9 +105,12 @@ extension EditCommandWindowTests {
 
         model.timeline.selection = .clips(try #require(ClipSet(["c3"])))
         model.run(.paste)
-        #expect(studio.session == before && model.alert == .error(.session(.trackCount(2))), "C8d")
+        let added = try #require(studio.session.tracks.last)
+        #expect(studio.session.tracks.count == before.tracks.count + 1 && model.alert == nil, "C8d: a new last track")
+        #expect(added.name == before.track("t2")?.name && added.clips.map(\.id) == ["c2@960000"], "C8d")
         #expect(model.clipboard == excerpt)
-        model.alert = nil
+        model.undo()
+        #expect(studio.session == before)
 
         model.timeline.selection = set
         model.run(.insert)

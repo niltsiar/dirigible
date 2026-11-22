@@ -9,7 +9,9 @@ extension SessionWindow {
     /// Paste, Insert, Replace, and Paste to Fill Selection, by `mode`. With no clipboard, or no
     /// target, nothing. During a take or a run, nothing at once (`idleStudio`). `.unselected` goes
     /// to the studio only for a range with no selected track: new tracks for another package, the
-    /// source tracks for the same package. A file that an undo removed beeps; another refusal shows
+    /// source tracks for the same package, and a new last track for a source track that is gone.
+    /// Paste and Insert give a new last track to each lane past the last track; Replace and Paste to
+    /// Fill Selection refuse too few tracks. A file that an undo removed beeps; another refusal shows
     /// its alert. What follows a paste is `finish`.
     func paste(mode: PasteMode) {
         guard let studio = idleStudio, let clipboard = app?.clipboard else { return }
@@ -17,7 +19,10 @@ extension SessionWindow {
         if case .range(let marks) = timeline.selection, marks.tracks.isEmpty {
             target = .unselected
         } else if let ids = timeline.selection.pasteTracks(for: clipboard.excerpt, in: studio.session) {
-            target = .tracks(ids)
+            switch mode {
+            case .over, .insert: target = .extending(ids)
+            case .replace, .fill: target = .tracks(ids)
+            }
         } else {
             return
         }

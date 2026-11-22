@@ -32,14 +32,14 @@ struct ImportSessionCommand: ParsableCommand {
     func run() throws {
         let work = ImportSessionWork(source: source, at: at, markers: markers)
         let tracks = try editPackage(package, ripple: false, refused: failure) {
-            session, lock throws(SessionImportError) in
+            session, lock throws(ImportSessionWork.Failure) in
             try work.run(&session, lock: lock, package: package.url)
         }
         for track in tracks { print(track) }
     }
 
     /// The error line and the exit code of an import that changed nothing.
-    func failure(_ error: SessionImportError) -> ExitCode {
-        fail(error.message(source: source, package: package.path), code: ImportSessionWork.exitCode(error))
+    func failure(_ error: ImportSessionWork.Failure) -> ExitCode {
+        fail(error.message(source: source, package: package.path), code: error.exitCode)
     }
 }

@@ -38,6 +38,8 @@ enum ToolWork: Sendable {
     case paste(PasteWork)
     /// `backup_list`: no lock, as `session_info` (decision 0043).
     case backups
+    /// `bin_list`: no lock, as `dirigible bin list` (F22).
+    case bins
     /// `backup_revert`: an edit under the lock that reads the backup.
     case revert(Backup)
     /// `episode_set`: an edit under the lock that can copy an image into the package.
@@ -102,7 +104,8 @@ enum ToolWork: Sendable {
             .splitStereo, .clipRender, .chapters,
             .transcriptExport, .read, .transcribe:
             true
-        case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
+        case .edit, .takeImport, .info, .create, .paste, .backups, .bins, .revert, .episode, .marker, .episodeInfo,
+            .prune,
             .record, .transport, .words,
             .takeMap, .batch:
             false

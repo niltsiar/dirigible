@@ -212,6 +212,14 @@ package enum AgentManual {
         + "new track IDs, `marker <id>` for each new marker, and a `Left out:` line when markers land outside "
         + "0...2^40."
 
+    /// What the bin tools take (F22). In the skill only: the manual has no room under its 6000
+    /// characters.
+    static let binLine =
+        "A bin is a named list of items in the session. An item keeps a range (`from`, `to`, and `track`) or "
+        + "whole `clips`, with their gain, fades, envelope, and ride. `bin_add` and `bin_item_add` give the new ID, "
+        + "and `bin_list` gives each bin and item ID. `bin_paste` pastes an item at `at` with the clips of a Copy "
+        + "and Paste of its source; `insert` moves the later audio first, and `source` names another package."
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -272,6 +280,8 @@ package enum AgentManual {
             \(syncLine)
 
             \(presetLine)
+
+            \(binLine)
 
             \(sessionImportLine)
 

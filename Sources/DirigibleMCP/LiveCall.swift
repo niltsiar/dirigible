@@ -85,6 +85,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             } catch {
                 return .result(text: error.message, isError: true)
             }
+        case .bins:
+            return .result(text: BinWork.list(studio.session), isError: false)
         case .backups:
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)

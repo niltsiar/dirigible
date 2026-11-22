@@ -164,7 +164,9 @@ extension SessionWindow {
         defer { if exportStep == .starting { exportStep = nil } }
         let urls: [URL]
         do throws(ExportPresetsError) {
-            urls = try presetTargets(presets, folder: target.folder, prefix: target.prefix).map(\.url)
+            urls = try presetTargets(
+                presets, folder: target.folder, prefix: target.prefix, sessionRate: studio.session.sampleRate
+            ).map(\.url)
         } catch {
             alert = .error(.exportPresets(error))
             return

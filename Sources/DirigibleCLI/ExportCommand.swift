@@ -177,19 +177,23 @@ func runSet(_ work: ExportWork, by kind: SplitKind, package: URL, session: Sessi
     for line in lines.stdout { print(line) }
 }
 
-/// The steps of `export --preset` from `ExportWork`: exit 64 for an unknown preset, and exit 2 for a
-/// refused file, two presets of one file name, a file at a target, or a failed job. A stop or a
+/// The steps of `export --preset` from `ExportWork`: exit 64 for an unknown preset, and exit 2, in this
+/// order, for a rate that a preset cannot write, a refused file, two presets of one file name, a file at
+/// a target, or a failed job. A stop or a
 /// failure prints the files on disk and the stop line.
 func runPresets(_ work: ExportWork, package: URL, session: Session) throws {
     let source: ExportSource
     do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
     let list: [PresetEntry]
     do { list = try work.presetList(in: session) } catch { throw ValidationError(error.message) }
-    do { try work.checkFiles(session, package: package, source: source) } catch {
+    do {
+        try work.checkRates(list, in: session)
+        try work.checkFiles(session, package: package, source: source)
+    } catch {
         throw fail(error.message, code: packageError)
     }
     let replacing: [URL: ConfirmedFile]
-    do { replacing = try work.presetConfirmations(list) } catch {
+    do { replacing = try work.presetConfirmations(list, sessionRate: session.sampleRate) } catch {
         throw fail(work.presetRefusal(error), code: packageError)
     }
     let interrupt = cancelOnInterrupt()

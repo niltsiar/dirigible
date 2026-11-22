@@ -150,6 +150,55 @@ extension ExportWindowTests {
         await model.close()
     }
 
+    /// A checked preset whose format cannot write the session rate turns Export off, with and without a
+    /// folder, and the name line names the preset and the rate.
+    @Test func aRateThatAPresetCannotWriteTurnsExportOff() async throws {
+        let (model, _, _, sheet) = try await presetSheet()
+        var session = Session(sampleRate: 96_000)
+        let feed = try preset(
+            "Feed", try PresetOptions(format: .mp3(.k128), layout: .mono, rate: .session, loudness: nil))
+        try session.setExportPreset(feed)
+        sheet.checked = [Self.masterRef, .session(feed.name)]
+        var (lines, text): ([String?], String) = ([], "")
+        try await english {
+            lines.append(sheet.nameLine(in: session))
+            #expect(!sheet.canExport(in: session), "no folder")
+            sheet.target = PresetFolder(folder: folder.url, prefix: "show")
+            lines.append(sheet.nameLine(in: session))
+            #expect(!sheet.canExport(in: session), "a folder")
+            // The number takes the grouping of the locale of the Mac.
+            text = L10n.errorExportPresetsRate.format("Feed", 96_000)
+        }
+        #expect(text.hasPrefix("The preset \u{201C}Feed\u{201D} cannot write 96"))
+        #expect(text.hasSuffix(" Hz. Edit the preset and select 44.1 kHz or 48 kHz."))
+        #expect(lines == [text, text])
+        model.cancelPresets()
+        await model.close()
+    }
+
+    /// Two checked presets that give one file name turn Export off, and Return keeps the sheet, its
+    /// folder, and its checks.
+    @Test func twoTargetsOfOneNameTurnExportOff() async throws {
+        let (model, studio, _, sheet) = try await presetSheet()
+        let (slash, colon) = (
+            try preset("Show/Feed", BuiltInPreset.podcast.options),
+            try preset("Show:Feed", BuiltInPreset.podcast.options)
+        )
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setExportPreset(slash)
+            try session.setExportPreset(colon)
+        }
+        let target = PresetFolder(folder: folder.url, prefix: "show")
+        sheet.target = target
+        sheet.checked = [.session(slash.name), .session(colon.name)]
+        #expect(!sheet.canExport(in: studio.session))
+        model.runPresets()
+        #expect(model.presetSheet === sheet && model.exportStep == .choosing, "Export does nothing")
+        #expect(sheet.target == target && sheet.checked == [.session(slash.name), .session(colon.name)])
+        model.cancelPresets()
+        await model.close()
+    }
+
     @Test func chooseFolderOpensThe0067Panel() async throws {
         let panel = ExportPanel.presetFolderPanel(name: "show")
         #expect(panel.nameFieldLabel == L10n.panelExportPrefix.text && panel.allowedContentTypes.isEmpty)

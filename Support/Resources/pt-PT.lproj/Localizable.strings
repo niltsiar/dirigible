@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Já existe uma predefinição chamada “%@”. Escolha outro nome.";
 "error.preset.name" = "Um nome de predefinição tem de 1 a %lld caracteres, sem espaço no início nem no fim.";
 "error.export.presets.duplicate" = "Duas predefinições dão o nome de ficheiro %@. Mude o nome de uma das predefinições.";
+"error.export.presets.rate" = "A predefinição \U201C%@\U201D não pode exportar a %lld Hz. Edite a predefinição e escolha 44,1 kHz ou 48 kHz.";

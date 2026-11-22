@@ -35,13 +35,26 @@ public enum ExportPresetsError: Error, Hashable, Sendable {
     case stopped(ExportPresetsStop)
 }
 
+/// Throws `.rateNotSupported` for the first preset whose format `exportMix` refuses at its rate in a
+/// session of `sessionRate` hertz. It reads no file, so each front end runs it before its other checks.
+public func checkPresetRates(
+    _ presets: [(ref: PresetRef, options: PresetOptions)], sessionRate: Int
+) throws(ExportPresetsError) {
+    for preset in presets {
+        let rate = preset.options.rate.hertz(session: sessionRate)
+        guard exportSupports(preset.options.format, rate: rate) else { throw .rateNotSupported(preset.ref, rate) }
+    }
+}
+
 /// The targets of a preset set (decision 0080): one file for each preset, named by
 /// `Session.presetFileNames` in `folder`. The one owner of the target URLs: the keys of `replacing`
-/// of `exportPresets` come from it. Two targets or more whose names are equal with case and Unicode
-/// normalization folded (a volume can fold both) throw `.duplicateTargets` with each such URL.
+/// of `exportPresets` come from it. It first runs `checkPresetRates`. Two targets or more whose names
+/// are equal with case and Unicode normalization folded (a volume can fold both) throw
+/// `.duplicateTargets` with each such URL.
 public func presetTargets(
-    _ presets: [(ref: PresetRef, options: PresetOptions)], folder: URL, prefix: String
+    _ presets: [(ref: PresetRef, options: PresetOptions)], folder: URL, prefix: String, sessionRate: Int
 ) throws(ExportPresetsError) -> [ExportPresetTarget] {
+    try checkPresetRates(presets, sessionRate: sessionRate)
     let names = Session.presetFileNames(
         presets.map { ($0.ref, $0.options.format.pathExtension) }, prefix: prefix, limit: exportNameLimit)
     let keys = names.map { $0.precomposedStringWithCanonicalMapping.folding(options: .caseInsensitive, locale: nil) }
@@ -68,11 +81,7 @@ public func exportPresets(
     package: () throws(SessionFileError) -> URL,
     progress: (ExportPartsProgress) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled }
 ) throws(ExportPresetsError) -> [ExportedPreset] {
-    let targets = try presetTargets(presets, folder: folder, prefix: prefix)
-    for target in targets {
-        let rate = target.options.rate.hertz(session: session.sampleRate)
-        guard exportSupports(target.options.format, rate: rate) else { throw .rateNotSupported(target.preset, rate) }
-    }
+    let targets = try presetTargets(presets, folder: folder, prefix: prefix, sessionRate: session.sampleRate)
     let items = targets.map {
         ExportItem(
             session: session, source: source, options: ExportOptions($0.options, introTitle: introTitle), url: $0.url)

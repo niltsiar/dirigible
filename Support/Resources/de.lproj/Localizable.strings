@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Eine Voreinstellung namens „%@“ existiert bereits. Wähle einen anderen Namen.";
 "error.preset.name" = "Ein Name einer Voreinstellung hat 1 bis %lld Zeichen, ohne Leerzeichen am Anfang oder Ende.";
 "error.export.presets.duplicate" = "Zwei Voreinstellungen ergeben den Dateinamen %@. Benenne eine der Voreinstellungen um.";
+"error.export.presets.rate" = "Die Voreinstellung \U201E%@\U201C kann nicht mit %lld Hz exportieren. Bearbeite die Voreinstellung und wähle 44,1 kHz oder 48 kHz.";

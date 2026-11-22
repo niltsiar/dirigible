@@ -13,6 +13,7 @@ func liveExport(
     let session = studio.session
     let source = try work.source(in: session)
     let presets = try work.presetList(in: session)
+    try work.checkRates(presets, in: session)
     // A render writes a bad file as silence, so it reads no media state.
     if !work.isRender {
         guard let faults = await studio.exportFaults(source) else { throw ToolError(noMediaCheck) }
@@ -163,7 +164,9 @@ private func livePresets(
     path: String, sheetCause: @MainActor () -> AgentBusy?, report: @escaping @Sendable (Double) -> Void
 ) async throws(ToolError) -> String {
     let replacing: [URL: ConfirmedFile]
-    do throws(ExportPresetsError) { replacing = try await presetConfirmations(work, presets) } catch {
+    do throws(ExportPresetsError) {
+        replacing = try await presetConfirmations(work, presets, sessionRate: session.sampleRate)
+    } catch {
         throw ToolError(work.presetRefusal(error))
     }
     // The user can open a dialog during the check of the targets.
@@ -199,8 +202,8 @@ private func presetStopMessage(_ work: ExportWork, _ stop: ExportPresetsStop, ca
 }
 
 /// The check of the targets of a preset set off the main actor: an lstat for each file is file I/O.
-@concurrent private func presetConfirmations(_ work: ExportWork, _ presets: [PresetEntry])
+@concurrent private func presetConfirmations(_ work: ExportWork, _ presets: [PresetEntry], sessionRate: Int)
     async throws(ExportPresetsError) -> [URL: ConfirmedFile]
 {
-    try work.presetConfirmations(presets)
+    try work.presetConfirmations(presets, sessionRate: sessionRate)
 }

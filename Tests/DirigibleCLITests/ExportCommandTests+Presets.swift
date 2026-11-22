@@ -158,4 +158,30 @@ extension ExportCommandTests {
         #expect(result.status == 2 && result.stderr.hasPrefix("Error: file gone "), "\(result)")
         #expect(try names() == ["Show.dirigible"])
     }
+
+    /// A 96 000 Hz session with the MP3 preset "Feed" at the session rate, a rate that MP3 cannot write,
+    /// and an old `Ep.mp3` at its target. The clip names a file that is not on disk.
+    static func highRatePackage() throws -> TemporaryPackage {
+        var session = Session(sampleRate: 96_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 20_000))
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 20_000), on: "t1")
+        let options = try PresetOptions(format: .mp3(.k128), layout: .mono, rate: .session, loudness: nil)
+        try session.setExportPreset(ExportPreset(name: try PresetName("Feed"), options: options))
+        let package = try TemporaryPackage(session)
+        try Data("old".utf8).write(to: package.folder.appending(path: "Ep.mp3"))
+        return package
+    }
+
+    /// The rate refusal names the preset and comes before the media check and the check of the targets.
+    @Test func aRateThatAPresetCannotWriteExitsTwoBeforeTheTargetCheck() async throws {
+        let package = try Self.highRatePackage()
+
+        let result = try await package.run(
+            "export", "PKG", "--preset", "Feed", "--out", package.folder.appending(path: "Ep").path)
+
+        let text = "Error: preset \"Feed\" cannot write 96000 Hz. Set another rate with `dirigible preset set`.\n"
+        #expect(result == CLIResult(status: 2, stdout: "", stderr: text), "\(result)")
+        #expect(try Data(contentsOf: package.folder.appending(path: "Ep.mp3")) == Data("old".utf8))
+    }
 }

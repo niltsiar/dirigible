@@ -44,7 +44,8 @@ extension L10n {
         case .exportPresets(.duplicateTargets(let urls)):
             return errorExportPresetsDuplicate.format(
                 Set(urls.map(\.lastPathComponent)).sorted().joined(separator: ", "))
-        case .exportPresets(.rateNotSupported(_, let rate)): return errorExportRate.format(rate)
+        case .exportPresets(.rateNotSupported(let preset, let rate)):
+            return errorExportPresetsRate.format(presetTitle(preset), rate)
         case .exportPresets(.stopped(let stop)):
             let count = stop.written.count + stop.remaining.count
             return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)

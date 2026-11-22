@@ -128,24 +128,44 @@ func presetSummary(_ options: PresetOptions) -> String {
         return target == nil ? .exportPresetsCaptionFolder : nil
     }
 
-    func canExport(in session: Session) -> Bool { caption(in: session) == nil }
+    /// Off with a caption, or with a refusal of the set in the name line.
+    func canExport(in session: Session) -> Bool {
+        guard caption(in: session) == nil, case .success? = targets(in: session) else { return false }
+        return true
+    }
 
-    /// "Writes <first file name> and <n> other files.", or the text of two targets of one name, or nil with
-    /// no folder or no checked preset. The names are those of `presetTargets`, the names of the set.
+    /// "Writes <first file name> and <n> other files.", the text of a refusal of the set, or nil with no
+    /// checked preset, or with no folder and no refusal. The names are those of `presetTargets`.
     func nameLine(in session: Session) -> String? {
-        let presets = checkedPresets(in: session)
-        guard let target, !presets.isEmpty else { return nil }
-        let names: [String]
-        do throws(ExportPresetsError) {
-            names = try presetTargets(presets, folder: target.folder, prefix: target.prefix).map(
-                \.url.lastPathComponent)
-        } catch {
-            return L10n.message(for: .exportPresets(error))
+        switch targets(in: session) {
+        case nil: return nil
+        case .failure(let error): return L10n.message(for: .exportPresets(error))
+        case .success(let targets):
+            let names = targets.map(\.url.lastPathComponent)
+            switch names.count {
+            case 1: return L10n.exportPresetsNames.format(names[0])
+            case 2: return L10n.exportPresetsNamesOne.format(names[0])
+            default: return L10n.exportPresetsNamesMany.format(names[0], names.count - 1)
+            }
         }
-        switch names.count {
-        case 1: return L10n.exportPresetsNames.format(names[0])
-        case 2: return L10n.exportPresetsNamesOne.format(names[0])
-        default: return L10n.exportPresetsNamesMany.format(names[0], names.count - 1)
+    }
+
+    /// The targets of the checked presets, or the refusal of the set: a rate that a format cannot write,
+    /// also with no folder, or two targets of one name. Nil with no checked preset, or with no folder and
+    /// no rate refusal.
+    private func targets(in session: Session) -> Result<[ExportPresetTarget], ExportPresetsError>? {
+        let presets = checkedPresets(in: session)
+        guard !presets.isEmpty else { return nil }
+        guard let target else {
+            do throws(ExportPresetsError) {
+                try checkPresetRates(presets, sessionRate: session.sampleRate)
+                return nil
+            } catch {
+                return .failure(error)
+            }
+        }
+        return Result { () throws(ExportPresetsError) in
+            try presetTargets(presets, folder: target.folder, prefix: target.prefix, sessionRate: session.sampleRate)
         }
     }
 }

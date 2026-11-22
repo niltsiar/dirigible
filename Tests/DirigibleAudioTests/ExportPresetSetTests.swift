@@ -85,7 +85,7 @@ struct ExportPresetSetTests {
         let folder = URL(filePath: "/Volumes/Out")
 
         let targets = try presetTargets(
-            [Self.master, Self.podcast, try Self.mp3("Extra")], folder: folder, prefix: "Ep")
+            [Self.master, Self.podcast, try Self.mp3("Extra")], folder: folder, prefix: "Ep", sessionRate: 48_000)
 
         #expect(targets.map(\.url.lastPathComponent) == ["Ep-master.wav", "Ep-podcast.mp3", "Ep-Extra.mp3"])
         #expect(targets.map(\.preset) == [.builtIn(.master), .builtIn(.podcast), .session(try PresetName("Extra"))])

@@ -121,6 +121,18 @@ struct MCPExportToolTests {
         #expect(toolResult(answer(answers, id: 5)).isError, "an empty list of presets is a refused argument")
     }
 
+    /// The rate refusal names the preset and comes before the media check and the check of the targets.
+    @Test func aRateThatAPresetCannotWriteRefusesBeforeTheTargetCheck() async throws {
+        let package = try ExportCommandTests.highRatePackage()
+        let out = package.folder.appending(path: "Ep").path
+
+        let answers = try await mcp([toolCall(1, "export", ["package": package.path, "out": out, "preset": ["Feed"]])])
+
+        let text = "preset \"Feed\" cannot write 96000 Hz. Set another rate with preset_set."
+        #expect(toolResult(answer(answers, id: 1)) == (text, true))
+        #expect(try Data(contentsOf: package.folder.appending(path: "Ep.mp3")) == Data("old".utf8))
+    }
+
     /// C13: each tool gives the stdout and then the stderr lines of its command, "OK" for none, and
     /// the error text of a refusal with the tool names of the options (code gate 1 item 5). Clip `c2` of the missing file `gone` is on `t2` at 0..<20 000.
     @Test func theToolTextIsTheCommandText() async throws {

@@ -50,6 +50,33 @@ struct LiveImportSessionTests {
         await studio.settle()
     }
 
+    /// With markers, the reply has a `marker <ID>` line for each new marker after the track IDs,
+    /// then the line with the count of the markers that the offset leaves out.
+    @Test func aLiveImportReportsTheMarkers() async throws {
+        var marked = try Session(contentsOf: source.url)
+        try marked.setMarker(Marker(id: "early", name: "Early", position: 1_000, kind: .marker))
+        try marked.setMarker(Marker(id: "late", name: "Late", position: 30_000, kind: .chapter))
+        try marked.write(to: source.url)
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let old = studio.session.tracks.map(\.id)
+
+        let outcome = await send(
+            folder.socket, "import_session",
+            ["package": package.path, "source": source.path, "markers": true, "at": -24_000])
+
+        let new = studio.session.tracks.map(\.id).filter { !old.contains($0) }
+        let late = try #require(studio.session.sortedMarkers.first { $0.name == "Late" })
+        #expect(late.position == 6_000 && studio.session.markers.count == 1)
+        let lines =
+            new.map(\.rawValue) + [
+                "marker \(late.id.rawValue)", "Left out: 1 marker before frame 0 or after frame 2^40.",
+            ]
+        #expect(outcome == .reply(.result(text: lines.joined(separator: "\n"), isError: false)), "\(outcome)")
+        await studio.settle()
+    }
+
     /// A refused source gives the text of the command and changes nothing.
     @Test func aLiveImportOfTheOpenSessionIsRefused() async throws {
         let studio = try await package.open()

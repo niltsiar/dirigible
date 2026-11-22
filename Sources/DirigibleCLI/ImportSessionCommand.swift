@@ -17,7 +17,8 @@ struct ImportSessionCommand: ParsableCommand {
             session; a negative --at drops the head of the source. Each file that a clip names is copied into \
             Clips/ under a new file ID, and converted at another sample rate. With --markers, the markers and \
             chapters come too, with no chapter image. The source package does not change. The new track IDs go \
-            to stdout, one per line. Exit 64 when --at is outside -2^40...2^40. Exit 1 when the source is this \
+            to stdout, one per line, then a line "marker <id>" for each new marker, then a "Left out:" line with \
+            the count of the markers that land before frame 0 or after frame 2^40. Exit 64 when --at is outside -2^40...2^40. Exit 1 when the source is this \
             session, has no clip after --at, or a clip lands after frame 2^40. Exit 2 when a package cannot be \
             read or written, is locked, has a take that is not finalized, has a sample rate outside \
             8000...384000 Hz, has a named file that is a link or not a plain file, or the disk has too little \
@@ -31,11 +32,11 @@ struct ImportSessionCommand: ParsableCommand {
 
     func run() throws {
         let work = ImportSessionWork(source: source, at: at, markers: markers)
-        let tracks = try editPackage(package, ripple: false, refused: failure) {
+        let imported = try editPackage(package, ripple: false, refused: failure) {
             session, lock throws(ImportSessionWork.Failure) in
             try work.run(&session, lock: lock, package: package.url)
         }
-        for track in tracks { print(track) }
+        for line in ImportSessionWork.lines(imported) { print(line) }
     }
 
     /// The error line and the exit code of an import that changed nothing.

@@ -208,7 +208,9 @@ package enum AgentManual {
         "`import_session` (CLI: `dirigible import-session <package> <source>`) adds the tracks of another session "
         + "package as new last tracks, for two recordings of one conversation: `source` (an absolute path), `at` "
         + "(frames of this session added to the source positions; a negative value drops the source head), and "
-        + "`markers`. A track with an app route imports muted, and the source does not change."
+        + "`markers`. A track with an app route imports muted, and the source does not change. The reply gives the "
+        + "new track IDs, `marker <id>` for each new marker, and a `Left out:` line when markers land outside "
+        + "0...2^40."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =

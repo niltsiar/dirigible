@@ -29,6 +29,37 @@ struct ImportSessionCommandTests {
         return url
     }
 
+    /// Two markers in `source`: "Early" at frame 1000 and the chapter "Late" at frame 30000. An
+    /// import at -24000 leaves out "Early" and puts "Late" at 6000.
+    static func addMarkers(to source: URL) throws {
+        var session = try Session(contentsOf: source)
+        try session.setMarker(Marker(id: "early", name: "Early", position: 1_000, kind: .marker))
+        try session.setMarker(Marker(id: "late", name: "Late", position: 30_000, kind: .chapter))
+        try session.write(to: source)
+    }
+
+    /// The line of one marker that the offset puts outside the timeline.
+    static let leftOutOne = "Left out: 1 marker before frame 0 or after frame 2^40."
+
+    /// With --markers, a `marker <ID>` line follows the track IDs for each new marker, then one line
+    /// gives the count of the markers that the offset puts outside the timeline.
+    @Test func importSessionPrintsTheNewMarkersAndTheLeftOutCount() async throws {
+        let package = try ImportCommandTests.package()
+        let source = try Self.source(beside: package)
+        try Self.addMarkers(to: source)
+
+        let run = try await package.run("import-session", "PKG", source.path, "--markers", "--at=-24000")
+
+        let session = try package.read()
+        let late = try #require(session.sortedMarkers.first { $0.name == "Late" })
+        #expect(run.status == 0 && run.stderr.isEmpty, "\(run)")
+        #expect(late.position == 6_000 && session.markers.count == 1)
+        let tracks: [String] = session.tracks.dropFirst().map(\.id.rawValue)
+        let expected: [String] = tracks + ["marker \(late.id.rawValue)", Self.leftOutOne]
+        let lines: [String] = run.stdout.split(separator: "\n").map(String.init)
+        #expect(lines == expected, "\(run.stdout)")
+    }
+
     /// C9: the command prints the new track IDs, and the session has the new track and its clip.
     @Test func importSessionPrintsTheNewTracks() async throws {
         let package = try ImportCommandTests.package()

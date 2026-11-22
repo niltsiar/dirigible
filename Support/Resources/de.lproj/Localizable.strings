@@ -1045,6 +1045,8 @@
 "import.session.added.other" = "%lld Spuren an ihren aufgenommenen Positionen hinzugefügt.";
 "import.session.muted.one" = "1 Anrufspur ist stummgeschaltet: Sie wiederholt die andere Stimme.";
 "import.session.muted.other" = "%lld Anrufspuren sind stummgeschaltet: Sie wiederholen die andere Stimme.";
+"import.session.left.out.one" = "1 Marker wurde ausgelassen: Seine Position liegt nach dem Ende der Timeline.";
+"import.session.left.out.other" = "%lld Marker wurden ausgelassen: Ihre Positionen liegen nach dem Ende der Timeline.";
 "undo.import.session" = "Session-Import widerrufen";
 "redo.import.session" = "Session-Import wiederholen";
 "error.import.session.same" = "Du kannst eine Session nicht in sich selbst importieren. Wähle eine andere Session.";

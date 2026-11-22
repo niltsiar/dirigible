@@ -103,7 +103,8 @@ extension SessionWindow {
         if let first = imported.tracks.first, let lane = session.tracks.firstIndex(where: { $0.id == first }) {
             timelineView?.reveal(frame: start ?? .zero, lane: lane)
         }
-        let line = L10n.sessionImportLine(tracks: imported.tracks.count, muted: imported.mutedCallTracks)
+        let line = L10n.sessionImportLine(
+            tracks: imported.tracks.count, muted: imported.mutedCallTracks, leftOut: imported.leftOutMarkers)
         sessionImportPresses += 1
         sessionImportReport = ToolBannerShown(
             banner: .sessionImported(line, press: sessionImportPresses), revision: studio.sessionRevision)

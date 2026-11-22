@@ -648,9 +648,10 @@ Use this to put the tracks of another Dirigible session into the open session, f
 - Dirigible adds one track for each track of the other session, after the last track, and selects the new tracks. Each clip keeps its position in the other session.
 - When the open session has a track with the same name, the new track gets the name of the other session in parentheses, for example "Host (Interview at the remote studio)". A long name is shortened in the middle, so you see both ends.
 - A track that records a call app is muted, because it repeats the voice of the other side.
-- The banner shows the result, for example "Added 2 tracks at their recorded positions." When the import mutes a call track, the banner says so too.
+- The banner shows the result, for example "Added 2 tracks at their recorded positions." When the import mutes a call track, the banner says so too. When a marker lands after the end of the timeline, Dirigible leaves it out, and the banner gives the count, for example "1 marker is left out: its position is after the end of the timeline."
 - The import is one step: **Edit > Undo Import Session** removes all the new tracks.
 - You cannot import the open session into itself: an alert tells you to choose a different session.
+- When the other session moved or an audio file of it is missing, the import changes nothing, and an alert tells you to check that session and import it again.
 
 ### Split a stereo clip into two mono tracks
 

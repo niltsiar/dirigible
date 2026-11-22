@@ -13,7 +13,7 @@ func liveImportSession(
         let imported = try await studio.importSession(
             work.url, at: work.at, markers: work.markers, agent: call.agent, progress: report)
         let note = TakeWork.note(studio, after: revision, agent: call.agent)
-        return .result(text: (imported.tracks.map(\.rawValue) + note).joined(separator: "\n"), isError: false)
+        return .result(text: (ImportSessionWork.lines(imported) + note).joined(separator: "\n"), isError: false)
     } catch .sessionImport(.paste(.cancelled), _) {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text =

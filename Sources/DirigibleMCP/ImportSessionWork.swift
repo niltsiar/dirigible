@@ -51,12 +51,20 @@ package struct ImportSessionWork: Sendable {
         }
     }
 
+    /// The lines of an import: the new track IDs in source order, then `marker <ID>` for each new
+    /// marker, then the count of the markers left out when there is one.
+    package static func lines(_ imported: SessionImported) -> [String] {
+        let left = imported.leftOutMarkers
+        return imported.tracks.map(\.rawValue) + imported.markers.map { "marker \($0.rawValue)" }
+            + (left > 0 ? ["Left out: \(left) marker\(left == 1 ? "" : "s") before frame 0 or after frame 2^40."] : [])
+    }
+
     /// The import into `session` under `lock`. A cancel that comes after `importSession` returns
     /// removes the new WAVs, so the save writes nothing (decision 0049).
     package func run(
         _ session: inout Session, lock: PackageLock, package: URL, progress: @escaping (Double) -> Void = { _ in },
         isCancelled: @escaping () -> Bool = { false }
-    ) throws(Failure) -> [TrackID] {
+    ) throws(Failure) -> SessionImported {
         let target: URL
         do throws(SessionFileError) { target = try lock.package() } catch { throw .target(error) }
         let imported: SessionImported
@@ -72,14 +80,14 @@ package struct ImportSessionWork: Sendable {
             throw .refused(.paste(.cancelled))
         }
         session = imported.session
-        return imported.tracks
+        return imported
     }
 
-    /// The job of a tool call on the files, under the package lock. The text is the new track IDs,
-    /// one per line, in source order.
+    /// The job of a tool call on the files, under the package lock. The text is `lines`, then the
+    /// take sync note.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<Failure>) {
-            let (tracks, note) = try editPackageCore(package, ripple: false, log: control.log) {
+            let (imported, note) = try editPackageCore(package, ripple: false, log: control.log) {
                 session, lock throws(Failure) in
                 try TakeWork.noted(&session, package: package) { session throws(Failure) in
                     try run(
@@ -87,7 +95,7 @@ package struct ImportSessionWork: Sendable {
                         isCancelled: { control.isCancelled() })
                 }
             }
-            return (tracks.map(\.rawValue) + note).joined(separator: "\n")
+            return (Self.lines(imported) + note).joined(separator: "\n")
         } catch {
             let message =
                 switch error {

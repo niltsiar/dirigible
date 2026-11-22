@@ -69,7 +69,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F54 | Loudness normalization at export | Hindenburg PRO, Logic Pro | done, Release 2 run 9a | R10, R11 |
 | F55 | Episode metadata and artwork | Hindenburg PRO, Logic Pro | done, Release 3 run 4 (v0.3.4) | R10 |
 | F56 | Chapter markers with title, image, URL | Hindenburg PRO | done, Release 2 run 16 and Release 3 run 5 (v0.3.5) | R10 |
-| F57 | Export presets: several targets in one step | Hindenburg PRO, Logic Pro | Release 7 | R11 |
+| F57 | Export presets: several targets in one step | Hindenburg PRO, Logic Pro | done, Release 7 run 4 (File > Export with Presets, session presets, dirigible preset and export --preset) | R11 |
 | F58 | Upload to podcast hosts | Hindenburg PRO | Later | - |
 | F60 | Session XML file and clips folder | GarageBand, Logic Pro | done, Release 1 run 1 | R5, R6 |
 | F61 | Import audio files into a track | Hindenburg PRO, GarageBand, Logic Pro | done, Release 2 run 13 | R7 |

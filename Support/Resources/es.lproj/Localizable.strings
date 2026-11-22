@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "Dirigible no importó la sesión \U00AB%@\U00BB: tiene una toma sin finalizar. Abre esa sesión para finalizar la toma y vuelve a importar.";
 "error.import.session.empty" = "La sesión \U00AB%@\U00BB no tiene ningún clip para importar.";
 "error.import.session.file" = "Dirigible no importó la sesión \U00AB%1$@\U00BB: \U00ABClips/%2$@\U00BB en ese paquete es un enlace, una carpeta o una ruta a través de un enlace. Sustituye ese elemento por un archivo normal.";
+"error.import.session.missing" = "Dirigible no importó la sesión \U00AB%@\U00BB: la sesión se movió o falta un archivo de audio de esa sesión. Comprueba esa sesión y vuelve a importarla.";
+"error.import.session.changed" = "Dirigible no importó la sesión \U00AB%@\U00BB: un archivo de audio de esa sesión cambió durante la importación o no coincide con esa sesión. Comprueba esa sesión y vuelve a importarla.";
+"error.import.session.space" = "Dirigible no importó la sesión \U00AB%@\U00BB: el disco de esta sesión no tiene espacio libre suficiente. Libera espacio en el disco y vuelve a intentarlo.";
+"error.import.session.copy" = "Dirigible no importó la sesión \U00AB%1$@\U00BB: el audio no se pudo copiar (error %2$lld). Comprueba el disco y vuelve a intentarlo.";
+"error.import.session.convert" = "Dirigible no importó la sesión \U00AB%1$@\U00BB: el audio no se pudo convertir (error %2$lld). Comprueba el disco y vuelve a intentarlo.";

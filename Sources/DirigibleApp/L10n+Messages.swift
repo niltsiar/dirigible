@@ -309,7 +309,7 @@ extension L10n {
         }
     }
 
-    private static func message(for error: SessionError, name: (TrackID) -> String) -> String {
+    static func message(for error: SessionError, name: (TrackID) -> String) -> String {
         switch error {
         case .invalidText: return errorSessionName.text
         case .layoutMismatch(let track, _): return errorSessionLayout.format(name(track))

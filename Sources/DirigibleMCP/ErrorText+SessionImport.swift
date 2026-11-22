@@ -23,6 +23,10 @@ extension SessionImportError {
         case .unsafeFile(let path):
             "\(source)/Clips/\(path) is a link, a folder, or a path through a link, so Dirigible does not import "
                 + "\(source). Replace that item with a plain file."
+        case .paste(.sourceMissing(let file)):
+            "the source file \"\(file)\" is not there: \(source) moved, or the file was deleted."
+        case .paste(.space(let needed, let free)): "the import needs \(needed) free bytes, and the disk has \(free)."
+        case .paste(.cancelled): "the import was cancelled."
         case .paste(let error): error.message
         }
     }

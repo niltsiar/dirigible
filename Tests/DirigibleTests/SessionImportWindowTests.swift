@@ -169,4 +169,29 @@ import Testing
                     + L10n.message(for: SessionFileError.unsupportedVersion(99)))
         }
     }
+
+    /// A copy fault of the import names the import, never a paste or a copy to do again, and a
+    /// session refusal gives the session text, not the generic one.
+    @Test func aCopyFaultNamesTheImportNotThePaste() async throws {
+        try await HeaderStateLineTests().withStrings("en") {
+            let faults: [PasteError] = [
+                .sourceMissing(file: "a.wav"), .sourceChanged(file: "a.wav"), .space(needed: 2, free: 1),
+                .write(file: "a.wav", errno: ENOSPC), .write(file: "a.wav", errno: EIO),
+                .convert(file: "a.wav", errno: EIO),
+            ]
+            for fault in faults {
+                let text = L10n.message(for: SessionImportError.paste(fault), source: "Guest")
+                #expect(text.hasPrefix("Dirigible did not import the session \u{201C}Guest\u{201D}: "), "\(text)")
+                #expect(!text.localizedCaseInsensitiveContains("paste"), "\(text)")
+                #expect(!text.localizedCaseInsensitiveContains("copy again"), "\(text)")
+            }
+            #expect(
+                L10n.message(for: SessionImportError.paste(.write(file: "a.wav", errno: EIO)), source: "Guest")
+                    == "Dirigible did not import the session \u{201C}Guest\u{201D}: the audio did not copy (error 5). "
+                    + "Check the disk and try again.")
+            #expect(
+                L10n.message(for: SessionImportError.paste(.session(.trackCount(300))), source: "Guest")
+                    == L10n.message(for: StudioError.session(.trackCount(300))))
+        }
+    }
 }

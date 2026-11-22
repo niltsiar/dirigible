@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "Dirigible heeft de sessie \U2018%@\U2019 niet geïmporteerd: die heeft een take die niet is afgerond. Open die sessie om de take af te ronden en importeer dan opnieuw.";
 "error.import.session.empty" = "De sessie \U2018%@\U2019 heeft geen clip om te importeren.";
 "error.import.session.file" = "Dirigible heeft de sessie \U2018%1$@\U2019 niet geïmporteerd: \U2018Clips/%2$@\U2019 in dat pakket is een link, een map of een pad via een link. Vervang dit onderdeel door een gewoon bestand.";
+"error.import.session.missing" = "Dirigible heeft de sessie \U2018%@\U2019 niet geïmporteerd: de sessie is verplaatst, of een audiobestand van die sessie ontbreekt. Controleer die sessie en importeer de sessie daarna opnieuw.";
+"error.import.session.changed" = "Dirigible heeft de sessie \U2018%@\U2019 niet geïmporteerd: een audiobestand van die sessie is tijdens het importeren gewijzigd, of het past niet bij die sessie. Controleer die sessie en importeer de sessie daarna opnieuw.";
+"error.import.session.space" = "Dirigible heeft de sessie \U2018%@\U2019 niet geïmporteerd: de schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.import.session.copy" = "Dirigible heeft de sessie \U2018%1$@\U2019 niet geïmporteerd: de audio kon niet worden gekopieerd (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
+"error.import.session.convert" = "Dirigible heeft de sessie \U2018%1$@\U2019 niet geïmporteerd: de audio kon niet worden omgezet (fout %2$lld). Controleer de schijf en probeer het opnieuw.";

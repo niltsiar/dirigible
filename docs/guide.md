@@ -1505,7 +1505,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 82 tools, in groups:
+The 83 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
@@ -1521,6 +1521,7 @@ The 82 tools, in groups:
 - Record: `record`.
 - Transport: `transport_play`, `transport_stop`, `transport_locate`. They play, stop, and move the playhead in the window of the session. They work only in Dirigible.
 - Audio: `loudness`, `export`, `render`, `export_stems`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it. `export` with `preset` writes one file for each preset, as `dirigible export --preset`.
+- Session import: `import_session`. It gives the text of `dirigible import-session`: it adds the tracks of the session package `source` as new last tracks. The agent can cancel it. It is not a batch step.
 - Preset: `preset_set`, `preset_remove`. They change the export presets of the session, as `dirigible preset set` and `dirigible preset remove`. They are not batch steps.
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.

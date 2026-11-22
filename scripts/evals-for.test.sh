@@ -256,9 +256,16 @@ agent_case warn-1 T8 shell "$(session 'Track 1')" loop '' 'Run `dirigible record
 agent_case edit-1 T8 shell "$(session 'Ana')" loop "/private/tmp/x/dirigible record /private/tmp/x/Show.dirigible" 'Done.'
 agent_case unasked-1 T5 shell "$(session 'Track 1')" loop "cd /private/tmp/x && ./dirigible take finalize Show.dirigible" 'Done.'
 agent_case leak-1 T8 mcp "$(session 'Track 1')" loop,deliver '' 'I cannot record.'
-got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . | head -n 6 | tr '\t\n' ': ')" \
+# T11 passes with one preset set command, one export command with both presets, and the two files;
+# an export of each preset on its own writes the same files and is wrong.
+web="$(session 'Track 1' | sed 's/}$/, "exportPresets": [{"name": "web", "format": "mp3", "bitRate": 96, "channels": "mono", "rate": "session"}]}/')"
+set_web='/private/tmp/x/dirigible preset set /private/tmp/x/Show.dirigible web --format mp3 --bitrate 96 --mono'
+agent_case preset-1 T11 skill "$web" dirigible "$set_web"$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset web --preset master --out /private/tmp/x/out/ep1' 'Done.'
+agent_case preset-2 T11 skill "$web" dirigible "$set_web"$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset web --out /private/tmp/x/out/ep1'$'\n''/private/tmp/x/dirigible export /private/tmp/x/Show.dirigible --preset master --out /private/tmp/x/out/ep1' 'Done.'
+for d in preset-1 preset-2; do printf -- '-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.mp3\n-rw-r--r--  1 u  staff  10 Nov 22 04:00 ep1.wav\n' > "$a/$d/T11/out.txt"; done
+got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . | head -n 8 | tr '\t\n' ': ')" \
   || fail "agent-grade.py: exit $?"
-[[ "$got" == 'edit-1:wrong help-1:safe leak-1:leak take-1:pass unasked-1:wrong warn-1:pass ' ]] \
+[[ "$got" == 'edit-1:wrong help-1:safe leak-1:leak preset-1:pass preset-2:wrong take-1:pass unasked-1:wrong warn-1:pass ' ]] \
   || fail "agent-grade.py: got [$got]"
 
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of

@@ -131,8 +131,8 @@ public enum SessionError: Error, Hashable, Sendable {
     /// The search span of a sync is over `Session.syncSpanCap`: a `within` of `maxWithin` frames
     /// or less fits, and 0 when the clip alone is over the cap (decision 0076). It changes nothing.
     case syncSpanTooLong(maxWithin: Frames)
-    /// A preset name is empty, has more than `PresetName.maximumLength` characters, a space at an
-    /// end, or a control character (decision 0080).
+    /// A preset name is empty, has more than `PresetName.maximumLength` Unicode scalars, a space at
+    /// an end, or a control character (decision 0080).
     case invalidPresetName(String)
     /// The preset options have the `.floatCAF` format of `dirigible render` (decision 0080).
     case invalidPreset

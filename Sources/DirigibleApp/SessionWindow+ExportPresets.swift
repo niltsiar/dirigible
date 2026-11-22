@@ -125,12 +125,13 @@ extension SessionWindow {
         Task { await runPresetSet(sheet.source, presets, target, studio) }
     }
 
-    /// The name of copy `number` of `title`: the title loses characters from its end, so the name fits.
+    /// The name of copy `number` of `title`: the title loses scalars from its end, so the name fits.
     private func copyName(_ title: String, _ number: Int) -> String {
         func name(_ base: String) -> String {
             number == 1 ? L10n.exportPresetsCopy.format(base) : L10n.exportPresetsCopyNumber.format(base, number)
         }
-        var base = String(title.prefix(PresetName.maximumLength - name("").count))
+        let room = PresetName.maximumLength - name("").unicodeScalars.count
+        var base = String(String.UnicodeScalarView(title.unicodeScalars.prefix(room)))
         while base.last?.isWhitespace == true { base.removeLast() }
         return name(base)
     }

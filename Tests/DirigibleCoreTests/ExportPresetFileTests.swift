@@ -69,6 +69,19 @@ struct ExportPresetFileTests {
         #expect(try Session(xml: session.checkedData()) == session)
     }
 
+    /// E4: the reader applies only the non-empty and storable rules to a name, so a name that the edit
+    /// rules refuse (a long combining sequence, a space at an end) reads back and does not refuse the
+    /// session.
+    @Test func aStoredNameOverTheEditRulesReadsBack() throws {
+        let long = String(repeating: "e\u{301}", count: 65)
+        let session = try read(
+            ExportPresetTests.element(long) + ExportPresetTests.element(" Show ")
+                + ExportPresetTests.element(String(repeating: "a", count: 70)))
+
+        #expect(ExportPresetTests.names(session) == [long, " Show ", String(repeating: "a", count: 70)])
+        #expect(try Session(xml: session.checkedData()) == session)
+    }
+
     /// E4 and 0024 P3: an older version refuses the element, and a build whose newest version is the
     /// one before refuses the file as newer.
     @Test func aPresetInALowerVersionIsRefused() throws {
@@ -89,7 +102,7 @@ struct ExportPresetFileTests {
         (#"format="wav" bits="32""#, "bits"), (#"format="aac" bitRate="100""#, "bitRate"),
         (#"format="flac" bits="16" channels="quad""#, "channels"),
         (#"format="flac" bits="16" loudness="loud""#, "loudness"),
-        (#"format="flac" bits="16" name="""#, "name"), (#"format="flac" bits="16" name=" Show""#, "name"),
+        (#"format="flac" bits="16" name="""#, "name"), (#"format="flac" bits="16" name="Sh&#9;ow""#, "name"),
     ])
     func aValueOutsideItsListIsRefused(attributes: String, refused: String) {
         #expect(throws: SessionFileError.invalidValue(element: "preset", attribute: refused)) {

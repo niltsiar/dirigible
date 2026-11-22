@@ -25,15 +25,17 @@ struct ExportPresetTests {
         #"<preset name="\#(name)" format="mp3" bitRate="128" channels="mono" rate="44100" loudness="podcast"/>"#
     }
 
-    /// E2: 1 to 64 characters, no space at either end, and no control character. A built-in ID is a
-    /// valid name: `PresetName` knows no built-in.
+    /// E2: 1 to 64 Unicode scalars, no space at either end, and no control character. A built-in ID is
+    /// a valid name: `PresetName` knows no built-in. The limit counts scalars, not characters, because
+    /// the character count of a combining sequence depends on the Unicode tables of the OS.
     @Test(arguments: [
         (String(repeating: "a", count: 64), true), (String(repeating: "a", count: 65), false),
-        (String(repeating: "é", count: 64), true), (String(repeating: "é", count: 65), false), ("", false),
-        (" Show", false), ("Show ", false), ("Sh\u{7}ow", false), ("Sh\u{85}ow", false), ("Show\u{FFFF}", false),
-        ("master", true), ("Podcast", true), ("Show/Feed", true), ("Show & Tell", true),
+        (String(repeating: "\u{E9}", count: 64), true), (String(repeating: "\u{E9}", count: 65), false),
+        (String(repeating: "e\u{301}", count: 32), true), (String(repeating: "e\u{301}", count: 33), false),
+        ("", false), (" Show", false), ("Show ", false), ("Sh\u{7}ow", false), ("Sh\u{85}ow", false),
+        ("Show\u{FFFF}", false), ("master", true), ("Podcast", true), ("Show/Feed", true), ("Show & Tell", true),
     ])
-    func aNameHasOneTo64CharactersAndNoSpaceAtAnEnd(text: String, valid: Bool) {
+    func aNameHasOneTo64ScalarsAndNoSpaceAtAnEnd(text: String, valid: Bool) {
         if valid {
             #expect((try? PresetName(text))?.text == text, "\(text.debugDescription)")
         } else {

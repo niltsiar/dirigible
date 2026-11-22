@@ -85,4 +85,23 @@ struct MCPImportSessionToolTests {
         #expect(clips(package) == before.1, "the cancel left \(clips(package))")
         #expect(try package.xml() == before.0, "a cancelled import changed session.xml")
     }
+
+    /// A target that is deleted after the lock gives the package fault and its text, exit 2.
+    @Test func aTargetDeletedAfterTheLockGivesThePackageFault() throws {
+        let (package, source) = try fixture()
+        let lock = try PackageLock(package.url)
+        var session = try package.read()
+        try FileManager.default.removeItem(at: package.url)
+        let work = ImportSessionWork(source: source.path, at: 0, markers: false)
+
+        #expect(throws: ImportSessionWork.Failure.target(.packageMoved)) {
+            try work.run(&session, lock: lock, package: package.url)
+        }
+
+        let failure = ImportSessionWork.Failure.target(.packageMoved)
+        #expect(
+            failure.message(source: source.path, package: package.path)
+                == SessionFileError.packageMoved.message(package: package.path))
+        #expect(failure.exitCode == 2)
+    }
 }

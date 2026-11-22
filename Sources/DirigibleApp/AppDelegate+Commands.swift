@@ -89,11 +89,10 @@ extension AppDelegate {
             if command == .delete, let event, event.type == .keyDown, event.isARepeat { return }
             if model.indexCommand(command, isKey: event?.type == .keyDown) { return }
         }
-        // The Bins list gets the keys of its items, as the index list (C23).
-        if let model = key, model.binsListHasFocus(in: keyWindow),
-            model.binsCommand(command, isKey: event?.type == .keyDown)
-        {
-            return
+        // The Bins list gets the keys of its items, as the index list (C23). A held key edits one item.
+        if let model = key, model.binsListHasFocus(in: keyWindow) {
+            if command.binsFocus == .item, let event, event.type == .keyDown, event.isARepeat { return }
+            if model.binsCommand(command, isKey: event?.type == .keyDown) { return }
         }
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
         if let selector = command.selector {

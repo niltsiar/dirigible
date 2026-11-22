@@ -47,10 +47,12 @@ extension BinsSegmentTests {
         }
     }
 
-    func chord(_ characters: String, code: UInt16, _ flags: NSEvent.ModifierFlags, in window: NSWindow) -> NSEvent {
+    func chord(
+        _ characters: String, code: UInt16, _ flags: NSEvent.ModifierFlags, in window: NSWindow, held: Bool = false
+    ) -> NSEvent {
         NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false,
+            context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: held,
             keyCode: code)!
     }
 

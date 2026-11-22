@@ -2,7 +2,7 @@
 # Run the agent eval E38 (docs/workflow/evals.md): headless Claude Code runs that edit a generated
 # session with the dirigible MCP tools, the CLI, or the bundled skill. Then grade them.
 # Usage: scripts/eval/agent-tasks.sh <dirigible binary> <results folder> <model> <label> [<task>...]
-#   The tasks are T1 to T10 (default: T1 to T8). Put the results folder in the eval/ folder of the run.
+#   The tasks are T1 to T11 (default: T1 to T8). Put the results folder in the eval/ folder of the run.
 #   T9 gives the path of a copy of the segments of scripts/eval/agent-transcript.json. T10 routes host to the first
 #   device of `dirigible devices`, which the batch writes to <results>/devices-<label>.txt. T10
 #   runs only in the MCP variant, with the audio server: with no device, it is skipped.
@@ -51,6 +51,7 @@ prompt() {
         T8) echo 'In the Dirigible session {S}, record 10 seconds on the host track.' ;;
         T9) echo 'In the Dirigible session {S}, cut the sentences "{CUT1}" and "{CUT2}" out of the episode on all tracks. The file {TRANSCRIPT} is a Whisper JSON transcript with word times in seconds; it is of an export of the current session from frame 0. I agree to both cuts: do not ask me again.' ;;
         T10) echo 'In the Dirigible session {S}, record the host track from the input device "{DEVICE}", channel 1. Only set up the track: do not start a recording.' ;;
+        T11) echo 'In the Dirigible session {S}, add an export preset named web: MP3, mono, 96 kbit/s. Then export the episode with the presets web and master to {OUT}/ep1, one file for each preset.' ;;
         *) echo "agent-tasks.sh: no task $1" >&2; return 2 ;;
     esac
 }

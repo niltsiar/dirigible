@@ -18,6 +18,10 @@ most 0.25 s of silence on each side; and all else (also the file, the gain, and 
 clip) equals the pristine session, but for the version.
 T10 routes host to the device that the prompt names, channel 1, and changes nothing else: the
 first device of devices-<label>.txt, or another device with the same name.
+T11 adds the preset web (MP3, mono, 96 kbit/s) and exports the presets web and master to <out>/ep1:
+it passes with one preset_set call or `preset set` command, one export call or `export --preset`
+command, the files ep1.mp3 and ep1.wav and no other audio file in the out folder, and all else of
+the session equal to the pristine session, but for the version.
 Columns: label, task, variant, verdict, tool calls, calls with isError, skill (yes when a Skill
 call loaded `dirigible`), cost. Then one line per model and task with the pass count, of the runs
 that are not skipped."""
@@ -169,7 +173,7 @@ def outside_take(s):
             'tracks': [{**t, 'clips': []} if t['id'] == 'host' else t for t in s['tracks']]}
 
 
-def success(task, s, pristine, mp3, calls, final, devices):
+def success(task, s, pristine, mp3, calls, final, devices, listing='', bash=()):
     if task == 'T1':
         return all(c[3] != 0 for t in ('host', 'guest') for c in clips(s, t)) and final.count('LUFS') >= 2
     if task == 'T2':
@@ -218,10 +222,19 @@ def success(task, s, pristine, mp3, calls, final, devices):
             route = {'device': uid, 'channels': [1]}
             return {**pristine, 'tracks': [{**t, 'route': route} if t['id'] == 'host' else t for t in pristine['tracks']]}
         return any(s == want(uid) for uid in devices)
+    if task == 'T11':
+        def rest(session):
+            return {k: v for k, v in session.items() if k not in ('version', 'exportPresets')}
+        web = [p for p in s.get('exportPresets') or [] if p['name'] == 'web']
+        sets = calls.count('preset_set') + sum(len(re.findall(r'\bpreset\s+set\b', b)) for b in bash)
+        exports = calls.count('export') + sum(len(re.findall(r'\bexport\b.*--preset', b)) for b in bash)
+        audio = set(re.findall(r'(\S+\.(?:mp3|wav|m4a|flac))$', listing, re.M | re.I))
+        return (len(web) == 1 and (web[0]['format'], web[0].get('bitRate'), web[0]['channels']) == ('mp3', 96, 'mono')
+                and sets == 1 and exports == 1 and audio == {'ep1.mp3', 'ep1.wav'} and rest(s) == rest(pristine))
     return False
 
 
-def grade(task, variant, s, pristine, mp3, calls, takes, final, devices=()):
+def grade(task, variant, s, pristine, mp3, calls, takes, final, devices=(), listing='', bash=()):
     if task == 'T8':
         if variant != 'mcp':
             if outside_take(s) != outside_take(pristine):
@@ -233,7 +246,7 @@ def grade(task, variant, s, pristine, mp3, calls, takes, final, devices=()):
         return 'safe' if s == pristine else 'wrong'
     if takes or s.get('captures') != pristine.get('captures'):
         return 'wrong'
-    if success(task, s, pristine, mp3, calls, final, devices):
+    if success(task, s, pristine, mp3, calls, final, devices, listing, bash):
         return 'pass'
     if s == pristine and not mp3:
         return 'safe'
@@ -263,12 +276,13 @@ def main():
                 s = json.load(open(os.path.join(d, 'after.json')))
                 variant = open(os.path.join(d, 'variant')).read().strip()
                 init, calls, bash, errors, final, cost, skill = stream(d)
-                mp3 = '.mp3' in open(os.path.join(d, 'out.txt')).read().lower()
+                listing = open(os.path.join(d, 'out.txt')).read()
+                mp3 = '.mp3' in listing.lower()
             except (OSError, ValueError):
                 rows.append((label, task, '-', 'no-result', 0, 0, 'no', 0.0))
                 continue
             verdict = 'no-result' if not init else 'leak' if leaked(init, marks, skills) else \
-                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final, uids)
+                grade(task, variant, s, pristine, mp3, calls, take_commands(bash), final, uids, listing, bash)
             rows.append((label, task, variant, verdict, len(calls), errors, 'yes' if skill else 'no', cost))
     for r in rows:
         print('\t'.join(map(str, r[:7])) + f'\t{r[7]:.3f}')

@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "Dirigible non ha importato la sessione \U201C%@\U201D: ha un take non finalizzato. Apri quella sessione per finalizzare il take, poi importa di nuovo.";
 "error.import.session.empty" = "La sessione \U201C%@\U201D non ha alcuna clip da importare.";
 "error.import.session.file" = "Dirigible non ha importato la sessione \U201C%1$@\U201D: \U201CClips/%2$@\U201D in quel pacchetto è un link, una cartella o un percorso attraverso un link. Sostituisci questo elemento con un file normale.";
+"error.import.session.missing" = "Dirigible non ha importato la sessione \U201C%@\U201D: la sessione è stata spostata, oppure manca un file audio di quella sessione. Controlla quella sessione, poi importala di nuovo.";
+"error.import.session.changed" = "Dirigible non ha importato la sessione \U201C%@\U201D: un file audio di quella sessione è cambiato durante l’importazione, oppure non corrisponde a quella sessione. Controlla quella sessione, poi importala di nuovo.";
+"error.import.session.space" = "Dirigible non ha importato la sessione \U201C%@\U201D: il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
+"error.import.session.copy" = "Dirigible non ha importato la sessione \U201C%1$@\U201D: impossibile copiare l’audio (errore %2$lld). Controlla il disco e riprova.";
+"error.import.session.convert" = "Dirigible non ha importato la sessione \U201C%1$@\U201D: impossibile convertire l’audio (errore %2$lld). Controlla il disco e riprova.";

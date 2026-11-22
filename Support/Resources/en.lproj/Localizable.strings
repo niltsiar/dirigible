@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "Dirigible did not import the session \U201C%@\U201D: it has a take that is not finalized. Open that session to finalize the take, then import again.";
 "error.import.session.empty" = "The session \U201C%@\U201D has no clip to import.";
 "error.import.session.file" = "Dirigible did not import the session \U201C%1$@\U201D: \U201CClips/%2$@\U201D in that package is a link, a folder, or a path through a link. Replace that item with a plain file.";
+"error.import.session.missing" = "Dirigible did not import the session \U201C%@\U201D: the session moved, or an audio file of that session is missing. Check that session, then import it again.";
+"error.import.session.changed" = "Dirigible did not import the session \U201C%@\U201D: an audio file of that session changed during the import, or it does not match that session. Check that session, then import it again.";
+"error.import.session.space" = "Dirigible did not import the session \U201C%@\U201D: the disk of this session does not have enough free space. Free some disk space and try again.";
+"error.import.session.copy" = "Dirigible did not import the session \U201C%1$@\U201D: the audio did not copy (error %2$lld). Check the disk and try again.";
+"error.import.session.convert" = "Dirigible did not import the session \U201C%1$@\U201D: the audio did not convert (error %2$lld). Check the disk and try again.";

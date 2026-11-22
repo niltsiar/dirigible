@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "Dirigible n’a pas importé la session \U00AB\U00A0%@\U00A0\U00BB\U00A0: elle a une prise qui n’est pas finalisée. Ouvrez cette session pour finaliser la prise, puis importez à nouveau.";
 "error.import.session.empty" = "La session \U00AB\U00A0%@\U00A0\U00BB n’a aucun clip à importer.";
 "error.import.session.file" = "Dirigible n’a pas importé la session \U00AB\U00A0%1$@\U00A0\U00BB\U00A0: \U00AB\U00A0Clips/%2$@\U00A0\U00BB dans ce paquet est un lien, un dossier ou un chemin qui passe par un lien. Remplacez cet élément par un fichier ordinaire.";
+"error.import.session.missing" = "Dirigible n’a pas importé la session \U00AB\U00A0%@\U00A0\U00BB\U00A0: la session a été déplacée, ou un fichier audio de cette session manque. Vérifiez cette session, puis importez-la à nouveau.";
+"error.import.session.changed" = "Dirigible n’a pas importé la session \U00AB\U00A0%@\U00A0\U00BB\U00A0: un fichier audio de cette session a changé pendant l’importation, ou il ne correspond pas à cette session. Vérifiez cette session, puis importez-la à nouveau.";
+"error.import.session.space" = "Dirigible n’a pas importé la session \U00AB\U00A0%@\U00A0\U00BB\U00A0: le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
+"error.import.session.copy" = "Dirigible n’a pas importé la session \U00AB\U00A0%1$@\U00A0\U00BB\U00A0: l’audio n’a pas pu être copié (erreur %2$lld). Vérifiez le disque et réessayez.";
+"error.import.session.convert" = "Dirigible n’a pas importé la session \U00AB\U00A0%1$@\U00A0\U00BB\U00A0: l’audio n’a pas pu être converti (erreur %2$lld). Vérifiez le disque et réessayez.";

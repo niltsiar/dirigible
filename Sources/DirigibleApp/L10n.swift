@@ -1039,4 +1039,9 @@ enum L10n: String, CaseIterable {
     case errorImportSessionPending = "error.import.session.pending"
     case errorImportSessionEmpty = "error.import.session.empty"
     case errorImportSessionFile = "error.import.session.file"
+    case errorImportSessionMissing = "error.import.session.missing"
+    case errorImportSessionChanged = "error.import.session.changed"
+    case errorImportSessionSpace = "error.import.session.space"
+    case errorImportSessionCopy = "error.import.session.copy"
+    case errorImportSessionConvert = "error.import.session.convert"
 }

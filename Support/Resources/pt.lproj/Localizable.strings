@@ -1055,3 +1055,8 @@
 "error.import.session.pending" = "O Dirigible não importou a sessão \U201C%@\U201D: ela tem uma tomada que não foi finalizada. Abra essa sessão para finalizar a tomada e importe novamente.";
 "error.import.session.empty" = "A sessão \U201C%@\U201D não tem nenhum clipe para importar.";
 "error.import.session.file" = "O Dirigible não importou a sessão \U201C%1$@\U201D: \U201CClips/%2$@\U201D nesse pacote é um link, uma pasta ou um caminho através de um link. Substitua esse item por um arquivo comum.";
+"error.import.session.missing" = "O Dirigible não importou a sessão \U201C%@\U201D: a sessão foi movida, ou falta um arquivo de áudio dessa sessão. Verifique essa sessão e importe-a novamente.";
+"error.import.session.changed" = "O Dirigible não importou a sessão \U201C%@\U201D: um arquivo de áudio dessa sessão mudou durante a importação, ou ele não corresponde a essa sessão. Verifique essa sessão e importe-a novamente.";
+"error.import.session.space" = "O Dirigible não importou a sessão \U201C%@\U201D: o disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
+"error.import.session.copy" = "O Dirigible não importou a sessão \U201C%1$@\U201D: não foi possível copiar o áudio (erro %2$lld). Verifique o disco e tente novamente.";
+"error.import.session.convert" = "O Dirigible não importou a sessão \U201C%1$@\U201D: não foi possível converter o áudio (erro %2$lld). Verifique o disco e tente novamente.";

@@ -104,4 +104,20 @@ struct MCPImportSessionToolTests {
                 == SessionFileError.packageMoved.message(package: package.path))
         #expect(failure.exitCode == 2)
     }
+
+    /// A copy fault of the tool and the command has the words of the import, not of a paste, and
+    /// names the source.
+    @Test func aCopyFaultOfTheToolNamesTheImport() {
+        func text(_ fault: PasteError) -> String {
+            SessionImportError.paste(fault).message(source: "/s/Guest.dirigible", package: "/p/Host.dirigible")
+        }
+        for fault in [PasteError.sourceMissing(file: "a.wav"), .space(needed: 2, free: 1), .cancelled] {
+            #expect(!text(fault).contains("paste"), "\(text(fault))")
+        }
+        #expect(text(.space(needed: 2, free: 1)) == "the import needs 2 free bytes, and the disk has 1.")
+        #expect(
+            text(.sourceMissing(file: "a.wav"))
+                == "the source file \"a.wav\" is not there: /s/Guest.dirigible moved, or the file was deleted.")
+        #expect(text(.cancelled) == "the import was cancelled.")
+    }
 }

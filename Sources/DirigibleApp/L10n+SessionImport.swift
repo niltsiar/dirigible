@@ -15,7 +15,22 @@ extension L10n {
         case .nothingToImport: return errorImportSessionEmpty.format(source)
         case .source(let error): return errorImportSessionSource.format(source, message(for: error))
         case .unsafeFile(let path): return errorImportSessionFile.format(source, path)
-        case .paste(let error): return message(for: error, source: source)
+        case .paste(let error): return message(forImport: error, source: source)
+        }
+    }
+
+    /// The text of a copy fault of a session import: the words of the import, not of a paste. The
+    /// window shows no alert for a cancel.
+    private static func message(forImport error: PasteError, source: String) -> String {
+        switch error {
+        case .sourceMissing: errorImportSessionMissing.format(source)
+        case .sourceChanged: errorImportSessionChanged.format(source)
+        case .notDownloaded(let file): errorImportNotDownloaded.format(file)
+        case .space, .write(_, ENOSPC): errorImportSessionSpace.format(source)
+        case .write(_, let code): errorImportSessionCopy.format(source, Int(code))
+        case .convert(_, let code): errorImportSessionConvert.format(source, Int(code))
+        case .session(let error): message(for: error, name: { $0.rawValue })
+        case .cancelled: errorSessionOther.text
         }
     }
 

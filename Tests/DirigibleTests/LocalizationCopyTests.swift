@@ -51,7 +51,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
-        "export.presets.podcast", "export.presets.summary.lufs",
+        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.summary.mono",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -72,6 +72,7 @@ private let sameAsEnglish: [String: Set<String>] = [
     ],
     "fr": [
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "export.presets.summary.mono",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -96,6 +97,7 @@ private let sameAsEnglish: [String: Set<String>] = [
     ],
     "it": [
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "export.presets.summary.mono", "export.presets.summary.stereo",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
@@ -118,6 +120,7 @@ private let sameAsEnglish: [String: Set<String>] = [
     ],
     "nl": [
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "export.presets.summary.mono", "export.presets.summary.stereo",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",
@@ -147,6 +150,7 @@ private let sameAsEnglish: [String: Set<String>] = [
     ],
     "pt": [
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "export.presets.summary.mono",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",
@@ -167,6 +171,7 @@ private let sameAsEnglish: [String: Set<String>] = [
     ],
     "pt-PT": [
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "export.presets.summary.mono",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.row.label.clip", "index.row.label.mark",

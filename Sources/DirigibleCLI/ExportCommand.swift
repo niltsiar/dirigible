@@ -179,8 +179,7 @@ func runSet(_ work: ExportWork, by kind: SplitKind, package: URL, session: Sessi
 
 /// The steps of `export --preset` from `ExportWork`: exit 64 for an unknown preset, and exit 2, in this
 /// order, for a rate that a preset cannot write, a refused file, two presets of one file name, a file at
-/// a target, or a failed job. A stop or a
-/// failure prints the files on disk and the stop line.
+/// a target, or a failed job. A stop or a failure prints the files on disk and the stop line.
 func runPresets(_ work: ExportWork, package: URL, session: Session) throws {
     let source: ExportSource
     do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }

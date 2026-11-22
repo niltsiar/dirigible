@@ -998,6 +998,8 @@ enum L10n: String, CaseIterable {
     case exportPresetsPodcast = "export.presets.podcast"
     case exportPresetsSummaryBits = "export.presets.summary.bits"
     case exportPresetsSummaryLUFS = "export.presets.summary.lufs"
+    case exportPresetsSummaryMono = "export.presets.summary.mono"
+    case exportPresetsSummaryStereo = "export.presets.summary.stereo"
     case exportPresetsRangeWhole = "export.presets.range.whole"
     case exportPresetsRangeMarks = "export.presets.range.marks"
     case exportPresetsFolderNone = "export.presets.folder.none"

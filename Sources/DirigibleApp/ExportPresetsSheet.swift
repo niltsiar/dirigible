@@ -37,11 +37,11 @@ func presetSummary(_ options: PresetOptions) -> String {
         case .mp3(let rate): (.panelExportFormatMP3, L10n.panelExportBitrateValue.format(rate.rawValue))
         case .floatCAF: preconditionFailure("PresetOptions refuses .floatCAF")
         }
-    let channels: L10n = options.layout == .mono ? .panelExportChannelsMono : .panelExportChannelsStereo
+    let channels: L10n = options.layout == .mono ? .exportPresetsSummaryMono : .exportPresetsSummaryStereo
     let loudness = options.loudness.map {
         L10n.exportPresetsSummaryLUFS.format(Int($0.integrated(for: options.layout).value))
     }
-    return [format.text, detail, channels.text.lowercased(), loudness].compactMap { $0 }.joined(separator: ", ")
+    return [format.text, detail, channels.text, loudness].compactMap { $0 }.joined(separator: ", ")
 }
 
 /// The values of the Edit pane of a session preset: the name field and the pop-ups of the Export panel.
@@ -86,7 +86,8 @@ func presetSummary(_ options: PresetOptions) -> String {
     var target: PresetFolder?
     var edit: PresetEdit?
 
-    /// With no stored checks, only the podcast preset is checked (both built-ins take 9.5 times one export).
+    /// With no stored checks, only the podcast preset is checked: both built-ins take 9.5 times one export
+    /// (decision 0080).
     init(source: ExportSource, marks: Bool, defaults: UserDefaults?) {
         (self.source, self.marks, self.defaults) = (source, marks, defaults)
         checked =
@@ -114,12 +115,9 @@ func presetSummary(_ options: PresetOptions) -> String {
         if checked.remove(ref) == nil { checked.insert(ref) }
     }
 
-    /// The built-in presets, then the session presets.
-    func presets(in session: Session) -> [(ref: PresetRef, options: PresetOptions)] { session.allExportPresets }
-
     /// The checked presets in list order. A check of a removed preset stays stored and counts no file.
     func checkedPresets(in session: Session) -> [(ref: PresetRef, options: PresetOptions)] {
-        presets(in: session).filter { checked.contains($0.ref) }
+        session.allExportPresets.filter { checked.contains($0.ref) }
     }
 
     /// Why Export is off, or nil when it is on.
@@ -213,7 +211,7 @@ struct ExportPresetsSheet: View {
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
             List(selection: $sheet.selection) {
-                ForEach(sheet.presets(in: studio.session), id: \.ref) { preset in
+                ForEach(studio.session.allExportPresets, id: \.ref) { preset in
                     row(preset.ref, preset.options).tag(preset.ref)
                 }
             }

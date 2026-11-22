@@ -1014,6 +1014,8 @@
 "export.presets.podcast" = "Podcast (MP3)";
 "export.presets.summary.bits" = "%lld bits";
 "export.presets.summary.lufs" = "%lld LUFS";
+"export.presets.summary.mono" = "mono";
+"export.presets.summary.stereo" = "estéreo";
 "export.presets.range.whole" = "Intervalo: a sessão inteira";
 "export.presets.range.marks" = "Intervalo: a seleção, de %1$@ a %2$@";
 "export.presets.folder.none" = "Nenhuma pasta escolhida";
@@ -1033,6 +1035,6 @@
 "export.presets.copy.number" = "%1$@ cópia %2$lld";
 "export.presets.save.as" = "Salvar como predefinição…";
 "error.preset.name.taken" = "Já existe uma predefinição chamada “%@”. Escolha outro nome.";
-"error.preset.name" = "Um nome de predefinição tem de 1 a %lld caracteres, sem espaço no início ou no fim.";
+"error.preset.name" = "Um nome de predefinição tem de 1 a %lld caracteres, sem espaço no início ou no fim e sem caracteres de controle.";
 "error.export.presets.duplicate" = "Duas predefinições dão o nome de arquivo %@. Renomeie uma das predefinições.";
 "error.export.presets.rate" = "A predefinição \U201C%@\U201D não pode exportar a %lld Hz. Edite a predefinição e escolha 44,1 kHz ou 48 kHz.";

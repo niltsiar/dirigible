@@ -1014,6 +1014,8 @@
 "export.presets.podcast" = "Podcast (MP3)";
 "export.presets.summary.bits" = "%lld-bit";
 "export.presets.summary.lufs" = "%lld LUFS";
+"export.presets.summary.mono" = "mono";
+"export.presets.summary.stereo" = "stereo";
 "export.presets.range.whole" = "Range: the whole session";
 "export.presets.range.marks" = "Range: the selection, %1$@ to %2$@";
 "export.presets.folder.none" = "No folder chosen";
@@ -1033,6 +1035,6 @@
 "export.presets.copy.number" = "%1$@ copy %2$lld";
 "export.presets.save.as" = "Save as Preset…";
 "error.preset.name.taken" = "A preset named “%@” exists. Choose another name.";
-"error.preset.name" = "A preset name has 1 to %lld characters, with no space at the start or the end.";
+"error.preset.name" = "A preset name has 1 to %lld characters, with no space at the start or the end and no control character.";
 "error.export.presets.duplicate" = "Two presets give the file name %@. Rename one of the presets.";
 "error.export.presets.rate" = "The preset \U201C%@\U201D cannot write %lld Hz. Edit the preset and select 44.1 kHz or 48 kHz.";

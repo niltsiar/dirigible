@@ -1014,6 +1014,8 @@
 "export.presets.podcast" = "Podcast (MP3)";
 "export.presets.summary.bits" = "%lld Bit";
 "export.presets.summary.lufs" = "%lld LUFS";
+"export.presets.summary.mono" = "Mono";
+"export.presets.summary.stereo" = "Stereo";
 "export.presets.range.whole" = "Bereich: die ganze Session";
 "export.presets.range.marks" = "Bereich: die Auswahl, %1$@ bis %2$@";
 "export.presets.folder.none" = "Kein Ordner ausgewählt";
@@ -1033,6 +1035,6 @@
 "export.presets.copy.number" = "%1$@ Kopie %2$lld";
 "export.presets.save.as" = "Als Voreinstellung sichern…";
 "error.preset.name.taken" = "Eine Voreinstellung namens „%@“ existiert bereits. Wähle einen anderen Namen.";
-"error.preset.name" = "Ein Name einer Voreinstellung hat 1 bis %lld Zeichen, ohne Leerzeichen am Anfang oder Ende.";
+"error.preset.name" = "Ein Name einer Voreinstellung hat 1 bis %lld Zeichen, ohne Leerzeichen am Anfang oder Ende und ohne Steuerzeichen.";
 "error.export.presets.duplicate" = "Zwei Voreinstellungen ergeben den Dateinamen %@. Benenne eine der Voreinstellungen um.";
 "error.export.presets.rate" = "Die Voreinstellung \U201E%@\U201C kann nicht mit %lld Hz exportieren. Bearbeite die Voreinstellung und wähle 44,1 kHz oder 48 kHz.";

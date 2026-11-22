@@ -119,7 +119,8 @@ struct MCPImportSessionToolTests {
         let failure = ImportSessionWork.Failure.target(.packageMoved)
         #expect(
             failure.message(source: source.path, package: package.path)
-                == SessionFileError.packageMoved.message(package: package.path))
+                == "\(package.path) moved to another volume or was deleted, so \(package.path)/session.xml did not "
+                + "change.")
         #expect(failure.exitCode == 2)
     }
 

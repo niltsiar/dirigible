@@ -298,7 +298,7 @@ extension ExportWindowTests {
         model.runPresets()
         let alert = try await untilReplaceSheet(of: window)
         try #require(sheetButtons(alert).first { $0.title == L10n.alertCancel.text }).performClick(nil)
-        await until("the set ends") { model.exportStep == nil }
+        await until("the set ends") { model.exportStep == nil && model.studio?.exportProgress == nil }
         #expect(try Data(contentsOf: old) == Data("old".utf8), "Cancel keeps the old file")
 
         await model.exportWithPresets()

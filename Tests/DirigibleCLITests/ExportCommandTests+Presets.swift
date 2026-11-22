@@ -80,6 +80,18 @@ extension ExportCommandTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: out("Ep").path).isEmpty)
     }
 
+    /// An `--out` that ends in / exits 64 also when no folder has its name: the slash rule alone decides.
+    @Test func anOutThatEndsInASlashExitsSixtyFourWithNoFolder() async throws {
+        let result = try await package.run("export", "PKG", "--preset", "master", "--out", out("Ep").path + "/")
+
+        #expect(result.status == 64, "an out that ends in / and names no folder exits 64")
+        #expect(
+            result.stderr.hasPrefix(
+                "Error: --out is <folder>/<prefix> for the presets, so it must not end in / or name a folder.\n"),
+            "\(result.stderr)")
+        #expect(try names() == ["Show.dirigible"])
+    }
+
     @Test func aDotInThePrefixIsPartOfThePrefix() async throws {
         let result = try await package.run("export", "PKG", "--preset", "master", "--out", prefixOut("Ep.1"))
 

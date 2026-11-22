@@ -28,16 +28,20 @@ extension ExportPreset {
             if node.attribute(forName: attribute) != nil { throw invalid(attribute) }
         }
         let format: ExportFormat
-        switch try node.string("format") {
-        case let token where ["wav", "flac"].contains(token):
+        let token = try node.string("format")
+        // `fileToken` does not read the bit depth or the bit rate.
+        let bitFormats: [(BitDepth) -> ExportFormat] = [ExportFormat.wav, ExportFormat.flac]
+        let rateFormats: [(BitRate) -> ExportFormat] = [ExportFormat.aac, ExportFormat.mp3]
+        if let make = bitFormats.first(where: { $0(.bits16).fileToken == token }) {
             try absent("bitRate")
             guard let bits = BitDepth(rawValue: try node.value("bits")) else { throw invalid("bits") }
-            format = token == "wav" ? .wav(bits) : .flac(bits)
-        case let token where ["aac", "mp3"].contains(token):
+            format = make(bits)
+        } else if let make = rateFormats.first(where: { $0(.k128).fileToken == token }) {
             try absent("bits")
             guard let rate = BitRate(rawValue: try node.value("bitRate")) else { throw invalid("bitRate") }
-            format = token == "aac" ? .aac(rate) : .mp3(rate)
-        default: throw invalid("format")
+            format = make(rate)
+        } else {
+            throw invalid("format")
         }
         guard let layout = ChannelLayout(rawValue: try node.string("channels")) else { throw invalid("channels") }
         let rateToken = try node.string("rate")
@@ -57,7 +61,7 @@ extension ExportPreset {
 
 extension ExportFormat {
     /// The `format` token of `<preset>`. No preset writes `caf`: `PresetOptions` refuses `.floatCAF`.
-    var fileToken: String {
+    package var fileToken: String {
         switch self {
         case .wav: "wav"
         case .flac: "flac"
@@ -70,7 +74,7 @@ extension ExportFormat {
 
 extension ExportRate {
     /// The `rate` token of `<preset>`.
-    var fileToken: String {
+    package var fileToken: String {
         switch self {
         case .session: "session"
         case .hz44100: "44100"

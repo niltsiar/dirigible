@@ -141,4 +141,17 @@ extension BinsSegmentTests {
         await model.close()
         #expect(studio.session.bins.first?.items.first?.name == "Closed", "the close lost the typed name")
     }
+
+    /// New Bin takes the first number that no bin name has, with the English name format. The test
+    /// process has no tables, so the window gives each new bin the key as its name.
+    @Test func newBinTakesAFreeName() throws {
+        let format = try #require(try stringsTable("en")[L10n.binsNewName.rawValue])
+        let name: (Int) -> String = { String(format: format, locale: .current, $0) }
+        var session = Session(sampleRate: 48_000)
+        #expect(SessionWindow.newBinName(session, name: name) == "Bin 1")
+        try session.addBin(named: "Bin 2")
+        #expect(SessionWindow.newBinName(session, name: name) == "Bin 1", "a second bin named Bin 2")
+        try session.addBin(named: "Bin 1")
+        #expect(SessionWindow.newBinName(session, name: name) == "Bin 3")
+    }
 }

@@ -202,6 +202,14 @@ package enum AgentManual {
         + "with no file extension, and the options of the call must not go with `preset`. A session preset with the "
         + "name of a built-in hides that built-in."
 
+    /// What Import Session takes (decision 0075). In the skill only: the manual has no room under its 6000
+    /// characters.
+    static let sessionImportLine =
+        "`import_session` (CLI: `dirigible import-session <package> <source>`) adds the tracks of another session "
+        + "package as new last tracks, for two recordings of one conversation: `source` (an absolute path), `at` "
+        + "(frames of this session added to the source positions; a negative value drops the source head), and "
+        + "`markers`. A track with an app route imports muted, and the source does not change."
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -263,6 +271,8 @@ package enum AgentManual {
 
             \(presetLine)
 
+            \(sessionImportLine)
+
             | Tool | Command |
             |---|---|
             \(tools)
@@ -311,6 +321,7 @@ extension Tool {
     static let commandNames = [
         "session_create": "create", "session_info": "info", "episode_get": "episode show",
         "nearest_pause": "nearest-pause", "silence_edit": "silence-edit", "export_stems": "export-stems",
+        "import_session": "import-session",
     ]
 
     /// The `dirigible` command words of the tool: the first word, then the other words with `-`.

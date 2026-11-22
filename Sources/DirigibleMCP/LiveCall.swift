@@ -106,7 +106,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, `info` to
         // `liveInfo`, and long work to `liveJob`.
         case .create, .record, .transport, .info, .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice,
-            .importFile,
+            .importFile, .importSession,
             .splitStereo,
             .clipRender,
             .chapters,

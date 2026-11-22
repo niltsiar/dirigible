@@ -1,0 +1,88 @@
+import DirigibleCore
+import Foundation
+import Testing
+import os
+
+@testable import DirigibleAudio
+@testable import DirigibleMCP
+
+/// The `import_session` tool of `dirigible mcp` on the files (decisions 0075 and 0049). The tool
+/// and the command each get their own copy of the fixture of `ImportSessionCommandTests`.
+struct MCPImportSessionToolTests {
+    func fixture(rate: Int = 48_000) throws -> (TemporaryPackage, URL) {
+        let package = try ImportCommandTests.package()
+        return (package, try ImportSessionCommandTests.source(beside: package, rate: rate))
+    }
+
+    /// The names in `Clips/`.
+    func clips(_ package: TemporaryPackage) -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: package.url.appending(path: "Clips").path)) ?? [])
+            .sorted()
+    }
+
+    /// The session with no track IDs: a new track gets a new random ID.
+    func shape(_ package: TemporaryPackage) throws -> [String] {
+        let session = try package.read()
+        return session.tracks.map { "\($0.name) \($0.isMuted) \(Array($0.clips))" }
+            + session.files.values.map(\.path).sorted() + session.sortedMarkers.map { "\($0.name) \($0.position)" }
+    }
+
+    /// C10: the tool gives the session and the text of the command, and its refusal lines.
+    @Test func importSessionToolMatchesTheCommand() async throws {
+        let cases: [(cli: [String], tool: [String: Any])] = [
+            ([], [:]),
+            (["--at", "48000", "--markers"], ["at": 48_000, "markers": true]),
+            (["--at", "\((1 << 40) + 1)"], ["at": (1 << 40) + 1]),
+            (["--at=-48000"], ["at": -48_000]),
+        ]
+        for (index, item) in cases.enumerated() {
+            let ((cli, cliSource), (tool, toolSource)) = (try fixture(), try fixture())
+            let run = try await cli.run(["import-session", "PKG", cliSource.path] + item.cli)
+            let arguments = item.tool.merging(["package": tool.path, "source": toolSource.path]) { $1 }
+            let result = toolResult(answer(try await mcp([toolCall(1, "import_session", arguments)]), id: 1))
+            if run.status == 0 {
+                #expect(!result.isError && result.text.split(separator: "\n").count == 1, "case \(index): \(result)")
+                #expect(try shape(tool) == shape(cli), "case \(index): the tool and the command wrote one session")
+            } else {
+                let expected = errorText(run).replacing(cliSource.path, with: toolSource.path)
+                    .replacing(cli.path, with: tool.path)
+                #expect(result == (expected, true), "case \(index): \(run)")
+            }
+        }
+    }
+
+    /// C10: progress grows before the answer at another rate, where each file converts.
+    @Test func importSessionToolReportsProgress() async throws {
+        let (package, source) = try fixture(rate: 44_100)
+        let lines = try await mcpLines([
+            toolCall(2, "import_session", ["package": package.path, "source": source.path], token: 7)
+        ])
+        let values = notifications(lines).compactMap { ($0["params"] as? [String: Any])?["progress"] as? Double }
+        #expect(!values.isEmpty && zip(values, values.dropFirst()).allSatisfy { $0 < $1 }, "\(values)")
+        #expect(!toolResult(answer(lines, id: 2)).isError)
+    }
+
+    /// C10: a cancel that comes after the renames removes the new WAVs, and `session.xml` stays.
+    @Test func importSessionToolCancels() throws {
+        let (package, source) = try fixture()
+        let before = (try package.xml(), clips(package))
+        let renamed = OSAllocatedUnfairLock(initialState: false)
+        let folder = package.url.appending(path: "Clips")
+        let control = CallControl(
+            token: nil, interval: .zero, send: { _ in },
+            poll: { _ in
+                renamed.withLock { seen in
+                    let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+                    seen = seen || names.contains { $0.hasSuffix(".wav") && !$0.hasPrefix(".") }
+                    return seen
+                }
+            }, step: {})
+        let work = ImportSessionWork(source: source.path, at: 0, markers: false)
+
+        #expect(throws: ToolError.self) { try work.run(package.url, path: package.path, control: control) }
+
+        #expect(renamed.withLock { $0 }, "the cancel came after the renames")
+        #expect(clips(package) == before.1, "the cancel left \(clips(package))")
+        #expect(try package.xml() == before.0, "a cancelled import changed session.xml")
+    }
+}

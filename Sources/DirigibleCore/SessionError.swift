@@ -147,4 +147,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case unknownBinItem(BinItemID)
     /// A bin move names a place that is not in the bin list. It changes nothing.
     case binIndexOutOfRange(Int)
+    /// A clip of a bin item ends after the item length, so a paste of the item would put it over the
+    /// track clips after the pasted block. It changes nothing.
+    case clipPastItemEnd(ClipID)
 }

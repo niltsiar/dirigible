@@ -356,7 +356,7 @@ func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file w
 /// or quits.
 func serverStopMessage(_ work: ToolWork) -> String {
     switch work {
-    case .export(let export) where export.split != nil:
+    case .export(let export) where export.split != nil || !export.presets.isEmpty:
         "Dirigible stopped its agent server, so the export stopped. The files that were written before the stop "
             + "stay in \(export.folder.path)."
     case .export(let export):

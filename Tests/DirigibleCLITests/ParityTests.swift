@@ -62,6 +62,8 @@ struct ParityTests {
         "roll": ["clip roll"],
         "slip": ["clip slip"],
         "setFollowTrack": ["track follow"],
+        "setExportPreset": ["preset set"],
+        "removeExportPreset": ["preset remove"],
         "setMatch": ["track match-voice"],
         "setMatchAmount": ["track match-voice"],
         "setMatchBypassed": ["track match-voice"],

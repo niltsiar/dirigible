@@ -56,6 +56,14 @@ package func summary(
         if let image = marker.image { line += " image \(quoted(image.path))" }
         lines.append(line)
     }
+    for preset in session.exportPresets.map(SessionView.PresetView.init) {
+        var line = "preset \(quoted(preset.name)) format \(preset.format)"
+        if let bits = preset.bits { line += " bits \(bits)" }
+        if let bitRate = preset.bitRate { line += " bitrate \(bitRate)" }
+        line += " channels \(preset.channels) rate \(preset.rate)"
+        if let loudness = preset.loudness { line += " loudness \(loudness)" }
+        lines.append(line)
+    }
     if let recording = session.recording {
         let armed = recording.armedTracks.map(\.rawValue).joined(separator: ",")
         let preRoll = recording.isPreRoll ? " pre-roll" : ""

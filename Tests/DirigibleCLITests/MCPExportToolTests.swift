@@ -88,6 +88,33 @@ struct MCPExportToolTests {
         }
     }
 
+    /// E11: `preset` writes one file for each preset, as `export --preset`: a path for each file, and the
+    /// loudness line after a tab. The refusals have the texts of the command with the tool names.
+    @Test func exportWithPresetsWritesTheSet() async throws {
+        try package.edit { $0.setEpisode(try ExportCommandTests.titledEpisode()) }
+        let set = out("Ep")
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": set, "preset": ["master", "podcast"]]),
+            toolCall(2, "export", ["package": package.path, "out": set, "preset": ["ghost"]]),
+            toolCall(3, "export", ["package": package.path, "out": set, "preset": ["master"], "bits": 16]),
+            toolCall(4, "export", ["package": package.path, "out": set + ".wav", "preset": ["master"]]),
+            toolCall(5, "export", ["package": package.path, "out": set, "preset": []]),
+        ])
+
+        let first = toolResult(answer(answers, id: 1))
+        let lines = first.text.split(separator: "\n").map(String.init)
+        #expect(!first.isError && lines.count == 2, "\(first)")
+        #expect(lines.first == set + ".wav" && lines.last?.hasPrefix(set + ".mp3\tloudness -19.") == true, "\(lines)")
+        #expect(try outputs().sorted() == ["Ep.mp3", "Ep.wav"])
+        #expect(toolResult(answer(answers, id: 2)) == ("The session has no preset ghost.", true))
+        let sets = "preset sets the options of each file, so it cannot go with bits."
+        #expect(toolResult(answer(answers, id: 3)) == (sets, true))
+        let name =
+            "out is the folder and the file name prefix of the presets, so it must not end in .wav, .m4a, .mp3, or .flac."
+        #expect(toolResult(answer(answers, id: 4)) == (name, true))
+        #expect(toolResult(answer(answers, id: 5)).isError, "an empty list of presets is a refused argument")
+    }
+
     /// C13: each tool gives the stdout and then the stderr lines of its command, "OK" for none, and
     /// the error text of a refusal with the tool names of the options (code gate 1 item 5). Clip `c2` of the missing file `gone` is on `t2` at 0..<20 000.
     @Test func theToolTextIsTheCommandText() async throws {

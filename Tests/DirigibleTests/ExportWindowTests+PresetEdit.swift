@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleCore
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -147,6 +148,26 @@ extension ExportWindowTests {
         #expect(studio.session == before)
         #expect(L10n.message(for: .session(.presetNameTaken("x"))) == L10n.errorPresetNameTaken.format("x"))
         await model.close()
+    }
+
+    /// The save panel can set the window of its accessory wider than the accessory asks. An accessory that
+    /// sets the width back loops with the panel while its name field shows, and the app freezes.
+    @Test func theExportAccessoryKeepsTheWidthOfThePanel() throws {
+        let host = NSHostingView(
+            rootView: ExportAccessory(
+                settings: ExportSettings(defaults: nil), sessionRate: 48_000, note: nil, savePreset: { _, _ in nil },
+                name: { "Show" }, changed: {}))
+        let window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: true)
+        window.contentView = host
+        window.layoutIfNeeded()
+        let asked = host.fittingSize
+        let wide = NSSize(width: asked.width + 10, height: asked.height)
+
+        window.setContentSize(wide)
+        window.updateConstraintsIfNeeded()
+        window.layoutIfNeeded()
+
+        #expect(window.contentRect(forFrameRect: window.frame).size == wide, "the accessory asked for \(asked)")
     }
 
     // MARK: E17, E18

@@ -45,7 +45,13 @@ extension SessionWindow {
         edit(ripple: false) { session throws(SessionError) in try session.addBin(named: Self.newBinName(session)) }
     }
 
-    private static func newBinName(_ session: Session) -> String { L10n.binsNewName.format(session.bins.count + 1) }
+    /// The name of the first number from 1 that no bin has. Of the numbers to count + 1, one is free when
+    /// `name` gives each number its own name; else the name of count + 1.
+    static func newBinName(_ session: Session, name: (Int) -> String = { L10n.binsNewName.format($0) }) -> String {
+        let taken = Set(session.bins.map(\.name))
+        let last = session.bins.count + 1
+        return (1...last).lazy.map(name).first { !taken.contains($0) } ?? name(last)
+    }
 
     func selectBinItem(_ id: BinItemID) {
         leadingPane.selectedBinItem = id

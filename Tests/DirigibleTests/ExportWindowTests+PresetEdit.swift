@@ -73,8 +73,16 @@ extension ExportWindowTests {
         model.editPreset()
         let edit = try #require(sheet.edit)
         #expect(edit.name == "Show" && edit.settings.format == .wav && edit.settings.bits == .bits24)
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(window.attachedSheet?.attachedSheet == nil, "one sheet: the pane is inside it")
+        let presets = try #require(window.attachedSheet)
+        func fields(_ view: NSView?) -> [NSTextField] {
+            guard let view else { return [] }
+            return ((view as? NSTextField).map { [$0] } ?? []) + view.subviews.flatMap(fields)
+        }
+        await until("the name field of the pane or a second sheet shows") {
+            presets.attachedSheet != nil
+                || fields(presets.contentView).contains { $0.isEditable && $0.stringValue == "Show" }
+        }
+        #expect(presets.attachedSheet == nil, "one sheet: the pane is inside it")
 
         edit.name = "Show MP3"
         edit.settings.format = .mp3

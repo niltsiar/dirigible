@@ -75,6 +75,8 @@ enum ToolWork: Sendable {
     case matchVoice(MatchWork, MatchWork.Request)
     /// `import`: a conversion and an edit under the lock, as `dirigible import`.
     case importFile(ImportWork)
+    /// `import_session`: file copies and an edit under the lock, as `dirigible import-session` (decision 0075).
+    case importSession(ImportSessionWork)
     /// `clip_split_stereo`: a pair writer and an edit under the lock, as `dirigible clip split-stereo`.
     case splitStereo(SplitWork)
     /// `clip_denoise` and `clip_repair`: a render and an edit under the lock, as `dirigible clip denoise` and
@@ -96,8 +98,8 @@ enum ToolWork: Sendable {
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice, .importFile, .splitStereo,
-            .clipRender, .chapters,
+        case .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice, .importFile, .importSession,
+            .splitStereo, .clipRender, .chapters,
             .transcriptExport, .read, .transcribe:
             true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,

@@ -76,7 +76,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveStems(work, target: target, path: call.path, report: report)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
-        .record, .transport, .words,
+        .record, .transport, .words, .importSession,
         .takeMap, .batch:
         return .notOpen
     }
@@ -368,6 +368,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .sync: "Dirigible stopped its agent server, so the sync stopped. No clip moved."
     case .matchVoice: "Dirigible stopped its agent server, so the voice match stopped. No track changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
+    case .importSession: "Dirigible stopped its agent server, so the session import stopped. No track was added."
     case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
     case .clipRender(let render): "Dirigible stopped its agent server, so the \(render.noun) stopped. No clip changed."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."

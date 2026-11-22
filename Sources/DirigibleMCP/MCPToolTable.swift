@@ -14,7 +14,8 @@ extension Tool {
         + timelineEditTools
         + envelopeTools + rippleTools
         + transcriptTools + takeTools
-        + backupTools + recordTools + transportTools + audioTools + chapterTools + sourceTools + batchTools
+        + backupTools + recordTools + transportTools + audioTools + sessionImportTools + chapterTools + sourceTools
+        + batchTools
 }
 
 /// The parameters that more than one tool has.

@@ -162,7 +162,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F148 | A clip mark on a live peak at 0 dBFS during a take | Audacity | Later | R3 |
 | F149 | Split a whole stereo track into L and R tracks that replace it | Audacity | Later | R7 |
 | F150 | Pan (balance) of a track | Hindenburg, Logic | Later | R7 |
-| F151 | Import Session: merge the tracks of another Dirigible package into the open session | Hindenburg PRO; user 2026-10-15 | Release 7 | R7 |
+| F151 | Import Session: merge the tracks of another Dirigible package into the open session | Hindenburg PRO; user 2026-10-15 | done, Release 7 run 5 (File > Import Session..., dirigible import-session, and the import_session tool); Later: the drift fit of a shared voice (landing 2, after F74 L2) | R7 |
 | F152 | The record time and its warning show only under 3 hours | tester 2026-10-15 | done, Release 4 run 1 | R1 |
 | F153 | The record-over warning is a chip over the track headers, with a menu to go to the end, show the clip, or turn off record | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | done, Release 4 run 3 | R7 |

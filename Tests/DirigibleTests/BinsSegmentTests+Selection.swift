@@ -50,4 +50,23 @@ extension BinsSegmentTests {
         #expect(model.binsListHasFocus(in: window), "the keys do not go to the list")
         await model.close()
     }
+
+    /// Add to Bin with another item selected selects the new item, and its rename commit keeps it.
+    @Test func addToBinSelectsTheNewItem() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window, route, _) = try await focusedList()
+        let table = try #require(model.leadingPane.binsTable)
+        try #require(table.selectedRow == 1, "control: Jingle is selected")
+        model.timeline.selection = .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
+        model.addToBin("bin1")
+        let added = try #require(studio.session.bins.first?.items.last?.id)
+        _ = try await renameEditor(model, window)
+
+        #expect(model.leadingPane.selectedBinItem == added, "the new item is not the selected item")
+        #expect(table.selectedRow == 2, "the list selects row \(table.selectedRow)")
+        route.press(chord("\r", code: 36, [], in: window), in: window)
+        await until("the rename ends") { model.leadingPane.binRename == nil }
+        #expect(model.leadingPane.selectedBinItem == added && table.selectedRow == 2, "the commit lost the selection")
+        await model.close()
+    }
 }

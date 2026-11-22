@@ -119,7 +119,8 @@ final class BinsTableView: NSTableView {
         if model?.leadingPane.binRename != nil { openField() }
     }
 
-    /// Selects the row of the selected item of the pane, or no row.
+    /// Selects the row of the selected item of the pane, or no row. The deselect keeps the item of the
+    /// pane: the row of a new item comes at the next update.
     func showSelection() {
         guard let table else { return }
         let id = model?.leadingPane.selectedBinItem
@@ -127,7 +128,10 @@ final class BinsTableView: NSTableView {
             if table.selectedRow != row { table.selectRowIndexes([row], byExtendingSelection: false) }
             table.scrollRowToVisible(row)
         } else if table.selectedRow != -1 {
+            let outer = updating
+            updating = true
             table.deselectAll(nil)
+            updating = outer
         }
     }
 

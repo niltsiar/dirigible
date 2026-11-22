@@ -110,6 +110,10 @@ extension SessionError {
         case .invalidPreset: "a preset cannot have the float CAF format of render."
         case .presetNameTaken(let name): "the preset name \"\(name)\" is taken by another preset or a built-in preset."
         case .unknownPreset(let name): "no preset \"\(name)\"."
+        case .emptyName: "a name must have a character that is not a space."
+        case .unknownBin(let id): "no bin \"\(id)\"."
+        case .unknownBinItem(let id): "no bin item \"\(id)\"."
+        case .binIndexOutOfRange(let index): "place \(index) is not in the bin list."
         }
     }
 }

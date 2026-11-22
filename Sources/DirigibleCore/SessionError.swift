@@ -141,4 +141,10 @@ public enum SessionError: Error, Hashable, Sendable {
     case presetNameTaken(String)
     /// The session stores no preset of this exact name. It changes nothing.
     case unknownPreset(String)
+    /// A bin or bin item name is empty after the trim of its spaces. It changes nothing.
+    case emptyName
+    case unknownBin(BinID)
+    case unknownBinItem(BinItemID)
+    /// A bin move names a place that is not in the bin list. It changes nothing.
+    case binIndexOutOfRange(Int)
 }

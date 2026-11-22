@@ -115,7 +115,7 @@ extension Session {
         }
         root.addChild(fileList)
         let rides = rideLists()
-        if !rides.lists.isEmpty { root.addChild(rides.element) }
+        if rides.element.childCount > 0 { root.addChild(rides.element) }
 
         let trackList = element("tracks")
         for track in tracks {
@@ -137,30 +137,7 @@ extension Session {
             case .app(let bundleID): node.addChild(element("route", ("app", bundleID)))
             }
             if let match = track.match { node.addChild(matchElement(match)) }
-            for clip in track.clips {
-                let clipNode = element(
-                    "clip", ("id", clip.id.rawValue), ("file", clip.file.rawValue),
-                    ("start", clip.start.description), ("offset", clip.offset.description),
-                    ("length", clip.length.description), ("gain", text(clip.gain.dB)))
-                // A fade of 0 is not written, so a clip with no fade keeps its version 1 text (0035).
-                if clip.fades.fadeIn != .zero { add(("fadeIn", clip.fades.fadeIn.description), to: clipNode) }
-                if clip.fades.fadeOut != .zero { add(("fadeOut", clip.fades.fadeOut.description), to: clipNode) }
-                // A crossfade of 0 is not written either, so a clip with none keeps its old text (0036).
-                if clip.crossfades.start != .zero {
-                    add(("crossfadeIn", clip.crossfades.start.description), to: clipNode)
-                }
-                if clip.crossfades.end != .zero { add(("crossfadeOut", clip.crossfades.end.description), to: clipNode) }
-                if let list = rides.lists[clip.id] { add(("ride", "r\(list)"), to: clipNode) }
-                if !clip.envelope.isEmpty {
-                    let envelope = element("envelope")
-                    for point in clip.envelope.points {
-                        envelope.addChild(
-                            element("point", ("frame", point.frame.description), ("gain", text(point.gain.dB))))
-                    }
-                    clipNode.addChild(envelope)
-                }
-                node.addChild(clipNode)
-            }
+            for clip in track.clips { node.addChild(clipElement(clip, ride: rides.lists[clip.id])) }
             trackList.addChild(node)
         }
         root.addChild(trackList)
@@ -179,6 +156,7 @@ extension Session {
         if !episode.isEmpty { root.addChild(episodeElement(episode)) }
         if !transcripts.isEmpty { root.addChild(transcriptsElement()) }
         if !exportPresets.isEmpty { root.addChild(exportPresetsElement()) }
+        if !bins.isEmpty { root.addChild(binsElement(rides: rides.byValue)) }
 
         if let recording {
             let node = element(
@@ -233,9 +211,11 @@ extension Session {
 
 extension Session {
     /// `<rides>` (decision 0060): one `<ride id="r<n>">` for each distinct ride list, numbered from 1 in
-    /// track and clip order, and the number of the list of each clip with a ride point. The text
-    /// is the `<frame> <gain>` pairs with one space between numbers, each gain in `text(_:)`.
-    fileprivate func rideLists() -> (lists: [ClipID: Int], element: XMLElement) {
+    /// track and clip order, then in bin, item, lane, and clip order, and the number of the list of each
+    /// track clip with a ride point. A bin clip keeps the ID of its source clip, so `byValue` gives the
+    /// number of the list of a bin clip by its ride. The text is the `<frame> <gain>` pairs with one
+    /// space between numbers, each gain in `text(_:)`.
+    fileprivate func rideLists() -> (lists: [ClipID: Int], byValue: [GainEnvelope: Int], element: XMLElement) {
         var distinct: [GainEnvelope] = []
         var lists: [ClipID: Int] = [:]
         for track in tracks {
@@ -245,6 +225,17 @@ extension Session {
                 } else {
                     distinct.append(clip.ride)
                     lists[clip.id] = distinct.count
+                }
+            }
+        }
+        var byValue: [GainEnvelope: Int] = [:]
+        for lane in bins.lazy.flatMap(\.items).flatMap(\.lanes) {
+            for clip in lane.clips where !clip.ride.isEmpty && byValue[clip.ride] == nil {
+                if let index = distinct.firstIndex(of: clip.ride) {
+                    byValue[clip.ride] = index + 1
+                } else {
+                    distinct.append(clip.ride)
+                    byValue[clip.ride] = distinct.count
                 }
             }
         }
@@ -262,8 +253,30 @@ extension Session {
             add(("id", "r\(index + 1)"), to: list)
             node.addChild(list)
         }
-        return (lists, node)
+        return (lists, byValue, node)
     }
+}
+
+/// The `<clip>` of a track clip or of a bin clip, with `ride="r<ride>"` when `ride` is not nil.
+func clipElement(_ clip: Clip, ride: Int?) -> XMLElement {
+    let node = element(
+        "clip", ("id", clip.id.rawValue), ("file", clip.file.rawValue), ("start", clip.start.description),
+        ("offset", clip.offset.description), ("length", clip.length.description), ("gain", text(clip.gain.dB)))
+    // A fade of 0 is not written, so a clip with no fade keeps its version 1 text (0035).
+    if clip.fades.fadeIn != .zero { add(("fadeIn", clip.fades.fadeIn.description), to: node) }
+    if clip.fades.fadeOut != .zero { add(("fadeOut", clip.fades.fadeOut.description), to: node) }
+    // A crossfade of 0 is not written either, so a clip with none keeps its old text (0036).
+    if clip.crossfades.start != .zero { add(("crossfadeIn", clip.crossfades.start.description), to: node) }
+    if clip.crossfades.end != .zero { add(("crossfadeOut", clip.crossfades.end.description), to: node) }
+    if let ride { add(("ride", "r\(ride)"), to: node) }
+    if !clip.envelope.isEmpty {
+        let envelope = element("envelope")
+        for point in clip.envelope.points {
+            envelope.addChild(element("point", ("frame", point.frame.description), ("gain", text(point.gain.dB))))
+        }
+        node.addChild(envelope)
+    }
+    return node
 }
 
 /// `<match amount reference curve target>` (decision 0074 D4), each list number in `Double.description`,
@@ -314,7 +327,7 @@ private func episodeElement(_ episode: Episode) -> XMLElement {
     return node
 }
 
-private func element(_ name: String, _ attributes: (String, String)...) -> XMLElement {
+func element(_ name: String, _ attributes: (String, String)...) -> XMLElement {
     let node = XMLElement(name: name)
     for attribute in attributes { add(attribute, to: node) }
     return node

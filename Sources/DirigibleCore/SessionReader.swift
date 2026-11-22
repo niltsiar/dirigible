@@ -51,6 +51,7 @@ extension Session {
         for node in root.children("tracks", "track") {
             tracks.append(try ParsedTrack(node, version: version, rides: &rides))
         }
+        let bins = try ParsedBin.list(in: root, version: version, rides: &rides)
         try rides.checkAllNamed()
         var markers: [Marker] = []
         for node in root.children("markers", "marker") { markers.append(try Marker(node, version: version)) }
@@ -76,6 +77,7 @@ extension Session {
             for file in files { try addFile(file) }
             try setOrigins(origins)
             try setDriftLinks(drifts)
+            try addBins(bins)
             for track in tracks {
                 try addTrack(track.id, name: track.name, layout: track.layout)
                 try setGain(track.gain, track: track.id)
@@ -143,16 +145,19 @@ private struct ParsedTrack {
         guard matches.count <= 1 else { throw .invalidValue(element: "match", attribute: "count") }
         match = try matches.first.map { match throws(SessionFileError) in try VoiceMatch(match, version: version) }
         var clips: [Clip] = []
-        for clip in node.sessionElements("clip") {
-            clips.append(
-                Clip(
-                    id: ClipID(try clip.string("id")), file: FileID(try clip.string("file")),
-                    start: try clip.frames("start"), offset: try clip.frames("offset"),
-                    length: try clip.frames("length"), gain: try clip.gain("gain"),
-                    fades: try clip.fades(version: version), crossfades: try clip.crossfades(version: version),
-                    envelope: try clip.envelope(version: version), ride: try rides.ride(of: clip, version: version)))
-        }
+        for clip in node.sessionElements("clip") { clips.append(try Clip(clip, version: version, rides: &rides)) }
         self.clips = clips
+    }
+}
+
+extension Clip {
+    /// A `<clip>` of a track or of a bin item.
+    init(_ node: XMLElement, version: Int, rides: inout RideLists) throws(SessionFileError) {
+        self.init(
+            id: ClipID(try node.string("id")), file: FileID(try node.string("file")), start: try node.frames("start"),
+            offset: try node.frames("offset"), length: try node.frames("length"), gain: try node.gain("gain"),
+            fades: try node.fades(version: version), crossfades: try node.crossfades(version: version),
+            envelope: try node.envelope(version: version), ride: try rides.ride(of: node, version: version))
     }
 }
 

@@ -68,7 +68,7 @@ extension SessionWindow {
             } catch {
                 return
             }
-            if store(name: text, options: options, replacing: nil) == nil { sheet.selection = .session(name) }
+            if savePreset(ExportOptions(options), name: text) == nil { sheet.selection = .session(name) }
             return
         }
     }
@@ -96,7 +96,7 @@ extension SessionWindow {
     /// closes the pane. A refused name gives its text and keeps the pane. A rename keeps the check.
     func savePresetEdit() -> String? {
         guard let sheet = presetSheet, let edit = sheet.edit else { return nil }
-        if let refusal = store(name: edit.name, options: edit.settings.options, replacing: edit.replacing) {
+        if let refusal = savePreset(edit.settings.options, name: edit.name, replacing: edit.replacing) {
             return refusal
         }
         sheet.edit = nil
@@ -107,12 +107,6 @@ extension SessionWindow {
     }
 
     func cancelPresetEdit() { presetSheet?.edit = nil }
-
-    /// Save as Preset... of the Export panel: stores `options` as a new session preset. One undo step. Gives
-    /// the text of a refused name, or nil.
-    func savePreset(_ options: ExportOptions, name: String) -> String? {
-        store(name: name, options: options, replacing: nil)
-    }
 
     /// Export of the sheet (Return): runs the set when Export is on, else does nothing.
     func runPresets() {
@@ -136,8 +130,10 @@ extension SessionWindow {
         return name(base)
     }
 
-    /// Stores a session preset as one undo step. Gives the text of a refusal, or nil.
-    private func store(name text: String, options: ExportOptions, replacing: PresetName?) -> String? {
+    /// Stores `options` as a session preset, in the place of `replacing` when it is set, as one undo step:
+    /// Save as Preset... of the Export panel, "+", and Save of the Edit pane. Gives the text of a refusal,
+    /// or nil.
+    func savePreset(_ options: ExportOptions, name text: String, replacing: PresetName? = nil) -> String? {
         guard let studio = idleStudio else { return L10n.message(for: StudioError.busy) }
         do throws(StudioError) {
             try studio.edit(ripple: false) { session throws(SessionError) in
@@ -150,9 +146,5 @@ extension SessionWindow {
         } catch {
             return L10n.message(for: error)
         }
-    }
-
-    private func store(name text: String, options: PresetOptions, replacing: PresetName?) -> String? {
-        store(name: text, options: ExportOptions(options), replacing: replacing)
     }
 }

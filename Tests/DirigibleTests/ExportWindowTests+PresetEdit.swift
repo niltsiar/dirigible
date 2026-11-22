@@ -250,8 +250,8 @@ extension ExportWindowTests {
     }
 
     @Test func theListHasTwoBuiltInsAndNoBroadcast() async throws {
-        let (model, studio, _, sheet) = try await presetSheet()
-        #expect(sheet.presets(in: studio.session).map(\.ref) == [Self.masterRef, Self.podcastRef])
+        let (model, studio, _, _) = try await presetSheet()
+        #expect(studio.session.allExportPresets.map(\.ref) == [Self.masterRef, Self.podcastRef])
         #expect(Set(BuiltInPreset.allCases.map(\.title)).count == BuiltInPreset.allCases.count, "one key each")
         model.cancelPresets()
         await model.close()
@@ -262,6 +262,14 @@ extension ExportWindowTests {
             #expect(presetSummary(BuiltInPreset.podcast.options) == "MP3, 128 kbit/s, mono, -19 LUFS")
             #expect(presetSummary(BuiltInPreset.master.options) == "WAV, 24-bit, stereo")
             #expect(presetTitle(Self.podcastRef) == "Podcast (MP3)" && presetTitle(Self.masterRef) == "Master (WAV)")
+        }
+    }
+
+    /// German writes a noun with a capital letter, so the channels keep the case of the table.
+    @Test func theGermanSummaryKeepsTheCaseOfTheChannels() async throws {
+        try await HeaderStateLineTests().withStrings("de") {
+            #expect(presetSummary(BuiltInPreset.master.options) == "WAV, 24 Bit, Stereo")
+            #expect(presetSummary(BuiltInPreset.podcast.options) == "MP3, 128 kbit/s, Mono, -19 LUFS")
         }
     }
 

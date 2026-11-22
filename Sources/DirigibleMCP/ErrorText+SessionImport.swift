@@ -25,6 +25,9 @@ extension SessionImportError {
                 + "\(source). Replace that item with a plain file."
         case .paste(.sourceMissing(let file)):
             "the source file \"\(file)\" is not there: \(source) moved, or the file was deleted."
+        case .paste(.notDownloaded(let file)):
+            "the file \"\(file)\" of \(source) is not on this Mac, so Dirigible does not import \(source). Download "
+                + "that session first."
         case .paste(.space(let needed, let free)): "the import needs \(needed) free bytes, and the disk has \(free)."
         case .paste(.cancelled): "the import was cancelled."
         case .paste(let error): error.message

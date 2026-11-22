@@ -178,6 +178,12 @@ import Testing
                 L10n.message(for: .source(.unsupportedVersion(99)), source: "Guest")
                     == "Dirigible did not import the session \u{201C}Guest\u{201D}. "
                     + L10n.message(for: SessionFileError.unsupportedVersion(99)))
+            for file in ["session.xml", "Transcripts/t1.xml", "a.wav"] {
+                #expect(
+                    L10n.message(for: SessionImportError.paste(.notDownloaded(file: file)), source: "Guest")
+                        == "Dirigible did not import the session \u{201C}Guest\u{201D}. Dirigible cannot import "
+                        + "\u{201C}\(file)\u{201D}. The file is not on this Mac. Download the file first.")
+            }
         }
     }
 

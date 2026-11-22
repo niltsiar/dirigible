@@ -137,5 +137,9 @@ struct MCPImportSessionToolTests {
             text(.sourceMissing(file: "a.wav"))
                 == "the source file \"a.wav\" is not there: /s/Guest.dirigible moved, or the file was deleted.")
         #expect(text(.cancelled) == "the import was cancelled.")
+        #expect(
+            text(.notDownloaded(file: "session.xml"))
+                == "the file \"session.xml\" of /s/Guest.dirigible is not on this Mac, so Dirigible does not import "
+                + "/s/Guest.dirigible. Download that session first.")
     }
 }

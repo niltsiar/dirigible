@@ -25,7 +25,7 @@ extension L10n {
         switch error {
         case .sourceMissing: errorImportSessionMissing.format(source)
         case .sourceChanged: errorImportSessionChanged.format(source)
-        case .notDownloaded(let file): errorImportNotDownloaded.format(file)
+        case .notDownloaded(let file): errorImportSessionSource.format(source, errorImportNotDownloaded.format(file))
         case .space, .write(_, ENOSPC): errorImportSessionSpace.format(source)
         case .write(_, let code): errorImportSessionCopy.format(source, Int(code))
         case .convert(_, let code): errorImportSessionConvert.format(source, Int(code))

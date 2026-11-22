@@ -18,6 +18,8 @@ public struct Session: Hashable, Sendable {
     /// The export presets of the session in the order that the user sees (decision 0080). Empty by
     /// default; the built-in presets are never stored.
     public internal(set) var exportPresets: [ExportPreset] = []
+    /// The bins of the session in the order that the user sees (F22). Empty by default.
+    public internal(set) var bins: [Bin] = []
 
     public init(sampleRate: Int) {
         precondition(sampleRate > 0, "A sample rate is positive")
@@ -104,11 +106,16 @@ public struct Session: Hashable, Sendable {
     }
 
     /// Removes the file record and the transcript words of the file, and a transcript with no word
-    /// left (decision 0055). It refuses a file that a clip uses or that an origin or a drift link
-    /// names (decisions 0057 and 0077).
+    /// left (decision 0055). It refuses a file that a clip of a track or of a bin uses, or that an
+    /// origin or a drift link names (decisions 0057 and 0077).
     public mutating func removeFile(_ id: FileID) throws(SessionError) {
+        try removeFile(id, clipFiles: clipFiles)
+    }
+
+    /// `removeFile(_:)` with the `clipFiles` of this session, which a batch of removes builds once.
+    mutating func removeFile(_ id: FileID, clipFiles: Set<FileID>) throws(SessionError) {
         guard files[id] != nil else { throw .unknownFile(id) }
-        guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
+        guard !clipFiles.contains(id) else { throw .fileInUse(id) }
         if let named = files.values.filter({ $0.linkedSource == id }).map(\.id).min() {
             throw .fileIsSource(id, of: named)
         }
@@ -246,7 +253,8 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
-    /// version of the present features: `presetSessionVersion` with an export preset (decision 0080),
+    /// version of the present features: `binSessionVersion` with a bin (F22), `presetSessionVersion`
+    /// with an export preset (decision 0080),
     /// `driftSessionVersion` with a drift link (decision 0077), `matchSessionVersion` with a voice match
     /// (decision 0074),
     /// `rideSessionVersion` with a ride point, `followSessionVersion`
@@ -260,6 +268,7 @@ public struct Session: Hashable, Sendable {
     /// else 1.
     public var fileVersion: Int {
         let features = [
+            bins.isEmpty ? nil : binSessionVersion,
             exportPresets.isEmpty ? nil : presetSessionVersion,
             files.values.contains { $0.drift != nil } ? driftSessionVersion : nil,
             tracks.contains { $0.match != nil } ? matchSessionVersion : nil,

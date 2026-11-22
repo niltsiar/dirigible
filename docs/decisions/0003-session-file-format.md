@@ -25,6 +25,7 @@
 - Amended: 2026-10-22, run `2026-10-18-envelope-ducking`. From version 11, a track can hold `role="dialogue"`, `"music"`, or `"effects"`. A track with no role writes no attribute (see 0060).
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). A `<file>` can hold one `<origin source offset gain>` element, with one element for each effect of the render in chain order.
 - Amended: 2026-11-22, run `2026-10-28-presets-templates` (see 0080). From version 20, the root can hold one `<exportPresets>` element after `<transcripts>`, with one `<preset name format rate channels>` for each session preset in list order: `bits` for WAV and FLAC, `bitRate` for AAC and MP3, and `loudness` only with a target. A session with no preset writes no element.
+- Amended: 2026-11-22, run `2026-10-28-favorites-bins` (F22). From version 21, the root can hold one `<bins>` element after `<exportPresets>` and before `<recording>`: one `<bin id name>` for each bin in list order, with one `<item id name kind length>` for each item, with one `<lane source name layout>` for each lane, with the `<clip>` elements of a track clip. `kind` is `range` or `clips`. The reader checks each bin clip as a track clip. A session with no bin writes no element.
 
 ## Context
 

@@ -328,7 +328,10 @@ extension L10n {
             .foreignFile, .emptyExcerpt,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo,
-            .noJoin, .followOverlap, .pendingTake, .invalidPreset, .unknownPreset:
+            .noJoin, .followOverlap, .pendingTake, .invalidPreset, .unknownPreset, .unknownBin, .unknownBinItem,
+            .binIndexOutOfRange,
+            // The window keeps the prefilled name when a rename field is empty.
+            .emptyName:
             return errorSessionOther.text
         case .invalidPresetName: return errorPresetName.format(PresetName.maximumLength)
         case .presetNameTaken(let name): return errorPresetNameTaken.format(name)

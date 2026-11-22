@@ -18,11 +18,11 @@ extension Session {
         return levels
     }
 
-    /// Each file that a clip plays, and each file in the chain of such a file: at each level the
-    /// origin source or the drift source. Remove Unused Files keeps these files, so Restore Original
-    /// and a second drift fix can go back to each source (decisions 0057 D7 and 0077 D2).
+    /// Each file that a clip of a track or of a bin plays, and each file in the chain of such a file:
+    /// at each level the origin source or the drift source. Remove Unused Files keeps these files, so
+    /// Restore Original and a second drift fix can go back to each source (decisions 0057 D7 and 0077 D2).
     var filesInUse: Set<FileID> {
-        var used = Set(tracks.flatMap { $0.clips.map(\.file) })
+        var used = clipFiles
         for file in used {
             var next = files[file]?.linkedSource
             while let source = next, used.insert(source).inserted { next = files[source]?.linkedSource }
@@ -37,7 +37,8 @@ extension Session {
         let ordered = ids.map { (id: $0, depth: linkDepth(of: $0)) }
             .sorted { $0.depth != $1.depth ? $0.depth > $1.depth : $0.id < $1.id }
         var copy = self
-        for file in ordered { try copy.removeFile(file.id) }
+        let used = clipFiles
+        for file in ordered { try copy.removeFile(file.id, clipFiles: used) }
         self = copy
     }
 

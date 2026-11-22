@@ -1079,4 +1079,8 @@
 "bins.rename" = "Umbenennen";
 "bins.remove" = "Löschen";
 "bins.missing" = "Die Audiodatei dieses Clips fehlt.";
+"bins.short" = "Die Audiodatei dieses Clips ist kürzer, als die Session angibt.";
+"bins.unreadable" = "Die Audiodatei dieses Clips konnte nicht gelesen werden.";
 "error.bin.missing" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.bin.short" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
+"error.bin.unreadable" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";

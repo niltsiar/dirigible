@@ -1079,4 +1079,8 @@
 "bins.rename" = "Rename";
 "bins.remove" = "Delete";
 "bins.missing" = "The audio file of this clip is missing.";
+"bins.short" = "The audio file of this clip is shorter than the session says.";
+"bins.unreadable" = "The audio file of this clip did not read.";
 "error.bin.missing" = "Dirigible cannot paste the bin clip. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.bin.short" = "Dirigible cannot paste the bin clip. The audio file “%@” is shorter than the session says. Restore the file and try again.";
+"error.bin.unreadable" = "Dirigible cannot paste the bin clip. The audio file “%@” did not read. Check the disk and try again.";

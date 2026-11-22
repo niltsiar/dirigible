@@ -1062,5 +1062,9 @@ enum L10n: String, CaseIterable {
     case binsRename = "bins.rename"
     case binsRemove = "bins.remove"
     case binsMissing = "bins.missing"
+    case binsShort = "bins.short"
+    case binsUnreadable = "bins.unreadable"
     case errorBinMissing = "error.bin.missing"
+    case errorBinShort = "error.bin.short"
+    case errorBinUnreadable = "error.bin.unreadable"
 }

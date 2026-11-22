@@ -59,7 +59,7 @@ extension SessionWindow {
     }
 
     /// Paste at Playhead, or Insert at Playhead with `insert`: a paste of a Copy of the item, with the
-    /// targets of Paste (C8). An item with a missing file pastes nothing and shows its alert (C32).
+    /// targets of Paste (C8). An item with a media fault pastes nothing and shows its alert (C32).
     func pasteBinItem(_ id: BinItemID, insert: Bool) {
         guard let studio = idleStudio else { return }
         if insert, !studio.canRipple { return beep() }
@@ -70,8 +70,8 @@ extension SessionWindow {
             return beep()
         }
         let files = clipboard.excerpt.lanes.flatMap { $0.clips.map(\.file) }
-        if let gone = files.first(where: { studio.missingMedia[$0] != nil }) {
-            alert = .binFileMissing(studio.session.files[gone]?.path ?? gone.rawValue)
+        if let file = files.first(where: { studio.missingMedia[$0] != nil }), let fault = studio.missingMedia[file] {
+            alert = .binFileFault(studio.session.files[file]?.path ?? file.rawValue, fault)
             return
         }
         paste(mode: insert ? .insert(at: studio.playhead) : .over(at: studio.playhead), from: clipboard)

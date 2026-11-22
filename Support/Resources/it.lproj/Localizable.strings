@@ -1079,4 +1079,8 @@
 "bins.rename" = "Rinomina";
 "bins.remove" = "Elimina";
 "bins.missing" = "Il file audio di questa clip non è presente.";
+"bins.short" = "Il file audio di questa clip è più corto di quanto dichiara la sessione.";
+"bins.unreadable" = "Impossibile leggere il file audio di questa clip.";
 "error.bin.missing" = "Dirigible non può incollare la clip del contenitore. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
+"error.bin.short" = "Dirigible non può incollare la clip del contenitore. Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
+"error.bin.unreadable" = "Dirigible non può incollare la clip del contenitore. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";

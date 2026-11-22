@@ -1079,4 +1079,8 @@
 "bins.rename" = "Renombrar";
 "bins.remove" = "Eliminar";
 "bins.missing" = "Falta el archivo de audio de este clip.";
+"bins.short" = "El archivo de audio de este clip es más corto de lo que dice la sesión.";
+"bins.unreadable" = "El archivo de audio de este clip no se pudo leer.";
 "error.bin.missing" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelve a poner el archivo en esa carpeta e inténtalo de nuevo.";
+"error.bin.short" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» es más corto de lo que dice la sesión. Restaura el archivo e inténtalo de nuevo.";
+"error.bin.unreadable" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» no se pudo leer. Comprueba el disco e inténtalo de nuevo.";

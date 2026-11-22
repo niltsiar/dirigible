@@ -1079,4 +1079,8 @@
 "bins.rename" = "Wijzig naam";
 "bins.remove" = "Verwijder";
 "bins.missing" = "Het audiobestand van deze clip ontbreekt.";
+"bins.short" = "Het audiobestand van deze clip is korter dan de sessie aangeeft.";
+"bins.unreadable" = "Het audiobestand van deze clip kon niet worden gelezen.";
 "error.bin.missing" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.bin.short" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
+"error.bin.unreadable" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";

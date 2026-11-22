@@ -89,35 +89,42 @@ extension BinsSegmentTests {
         await model.close()
     }
 
-    /// The menu state of Add to Bin builds no excerpt. Each excerpt of a clip on a rendered file copies
-    /// the words of its source, so ten reads of the state with 50,000 words take less time than one
-    /// excerpt.
-    @Test func addToBinStateBuildsNoExcerpt() async throws {
+    /// The menu state of Add to Bin builds no excerpt, so it copies the guard of
+    /// `Selection.excerpt(in:)`: it is on exactly when that excerpt is not nil, also for a range whose
+    /// tracks all follow, and off during a take.
+    @Test func addToBinStateMatchesTheExcerpt() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, _) = try await open(nil)
-        let words = FileWords(
-            (0..<50_000).compactMap { index in
-                FileWords.Word(file: "fa", range: Frames(index * 8)..<Frames(index * 8 + 8), text: "w")
-            })
-        let treatment = Treatment(.noise(.standard))
-        try studio.edit(ripple: false) { session throws(SessionError) in
-            let origin = RenderOrigin(source: "fa", offset: 0, treatment: treatment, addedGain: .zero)
-            try session.addFile(AudioFile(id: "fr", path: "fr.wav", layout: .mono, length: 480_000, origin: origin))
-            try session.place(Clip(id: "r", file: "fr", start: 300_000, offset: 0, length: 96_000), on: "t2")
-            try session.addTranscript(words, name: "T", derived: [])
+        let range = Selection.range(Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"]))
+        let following = Selection.range(
+            Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1", "t2"], tracksByDefault: true))
+        let states: [(String, Selection)] = [
+            ("no selection", .none), ("a range", range),
+            ("an empty range", .range(Marks(inPoint: 400_000, outPoint: 450_000, tracks: ["t2"]))),
+            ("a range of 0 frames", .range(Marks(inPoint: 48_000, outPoint: 48_000, tracks: ["t1"]))),
+            ("a clip set", .clips(ClipSet("b"))), ("a gone clip", .clips(ClipSet("gone"))),
+            ("a following range", following),
+        ]
+        var on: [String] = []
+        for (follow, cases) in [(false, states.dropLast()), (true, states.suffix(1))] {
+            if follow {
+                try studio.edit(ripple: false) { session throws(SessionError) in
+                    try session.setFollowTrack(true, tracks: ["t1", "t2"])
+                }
+            }
+            for (name, selection) in cases {
+                model.timeline.selection = selection
+                let excerpt = try? selection.excerpt(in: studio.session)
+                #expect(model.canAddToBin == (excerpt != nil), "\(name): the state differs from the excerpt")
+                if model.canAddToBin { on.append(name) }
+            }
         }
-        model.timeline.selection = .clips(ClipSet("r"))
-        let session = studio.session
-        let clock = ContinuousClock()
-        var excerpt = Duration.seconds(3_600)
-        for _ in 0..<3 {
-            excerpt = min(excerpt, clock.measure { _ = try? model.timeline.selection.excerpt(in: session) })
-        }
+        #expect(on == ["a range", "an empty range", "a clip set"], "control: the cases that have an excerpt")
 
-        var on = 0
-        let reads = clock.measure { for _ in 0..<10 where model.canAddToBin { on += 1 } }
-        #expect(on == 10, "control: Add to Bin is on with the clip")
-        #expect(reads < excerpt, "ten reads of the state took \(reads), one excerpt \(excerpt)")
+        model.timeline.selection = range
+        studio.transport = .recording(take: 1)
+        #expect(!model.canAddToBin, "Add to Bin is on during a take")
+        studio.transport = .idle
         await model.close()
     }
 

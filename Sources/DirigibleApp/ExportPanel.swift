@@ -337,7 +337,7 @@ struct ExportAccessory: View {
         }
         .padding()
         // The panel can set a wider window. A width that sets it back loops with the panel and freezes the app.
-        .frame(minWidth: 420, maxWidth: .infinity)
+        .frame(minWidth: 420, idealWidth: 420, maxWidth: .infinity)
         .onChange(of: settings.format) { changed() }
         .onChange(of: settings.files) { changed() }
     }

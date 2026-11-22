@@ -67,16 +67,20 @@ struct SaveAsPresetRow: View {
     var body: some View {
         if let current = name {
             HStack {
+                // Return in the field saves, so it does not reach the Export button of the panel.
                 TextField(L10n.exportPresetsName.text, text: Binding(get: { current }, set: { name = $0 }))
-                Button(L10n.exportPresetsSave.key) {
-                    refusal = save(settings.options, current)
-                    if refusal == nil { name = nil }
-                }
+                    .onSubmit { submit(current) }
+                Button(L10n.exportPresetsSave.key) { submit(current) }
             }
             if let refusal { Text(verbatim: refusal).foregroundStyle(.secondary) }
         } else {
             Button(L10n.exportPresetsSaveAs.key) { name = "" }
         }
+    }
+
+    private func submit(_ current: String) {
+        refusal = save(settings.options, current)
+        if refusal == nil { name = nil }
     }
 }
 

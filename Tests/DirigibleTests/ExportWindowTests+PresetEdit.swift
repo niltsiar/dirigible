@@ -151,23 +151,75 @@ extension ExportWindowTests {
     }
 
     /// The save panel can set the window of its accessory wider than the accessory asks. An accessory that
-    /// sets the width back loops with the panel while its name field shows, and the app freezes.
+    /// sets the width back loops with the panel while its name field shows, and the app freezes. A long
+    /// note and a long refusal of Save as Preset wrap in the width of 420.
     @Test func theExportAccessoryKeepsTheWidthOfThePanel() throws {
-        let host = NSHostingView(
-            rootView: ExportAccessory(
-                settings: ExportSettings(defaults: nil), sessionRate: 48_000, note: nil, savePreset: { _, _ in nil },
-                name: { "Show" }, changed: {}))
-        let window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: true)
-        window.contentView = host
+        let note = String(repeating: "Stummgeschaltete Spuren sind nicht im Export. ", count: 6)
+        var saves = 0
+        let (host, window) = Self.accessory(note: note) { _, _ in
+            saves += 1
+            return L10n.errorPresetNameTaken.format(String(repeating: "N", count: 64))
+        }
+        var heights: [CGFloat] = []
+        // Save as Preset..., then Save.
+        for _ in 0..<2 {
+            window.layoutIfNeeded()
+            heights.append(host.fittingSize.height)
+            try Self.rowButton(in: host).performClick(nil)
+        }
         window.layoutIfNeeded()
+        #expect(saves == 1 && host.fittingSize.height > heights[1], "the refusal shows under the name field")
+        #expect(host.fittingSize.width == 420)
         let asked = host.fittingSize
-        let wide = NSSize(width: asked.width + 10, height: asked.height)
+        // The window rounds a content size to whole points.
+        let wide = NSSize(width: asked.width + 10, height: asked.height.rounded(.up))
 
         window.setContentSize(wide)
         window.updateConstraintsIfNeeded()
         window.layoutIfNeeded()
 
         #expect(window.contentRect(forFrameRect: window.frame).size == wide, "the accessory asked for \(asked)")
+    }
+
+    /// Return in the name field of Save as Preset saves, as Save does, so the panel button gets no Return.
+    @Test func returnInThePresetNameFieldSaves() async throws {
+        var names: [String] = []
+        let (host, window) = Self.accessory(note: nil) { _, name in
+            names.append(name)
+            return nil
+        }
+        window.layoutIfNeeded()
+        try Self.rowButton(in: host).performClick(nil)
+        func field() -> NSTextField? {
+            window.layoutIfNeeded()
+            return Self.views(host).compactMap { $0 as? NSTextField }.first { $0.isEditable }
+        }
+        await until(limit: .seconds(10), "the name field shows") { field() != nil }
+        let field = try #require(field())
+
+        field.sendAction(field.action, to: field.target)
+
+        #expect(names == [""])
+    }
+
+    /// The Export accessory in a window, with `savePreset` as the save of Save as Preset.
+    static func accessory(note: String?, savePreset: @escaping @MainActor (ExportOptions, String) -> String?)
+        -> (NSHostingView<ExportAccessory>, NSWindow)
+    {
+        let host = NSHostingView(
+            rootView: ExportAccessory(
+                settings: ExportSettings(defaults: nil), sessionRate: 48_000, note: note, savePreset: savePreset,
+                name: { "Show" }, changed: {}))
+        let window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: true)
+        window.contentView = host
+        return (host, window)
+    }
+
+    static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
+
+    /// Save as Preset... or Save: the row has one button that is not a pop-up in each state.
+    static func rowButton(in host: NSView) throws -> NSButton {
+        try #require(views(host).first { $0 is NSButton && !($0 is NSPopUpButton) } as? NSButton)
     }
 
     // MARK: E17, E18

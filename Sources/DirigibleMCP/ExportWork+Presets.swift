@@ -32,12 +32,23 @@ extension ExportWork {
         }
     }
 
-    /// The confirmation of each item that `replace` takes. Refuses two presets of one file name, and an
-    /// item at a target with no `replace`. It reads the targets, so call it off the main actor.
-    package func presetConfirmations(_ list: [PresetEntry]) throws(ExportPresetsError) -> [URL: ConfirmedFile] {
+    /// The refusal of a preset whose format cannot write its rate in `session`. It reads no file, so the
+    /// front ends run it before the media check and the check of the targets.
+    package func checkRates(_ list: [PresetEntry], in session: Session) throws(ToolError) {
+        do throws(ExportPresetsError) { try checkPresetRates(list, sessionRate: session.sampleRate) } catch {
+            throw ToolError(presetRefusal(error))
+        }
+    }
+
+    /// The confirmation of each item that `replace` takes. Refuses a rate that a preset cannot write, two
+    /// presets of one file name, and an item at a target with no `replace`. It reads the targets, so call
+    /// it off the main actor.
+    package func presetConfirmations(_ list: [PresetEntry], sessionRate: Int) throws(ExportPresetsError)
+        -> [URL: ConfirmedFile]
+    {
         var confirmed: [URL: ConfirmedFile] = [:]
         var existing: [URL] = []
-        for target in try presetTargets(list, folder: folder, prefix: presetPrefix) {
+        for target in try presetTargets(list, folder: folder, prefix: presetPrefix, sessionRate: sessionRate) {
             guard let item = ConfirmedFile(at: target.url) else { continue }
             if replace { confirmed[target.url] = item } else { existing.append(target.url) }
         }
@@ -115,9 +126,12 @@ extension ExportWork {
         throws(ToolError) -> String
     {
         let list = try presetList(in: session)
+        try checkRates(list, in: session)
         try checkFiles(session, package: package, source: source)
         let replacing: [URL: ConfirmedFile]
-        do throws(ExportPresetsError) { replacing = try presetConfirmations(list) } catch {
+        do throws(ExportPresetsError) {
+            replacing = try presetConfirmations(list, sessionRate: session.sampleRate)
+        } catch {
             throw ToolError(presetRefusal(error))
         }
         let files: [ExportedPreset]

@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Un préréglage nommé « %@ » existe déjà. Choisissez un autre nom.";
 "error.preset.name" = "Un nom de préréglage a de 1 à %lld caractères, sans espace au début ni à la fin.";
 "error.export.presets.duplicate" = "Deux préréglages donnent le nom de fichier %@. Renommez l’un des préréglages.";
+"error.export.presets.rate" = "Le préréglage \U00AB\U00A0%@\U00A0\U00BB ne peut pas exporter à %lld Hz. Modifiez le préréglage et choisissez 44,1 kHz ou 48 kHz.";

@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "A preset named “%@” exists. Choose another name.";
 "error.preset.name" = "A preset name has 1 to %lld characters, with no space at the start or the end.";
 "error.export.presets.duplicate" = "Two presets give the file name %@. Rename one of the presets.";
+"error.export.presets.rate" = "The preset \U201C%@\U201D cannot write %lld Hz. Edit the preset and select 44.1 kHz or 48 kHz.";

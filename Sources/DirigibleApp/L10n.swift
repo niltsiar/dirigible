@@ -1019,4 +1019,5 @@ enum L10n: String, CaseIterable {
     case errorPresetNameTaken = "error.preset.name.taken"
     case errorPresetName = "error.preset.name"
     case errorExportPresetsDuplicate = "error.export.presets.duplicate"
+    case errorExportPresetsRate = "error.export.presets.rate"
 }

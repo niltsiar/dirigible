@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Esiste già un preset chiamato “%@”. Scegli un altro nome.";
 "error.preset.name" = "Il nome di un preset ha da 1 a %lld caratteri, senza spazi all’inizio o alla fine.";
 "error.export.presets.duplicate" = "Due preset danno il nome di file %@. Rinomina uno dei preset.";
+"error.export.presets.rate" = "Il preset \U201C%@\U201D non può esportare a %lld Hz. Modifica il preset e scegli 44,1 kHz o 48 kHz.";

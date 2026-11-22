@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Ya existe un preajuste llamado “%@”. Elige otro nombre.";
 "error.preset.name" = "Un nombre de preajuste tiene de 1 a %lld caracteres, sin espacios al principio ni al final.";
 "error.export.presets.duplicate" = "Dos preajustes dan el nombre de archivo %@. Cambia el nombre de uno de los preajustes.";
+"error.export.presets.rate" = "El preajuste \U201C%@\U201D no puede exportar a %lld Hz. Edita el preajuste y elige 44,1 kHz o 48 kHz.";

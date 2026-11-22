@@ -1035,3 +1035,4 @@
 "error.preset.name.taken" = "Er bestaat al een voorinstelling met de naam ‘%@’. Kies een andere naam.";
 "error.preset.name" = "De naam van een voorinstelling heeft 1 tot %lld tekens, zonder spatie aan het begin of eind.";
 "error.export.presets.duplicate" = "Twee voorinstellingen geven de bestandsnaam %@. Wijzig de naam van een van de voorinstellingen.";
+"error.export.presets.rate" = "De voorinstelling \U2018%@\U2019 kan niet exporteren met %lld Hz. Wijzig de voorinstelling en kies 44,1 kHz of 48 kHz.";

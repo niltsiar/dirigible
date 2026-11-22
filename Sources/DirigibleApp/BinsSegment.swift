@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The Bins segment of the leading pane (F22): the list of the bins and their items, and New Bin. A
 /// session with no bin shows "No Bins" with a New Bin button (C31). The body reads the bins and the
-/// missing files of the studio, not the playhead.
+/// media faults of the studio, not the playhead.
 struct BinsSegment: View {
     let model: SessionWindow
     let studio: Studio
@@ -23,7 +23,7 @@ struct BinsSegment: View {
                 }
             } else {
                 BinsTable(
-                    model: model, rows: BinsRow.rows(bins, missing: Set(studio.missingMedia.keys)),
+                    model: model, rows: BinsRow.rows(bins, faults: studio.missingMedia),
                     rate: studio.session.sampleRate)
                 HStack {
                     Button(L10n.binsNew.key) { model.newBin() }.disabled(!model.canEdit)

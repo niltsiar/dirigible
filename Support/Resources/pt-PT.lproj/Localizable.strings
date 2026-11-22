@@ -1079,4 +1079,8 @@
 "bins.rename" = "Mudar o nome";
 "bins.remove" = "Apagar";
 "bins.missing" = "O ficheiro de áudio deste clipe não existe.";
+"bins.short" = "O ficheiro de áudio deste clipe é mais curto do que a sessão indica.";
+"bins.unreadable" = "Não foi possível ler o ficheiro de áudio deste clipe.";
 "error.bin.missing" = "O Dirigible não pode colar o clipe do compartimento. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
+"error.bin.short" = "O Dirigible não pode colar o clipe do compartimento. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
+"error.bin.unreadable" = "O Dirigible não pode colar o clipe do compartimento. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";

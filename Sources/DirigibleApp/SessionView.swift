@@ -47,7 +47,7 @@ struct SessionView: View {
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .importChain, .exported, .exportedSet, .noUnusedFiles, .transcriptExport,
                     .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .templateNewKept,
-                    .templateOldKept, .binFileMissing:
+                    .templateOldKept, .binFileFault:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
@@ -327,7 +327,9 @@ extension WindowAlert {
         case .templateOpen(let name): L10n.errorTemplateOpen.format(name)
         case .templateNewKept(let name, let path): L10n.errorTemplateKeptNew.format(name, path)
         case .templateOldKept(let name, let path): L10n.errorTemplateKeptOld.format(name, path)
-        case .binFileMissing(let path): L10n.errorBinMissing.format(path)
+        case .binFileFault(let path, .missing): L10n.errorBinMissing.format(path)
+        case .binFileFault(let path, .short): L10n.errorBinShort.format(path)
+        case .binFileFault(let path, .unreadable): L10n.errorBinUnreadable.format(path)
         }
     }
 }

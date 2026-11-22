@@ -1,18 +1,19 @@
 import AppKit
+import DirigibleAudio
 import DirigibleCore
 import SwiftUI
 
-/// A row of the Bins list: the header of a bin, or an item with the missing-file state of its clips.
+/// A row of the Bins list: the header of a bin, or an item with the first media fault of its clips.
 enum BinsRow: Hashable {
     case bin(Bin)
-    case item(BinItem, missing: Bool)
+    case item(BinItem, fault: MediaFault?)
 
     /// The rows of `bins` in user order: each bin, then its items.
-    static func rows(_ bins: [Bin], missing: Set<FileID>) -> [BinsRow] {
+    static func rows(_ bins: [Bin], faults: [FileID: MediaFault]) -> [BinsRow] {
         bins.flatMap { bin in
             [.bin(bin)]
                 + bin.items.map { item in
-                    .item(item, missing: item.lanes.contains { $0.clips.contains { missing.contains($0.file) } })
+                    .item(item, fault: item.lanes.lazy.flatMap(\.clips).compactMap { faults[$0.file] }.first)
                 }
         }
     }
@@ -212,9 +213,9 @@ final class BinsTableView: NSTableView {
             let cell = BinHeaderCell()
             cell.textField?.stringValue = bin.name
             return cell
-        case .item(let item, let missing):
+        case .item(let item, let fault):
             let cell = BinItemCell()
-            cell.show(item, rate: rate, missing: missing)
+            cell.show(item, rate: rate, fault: fault)
             cell.actions = { [weak self] in self?.itemActions(item.id) ?? [] }
             return cell
         }
@@ -319,12 +320,12 @@ final class BinHeaderCell: NSTableCellView {
     required init?(coder: NSCoder) { fatalError("not used") }
 }
 
-/// The row of an item: the name, the length in the time format of the ruler, and the missing-file
-/// mark of the timeline clips (C24, C32). It reads no peaks. VoiceOver reads it as one element with
-/// three actions (C30).
+/// The row of an item: the name, the length in the time format of the ruler, and the media fault
+/// mark of the timeline clips, with a help tag that names the fault (C24, C32). It reads no peaks.
+/// VoiceOver reads it as one element with three actions (C30).
 final class BinItemCell: NSTableCellView {
     let length = NSTextField(labelWithString: "")
-    let missing = NSImageView()
+    let faultMark = NSImageView()
     var actions: () -> [NSAccessibilityCustomAction] = { [] }
 
     override init(frame: NSRect) {
@@ -333,20 +334,19 @@ final class BinItemCell: NSTableCellView {
         textField = name
         length.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
         length.textColor = .secondaryLabelColor
-        missing.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
-        missing.contentTintColor = .systemRed
-        missing.toolTip = L10n.binsMissing.text
-        for view in [name, length, missing] as [NSView] {
+        faultMark.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
+        faultMark.contentTintColor = .systemRed
+        for view in [name, length, faultMark] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             view.setAccessibilityElement(false)
             addSubview(view)
         }
         length.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
-            missing.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            missing.centerYAnchor.constraint(equalTo: centerYAnchor),
-            missing.widthAnchor.constraint(equalToConstant: 14),
-            name.leadingAnchor.constraint(equalTo: missing.trailingAnchor, constant: 4),
+            faultMark.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            faultMark.centerYAnchor.constraint(equalTo: centerYAnchor),
+            faultMark.widthAnchor.constraint(equalToConstant: 14),
+            name.leadingAnchor.constraint(equalTo: faultMark.trailingAnchor, constant: 4),
             name.centerYAnchor.constraint(equalTo: centerYAnchor),
             length.leadingAnchor.constraint(greaterThanOrEqualTo: name.trailingAnchor, constant: 6),
             length.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
@@ -356,10 +356,17 @@ final class BinItemCell: NSTableCellView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    func show(_ item: BinItem, rate: Int, missing isMissing: Bool) {
+    func show(_ item: BinItem, rate: Int, fault: MediaFault?) {
         textField?.stringValue = item.name
         length.stringValue = rulerLabel(Double(item.length.count) / Double(rate), tenths: false)
-        missing.isHidden = !isMissing
+        faultMark.isHidden = fault == nil
+        faultMark.toolTip =
+            switch fault {
+            case .missing: L10n.binsMissing.text
+            case .short: L10n.binsShort.text
+            case .unreadable: L10n.binsUnreadable.text
+            case nil: nil
+            }
     }
 
     override func isAccessibilityElement() -> Bool { true }

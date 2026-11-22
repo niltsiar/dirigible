@@ -1079,4 +1079,8 @@
 "bins.rename" = "Renommer";
 "bins.remove" = "Supprimer";
 "bins.missing" = "Le fichier audio de ce clip est manquant.";
+"bins.short" = "Le fichier audio de ce clip est plus court que ne l’indique la session.";
+"bins.unreadable" = "Le fichier audio de ce clip n’a pas pu être lu.";
 "error.bin.missing" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
+"error.bin.short" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » est plus court que ne l’indique la session. Restaurez le fichier et réessayez.";
+"error.bin.unreadable" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";

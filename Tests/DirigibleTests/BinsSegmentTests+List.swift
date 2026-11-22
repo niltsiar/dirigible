@@ -251,15 +251,29 @@ extension BinsSegmentTests {
         await model.close()
     }
 
-    @Test func missingFileItemRefusesPaste() async throws {
+    /// C32: the help tag of the row mark and the paste alert name the fault of the file.
+    @Test func faultyFileItemRefusesPaste() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, route, _) = try await focusedList()
-        studio.missingMedia = ["fa": .missing]
-        await until("the row shows the missing file") { (try? itemCell(model).missing.isHidden) == false }
         let tracks = studio.session.tracks
-        route.press(chord("\r", code: 36, .command, in: window), in: window)
-        #expect(studio.session.tracks == tracks, "a paste of a missing file added a clip")
-        #expect(model.alert == .binFileMissing("fa.wav"), "\(String(describing: model.alert))")
+        let faults: [(MediaFault, help: L10n, text: L10n)] = [
+            (.missing, .binsMissing, .errorBinMissing), (.short(1_000), .binsShort, .errorBinShort),
+            (.unreadable, .binsUnreadable, .errorBinUnreadable),
+        ]
+        for (fault, help, text) in faults {
+            studio.missingMedia = ["fa": fault]
+            await until("the row has the fault \(fault)") {
+                let rows = model.leadingPane.binsTable?.source?.rows ?? []
+                return rows.contains { if case .item(_, let found) = $0 { found == fault } else { false } }
+            }
+            let mark = try itemCell(model).faultMark
+            #expect(!mark.isHidden && mark.toolTip == help.text, "\(fault): \(String(describing: mark.toolTip))")
+            route.press(chord("\r", code: 36, .command, in: window), in: window)
+            #expect(studio.session.tracks == tracks, "a paste of a file with \(fault) added a clip")
+            #expect(model.alert == .binFileFault("fa.wav", fault), "\(String(describing: model.alert))")
+            #expect(model.alert?.text == text.format("fa.wav"), "\(fault)")
+            model.alert = nil
+        }
         await model.close()
     }
 

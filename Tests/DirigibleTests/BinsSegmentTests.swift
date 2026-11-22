@@ -263,8 +263,9 @@ import Testing
         let english = try stringsTable("en")
         let keys: [L10n] = [
             .indexSegmentBins, .menuViewBinsShow, .menuViewBinsHide, .menuEditAddToBin, .binsNew, .binsNewName,
-            .binsEmpty, .binsEmptyHint, .binsPaste, .binsInsert, .binsRename, .binsRemove, .errorBinMissing,
-            .toolbarSidebar, .toolbarSidebarShow, .toolbarSidebarHide,
+            .binsEmpty, .binsEmptyHint, .binsPaste, .binsInsert, .binsRename, .binsRemove, .binsMissing,
+            .binsShort, .binsUnreadable, .errorBinMissing, .errorBinShort, .errorBinUnreadable, .toolbarSidebar,
+            .toolbarSidebarShow, .toolbarSidebarHide,
         ]
         for key in keys {
             let value = try #require(english[key.rawValue], "no English value for \(key.rawValue)")

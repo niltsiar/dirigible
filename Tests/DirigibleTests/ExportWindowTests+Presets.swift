@@ -230,7 +230,7 @@ extension ExportWindowTests {
         model.runPresets()
         await until("the set holds in file 2") { hold.isHeld && studio.exportFile?.number == 2 }
         #expect(studio.exportPresetRefs == [Self.masterRef, Self.podcastRef])
-        #expect(model.sheetTitle == L10n.exportPresetsProgress.format(presetTitle(Self.podcastRef)))
+        try await english { #expect(model.sheetTitle == "Exporting Podcast (MP3)") }
         model.cancelExport()
         hold.release()
         await until("the set ends") {

@@ -113,7 +113,7 @@ func exportNote(_ session: Session, _ source: ExportSource) -> ExportNote? {
 /// The save panel of Export with its accessory pop-ups, as a sheet of `window`.
 enum ExportPanel {
     /// Calls `done` with the target at OK, or with nil at Cancel. `note` is one line under the
-    /// pop-ups. Save as Preset... stores the options through `savePreset` (P-Q2).
+    /// pop-ups. Save as Preset... stores the options through `savePreset`.
     @MainActor static func begin(
         for window: NSWindow, name: String, sessionRate: Int, settings: ExportSettings, note: String?,
         savePreset: @escaping @MainActor (ExportOptions, String) -> String?,

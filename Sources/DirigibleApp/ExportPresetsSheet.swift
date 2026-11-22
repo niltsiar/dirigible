@@ -27,7 +27,7 @@ func presetTitle(_ ref: PresetRef) -> String {
 }
 
 /// One line of the options of a preset: the format, the bit depth or the bit rate, the channels, and the
-/// loudness target when it is set. The rate is not named (P-Q4).
+/// loudness target when it is set. The rate is not named.
 func presetSummary(_ options: PresetOptions) -> String {
     let (format, detail): (L10n, String) =
         switch options.format {
@@ -71,7 +71,7 @@ func presetSummary(_ options: PresetOptions) -> String {
 /// The state of the preset sheet (decision 0080): the range, the checked presets, the selected row, the
 /// folder and prefix, and the Edit pane.
 @Observable @MainActor final class PresetSheet {
-    /// The checked presets of all sessions (P-Q5): a token for each `PresetRef`, so a session preset and a
+    /// The checked presets of all sessions: a token for each `PresetRef`, so a session preset and a
     /// built-in of one key have their own checks. The key never changes its meaning or its type (0024 P11).
     nonisolated static let checkedKey = "export.presets.checked"
 
@@ -86,7 +86,7 @@ func presetSummary(_ options: PresetOptions) -> String {
     var target: PresetFolder?
     var edit: PresetEdit?
 
-    /// With no stored checks, only the podcast preset is checked (E14: both built-ins take 9.5 times one export).
+    /// With no stored checks, only the podcast preset is checked (both built-ins take 9.5 times one export).
     init(source: ExportSource, marks: Bool, defaults: UserDefaults?) {
         (self.source, self.marks, self.defaults) = (source, marks, defaults)
         checked =

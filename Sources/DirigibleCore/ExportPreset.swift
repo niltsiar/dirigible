@@ -48,7 +48,6 @@ public enum BuiltInPreset: String, CaseIterable, Hashable, Sendable {
 
     public var options: PresetOptions {
         switch self {
-        // A pass-through: the samples of the mix.
         case .master: try! PresetOptions(format: .wav(.bits24), layout: .stereo, rate: .session, loudness: nil)
         // The podcast target of decision 0008 is -19 LUFS for mono.
         case .podcast: try! PresetOptions(format: .mp3(.k128), layout: .mono, rate: .hz44100, loudness: .podcast)

@@ -96,13 +96,17 @@ struct BinCommandTests {
         #expect(try package.read().bins.map(\.id.rawValue) == [first])
     }
 
-    /// C10: an unknown bin or item, a place past the list, and a name of only spaces exit 1 with one
-    /// `Error:` line, and `session.xml` keeps its bytes. Two selections exit 64.
+    /// C10: an unknown bin or item, a place past the list, a name of only spaces, and an empty range exit
+    /// 1 with one `Error:` line, and `session.xml` keeps its bytes. Two selections exit 64.
     @Test func refusalsChangeNothing() async throws {
         let bin = id(try await package.run("bin", "add", "PKG", "Show"))
         let refusals: [([String], String)] = [
             (["rename", "PKG", "ghost", "Talk"], "no bin \"ghost\"."),
             (["item-add", "PKG", "ghost", "Sting", "--clip", "A"], "no bin \"ghost\"."),
+            (
+                ["item-add", "PKG", bin, "Empty", "--from", "10", "--to", "10", "--track", "t1"],
+                "the excerpt has no frames: give a range or clips with audio."
+            ),
             (["move", "PKG", bin, "--index", "1"], "place 1 is not in the bin list."),
             (["rename", "PKG", bin, "   "], "a name must have a character that is not a space."),
             (["item-remove", "PKG", "ghost"], "no bin item \"ghost\"."),

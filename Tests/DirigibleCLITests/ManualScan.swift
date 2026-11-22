@@ -9,8 +9,8 @@ import Foundation
 /// snake_case word that is a tool, a tool argument, an `enum` value of a tool schema, or a
 /// `dirigible` command word; or an option such as `--pre-roll <seconds>`, which a command lists in
 /// its help; or a `dirigible ...` command line, which
-/// `AgentManualCommandTests.eachCommandExampleParses` parses; or a name of the `info` output
-/// that the manual lists (`outputNames`); or a path, the `realpath` form of the
+/// `AgentManualCommandTests.eachCommandExampleParses` parses; or a name of a tool output that
+/// the manual lists (`outputNames`); or a path, the `realpath` form of the
 /// skill, a recipe name, or a prompt name such as `/dirigible:check-levels`. Each other span fails.
 enum ManualScan {
     /// The text between each pair of backticks on one line.
@@ -48,8 +48,9 @@ enum ManualScan {
             || recipes.contains { span == "dirigible:\($0)" || span == "/dirigible:\($0)" }
     }
 
-    /// The key and the line of the `info` output that the manual names (decision 0071).
-    static let outputNames: Set<String> = ["rawKept", "raw <stem> kept: <reason>"]
+    /// The key and the line of the `info` output that the manual names (decision 0071), and the
+    /// marker lines of the `import_session` reply (decision 0075).
+    static let outputNames: Set<String> = ["rawKept", "raw <stem> kept: <reason>", "marker <id>", "Left out:"]
 
     /// The tools, their argument names, the `enum` values of their schemas, and each command word.
     static let words: Set<String> = {

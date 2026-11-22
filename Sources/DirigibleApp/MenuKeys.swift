@@ -42,6 +42,8 @@ enum MenuKeys {
     static let showIndex = KeyboardShortcut("2", modifiers: [.command, .shift])
     /// Edit > Find in Session Index: shows the pane and focuses its search field.
     static let findInIndex = KeyboardShortcut("f", modifiers: [.command, .shift])
+    /// View > Show Bins, the Bins segment of the leading pane (F22): the Clipboard key of Hindenburg.
+    static let showBins = KeyboardShortcut("c", modifiers: [.command, .option])
     /// View > Show Transcript (landing 2 of the transcript run).
     static let transcript = KeyboardShortcut("t", modifiers: [.command, .shift])
     /// View > Snap (snap run): a plain key, so a focused text field gets it first.
@@ -81,7 +83,7 @@ enum MenuKeys {
             stopAndReturn,
             reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, takeTime, zoomInEquals,
-            loudnessMeter, inspector, showIndex, findInIndex, transcript, snap, variSpeed, faster, slower,
+            loudnessMeter, inspector, showIndex, findInIndex, showBins, transcript, snap, variSpeed, faster, slower,
         ] + system
 }
 

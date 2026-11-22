@@ -191,7 +191,7 @@ extension SessionWindow {
         case .timeline(let command): run(command)
         case .transport(let command): transport(command)
         case .addTrack, .record, .recordPreRoll, .stop, .toggleMonitor, .toggleInspector, .toggleIndex,
-            .toggleSnap:
+            .toggleSnap, .toggleSidebar:
             // The menu items of the window actions call this function too.
             leafCalls?.append("\(command)")
             switch command {
@@ -203,6 +203,7 @@ extension SessionWindow {
             case .stop: Task { await stopOrPause() }
             case .toggleInspector: toggleInspector()
             case .toggleIndex: toggleIndex()
+            case .toggleSidebar: toggleSidebar()
             case .toggleSnap: app?.toggleSnap()
             default: monitoring.toggle()
             }

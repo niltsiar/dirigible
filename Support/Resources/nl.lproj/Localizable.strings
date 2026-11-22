@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible heeft de sessie \U2018%@\U2019 niet geïmporteerd: de schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.import.session.copy" = "Dirigible heeft de sessie \U2018%1$@\U2019 niet geïmporteerd: de audio kon niet worden gekopieerd (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
 "error.import.session.convert" = "Dirigible heeft de sessie \U2018%1$@\U2019 niet geïmporteerd: de audio kon niet worden omgezet (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Zijbalk";
+"toolbar.sidebar.show" = "Toon zijbalk";
+"toolbar.sidebar.hide" = "Verberg zijbalk";
+"index.pane.segment.bins" = "Bakken";
+"menu.view.bins.show" = "Toon bakken";
+"menu.view.bins.hide" = "Verberg bakken";
+"menu.edit.add.to.bin" = "Voeg toe aan bak";
+"bins.new" = "Nieuwe bak";
+"bins.new.name" = "Bak %lld";
+"bins.empty" = "Geen bakken";
+"bins.empty.hint" = "Selecteer audio en kies 'Wijzig' > 'Voeg toe aan bak'.";
+"bins.paste" = "Plak bij afspeelkop";
+"bins.insert" = "Voeg in bij afspeelkop";
+"bins.rename" = "Wijzig naam";
+"bins.remove" = "Verwijder";
+"bins.missing" = "Het audiobestand van deze clip ontbreekt.";
+"error.bin.missing" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";

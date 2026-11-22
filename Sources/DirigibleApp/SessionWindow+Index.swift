@@ -10,9 +10,16 @@ import SwiftUI
 @Observable @MainActor final class LeadingPaneState {
     /// The app preference of View > Show Session Index: a `Bool`, default false.
     static let shownKey = "view.index.shown"
+    /// The app preference of the last segment: the raw value of a `PaneSegment`, default Index.
+    static let segmentKey = "view.index.segment"
 
     var shown: Bool
+    var segment: PaneSegment
     var width: IndexWidth
+    /// The Bins list, the selected bin item, and the open rename field of the Bins segment.
+    @ObservationIgnored weak var binsTable: BinsTableView?
+    @ObservationIgnored var selectedBinItem: BinItemID?
+    @ObservationIgnored var binRename: BinRename?
     /// The kind filter; nil shows all kinds.
     var kind: SessionIndex.Kind?
     var search = ""
@@ -66,6 +73,7 @@ import SwiftUI
 
     init(defaults: UserDefaults?) {
         shown = defaults?.bool(forKey: Self.shownKey) ?? false
+        segment = defaults?.string(forKey: Self.segmentKey).flatMap(PaneSegment.init) ?? .index
         width = IndexWidth(stored: defaults?.object(forKey: IndexWidth.defaultsKey))
     }
 
@@ -308,30 +316,6 @@ extension SessionWindow {
     /// The width that the index pane takes: 0 while it is hidden.
     var shownIndexWidth: Double { leadingPane.shown ? leadingPane.width.points : 0 }
 
-    /// View > Show Session Index and the toolbar item. A toggle ends an index drag that got no
-    /// mouse-up. A hide gives a focus in the pane to the lanes. A show widens a window that is too narrow.
-    func toggleIndex() {
-        _ = cancelIndexDrag()
-        let pane = leadingPane
-        if pane.shown {
-            let focused = paneHasFocus
-            pane.shown = false
-            app?.defaults?.set(false, forKey: LeadingPaneState.shownKey)
-            if focused { focusLanes() }
-            return
-        }
-        pane.shown = true
-        app?.defaults?.set(true, forKey: LeadingPaneState.shownKey)
-        widenForPanes()
-    }
-
-    /// Edit > Find in Session Index: the pane shows (it stays shown when it is), and the search field takes the focus.
-    func findInIndex() {
-        if !leadingPane.shown { toggleIndex() }
-        leadingPane.searchFocusRequest = true
-        focusIndexSearch()
-    }
-
     /// Gives the focus to the search field when the field is in this window, and ends the request. A
     /// pane that shows just now builds its field later: the field calls this again when it joins the window.
     func focusIndexSearch() {
@@ -354,25 +338,4 @@ extension SessionWindow {
         window?.makeFirstResponder(table)
         selectIndexRow(first, byClick: false)
     }
-
-    /// True when the first responder is the index list or the search field.
-    private var paneHasFocus: Bool {
-        guard let responder = window?.firstResponder as? NSView else { return false }
-        if let table = leadingPane.table, responder.isDescendant(of: table) { return true }
-        guard let field = (responder as? NSTextView)?.delegate as? NSTextField else { return false }
-        return field === leadingPane.searchField
-    }
-}
-
-extension AppDelegate {
-    /// The title and the state of View > Show/Hide Session Index for the key window. The title
-    /// reads "Hide" while the pane shows.
-    var indexItem: (title: L10n, enabled: Bool) { indexItem(for: key) }
-
-    func indexItem(for model: SessionWindow?) -> (title: L10n, enabled: Bool) {
-        return (model?.leadingPane.shown == true ? .menuViewIndexHide : .menuViewIndexShow, model != nil)
-    }
-
-    /// The action of Edit > Find in Session Index and its key.
-    func findInIndex() { key?.findInIndex() }
 }

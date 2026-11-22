@@ -260,7 +260,9 @@ import Observation
         item.label = id.label.text
         item.possibleLabels = [id.label.text]
         item.paletteLabel = id.command?.menuItem.title.text ?? id.label.text
-        if let command = id.command { item.toolTip = toolbarTooltip(command) }
+        if let command = id.command {
+            item.toolTip = id == .index ? indexTooltip(shown: false) : toolbarTooltip(command)
+        }
         item.visibilityPriority = id.priority
         // The chrome sets the states from the window state; validation runs only after events.
         item.autovalidates = false

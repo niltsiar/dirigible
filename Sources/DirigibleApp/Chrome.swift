@@ -115,7 +115,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomToSession: .timeline(.zoomToSession)
         case .export: .timeline(.export)
         case .inspector: .toggleInspector
-        case .index: .toggleIndex
+        case .index: .toggleSidebar
         case .snap: .toggleSnap
         }
     }
@@ -143,7 +143,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomToSession: .toolbarZoomFit
         case .export: .toolbarExport
         case .inspector: .toolbarInspector
-        case .index: .indexSegmentIndex
+        case .index: .toolbarSidebar
         case .snap: .menuViewSnap
         }
     }
@@ -155,6 +155,8 @@ enum WindowCommand: Hashable {
     case timeline(TimelineCommand)
     case transport(TransportCommand)
     case addTrack, record, recordPreRoll, stop, toggleMonitor, toggleInspector, toggleIndex, toggleSnap
+    /// The Sidebar item: it shows the leading pane at its last segment, or hides it (C19).
+    case toggleSidebar
 
     /// The title and the key of the menu item of the command: a lookup in the menu tables, the
     /// one source of the menus and of the palette label, the tooltip, and the key of the item.
@@ -174,6 +176,8 @@ enum WindowCommand: Hashable {
         case .toggleMonitor: return (.menuRecordMonitor, MenuKeys.monitor)
         case .toggleInspector: return (.menuViewInspectorShow, MenuKeys.inspector)
         case .toggleIndex: return (.menuViewIndexShow, MenuKeys.showIndex)
+        // No menu item: the label, and the key that shows the pane at Index.
+        case .toggleSidebar: return (.toolbarSidebar, MenuKeys.showIndex)
         case .toggleSnap: return (.menuViewSnap, MenuKeys.snap)
         }
     }

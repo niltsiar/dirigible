@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible no importó la sesión \U00AB%@\U00BB: el disco de esta sesión no tiene espacio libre suficiente. Libera espacio en el disco y vuelve a intentarlo.";
 "error.import.session.copy" = "Dirigible no importó la sesión \U00AB%1$@\U00BB: el audio no se pudo copiar (error %2$lld). Comprueba el disco y vuelve a intentarlo.";
 "error.import.session.convert" = "Dirigible no importó la sesión \U00AB%1$@\U00BB: el audio no se pudo convertir (error %2$lld). Comprueba el disco y vuelve a intentarlo.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Panel";
+"toolbar.sidebar.show" = "Mostrar panel lateral";
+"toolbar.sidebar.hide" = "Ocultar panel lateral";
+"index.pane.segment.bins" = "Bandejas";
+"menu.view.bins.show" = "Mostrar bandejas";
+"menu.view.bins.hide" = "Ocultar bandejas";
+"menu.edit.add.to.bin" = "Añadir a bandeja";
+"bins.new" = "Nueva bandeja";
+"bins.new.name" = "Bandeja %lld";
+"bins.empty" = "No hay bandejas";
+"bins.empty.hint" = "Selecciona audio y elige Edición > Añadir a bandeja.";
+"bins.paste" = "Pegar en el cursor de reproducción";
+"bins.insert" = "Insertar en el cursor de reproducción";
+"bins.rename" = "Renombrar";
+"bins.remove" = "Eliminar";
+"bins.missing" = "Falta el archivo de audio de este clip.";
+"error.bin.missing" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelve a poner el archivo en esa carpeta e inténtalo de nuevo.";

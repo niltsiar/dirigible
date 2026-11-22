@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "O Dirigible não importou a sessão \U201C%@\U201D: o disco desta sessão não tem espaço livre suficiente. Liberte espaço no disco e volte a tentar.";
 "error.import.session.copy" = "O Dirigible não importou a sessão \U201C%1$@\U201D: não foi possível copiar o áudio (erro %2$lld). Verifique o disco e volte a tentar.";
 "error.import.session.convert" = "O Dirigible não importou a sessão \U201C%1$@\U201D: não foi possível converter o áudio (erro %2$lld). Verifique o disco e volte a tentar.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Painel";
+"toolbar.sidebar.show" = "Mostrar painel lateral";
+"toolbar.sidebar.hide" = "Ocultar painel lateral";
+"index.pane.segment.bins" = "Compartimentos";
+"menu.view.bins.show" = "Mostrar compartimentos";
+"menu.view.bins.hide" = "Ocultar compartimentos";
+"menu.edit.add.to.bin" = "Adicionar ao compartimento";
+"bins.new" = "Novo compartimento";
+"bins.new.name" = "Compartimento %lld";
+"bins.empty" = "Nenhum compartimento";
+"bins.empty.hint" = "Selecione áudio e escolha Edição > Adicionar ao compartimento.";
+"bins.paste" = "Colar na cabeça de reprodução";
+"bins.insert" = "Inserir na cabeça de reprodução";
+"bins.rename" = "Mudar o nome";
+"bins.remove" = "Apagar";
+"bins.missing" = "O ficheiro de áudio deste clipe não existe.";
+"error.bin.missing" = "O Dirigible não pode colar o clipe do compartimento. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";

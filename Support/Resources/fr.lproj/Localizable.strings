@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible n’a pas importé la session \U00AB\U00A0%@\U00A0\U00BB\U00A0: le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
 "error.import.session.copy" = "Dirigible n’a pas importé la session \U00AB\U00A0%1$@\U00A0\U00BB\U00A0: l’audio n’a pas pu être copié (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.import.session.convert" = "Dirigible n’a pas importé la session \U00AB\U00A0%1$@\U00A0\U00BB\U00A0: l’audio n’a pas pu être converti (erreur %2$lld). Vérifiez le disque et réessayez.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Panneau";
+"toolbar.sidebar.show" = "Afficher le panneau latéral";
+"toolbar.sidebar.hide" = "Masquer le panneau latéral";
+"index.pane.segment.bins" = "Chutiers";
+"menu.view.bins.show" = "Afficher les chutiers";
+"menu.view.bins.hide" = "Masquer les chutiers";
+"menu.edit.add.to.bin" = "Ajouter au chutier";
+"bins.new" = "Nouveau chutier";
+"bins.new.name" = "Chutier %lld";
+"bins.empty" = "Aucun chutier";
+"bins.empty.hint" = "Sélectionnez de l’audio, puis choisissez Édition > Ajouter au chutier.";
+"bins.paste" = "Coller à la tête de lecture";
+"bins.insert" = "Insérer à la tête de lecture";
+"bins.rename" = "Renommer";
+"bins.remove" = "Supprimer";
+"bins.missing" = "Le fichier audio de ce clip est manquant.";
+"error.bin.missing" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";

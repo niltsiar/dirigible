@@ -38,10 +38,10 @@ extension ToolbarWindowTests {
         let (item, button) = try indexItem(chrome)
         let english = try stringsTable("en")
         let text: (L10n) -> String = { english[$0.rawValue] ?? $0.rawValue }
-        #expect(indexTooltip(shown: false, text: text) == "Show Session Index (⇧⌘2)")
-        #expect(indexTooltip(shown: true, text: text) == "Hide Session Index (⇧⌘2)")
+        #expect(indexTooltip(shown: false, text: text) == "Show Sidebar")
+        #expect(indexTooltip(shown: true, text: text) == "Hide Sidebar")
 
-        // The test process has no app tables, so the live tooltip is the key of the format for both states.
+        // The test process has no app tables, so the live tooltip is the key of the state.
         await until("the item has its tooltip") { item.toolTip == indexTooltip(shown: false) }
         #expect(app.indexItem(for: model).title == .menuViewIndexShow)
         model.toggleIndex()

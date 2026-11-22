@@ -164,10 +164,12 @@ struct TemplateKeeps: Equatable, Sendable {
     }
 }
 
-/// The count and the size of what `episode` keeps. The size is the sum of the files of `episode.filePaths`,
-/// so an unused file of the pool adds nothing. It reads the file system, so it runs off the main actor.
+/// The count and the size of what `episode` keeps: the clips of the tracks and of the bins (C33). The size is
+/// the sum of the files of `episode.filePaths`, so an unused file of the pool adds nothing. It reads the file
+/// system, so it runs off the main actor.
 @concurrent nonisolated func templateKeeps(of episode: NewEpisode, in package: URL) async -> TemplateKeeps {
-    let clips = episode.session.tracks.reduce(0) { $0 + $1.clips.count }
+    let lanes = episode.session.bins.flatMap(\.items).flatMap(\.lanes)
+    let clips = episode.session.tracks.reduce(0) { $0 + $1.clips.count } + lanes.reduce(0) { $0 + $1.clips.count }
     var bytes: Int64 = 0
     for path in episode.filePaths {
         let size = try? FileManager.default.attributesOfItem(atPath: package.appending(path: path).path)[.size]

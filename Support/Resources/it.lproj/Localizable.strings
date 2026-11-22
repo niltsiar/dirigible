@@ -1062,3 +1062,21 @@
 "error.import.session.space" = "Dirigible non ha importato la sessione \U201C%@\U201D: il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
 "error.import.session.copy" = "Dirigible non ha importato la sessione \U201C%1$@\U201D: impossibile copiare l’audio (errore %2$lld). Controlla il disco e riprova.";
 "error.import.session.convert" = "Dirigible non ha importato la sessione \U201C%1$@\U201D: impossibile convertire l’audio (errore %2$lld). Controlla il disco e riprova.";
+/* The leading pane (Sidebar) and its Bins segment (F22) */
+"toolbar.sidebar" = "Pannello";
+"toolbar.sidebar.show" = "Mostra pannello laterale";
+"toolbar.sidebar.hide" = "Nascondi pannello laterale";
+"index.pane.segment.bins" = "Contenitori";
+"menu.view.bins.show" = "Mostra contenitori";
+"menu.view.bins.hide" = "Nascondi contenitori";
+"menu.edit.add.to.bin" = "Aggiungi a contenitore";
+"bins.new" = "Nuovo contenitore";
+"bins.new.name" = "Contenitore %lld";
+"bins.empty" = "Nessun contenitore";
+"bins.empty.hint" = "Seleziona l’audio, poi scegli Composizione > Aggiungi a contenitore.";
+"bins.paste" = "Incolla all’indicatore di riproduzione";
+"bins.insert" = "Inserisci all’indicatore di riproduzione";
+"bins.rename" = "Rinomina";
+"bins.remove" = "Elimina";
+"bins.missing" = "Il file audio di questa clip non è presente.";
+"error.bin.missing" = "Dirigible non può incollare la clip del contenitore. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";

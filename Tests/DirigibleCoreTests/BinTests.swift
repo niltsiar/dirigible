@@ -206,6 +206,10 @@ struct BinTests {
         #expect(throws: SessionError.foreignFile("f1")) {
             try session.addItem(try foreign.excerpt(of: ["x"]), named: "Foreign", to: bin)
         }
+        let bed = try session.excerpt(of: ["A", "B"])
+        #expect(bed.length == 8_000, "control: the clips A and B end at the item end")
+        let short = Excerpt(kind: .clips, length: 7_999, lanes: bed.lanes, sampleRate: 48_000, pool: session.files)
+        #expect(throws: SessionError.clipPastItemEnd("B")) { try session.addItem(short, named: "Short", to: bin) }
         #expect(session == before)
     }
 
@@ -242,8 +246,8 @@ struct BinTests {
     }
 
     /// C34. The reader checks each bin clip as a track clip: a clip of an unknown file, past the end of
-    /// its file, of a file with another layout than its lane, or over another clip of its lane refuses
-    /// the file. The same file with no change reads.
+    /// its file, of a file with another layout than its lane, over another clip of its lane, or past the
+    /// end of its item refuses the file. The same file with no change reads.
     @Test func damagedBinClipRefusedAtRead() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "fb", path: "b.wav", layout: .mono, length: 10_000))
@@ -261,6 +265,7 @@ struct BinTests {
             (#"length="1000""#, #"length="20000""#, .clipOutsideFile("X")),
             (#"name="Bin lane" layout="mono""#, #"name="Bin lane" layout="stereo""#, .layoutMismatch("t", .file("fb"))),
             (#"start="1000""#, #"start="500""#, .overlap("Y", "X")),
+            (#"length="1500""#, #"length="1499""#, .clipPastItemEnd("Y")),
         ]
         for (old, new, error) in cases {
             let damaged = text.replacingOccurrences(of: old, with: new)

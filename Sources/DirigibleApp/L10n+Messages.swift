@@ -329,7 +329,7 @@ extension L10n {
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo,
             .noJoin, .followOverlap, .pendingTake, .invalidPreset, .unknownPreset, .unknownBin, .unknownBinItem,
-            .binIndexOutOfRange,
+            .binIndexOutOfRange, .clipPastItemEnd,
             // The window keeps the prefilled name when a rename field is empty.
             .emptyName:
             return errorSessionOther.text

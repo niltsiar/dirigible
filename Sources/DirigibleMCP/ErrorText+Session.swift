@@ -114,6 +114,7 @@ extension SessionError {
         case .unknownBin(let id): "no bin \"\(id)\"."
         case .unknownBinItem(let id): "no bin item \"\(id)\"."
         case .binIndexOutOfRange(let index): "place \(index) is not in the bin list."
+        case .clipPastItemEnd(let id): "clip \"\(id)\" ends after the end of its bin item."
         }
     }
 }

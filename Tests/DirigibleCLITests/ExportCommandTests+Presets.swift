@@ -65,6 +65,21 @@ extension ExportCommandTests {
         #expect(try names() == ["Show.dirigible"])
     }
 
+    /// An `--out` that ends in / or names a folder exits 64 and writes no file, also not in the parent folder.
+    @Test(arguments: ["", "/"])
+    func anOutThatIsAFolderExitsSixtyFour(end: String) async throws {
+        try FileManager.default.createDirectory(at: out("Ep"), withIntermediateDirectories: false)
+        let result = try await package.run("export", "PKG", "--preset", "master", "--out", out("Ep").path + end)
+
+        #expect(result.status == 64, "\(result)")
+        #expect(
+            result.stderr.hasPrefix(
+                "Error: --out is <folder>/<prefix> for the presets, so it must not end in / or name a folder.\n"),
+            "\(result.stderr)")
+        #expect(try names() == ["Ep", "Show.dirigible"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: out("Ep").path).isEmpty)
+    }
+
     @Test func aDotInThePrefixIsPartOfThePrefix() async throws {
         let result = try await package.run("export", "PKG", "--preset", "master", "--out", prefixOut("Ep.1"))
 

@@ -93,19 +93,25 @@ struct MCPExportToolTests {
     @Test func exportWithPresetsWritesTheSet() async throws {
         try package.edit { $0.setEpisode(try ExportCommandTests.titledEpisode()) }
         let set = out("Ep")
+        try FileManager.default.createDirectory(atPath: out("Box"), withIntermediateDirectories: false)
         let answers = try await mcp([
             toolCall(1, "export", ["package": package.path, "out": set, "preset": ["master", "podcast"]]),
             toolCall(2, "export", ["package": package.path, "out": set, "preset": ["ghost"]]),
             toolCall(3, "export", ["package": package.path, "out": set, "preset": ["master"], "bits": 16]),
             toolCall(4, "export", ["package": package.path, "out": set + ".wav", "preset": ["master"]]),
             toolCall(5, "export", ["package": package.path, "out": set, "preset": []]),
+            toolCall(6, "export", ["package": package.path, "out": out("Box") + "/", "preset": ["master"]]),
+            toolCall(7, "export", ["package": package.path, "out": out("Box"), "preset": ["master"]]),
         ])
 
         let first = toolResult(answer(answers, id: 1))
         let lines = first.text.split(separator: "\n").map(String.init)
         #expect(!first.isError && lines.count == 2, "\(first)")
         #expect(lines.first == set + ".wav" && lines.last?.hasPrefix(set + ".mp3\tloudness -19.") == true, "\(lines)")
-        #expect(try outputs().sorted() == ["Ep.mp3", "Ep.wav"])
+        #expect(try outputs().sorted() == ["Box", "Ep.mp3", "Ep.wav"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: out("Box")).isEmpty)
+        let folder = "out is <folder>/<prefix> for the presets, so it must not end in / or name a folder."
+        for id in [6, 7] { #expect(toolResult(answer(answers, id: id)) == (folder, true), "call \(id)") }
         #expect(toolResult(answer(answers, id: 2)) == ("The session has no preset ghost.", true))
         let sets = "preset sets the options of each file, so it cannot go with bits."
         #expect(toolResult(answer(answers, id: 3)) == (sets, true))

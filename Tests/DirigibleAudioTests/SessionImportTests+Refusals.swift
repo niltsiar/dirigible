@@ -102,7 +102,9 @@ extension SessionImportTests {
             try expectRefusal(.sampleRateOutOfRange(rate)) { () throws(SessionImportError) in try run(source.url) }
         }
         for rate in [8_000, 384_000] {
-            #expect(try run(try plainSource(rate: rate).url).tracks.count == 1, "\(rate) Hz imports")
+            // The package owns its folder: a temporary would start its removal during the import.
+            let source = try plainSource(rate: rate)
+            #expect(try run(source.url).tracks.count == 1, "\(rate) Hz imports")
         }
     }
 
@@ -175,10 +177,46 @@ extension SessionImportTests {
         try FileManager.default.createSymbolicLink(at: a, withDestinationURL: outside)
 
         try expectRefusal(.paste(.notDownloaded(file: "a.wav"))) { () throws(SessionImportError) in
-            try run(linked.url, isDownloaded: { _ in false })
+            try run(linked.url, isDownloaded: { $0.lastPathComponent != "a.wav" })
         }
         try expectRefusal(.unsafeFile("a.wav")) { () throws(SessionImportError) in
             try run(linked.url, isDownloaded: { _ in true })
+        }
+    }
+
+    /// C7j: a `session.xml` that is not downloaded is refused before the read: the file has no
+    /// read permission, so a read gives another error, and no other source file is asked.
+    @Test func aSessionFileThatIsNotDownloadedIsRefusedBeforeTheRead() throws {
+        let source = try plainSource()
+        let xml = source.url.appending(path: "session.xml")
+        try #require(chmod(xml.path, 0) == 0)
+        defer { chmod(xml.path, 0o644) }
+        var asked: [String] = []
+
+        try expectRefusal(.paste(.notDownloaded(file: "session.xml"))) { () throws(SessionImportError) in
+            try run(
+                source.url,
+                isDownloaded: { url in
+                    asked.append(url.lastPathComponent)
+                    return url.lastPathComponent != "session.xml"
+                })
+        }
+        #expect(asked == ["session.xml"])
+    }
+
+    /// C7j: a transcript file that is not downloaded is refused before its words are read, and the
+    /// import does not go on with no words.
+    @Test func aTranscriptThatIsNotDownloadedIsRefused() throws {
+        let source = try plainSource()
+        let words = #"{"words":[{"word":"one","start":0.5,"end":0.75}]}"#
+        try source.session.importTranscript(TranscriptFile(data: Data(words.utf8)), name: "t", track: "t1", at: 0)
+        try source.session.write(to: source.url)
+        let folder = source.url.appending(path: transcriptsFolderName)
+        let name = try #require(try FileManager.default.contentsOfDirectory(atPath: folder.path).first)
+
+        try expectRefusal(.paste(.notDownloaded(file: "\(transcriptsFolderName)/\(name)"))) {
+            () throws(SessionImportError) in
+            try run(source.url, isDownloaded: { $0.lastPathComponent != name })
         }
     }
 }

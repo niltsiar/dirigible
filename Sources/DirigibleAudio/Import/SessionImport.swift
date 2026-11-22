@@ -41,8 +41,10 @@ let importRates = 8_000...384_000
 /// Checks `at`, reads `source`, cuts its head for a negative `at`, checks the named files and the
 /// marker list, pastes one excerpt of all its tracks into new last tracks at max(0, at), then runs
 /// only setters that cannot fail: the names, the track gain, role, mute, follow flag, and voice
-/// match (decision 0075). A source track with an `.app` route imports muted. It never writes
-/// `session.xml` and writes nothing in `source`. It blocks: never call it on the main actor.
+/// match (decision 0075). A source track with an `.app` route imports muted. It refuses a source
+/// file that is not downloaded before any open of it: `session.xml`, a transcript file, and each
+/// named file of `Clips/`. It never writes `session.xml` and writes nothing in `source`. It
+/// blocks: never call it on the main actor.
 public func importSession(
     from source: URL, into session: Session, in package: URL, identity: PackageID?, at: Int, markers: Bool,
     freeBytes: () -> Int64, progress: @escaping (Double) -> Void = { _ in },
@@ -61,9 +63,25 @@ func importSession(
     guard (-Frames.limit.count...Frames.limit.count).contains(at) else { throw .offsetOutOfRange(at) }
     let rate = session.sampleRate
     guard importRates.contains(rate) else { throw .targetSampleRateOutOfRange(rate) }
+    // A read of a file that is not downloaded can block in the kernel, so the state comes first.
+    guard isDownloaded(source.appending(path: "session.xml")) else {
+        throw .paste(.notDownloaded(file: "session.xml"))
+    }
+    var notDownloaded: [String] = []
     // The only read of the source XML and items: the guards of the open (0003 Rules), with no lock.
     let read: Session
-    do { read = try Session(contentsOf: source) } catch { throw .source(error) }
+    do throws(SessionFileError) {
+        read = try Session(contentsOf: source) { url in
+            guard isDownloaded(url) else {
+                notDownloaded.append("\(transcriptsFolderName)/\(url.lastPathComponent)")
+                return false
+            }
+            return true
+        }
+    } catch {
+        throw .source(error)
+    }
+    if let file = notDownloaded.min() { throw .paste(.notDownloaded(file: file)) }
     let origin = PackageID(lockFileOf: source)
     if PackageID.same(origin, identity)
         || source.resolvingSymlinksInPath().standardizedFileURL.path

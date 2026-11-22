@@ -42,7 +42,8 @@ extension ExportText {
 
     /// The refusals of `export` with presets, before any read of the package: an option that a preset
     /// sets (`given` names each such option that the caller gave, in the order of the checks), an `out`
-    /// with a file extension, and an `out` inside a package.
+    /// with a file extension, an `out` that ends in / or names a folder (the prefix would be the name
+    /// of the folder, in its parent), and an `out` inside a package.
     package static func checkPresets(out: String, given: [String], spelling o: OptionSpelling) throws(ToolError) {
         if let first = given.first {
             let flag = o == .cli ? "--preset" : "preset"
@@ -52,6 +53,13 @@ extension ExportText {
             throw ToolError(
                 "\(o("out")) is the folder and the file name prefix of the presets, so it must not end in .wav, "
                     + ".m4a, .mp3, or .flac.")
+        }
+        var isFolder: ObjCBool = false
+        guard !out.hasSuffix("/"),
+            !(FileManager.default.fileExists(atPath: out, isDirectory: &isFolder) && isFolder.boolValue)
+        else {
+            throw ToolError(
+                "\(o("out")) is <folder>/<prefix> for the presets, so it must not end in / or name a folder.")
         }
         try checkOutsidePackages(URL(filePath: out))
     }

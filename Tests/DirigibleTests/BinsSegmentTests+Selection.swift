@@ -88,4 +88,36 @@ extension BinsSegmentTests {
         #expect(studio.session.bins.first?.items.map(\.id) == ["item1"], "a held Delete removed the item")
         await model.close()
     }
+
+    /// The menu state of Add to Bin builds no excerpt. Each excerpt of a clip on a rendered file copies
+    /// the words of its source, so ten reads of the state with 50,000 words take less time than one
+    /// excerpt.
+    @Test func addToBinStateBuildsNoExcerpt() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, _) = try await open(nil)
+        let words = FileWords(
+            (0..<50_000).compactMap { index in
+                FileWords.Word(file: "fa", range: Frames(index * 8)..<Frames(index * 8 + 8), text: "w")
+            })
+        let treatment = Treatment(.noise(.standard))
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            let origin = RenderOrigin(source: "fa", offset: 0, treatment: treatment, addedGain: .zero)
+            try session.addFile(AudioFile(id: "fr", path: "fr.wav", layout: .mono, length: 480_000, origin: origin))
+            try session.place(Clip(id: "r", file: "fr", start: 300_000, offset: 0, length: 96_000), on: "t2")
+            try session.addTranscript(words, name: "T", derived: [])
+        }
+        model.timeline.selection = .clips(ClipSet("r"))
+        let session = studio.session
+        let clock = ContinuousClock()
+        var excerpt = Duration.seconds(3_600)
+        for _ in 0..<3 {
+            excerpt = min(excerpt, clock.measure { _ = try? model.timeline.selection.excerpt(in: session) })
+        }
+
+        var on = 0
+        let reads = clock.measure { for _ in 0..<10 where model.canAddToBin { on += 1 } }
+        #expect(on == 10, "control: Add to Bin is on with the clip")
+        #expect(reads < excerpt, "ten reads of the state took \(reads), one excerpt \(excerpt)")
+        await model.close()
+    }
 }

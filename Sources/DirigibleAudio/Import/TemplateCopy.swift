@@ -118,41 +118,17 @@ func copyNewEpisode(
     do { try staging.publish() } catch { throw .publish(error) }
 }
 
-/// The device and inode of a checked file, and its size.
-private struct CheckedFile: Equatable {
-    let device: dev_t
-    let inode: ino_t
-    let size: Int64
-
-    init(_ info: stat) {
-        (device, inode, size) = (info.st_dev, info.st_ino, Int64(info.st_size))
-    }
-}
-
-/// Opens `path` under `folder` with no link at any component and with no wait on a FIFO, and
-/// checks that it is a regular file. The caller closes the descriptor.
-private func openChecked(_ path: String, in folder: Int32) throws(TemplateError) -> (
+/// `openChecked` with its fault as a `TemplateError`.
+private func openTemplateFile(_ path: String, in folder: Int32) throws(TemplateError) -> (
     descriptor: Int32, file: CheckedFile
 ) {
-    let descriptor = openat(folder, path, O_RDONLY | O_NOFOLLOW_ANY | O_NONBLOCK | O_CLOEXEC)
-    guard descriptor >= 0 else {
-        switch errno {
-        case ENOENT: throw .missing(path)
-        case ELOOP, ENOTDIR: throw .notRegularFile(path)
-        case let code: throw .read(.readFailed(errno: code))
+    do { return try openChecked(path, in: folder) } catch {
+        switch error {
+        case .missing: throw .missing(path)
+        case .notRegularFile: throw .notRegularFile(path)
+        case .unreadable(let code): throw .read(.readFailed(errno: code))
         }
     }
-    var info = stat()
-    guard fstat(descriptor, &info) == 0 else {
-        let code = errno
-        close(descriptor)
-        throw .read(.readFailed(errno: code))
-    }
-    guard info.st_mode & S_IFMT == S_IFREG else {
-        close(descriptor)
-        throw .notRegularFile(path)
-    }
-    return (descriptor, CheckedFile(info))
 }
 
 /// The steps of `copyNewEpisode` inside the staging folder `staging`.
@@ -169,7 +145,7 @@ private func fill(
     // folder also ignores case; a case-sensitive one needs a copy for each spelling.
     let mergesCase = pathconf(staging.path, _PC_CASE_SENSITIVE) == 0
     for path in episode.filePaths {
-        let (descriptor, file) = try openChecked(path, in: packageFD)
+        let (descriptor, file) = try openTemplateFile(path, in: packageFD)
         close(descriptor)
         guard seams.isDownloaded(source.appending(path: path)) else { throw .notDownloaded(path) }
         let lower = path.lowercased()
@@ -201,7 +177,7 @@ private func fill(
     var done: Int64 = 0
     for (index, path) in paths.enumerated() {
         guard !isCancelled() else { throw .cancelled }
-        let (descriptor, file) = try openChecked(path, in: packageFD)
+        let (descriptor, file) = try openTemplateFile(path, in: packageFD)
         defer { close(descriptor) }
         guard file == checked[index] else { throw .sourceChanged(path) }
         seams.beforeCopy(path)

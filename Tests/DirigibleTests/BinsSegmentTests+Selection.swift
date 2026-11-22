@@ -69,4 +69,23 @@ extension BinsSegmentTests {
         #expect(model.leadingPane.selectedBinItem == added && table.selectedRow == 2, "the commit lost the selection")
         await model.close()
     }
+
+    /// A held key gives one bin edit: the repeats of Shift-Return, Command-Return, Return, and Delete
+    /// do nothing.
+    @Test func aHeldKeyEditsOneItem() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window, route, _) = try await focusedList()
+        route.press(chord("\r", code: 36, .shift, in: window), in: window)
+        #expect(starts(studio, "t1") == [0, 192_000, 300_000], "control: Shift-Return inserts at the playhead")
+
+        for _ in 0..<3 { route.press(chord("\r", code: 36, .shift, in: window, held: true), in: window) }
+        #expect(starts(studio, "t1") == [0, 192_000, 300_000], "a held Shift-Return inserted again")
+        for _ in 0..<3 { route.press(chord("\r", code: 36, .command, in: window, held: true), in: window) }
+        #expect(starts(studio, "t1") == [0, 192_000, 300_000], "a held Command-Return pasted")
+        route.press(chord("\r", code: 36, [], in: window, held: true), in: window)
+        #expect(model.leadingPane.binRename == nil, "a held Return opened the rename")
+        app.timeline(.delete, event: chord("\u{7f}", code: 51, [], in: window, held: true), in: window)
+        #expect(studio.session.bins.first?.items.map(\.id) == ["item1"], "a held Delete removed the item")
+        await model.close()
+    }
 }

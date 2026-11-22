@@ -148,6 +148,9 @@ import SwiftUI
     /// The banner of the last Match Voice, at its session revision.
     var voiceMatchReport: ToolBannerShown?
     @ObservationIgnored var matchPresses = 0
+    /// The result line of the last Import Session, at its session revision (decision 0075).
+    var sessionImportReport: ToolBannerShown?
+    @ObservationIgnored var sessionImportPresses = 0
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
     /// The values of the Sync Clip to Track sheet while it shows (decision 0076).

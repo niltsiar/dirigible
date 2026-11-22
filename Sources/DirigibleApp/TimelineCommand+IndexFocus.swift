@@ -23,7 +23,7 @@ extension TimelineCommand {
         case .zoomIn, .zoomOut, .zoomToSession, .zoomToSelection, .zoomBack, .zoomForward, .pagePrevious, .pageNext,
             .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .waveformZoomIn, .waveformZoomOut,
             .waveformZoomReset, .setIn, .setOut, .previousMarker, .nextMarker,
-            .previousGainPoint, .nextGainPoint, .showInFinder, .importAudio, .importTranscript, .export,
+            .previousGainPoint, .nextGainPoint, .showInFinder, .importAudio, .importTranscript, .importSession, .export,
             .exportSelection, .exportChapters, .exportStems, .exportPresets, .exportTranscript, .episodeInfo,
             .findSilences:
             .lanes

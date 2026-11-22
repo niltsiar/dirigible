@@ -106,6 +106,8 @@ extension StudioError {
         case .audioImport: "audioImport"
         case .importYielded: "importYielded"
         case .paste: "paste"
+        case .sessionImport: "sessionImport"
+        case .sessionImportYielded: "sessionImportYielded"
         case .pasteYielded: "pasteYielded"
         case .split: "split"
         case .splitYielded: "splitYielded"

@@ -17,12 +17,6 @@ import Observation
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.
     public internal(set) var takeError: StudioError?
-    public var canUndo: Bool { history.canUndo }
-    public var canRedo: Bool { history.canRedo }
-    /// The agent of the change that Undo reverts, or nil for a user change (decision 0046).
-    public var undoAgent: AgentName? { history.undoAgent }
-    /// The agent of the change that Redo makes again, or nil for a user change.
-    public var redoAgent: AgentName? { history.redoAgent }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
     /// The take anchors, and the take map and its change of the last revision (decision 0061).
@@ -346,8 +340,8 @@ import Observation
 
     /// The one undo entry of `runReadJob` (a level or a duck) or of a file import, after its write.
     /// The write saved the whole session.
-    func recordLevel(_ leveled: Session, agent: AgentName? = nil) {
-        history.edit(agent: agent) { $0 = leveled }
+    func recordLevel(_ leveled: Session, agent: AgentName? = nil, name: History.Name? = nil) {
+        history.edit(agent: agent, name: name) { $0 = leveled }
         (saveError, savedRevision) = (nil, sessionRevision)
     }
 

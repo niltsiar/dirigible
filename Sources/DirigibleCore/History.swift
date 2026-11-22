@@ -6,11 +6,18 @@ import Foundation
 /// backup does (decision 0043). The `<recording>` element records a take on the disk, not an
 /// edit, so an undo must not bring back a take that finalize already placed.
 public struct History: Hashable, Sendable {
-    /// The session on the other side of one recorded change, and the agent that made the change
-    /// (decision 0046), or nil for the user.
+    /// The change of an entry that the Undo and Redo titles name. Nil is a plain edit.
+    public enum Name: Hashable, Sendable {
+        /// File > Import Session (decision 0075).
+        case importSession
+    }
+
+    /// The session on the other side of one recorded change, the agent that made the change
+    /// (decision 0046), or nil for the user, and the name of the change.
     private struct Entry: Hashable, Sendable {
         let session: Session
         let agent: AgentName?
+        let name: Name?
     }
 
     public private(set) var session: Session
@@ -30,6 +37,10 @@ public struct History: Hashable, Sendable {
     public var undoAgent: AgentName? { undoStack.last?.agent }
     /// The agent of the change that `redo` makes again, or nil for a user change or no entry.
     public var redoAgent: AgentName? { redoStack.last?.agent }
+    /// The name of the change that `undo` reverts, or nil.
+    public var undoName: Name? { undoStack.last?.name }
+    /// The name of the change that `redo` makes again, or nil.
+    public var redoName: Name? { redoStack.last?.name }
 
     /// The undo and the redo entries: their clips keep their files (decision 0047 D3).
     public var entries: [Session] { (undoStack + redoStack).map(\.session) }
@@ -49,7 +60,7 @@ public struct History: Hashable, Sendable {
             return copy
         }
         func removed(_ entry: Entry) throws(SessionError) -> Entry {
-            Entry(session: try removed(entry.session), agent: entry.agent)
+            Entry(session: try removed(entry.session), agent: entry.agent, name: entry.name)
         }
         let current: Session
         if let saved, saved.before == session { current = saved.pruned } else { current = try removed(session) }
@@ -60,17 +71,17 @@ public struct History: Hashable, Sendable {
 
     /// Runs `body` on a copy of the session. A throw discards the copy. An edit that changes
     /// only `recording` records no entry, because undo could not change it back. `agent` names the
-    /// agent of an MCP edit (decision 0046).
+    /// agent of an MCP edit (decision 0046), and `name` the change for the Undo and Redo titles.
     @discardableResult
     public mutating func edit<Result, Failure: Error>(
-        agent: AgentName? = nil, _ body: (inout Session) throws(Failure) -> Result
+        agent: AgentName? = nil, name: Name? = nil, _ body: (inout Session) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         var copy = session
         let result = try body(&copy)
         var withOldRecording = copy
         withOldRecording.recording = session.recording
         if withOldRecording != session {
-            undoStack.append(Entry(session: session, agent: agent))
+            undoStack.append(Entry(session: session, agent: agent, name: name))
             redoStack.removeAll()
             revision += 1
         }
@@ -106,7 +117,7 @@ public struct History: Hashable, Sendable {
         guard let entry = undoStack.last else { return }
         let restored = try session.reverted(to: entry.session)
         undoStack.removeLast()
-        redoStack.append(Entry(session: session, agent: entry.agent))
+        redoStack.append(Entry(session: session, agent: entry.agent, name: entry.name))
         session = restored
         revision += 1
     }
@@ -115,7 +126,7 @@ public struct History: Hashable, Sendable {
         guard let entry = redoStack.last else { return }
         let restored = try session.reverted(to: entry.session)
         redoStack.removeLast()
-        undoStack.append(Entry(session: session, agent: entry.agent))
+        undoStack.append(Entry(session: session, agent: entry.agent, name: entry.name))
         session = restored
         revision += 1
     }

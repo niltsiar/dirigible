@@ -63,6 +63,8 @@ extension L10n {
         case .paste(.session(let error), _): return message(for: error, name: name)
         case .paste(let error, let source): return message(for: error, source: source)
         case .pasteYielded(let source): return errorPasteYielded.format(source)
+        case .sessionImport(let error, let source): return message(for: error, source: source)
+        case .sessionImportYielded(let source): return errorImportSessionYielded.format(source)
         case .split(.session(let error)): return message(for: error, name: name)
         case .split(let error): return message(for: error)
         case .splitYielded: return errorSplitYielded.text
@@ -188,7 +190,7 @@ extension L10n {
 
     /// The text of a paste error (decision 0042, `ui-panel.md` item 2), with the name of the source
     /// session. The window shows no alert for a cancel.
-    private static func message(for error: PasteError, source: String) -> String {
+    static func message(for error: PasteError, source: String) -> String {
         switch error {
         case .sourceMissing: errorPasteMissing.format(source)
         case .sourceChanged: errorPasteChanged.format(source)

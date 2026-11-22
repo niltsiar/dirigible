@@ -99,7 +99,7 @@ extension SessionWindow {
         case .exportStems: canExportStems
         case .exportPresets: canExport
         case .exportTranscript: canExportTranscript
-        case .importAudio: canImport
+        case .importAudio, .importSession: canImport
         case .importTranscript: canImportTranscript
         case .insert, .cutSelectedTracks, .fade: importJob == nil
         case .replace, .fill: rangePasteRange != nil

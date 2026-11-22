@@ -62,6 +62,12 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A take in another studio ended the paste from the package named `source` (decisions 0019
     /// and 0042). The session did not change.
     case pasteYielded(source: String)
+    /// A session import from the package named `source` failed or was cancelled (decision 0075).
+    /// The session did not change.
+    case sessionImport(SessionImportError, source: String)
+    /// A take in another studio ended the session import from the package named `source`
+    /// (decisions 0019 and 0075). The session did not change.
+    case sessionImportYielded(source: String)
     /// A stereo split failed or was cancelled (decision 0053). The session did not change.
     case split(SplitError)
     /// A take in another studio ended a stereo split (decisions 0019 and 0053). The session did not

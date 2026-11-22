@@ -637,6 +637,21 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 - Drop audio files on a session with no tracks to add one track for each file, in the order of the drag. Each clip starts at the start of the session. During the drag, a colored outline and the **New Track** label show over the window.
 - Dirigible imports the files one after the other. One **Edit > Undo** removes the last file. Dirigible skips a file that is not audio, has more than 2 channels, or is not on this Mac. A full disk or Cancel stops the import. At the end, an alert names each file that did not import.
 
+### Import the tracks of another session
+
+Use this to put the tracks of another Dirigible session into the open session, for example the recording of a guest in another studio.
+
+1. Choose **File > Import Session**. The open panel says "Its tracks are added to this session."
+2. To bring the markers and the chapters of the other session too, select **Also import markers and chapters**. The box is off the first time. Dirigible keeps your last choice.
+3. Select the other session and click **Open**.
+
+- Dirigible adds one track for each track of the other session, after the last track, and selects the new tracks. Each clip keeps its position in the other session.
+- When the open session has a track with the same name, the new track gets the name of the other session in parentheses, for example "Host (Interview at the remote studio)". A long name is shortened in the middle, so you see both ends.
+- A track that records a call app is muted, because it repeats the voice of the other side.
+- The banner shows the result, for example "Added 2 tracks at their recorded positions." When the import mutes a call track, the banner says so too.
+- The import is one step: **Edit > Undo Import Session** removes all the new tracks.
+- You cannot import the open session into itself: an alert tells you to choose a different session.
+
 ### Split a stereo clip into two mono tracks
 
 A split gives each channel of a stereo clip its own mono track, so you can cut, level, and mute each voice alone. In the app, select a stereo clip with a click, or select a range that holds it whole, then choose **Tools > Split Stereo to Mono** (**Dividir estéreo en mono**, Shift-Command-D). The command is also in the menu of a right-click on a stereo clip. It is off with no stereo clip in the selection, during a take, and while an import, a paste, or a split runs. At the end, the new clips are selected. In Terminal, `dirigible clip split-stereo <package> <clip>...` splits the clips, and an agent uses the tool `clip_split_stereo`.
@@ -1057,6 +1072,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Clear Menu** (at the end of **Open Recent**) | **Vaciar menú** | None |
 | **Import Audio** | **Importar audio** | Command-T |
 | **Import Transcript** | **Importar transcripción** | None |
+| **Import Session** | **Importar sesión** | None |
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |

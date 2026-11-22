@@ -8,11 +8,12 @@ import os
 public struct ImportRun: Hashable, Sendable {
     /// What the run converts or copies: a file (decision 0040), the clips of a paste from another
     /// package (decision 0042), the stereo clips of a split (decision 0053), the clips of a clip
-    /// render (decision 0054), or a clip of a drift fix (decision 0077).
-    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender, drift }
+    /// render (decision 0054), a clip of a drift fix (decision 0077), or the tracks of another
+    /// session package (decision 0075).
+    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender, drift, session }
 
-    /// The file name, the name of the source package of a paste, the name of the package of a
-    /// split or a clip render, or the name of the clip of a drift fix.
+    /// The file name, the name of the source package of a paste or a session import, the name of
+    /// the package of a split or a clip render, or the name of the clip of a drift fix.
     public let name: String
     public let kind: Kind
     let flags: ImportFlags
@@ -117,8 +118,10 @@ extension Studio {
         let flags = ImportFlags()
         let activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .idleSystemSleepDisabled], reason: environment.blockingRunReason)
+        let undoName: History.Name? = kind == .session ? .importSession : nil
         let task = Task {
-            await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, agent: agent, work: work)
+            await blockingTurn(
+                flags, stopped, cancelled: cancelled, yielded: yielded, agent: agent, undoName: undoName, work: work)
         }
         (importProgress, importStop) = (0, nil)
         transport = .importing(ImportRun(name: name, kind: kind, flags: flags))
@@ -153,6 +156,7 @@ extension Studio {
     /// its made files go.
     private func blockingTurn<Value: Sendable>(
         _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError, agent: AgentName?,
+        undoName: History.Name?,
         work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value, made: [URL]), StudioError>
     ) async -> Result<Value, StudioError> {
         await serialized { () async -> Result<Value, StudioError> in
@@ -178,7 +182,7 @@ extension Studio {
             case .success(let written):
                 url = written.package
                 backups = written.backups
-                recordLevel(edited, agent: agent)
+                recordLevel(edited, agent: agent, name: undoName)
                 poolChanged(from: before.files, agent: agent)
                 return .success(value)
             case .failure(let error):

@@ -33,6 +33,9 @@ extension ChromeState {
             banners.append(.leveledOverTime(shown.result, press: shown.press))
         }
         if let shown = model.voiceMatchReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
+        if let shown = model.sessionImportReport, shown.revision == studio.sessionRevision {
+            banners.append(shown.banner)
+        }
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.syncReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {

@@ -25,12 +25,12 @@ struct DirigibleApp: App {
                     }
                     Divider()
                     // Export has Command in its keys, so it can be off (probe K1 is about plain keys).
-                    ForEach(TimelineCommand.fileItems, id: \.command) { item in
-                        menuButton(item)
-                        ForEach(TimelineCommand.keylessFileItems.filter { $0.after == item.command }, id: \.command) {
-                            keyless in
-                            Button(keyless.title.key) { app.timeline(keyless.command) }
-                                .disabled(app.key?.isOn(keyless.command) != true)
+                    ForEach(TimelineCommand.fileMenu, id: \.command) { entry in
+                        switch entry {
+                        case .keyed(let item): menuButton(item)
+                        case .keyless(let item):
+                            Button(item.title.key) { app.timeline(item.command) }
+                                .disabled(app.key?.isOn(item.command) != true)
                         }
                     }
                     // The template items are a group of their own after the Export items (decision 0079).

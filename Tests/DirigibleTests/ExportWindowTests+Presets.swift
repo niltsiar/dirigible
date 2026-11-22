@@ -262,7 +262,7 @@ extension ExportWindowTests {
 
     @Test func theFileMenuOrder() {
         #expect(
-            TimelineCommand.fileMenuTitles == [
+            TimelineCommand.fileMenu.map(\.title) == [
                 .menuFileImport, .menuFileImportTranscript, .menuFileShowClips, .menuFileExport,
                 .menuFileExportSelection, .menuFileExportStems, .menuFileExportPresets, .menuFileExportChapters,
                 .menuFileExportTranscript, .menuFileEpisodeInfo,

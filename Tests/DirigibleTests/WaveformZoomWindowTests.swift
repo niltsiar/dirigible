@@ -73,11 +73,15 @@ import os
                 timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: character,
                 charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
         }
+        // All windows of the test process share one SwiftUI field editor, and a field of a parallel
+        // suite can take it during a wait. So no await comes between the focus, the keys, and the reads.
         app.timeline(.waveformZoomIn, event: key("\u{F700}", code: 126), in: window)
-        #expect(await shows(.db72, view, window), "Option-Command-Up zooms in")
+        let zoomed = model.timeline.waveformRange
         app.timeline(.waveformZoomReset, event: key("0", code: 29), in: window)
+        let field = (text: editor.string, caret: editor.selectedRange())
+        #expect(zoomed == .db72, "Option-Command-Up zooms in")
         #expect(await shows(.db60, view, window), "Option-Command-0 resets")
-        #expect(editor.string == text && editor.selectedRange() == NSRange(location: 1, length: 0), "the field is kept")
+        #expect(field.text == text && field.caret == NSRange(location: 1, length: 0), "the field is kept")
         await model.close()
     }
 

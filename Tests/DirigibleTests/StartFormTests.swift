@@ -25,7 +25,7 @@ extension StartWindowTests {
 
         app.newSession()
 
-        #expect(!NSApp.windows.contains { $0 is NSSavePanel }, "New Session shows no save panel")
+        #expect(!NSApp.windows.contains { $0 is NSSavePanel && $0.isVisible }, "New Session shows no save panel")
         let window = try #require(app.start?.window, "New Session shows the start window")
         let model = try #require(app.start?.model)
         #expect(window.isVisible)

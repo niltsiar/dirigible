@@ -58,10 +58,11 @@ import Testing
                 fixture.package, engine: T.engine(record: record), model: false, load: loader.load)
             let job = T.job(studio)
             await Self.downloading(studio)
-            // The limit of WhisperModelStoreTests.aStopDuringAStallDeletesTheTemporaryFile.
+            // Other suites hold the main actor that settle needs. So the limit runs off the main actor for
+            // Gate.openLimit, and the test ends the stream only when settle waits for that end.
             let endedByTest = StopSwitch()
-            let limit = Task {
-                try await Task.sleep(for: .seconds(12))
+            let limit = Task { @concurrent in
+                try await Task.sleep(for: Gate.openLimit)
                 endedByTest.set()
                 loader.end()
             }

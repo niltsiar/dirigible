@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "Dirigible no puede añadir la selección a Favoritos. Falta un archivo de audio de esta sesión o ha cambiado. Comprueba la carpeta Clips de la sesión e inténtalo de nuevo.";
 "error.favorites.download" = "Dirigible no puede añadir «%@» a Favoritos. El archivo no está descargado en este Mac. Descárgalo e inténtalo de nuevo.";
 "error.favorites.yielded" = "La acción de añadir a Favoritos se detuvo por una toma en otra ventana. Vuelve a añadir después de la toma.";
+"favorites.title" = "Favoritos";
+"favorites.empty" = "No hay favoritos";
+"favorites.empty.hint" = "Selecciona audio y elige Edición > Añadir a Favoritos.";
+"alert.favorites.remove" = "¿Eliminar «%@» de Favoritos?";
+"alert.favorites.remove.body" = "Las sesiones que lo usan conservan su propia copia.";
+"alert.favorites.remove.confirm" = "Eliminar";

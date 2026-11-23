@@ -55,9 +55,11 @@ import Testing
         return url
     }
 
-    /// The window, with the pane at `segment`, or hidden for nil.
-    func open(_ segment: PaneSegment? = .bins, bins: Bool = true) async throws -> (SessionWindow, Studio, NSWindow) {
-        let (model, studio, window, _) = try await openLanes(app, try await package(bins: bins))
+    /// The window, with the pane at `segment`, or hidden for nil, in `app` or the app of the suite.
+    func open(_ segment: PaneSegment? = .bins, bins: Bool = true, in app: AppDelegate? = nil) async throws -> (
+        SessionWindow, Studio, NSWindow
+    ) {
+        let (model, studio, window, _) = try await openLanes(app ?? self.app, try await package(bins: bins))
         switch segment {
         case .bins?: model.toggleBins()
         case .index?: model.toggleIndex()
@@ -269,7 +271,8 @@ import Testing
             .toolbarSidebarShow, .toolbarSidebarHide, .menuEditAddToFavorites, .favoritesBanner,
             .errorFavoritesLocked, .errorFavoritesDamaged, .errorFavoritesNewer, .errorFavoritesFile,
             .errorFavoritesFileOther, .errorFavoritesSpace, .errorFavoritesCopy, .errorFavoritesSource,
-            .errorFavoritesDownload, .errorFavoritesYielded,
+            .errorFavoritesDownload, .errorFavoritesYielded, .favoritesTitle, .favoritesEmpty, .favoritesEmptyHint,
+            .alertFavoritesRemove, .alertFavoritesRemoveBody, .alertFavoritesRemoveConfirm,
         ]
         for key in keys {
             let value = try #require(english[key.rawValue], "no English value for \(key.rawValue)")

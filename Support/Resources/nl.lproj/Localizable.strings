@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "Dirigible kan de selectie niet aan de favorieten toevoegen. Een audiobestand van deze sessie ontbreekt of is gewijzigd. Controleer de map Clips van de sessie en probeer het opnieuw.";
 "error.favorites.download" = "Dirigible kan '%@' niet aan de favorieten toevoegen. Het bestand is niet naar deze Mac gedownload. Download het en probeer het opnieuw.";
 "error.favorites.yielded" = "Het toevoegen aan de favorieten is gestopt vanwege een take in een ander venster. Voeg opnieuw toe na de take.";
+"favorites.title" = "Favorieten";
+"favorites.empty" = "Geen favorieten";
+"favorites.empty.hint" = "Selecteer audio en kies 'Wijzig' > 'Voeg toe aan favorieten'.";
+"alert.favorites.remove" = "'%@' uit favorieten verwijderen?";
+"alert.favorites.remove.body" = "Sessies die het gebruiken, houden hun eigen kopie.";
+"alert.favorites.remove.confirm" = "Verwijder";

@@ -36,7 +36,7 @@ extension SessionWindow {
         }
         guard let added else { return }
         showPane(at: .bins)
-        selectBinItem(added)
+        selectBinItem(.session(added))
         beginBinRename(.item(added))
     }
 
@@ -53,8 +53,8 @@ extension SessionWindow {
         return (1...last).lazy.map(name).first { !taken.contains($0) } ?? name(last)
     }
 
-    func selectBinItem(_ id: BinItemID) {
-        leadingPane.selectedBinItem = id
+    func selectBinItem(_ pick: BinsPick) {
+        leadingPane.selectedBinItem = pick
         leadingPane.binsTable?.source?.showSelection()
     }
 
@@ -77,14 +77,18 @@ extension SessionWindow {
         paste(mode: insert ? .insert(at: studio.playhead) : .over(at: studio.playhead), from: clipboard)
     }
 
-    /// Opens the name field of a bin or an item. An open field commits first. A take or a run, or a
-    /// target that the session does not have, does nothing.
+    /// Opens the name field of a bin, an item, a store group, or a favorite. An open field commits
+    /// first. A take or a run, or a target that the session or the store as last read does not have,
+    /// does nothing.
     func beginBinRename(_ target: BinRename) {
         guard canEdit, let bins = studio?.session.bins else { return }
+        let favorites = app?.favorites.bins ?? []
         let known =
             switch target {
             case .bin(let id): bins.contains { $0.id == id }
             case .item(let id): bins.contains { $0.items.contains { $0.id == id } }
+            case .favoriteBin(let id): favorites.contains { $0.id == id }
+            case .favorite(let id): favorites.contains { $0.items.contains { $0.id == id } }
             }
         guard known else { return }
         finishBinRename(save: true)
@@ -92,29 +96,39 @@ extension SessionWindow {
         leadingPane.binsTable?.source?.openField()
     }
 
-    /// Ends the name field. With `save`, a typed name goes in one edit; a name that is empty after the
-    /// trim keeps the name (C25). The state is cleared first, so the focus loss of the field adds no edit.
+    /// Ends the name field. With `save`, a typed name goes in one edit of the session or of the store;
+    /// a name that is empty after the trim, or that does not change, keeps the name (C25). The state is
+    /// cleared first, so the focus loss of the field adds no edit.
     func finishBinRename(save: Bool) {
         guard let target = leadingPane.binRename else { return }
         leadingPane.binRename = nil
         let text = leadingPane.binsTable?.source?.closeField()
         guard save, let text, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        edit(ripple: false) { session throws(SessionError) in
-            switch target {
-            case .bin(let id):
+        let favorites = app?.favorites.bins ?? []
+        switch target {
+        case .bin(let id):
+            edit(ripple: false) { session throws(SessionError) in
                 guard session.bins.first(where: { $0.id == id })?.name != text else { return }
                 try session.renameBin(id, to: text)
-            case .item(let id):
+            }
+        case .item(let id):
+            edit(ripple: false) { session throws(SessionError) in
                 guard session.bins.lazy.flatMap(\.items).first(where: { $0.id == id })?.name != text else { return }
                 try session.renameItem(id, to: text)
             }
+        case .favoriteBin(let id):
+            guard favorites.first(where: { $0.id == id })?.name != text else { return }
+            editFavorites { session throws(SessionError) in try session.renameBin(id, to: text) }
+        case .favorite(let id):
+            guard favorites.lazy.flatMap(\.items).first(where: { $0.id == id })?.name != text else { return }
+            editFavorites { session throws(SessionError) in try session.renameItem(id, to: text) }
         }
     }
 
     /// Delete on an item: one undo entry, and Undo brings it back with its ID and name (C26).
     func removeBinItem(_ id: BinItemID) {
         edit(ripple: false) { session throws(SessionError) in try session.removeItem(id) }
-        if leadingPane.selectedBinItem == id { leadingPane.selectedBinItem = nil }
+        if leadingPane.selectedBinItem == .session(id) { leadingPane.selectedBinItem = nil }
     }
 
     /// Delete on a bin: the bin and its items, one undo entry.

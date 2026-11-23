@@ -30,21 +30,72 @@ final class BinNameField: NSTextField {
     }
 }
 
-/// The row of a bin: its name.
+/// The row of a bin, of a store group, or of the Favorites header: its name.
 final class BinHeaderCell: NSTableCellView {
-    override init(frame: NSRect) {
-        super.init(frame: frame)
+    init(_ title: String, indent: CGFloat = 4) {
+        super.init(frame: .zero)
         let name = BinNameField(bold: true)
+        name.stringValue = title
         addSubview(name)
         textField = name
         NSLayoutConstraint.activate([
-            name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: indent),
             name.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
             name.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+}
+
+/// The note row of the Favorites section: "No Favorites" with the hint (C31), or the text of the
+/// store fault under the same title (C38). It is one static text for VoiceOver.
+final class FavoritesNoteCell: NSTableCellView {
+    let detail = NSTextField(wrappingLabelWithString: "")
+
+    /// The title and two lines of the hint, or four lines of a fault text. A longer text ends with an
+    /// ellipsis, and its help tag and VoiceOver read the whole text.
+    static func height(_ fault: StudioError?) -> CGFloat { fault == nil ? 52 : 68 }
+
+    init(_ fault: StudioError?) {
+        super.init(frame: .zero)
+        let title = NSTextField(labelWithString: fault == nil ? L10n.favoritesEmpty.text : "")
+        title.font = .systemFont(ofSize: NSFont.systemFontSize)
+        title.isHidden = fault != nil
+        detail.stringValue = fault.map { L10n.message(for: $0) } ?? L10n.favoritesEmptyHint.text
+        detail.toolTip = detail.stringValue
+        detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        detail.textColor = .secondaryLabelColor
+        detail.maximumNumberOfLines = fault == nil ? 2 : 4
+        detail.cell?.truncatesLastVisibleLine = true
+        textField = title
+        let stack = NSStackView(views: fault == nil ? [title, detail] : [detail])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        title.setAccessibilityElement(false)
+        detail.setAccessibilityElement(false)
+        detail.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            // The wrap needs a width: the stack gives each view its own width.
+            detail.widthAnchor.constraint(equalTo: stack.widthAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
+    override func accessibilityChildren() -> [Any]? { nil }
+
+    override func accessibilityLabel() -> String? {
+        [textField?.stringValue ?? "", detail.stringValue].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
 }
 
 /// The row of an item: the name, the length in the time format of the ruler, and the media fault

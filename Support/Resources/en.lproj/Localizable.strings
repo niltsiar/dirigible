@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "Dirigible cannot add the selection to Favorites. An audio file of this session is missing or changed. Check the Clips folder of the session and try again.";
 "error.favorites.download" = "Dirigible cannot add “%@” to Favorites. The file is not downloaded to this Mac. Download it and try again.";
 "error.favorites.yielded" = "The add to Favorites stopped for a take in another window. Add again after the take.";
+"favorites.title" = "Favorites";
+"favorites.empty" = "No Favorites";
+"favorites.empty.hint" = "Select audio, then choose Edit > Add to Favorites.";
+"alert.favorites.remove" = "Remove “%@” from Favorites?";
+"alert.favorites.remove.body" = "Sessions that use it keep their own copy.";
+"alert.favorites.remove.confirm" = "Remove";

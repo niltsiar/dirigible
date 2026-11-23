@@ -91,6 +91,7 @@ import Testing
 
         #expect(model.alert == nil, "a Cancel shows no alert")
         #expect(app.favorites.bins.map(\.name) == ["Favorites", "Jingles"], "the window read the store again")
+        await sectionListsJingles(model)
         await model.close()
     }
 
@@ -111,6 +112,16 @@ import Testing
 
         #expect(model.alert == nil, "a yield shows no alert")
         #expect(app.favorites.bins.map(\.name) == ["Favorites", "Jingles"], "the window read the store again")
+        await sectionListsJingles(model)
         await model.close()
+    }
+
+    /// The Favorites section of the Bins list shows the group that the store got outside the app.
+    func sectionListsJingles(_ model: SessionWindow) async {
+        model.toggleBins()
+        await until("the Favorites section lists Jingles") {
+            let rows = model.leadingPane.binsTable?.source?.rows ?? []
+            return rows.contains { if case .favoriteGroup(let bin) = $0 { bin.name == "Jingles" } else { false } }
+        }
     }
 }

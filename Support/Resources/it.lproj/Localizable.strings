@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "Dirigible non può aggiungere la selezione ai Preferiti. Un file audio di questa sessione manca o è cambiato. Controlla la cartella Clips della sessione e riprova.";
 "error.favorites.download" = "Dirigible non può aggiungere “%@” ai Preferiti. Il file non è scaricato su questo Mac. Scaricalo e riprova.";
 "error.favorites.yielded" = "L’aggiunta ai Preferiti si è interrotta a causa di un take in un’altra finestra. Aggiungi di nuovo dopo il take.";
+"favorites.title" = "Preferiti";
+"favorites.empty" = "Nessun preferito";
+"favorites.empty.hint" = "Seleziona l’audio, poi scegli Composizione > Aggiungi a Preferiti.";
+"alert.favorites.remove" = "Rimuovere “%@” da Preferiti?";
+"alert.favorites.remove.body" = "Le sessioni che lo usano mantengono la propria copia.";
+"alert.favorites.remove.confirm" = "Rimuovi";

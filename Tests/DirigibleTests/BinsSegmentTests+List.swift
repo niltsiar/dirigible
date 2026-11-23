@@ -17,11 +17,10 @@ extension BinsSegmentTests {
         var event: NSEvent?
         var route: (TimelineCommand, NSEvent?) -> Void = { _, _ in }
 
-        override init() {
+        init(_ commands: [TimelineCommand] = [.addMarker, .markerInfo, .renameTrack]) {
             super.init()
-            let items =
-                TimelineCommand.markerItems.filter { [.addMarker, .markerInfo].contains($0.command) }
-                + TimelineCommand.trackItems.filter { $0.command == .renameTrack }
+            let items = (TimelineCommand.markerItems + TimelineCommand.trackItems + TimelineCommand.pasteboardItems)
+                .filter { commands.contains($0.command) }
             for item in items {
                 let menuItem = NSMenuItem(
                     title: "\(item.command)", action: #selector(hit(_:)), keyEquivalent: String(item.key.character))
@@ -57,19 +56,21 @@ extension BinsSegmentTests {
     }
 
     /// The window at Bins with Jingle selected, the list focused, the playhead at 300,000, the route menu,
-    /// and a count of beeps.
-    func focusedList() async throws -> (SessionWindow, Studio, NSWindow, RouteMenu, () -> Int) {
-        let (model, studio, window) = try await open(.bins)
+    /// and a count of beeps, in `app` or the app of the suite.
+    func focusedList(in app: AppDelegate? = nil) async throws -> (SessionWindow, Studio, NSWindow, RouteMenu, () -> Int)
+    {
+        let app = app ?? self.app
+        let (model, studio, window) = try await open(.bins, in: app)
         app.key = model
         var beeps = 0
         model.beep = { beeps += 1 }
         await studio.perform(.seek(.frame(300_000)))
-        model.selectBinItem("item1")
+        model.selectBinItem(.session("item1"))
         let table = try #require(model.leadingPane.binsTable)
         try #require(window.makeFirstResponder(table))
         try #require(model.binsListHasFocus(in: window))
         let route = RouteMenu()
-        route.route = { [app] command, event in app.timeline(command, event: event, in: window) }
+        route.route = { command, event in app.timeline(command, event: event, in: window) }
         return (model, studio, window, route, { beeps })
     }
 
@@ -244,10 +245,12 @@ extension BinsSegmentTests {
     @Test func emptyBinsShowsNewBin() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, _) = try await open(.bins, bins: false)
-        #expect(model.leadingPane.binsTable == nil, "an empty session shows a list")
+        let rows = { model.leadingPane.binsTable?.source?.rows ?? [] }
+        await until("the list shows the Favorites section") { model.leadingPane.binsTable != nil }
+        #expect(rows() == [.favoritesHeader, .favoritesNote(nil)], "an empty session shows a session row")
         model.newBin()
         #expect(studio.session.bins.map(\.name) == [L10n.binsNewName.format(1)])
-        await until("the list shows the new bin") { model.leadingPane.binsTable != nil }
+        await until("the list shows the new bin") { rows().count == 3 }
         await model.close()
     }
 

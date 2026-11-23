@@ -7,10 +7,25 @@ enum PaneSegment: String {
     case index, bins
 }
 
-/// The row of an open rename field of the Bins list.
+/// The selected item of the Bins list: an item of a session bin, or a favorite (F23).
+enum BinsPick: Hashable {
+    case session(BinItemID)
+    case favorite(BinItemID)
+}
+
+/// The row of an open rename field of the Bins list: a session bin or item, or a store group or
+/// favorite.
 enum BinRename: Hashable {
     case bin(BinID)
     case item(BinItemID)
+    case favoriteBin(BinID)
+    case favorite(BinItemID)
+}
+
+/// What a key, a double-click, a row menu item, or a VoiceOver action does to the selected item
+/// (C23, C30).
+enum BinsAction {
+    case paste, insert, rename, remove
 }
 
 /// The show, the hide, and the segment of the leading pane (C19), and the keys of the Bins list (C23).
@@ -100,17 +115,36 @@ extension SessionWindow {
             return true
         case .item:
             guard isKey || command == .delete else { return false }
-            guard let id = leadingPane.selectedBinItem else {
+            guard let pick = leadingPane.selectedBinItem else {
                 beep()
                 return true
             }
             switch command {
-            case .addMarker: pasteBinItem(id, insert: false)
-            case .markerInfo: pasteBinItem(id, insert: true)
-            case .renameTrack: beginBinRename(.item(id))
-            default: removeBinItem(id)
+            case .addMarker: perform(.paste, on: pick)
+            case .markerInfo: perform(.insert, on: pick)
+            case .renameTrack: perform(.rename, on: pick)
+            default: perform(.remove, on: pick)
             }
             return true
+        }
+    }
+
+    /// Runs `action` on a session item with the session edits, and on a favorite with the Favorites
+    /// actions. A rename selects the item first.
+    func perform(_ action: BinsAction, on pick: BinsPick) {
+        switch (pick, action) {
+        case (.session(let id), .paste): pasteBinItem(id, insert: false)
+        case (.session(let id), .insert): pasteBinItem(id, insert: true)
+        case (.session(let id), .rename):
+            selectBinItem(pick)
+            beginBinRename(.item(id))
+        case (.session(let id), .remove): removeBinItem(id)
+        case (.favorite(let id), .paste): pasteFavorite(id, insert: false)
+        case (.favorite(let id), .insert): pasteFavorite(id, insert: true)
+        case (.favorite(let id), .rename):
+            selectBinItem(pick)
+            beginBinRename(.favorite(id))
+        case (.favorite(let id), .remove): removeFavorite(id)
         }
     }
 }

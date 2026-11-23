@@ -42,6 +42,11 @@ struct SessionView: View {
                             if button.role == nil { model.confirmRemoveTracks(ids) }
                         }
                     }
+                case .confirmRemoveFavorite(let part, _):
+                    Button(L10n.alertFavoritesRemoveConfirm.key, role: .destructive) {
+                        model.confirmRemoveFavorite(part)
+                    }
+                    Button(L10n.alertCancel.key, role: .cancel) {}
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
@@ -286,10 +291,13 @@ private struct ExportSheet: View {
 }
 
 extension WindowAlert {
-    /// The body under the title; only the follow alert has one.
+    /// The body under the title: only the follow alert and the question before a favorite removal have one.
     var message: String? {
-        guard case .followOverlap(let overlap) = self else { return nil }
-        return overlap.body()
+        switch self {
+        case .followOverlap(let overlap): overlap.body()
+        case .confirmRemoveFavorite: L10n.alertFavoritesRemoveBody.text
+        default: nil
+        }
     }
 
     var text: String {
@@ -330,6 +338,7 @@ extension WindowAlert {
         case .binFileFault(let path, .missing): L10n.errorBinMissing.format(path)
         case .binFileFault(let path, .short): L10n.errorBinShort.format(path)
         case .binFileFault(let path, .unreadable): L10n.errorBinUnreadable.format(path)
+        case .confirmRemoveFavorite(_, let name): L10n.alertFavoritesRemove.format(name)
         }
     }
 }

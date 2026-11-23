@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "Dirigible kann die Auswahl nicht zu den Favoriten hinzufügen. Eine Audiodatei dieser Session fehlt oder wurde geändert. Prüfe den Ordner „Clips“ der Session und versuche es erneut.";
 "error.favorites.download" = "Dirigible kann „%@“ nicht zu den Favoriten hinzufügen. Die Datei ist nicht auf diesen Mac geladen. Lade sie und versuche es erneut.";
 "error.favorites.yielded" = "Das Hinzufügen zu den Favoriten wurde für einen Take in einem anderen Fenster gestoppt. Füge nach dem Take erneut hinzu.";
+"favorites.title" = "Favoriten";
+"favorites.empty" = "Keine Favoriten";
+"favorites.empty.hint" = "Wähle Audio aus und wähle dann „Bearbeiten“ > „Zu Favoriten hinzufügen“.";
+"alert.favorites.remove" = "„%@“ aus den Favoriten entfernen?";
+"alert.favorites.remove.body" = "Sessions, die es verwenden, behalten ihre eigene Kopie.";
+"alert.favorites.remove.confirm" = "Entfernen";

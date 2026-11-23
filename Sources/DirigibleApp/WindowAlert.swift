@@ -20,6 +20,12 @@ struct FollowOverlap: Hashable {
     }
 }
 
+/// A favorite or a group of the Favorites store, for the question before its removal.
+enum FavoritePart: Hashable {
+    case item(BinItemID)
+    case group(BinID)
+}
+
 /// A question or an error that the window shows.
 enum WindowAlert: Hashable {
     case error(StudioError)
@@ -67,6 +73,8 @@ enum WindowAlert: Hashable {
     case templateOldKept(String, path: String)
     /// A paste of a bin item whose file, at this path in `Clips/`, has this fault (C32).
     case binFileFault(String, MediaFault)
+    /// Delete on a favorite or a store group, named here (C26). No session Undo covers the store.
+    case confirmRemoveFavorite(FavoritePart, name: String)
 
     /// The alert of a failed transcription job of `request`. Only a fault of the model file of the
     /// user gives Locate...: a missing helper, a helper that does not start, and an engine error

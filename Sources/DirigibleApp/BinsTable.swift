@@ -89,9 +89,10 @@ final class BinsTableView: NSTableView {
     func update(rows: [BinsRow], rate: Int) {
         guard rows != self.rows || rate != self.rate, let table else { return }
         (self.rows, self.rate) = (rows, rate)
-        // An undo or an agent edit can remove the selected item or the row of the open rename.
+        // An undo, an agent edit, or a store edit can remove the selected item or the row of the open
+        // rename.
         if let model {
-            if let id = model.leadingPane.selectedBinItem, row(of: .item(id)) == nil {
+            if let pick = model.leadingPane.selectedBinItem, !rows.contains(where: { $0.pick == pick }) {
                 model.leadingPane.selectedBinItem = nil
             }
             if let target = model.leadingPane.binRename, row(of: target) == nil { model.finishBinRename(save: false) }
@@ -108,8 +109,7 @@ final class BinsTableView: NSTableView {
     /// pane: the row of a new item comes at the next update.
     func showSelection() {
         guard let table else { return }
-        let id = model?.leadingPane.selectedBinItem
-        if let row = rows.firstIndex(where: { if case .item(let item, _) = $0 { item.id == id } else { false } }) {
+        if let pick = model?.leadingPane.selectedBinItem, let row = rows.firstIndex(where: { $0.pick == pick }) {
             if table.selectedRow != row { table.selectRowIndexes([row], byExtendingSelection: false) }
             table.scrollRowToVisible(row)
         } else if table.selectedRow != -1 {
@@ -120,15 +120,7 @@ final class BinsTableView: NSTableView {
         }
     }
 
-    private func row(of target: BinRename) -> Int? {
-        rows.firstIndex {
-            switch ($0, target) {
-            case (.bin(let bin), .bin(let id)): bin.id == id
-            case (.item(let item, _), .item(let id)): item.id == id
-            default: false
-            }
-        }
-    }
+    private func row(of target: BinRename) -> Int? { rows.firstIndex { $0.rename == target } }
 
     /// Opens the name field of the rename of the pane, with its whole text selected. A row that is not
     /// in the list yet opens at the next update.
@@ -183,78 +175,85 @@ final class BinsTableView: NSTableView {
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
 
+    /// A bin of the session and the Favorites header are group rows. A store group is a plain row
+    /// under the header, so the section has one group level.
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
-        if case .bin = rows[row] { true } else { false }
+        switch rows[row] {
+        case .bin, .favoritesHeader: true
+        case .item, .favoriteGroup, .favorite, .favoritesNote: false
+        }
     }
 
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-        !self.tableView(tableView, isGroupRow: row)
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { rows[row].pick != nil }
+
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        if case .favoritesNote(let fault) = rows[row] { FavoritesNoteCell.height(fault) } else { tableView.rowHeight }
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         switch rows[row] {
-        case .bin(let bin):
-            let cell = BinHeaderCell()
-            cell.textField?.stringValue = bin.name
-            return cell
-        case .item(let item, let fault):
-            let cell = BinItemCell()
-            cell.show(item, rate: rate, fault: fault)
-            cell.actions = { [weak self] in self?.itemActions(item.id) ?? [] }
-            return cell
+        case .bin(let bin): BinHeaderCell(bin.name)
+        case .favoritesHeader: BinHeaderCell(L10n.favoritesTitle.text)
+        case .favoriteGroup(let bin): BinHeaderCell(bin.name, indent: 12)
+        case .item(let item, let fault): itemCell(item, rate: rate, fault: fault, pick: .session(item.id))
+        case .favorite(let item, let rate): itemCell(item, rate: rate, fault: nil, pick: .favorite(item.id))
+        case .favoritesNote(let fault): FavoritesNoteCell(fault)
         }
+    }
+
+    private func itemCell(_ item: BinItem, rate: Int, fault: MediaFault?, pick: BinsPick) -> BinItemCell {
+        let cell = BinItemCell()
+        cell.show(item, rate: rate, fault: fault)
+        cell.actions = { [weak self] in self?.itemActions(pick) ?? [] }
+        return cell
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard let table, let model, !updating else { return }
         let row = table.selectedRow
-        if row >= 0, case .item(let item, _) = rows[row] {
-            model.leadingPane.selectedBinItem = item.id
-        } else {
-            model.leadingPane.selectedBinItem = nil
-        }
+        model.leadingPane.selectedBinItem = row >= 0 ? rows[row].pick : nil
     }
 
     // MARK: Actions
 
     @objc func doubleClicked(_ sender: Any?) {
-        guard let table, table.clickedRow >= 0, case .item(let item, _) = rows[table.clickedRow] else { return }
-        model?.pasteBinItem(item.id, insert: false)
+        guard let table, table.clickedRow >= 0, let pick = rows[table.clickedRow].pick else { return }
+        model?.perform(.paste, on: pick)
     }
 
-    /// The row menu: Paste at Playhead, Insert at Playhead, Rename, and Delete for an item; Rename and
-    /// Delete for a bin. Each item does what its key does (C23).
+    /// The row menu: Paste at Playhead, Insert at Playhead, Rename, and Delete for an item or a
+    /// favorite; Rename and Delete for a bin or a store group. Each item does what its key does (C23).
     func contextMenu(row: Int) -> NSMenu? {
         guard rows.indices.contains(row) else { return nil }
         let menu = NSMenu()
         switch rows[row] {
-        case .item(let item, _):
-            model?.selectBinItem(item.id)
-            for action in itemActions(item.id) { menu.addItem(MenuAction(action.name) { _ = action.handler?() }) }
-            menu.addItem(MenuAction(L10n.binsRemove.text) { [weak self] in self?.model?.removeBinItem(item.id) })
+        case .item(let item, _): itemMenu(menu, .session(item.id))
+        case .favorite(let item, _): itemMenu(menu, .favorite(item.id))
         case .bin(let bin):
             menu.addItem(MenuAction(L10n.binsRename.text) { [weak self] in self?.model?.beginBinRename(.bin(bin.id)) })
             menu.addItem(MenuAction(L10n.binsRemove.text) { [weak self] in self?.model?.removeBin(bin.id) })
+        case .favoriteGroup(let bin):
+            menu.addItem(
+                MenuAction(L10n.binsRename.text) { [weak self] in self?.model?.beginBinRename(.favoriteBin(bin.id)) })
+            menu.addItem(MenuAction(L10n.binsRemove.text) { [weak self] in self?.model?.removeFavoriteGroup(bin.id) })
+        case .favoritesHeader, .favoritesNote: return nil
         }
         return menu
     }
 
+    private func itemMenu(_ menu: NSMenu, _ pick: BinsPick) {
+        model?.selectBinItem(pick)
+        for action in itemActions(pick) { menu.addItem(MenuAction(action.name) { _ = action.handler?() }) }
+        menu.addItem(MenuAction(L10n.binsRemove.text) { [weak self] in self?.model?.perform(.remove, on: pick) })
+    }
+
     /// Paste at Playhead, Insert at Playhead, and Rename: the row menu and the VoiceOver actions (C30).
-    func itemActions(_ id: BinItemID) -> [NSAccessibilityCustomAction] {
-        [
-            NSAccessibilityCustomAction(name: L10n.binsPaste.text) { [weak self] in
-                self?.model?.pasteBinItem(id, insert: false)
+    func itemActions(_ pick: BinsPick) -> [NSAccessibilityCustomAction] {
+        [(L10n.binsPaste, BinsAction.paste), (.binsInsert, .insert), (.binsRename, .rename)].map { name, action in
+            NSAccessibilityCustomAction(name: name.text) { [weak self] in
+                self?.model?.perform(action, on: pick)
                 return true
-            },
-            NSAccessibilityCustomAction(name: L10n.binsInsert.text) { [weak self] in
-                self?.model?.pasteBinItem(id, insert: true)
-                return true
-            },
-            NSAccessibilityCustomAction(name: L10n.binsRename.text) { [weak self] in
-                self?.model?.selectBinItem(id)
-                self?.model?.beginBinRename(.item(id))
-                return true
-            },
-        ]
+            }
+        }
     }
 }

@@ -9,6 +9,9 @@ package enum Favorites {
     package static let sampleRate = 48_000
     /// The name of the bin that the first add makes in an empty store.
     static let firstBinName = "Favorites"
+    /// The source frames at each edge of a converted run, so that the converter reads the same input
+    /// around each played frame as in a conversion of the whole file.
+    static let conversionMargin = Frames(2048)
 
     /// `DIRIGIBLE_FAVORITES` when it is set (the CLI test children and the launch scripts), else
     /// `Favorites.dirigible` in the Application Support folder of the bundle ID.
@@ -20,8 +23,9 @@ package enum Favorites {
             path: "com.delineas.dirigible/Favorites.dirigible", directoryHint: .isDirectory)
     }
 
-    /// Copies the files of `clipboard` from `source` into the store with `copyExcerptFiles`, adds
-    /// its excerpt as an item named `name` at the end of `bin`, and returns the new item ID. With no
+    /// Copies the frames that the clips of `clipboard` play (`Excerpt.cropped`) from `source` into the
+    /// store with `copyExcerptFiles`, adds its excerpt as an item named `name` at the end of `bin`,
+    /// and returns the new item ID. With no
     /// `bin`, the item goes to the first bin, which an empty store makes as "Favorites". It makes
     /// the store folder and each missing parent folder first, and never calls `Session.create`. It
     /// blocks: never call it on the main actor.
@@ -46,10 +50,18 @@ package enum Favorites {
             } catch {
                 throw .write(file: store.lastPathComponent, errno: ENOENT)
             }
+            let rate = clipboard.excerpt.sampleRate
+            let (excerpt, spans) =
+                PackageID.same(clipboard.origin, lock.identity)
+                ? (clipboard.excerpt, [:])
+                : clipboard.excerpt.cropped(
+                    grid: rate / greatestCommonDivisor(rate, sampleRate),
+                    margin: rate == sampleRate ? .zero : conversionMargin)
             let added = try copyExcerptFiles(
-                clipboard, from: source, into: session, in: target, identity: lock.identity,
-                freeBytes: { lock.freeBytes() }, canClone: { cloneWorks($0, into: $1) }, progress: progress,
-                isCancelled: isCancelled, flush: NewClipFiles.flushToDisk
+                Clipboard(excerpt, package: clipboard.package, origin: clipboard.origin), from: source, into: session,
+                in: target, identity: lock.identity, spans: spans, freeBytes: { lock.freeBytes() },
+                canClone: { cloneWorks($0, into: $1) }, progress: progress, isCancelled: isCancelled,
+                flush: NewClipFiles.flushToDisk
             ) { session, excerpt throws(SessionError) in
                 let into: BinID
                 if let given = bin ?? session.bins.first?.id {
@@ -63,6 +75,8 @@ package enum Favorites {
             return added.value
         }
     }
+
+    static func greatestCommonDivisor(_ a: Int, _ b: Int) -> Int { b == 0 ? a : greatestCommonDivisor(b, a % b) }
 
     /// Runs `body` on the store session under its lock, and writes the store when `body` changed it:
     /// a rename, a remove, or a new group by `BinID` or `BinItemID`. A throw writes nothing.

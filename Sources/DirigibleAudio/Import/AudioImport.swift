@@ -225,15 +225,18 @@ func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: A
 /// Converts `input` into the temporary WAV at `temporary`, `channels` channels at `rate`, with
 /// `ClipConversion` (decision 0040): the one conversion of import and of a paste from a package of
 /// another rate (decision 0042). Returns the frame count and the clip gain of A11, or nil for a bad
-/// input or a cancel. `wav` is the package-relative path of the WAV, for errors.
+/// input or a cancel. `wav` is the package-relative path of the WAV, for errors. `span` converts
+/// only those input frames.
 func convertToWAV(
     _ input: AVAudioFile, descriptor: Int32, source: URL, package: URL, wav: String, channels: Int, rate: Double,
-    into temporary: URL, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool
+    span: Range<AVAudioFramePosition>? = nil, into temporary: URL, progress: @escaping (Double) -> Void,
+    isCancelled: @escaping () -> Bool
 ) throws(ImportError) -> (length: Int, gain: Gain)? {
-    let conversion = ClipConversion(
+    var conversion = ClipConversion(
         package: package, wav: wav, blockFrames: 65_536, readFault: nil,
         unreadable: { .readFailed(file: source.path, errno: $0) }, channels: AVAudioChannelCount(channels),
         progress: progress, isCancelled: isCancelled)
+    conversion.span = span
     do {
         return try conversion.convert(
             input, file: descriptor, from: input.fileFormat.sampleRate, to: rate, into: temporary)

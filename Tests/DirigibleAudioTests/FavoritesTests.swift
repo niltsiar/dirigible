@@ -48,8 +48,9 @@ struct FavoritesTests {
         let wav = try AVAudioFile(forReading: store.appending(path: "\(clipsFolderName)/host.wav"))
         #expect(wav.fileFormat.sampleRate == 48_000)
         if rate == 48_000 {
-            let copied = try packageBytes(store)["\(clipsFolderName)/host.wav"]
-            #expect(copied == before["\(clipsFolderName)/host.wav"], "a store-rate file copies with no conversion")
+            let host = try AVAudioFile(forReading: fixture.source.url.appending(path: "\(clipsFolderName)/host.wav"))
+            #expect(wav.length == 44_100, "the store keeps only the frames that the clip plays (C39)")
+            #expect(try firstChannel(wav) == Array(try firstChannel(host).prefix(44_100)), "with no conversion")
         }
         #expect(try packageBytes(fixture.source.url) == before, "the source does not change")
     }
@@ -148,6 +149,15 @@ struct FavoritesTests {
         }
         #expect(try packageBytes(store) == after, "the refused remove changes no byte")
     }
+}
+
+/// The samples of the first channel of `file`.
+func firstChannel(_ file: AVAudioFile) throws -> [Float] {
+    let buffer = try #require(
+        AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
+    file.framePosition = 0
+    try file.read(into: buffer)
+    return Array(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength)))
 }
 
 /// The error of `body`, or nil when it returns.

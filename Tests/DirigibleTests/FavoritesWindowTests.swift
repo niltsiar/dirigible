@@ -116,6 +116,66 @@ import Testing
         await model.close()
     }
 
+    /// C18: when the app becomes active again, the window reads a store write of another process.
+    @Test func activationReadsAnOutsideWrite() async throws {
+        let app = AppDelegate(recordings: nil, favorites: store)
+        await app.favorites.reload()
+        let (model, _) = try await open(app)
+        try addBinOutsideTheApp(app)
+
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+
+        await until("the window reads Jingles") { app.favorites.bins.map(\.name) == ["Favorites", "Jingles"] }
+        await model.close()
+    }
+
+    /// C18: a show of the Bins segment reads a store write of another process.
+    @Test func binsShowReadsAnOutsideWrite() async throws {
+        let app = AppDelegate(recordings: nil, favorites: store)
+        await app.favorites.reload()
+        let (model, _) = try await open(app)
+        try addBinOutsideTheApp(app)
+
+        await sectionListsJingles(model)
+        await model.close()
+    }
+
+    /// C18: a newer reload that overlaps the reload after an add holds the add until its read lands,
+    /// so the rename of the new favorite opens.
+    @Test func overlappingReloadKeepsTheRename() async throws {
+        let app = AppDelegate(recordings: nil, favorites: store)
+        await app.favorites.reload()
+        let (model, _) = try await open(app)
+        #expect(!model.leadingPane.shown, "no Bins show reads the store")
+        let (first, second, reads) = (AsyncGate(), AsyncGate(), LockedCount())
+        app.favorites.readStep = {
+            reads.add()
+            switch reads.value {
+            case 1: await first.wait()
+            case 2: await second.wait()
+            default: break
+            }
+        }
+        defer {
+            first.open()
+            second.open()
+        }
+
+        model.addToFavorites()
+        await first.entered()
+        let newer = Task { await app.favorites.reload() }
+        await second.entered()
+        first.open()
+        await until("the reload of the add ends or waits") { model.importJob == nil || !app.favorites.waiting.isEmpty }
+        second.open()
+        await newer.value
+        await until("the add ends") { model.importJob == nil }
+
+        let added = try #require(app.favorites.bins.first?.items.first)
+        #expect(model.leadingPane.binRename == .favorite(added.id), "no rename of the new favorite")
+        await model.close()
+    }
+
     /// The Favorites section of the Bins list shows the group that the store got outside the app.
     func sectionListsJingles(_ model: SessionWindow) async {
         model.toggleBins()

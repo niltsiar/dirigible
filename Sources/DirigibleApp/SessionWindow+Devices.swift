@@ -35,14 +35,17 @@ extension SessionWindow {
 
     /// When Dirigible becomes the active app again with Input Levels on, for example from System
     /// Settings, the studio taps again each app track that shows **No sound from** or
-    /// **No access**, with no toggle (decisions 0015 and 0006).
+    /// **No access**, with no toggle (decisions 0015 and 0006). The window also reads the Favorites
+    /// store again, because the CLI or an MCP client can write it while the app is inactive (C18).
     func followActivation() {
         guard activeObserver == nil else { return }
         activeObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.monitoring, case .open(let studio) = self.phase else { return }
+                guard let self else { return }
+                if let favorites = self.app?.favorites { Task { await favorites.reload() } }
+                guard self.monitoring, case .open(let studio) = self.phase else { return }
                 studio.rebuildSilentAppMonitors()
             }
         }

@@ -109,6 +109,9 @@ struct DirigibleApp: App {
                     } else {
                         Button(L10n.menuEditAddToBin.key) {}.disabled(true)
                     }
+                    // No key: Option-Command-0 is View > Reset Waveform Zoom (C22).
+                    Button(L10n.menuEditAddToFavorites.key) { app.key?.addToFavorites() }
+                        .disabled(app.key?.canAddToFavorites != true)
                     Divider()
                     ForEach(TimelineCommand.rippleItems, id: \.command) { item in menuButton(item) }
                     Divider()

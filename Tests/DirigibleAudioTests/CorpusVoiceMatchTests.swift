@@ -10,8 +10,8 @@ import Testing
 /// of `interview-jm-oct.dirigible`. The test reads it and writes nothing.
 struct CorpusVoiceMatchTests {
     static let corpus = ProcessInfo.processInfo.environment["DIRIGIBLE_CORPUS"]
-    static let dani: TrackID = "0EEBEAC3-A069-4533-925C-5F6700B79419"
-    static let joseManuel: TrackID = "81676E66-D581-4A24-94C8-8F6A6FC1C1E4"
+    static let host: TrackID = "0EEBEAC3-A069-4533-925C-5F6700B79419"
+    static let guest: TrackID = "81676E66-D581-4A24-94C8-8F6A6FC1C1E4"
 
     /// What the target track gives through `MixReader` over the extent of its clips.
     struct Heard: Sendable {
@@ -21,8 +21,8 @@ struct CorpusVoiceMatchTests {
         var samplePeak: Double
     }
 
-    /// The C9 pair (reference clip on "Dani", target "José Manuel"), and the reverse pair of C25
-    /// (the clip of "José Manuel" at the same time, target "Dani"). C9 asserts on the C9 pair only.
+    /// The C9 pair (reference clip on the host, target the guest), and the reverse pair of C25
+    /// (the clip of the guest at the same time, target the host). C9 asserts on the C9 pair only.
     /// The reads and the renders run in parallel: each one reads about 66 min of audio.
     @Test(
         .enabled(if: corpus != nil, "DIRIGIBLE_CORPUS is not set: C9 needs a clone of interview-jm-oct.dirigible"),
@@ -32,7 +32,7 @@ struct CorpusVoiceMatchTests {
         let plain = try Session(contentsOf: package)
         let (reference, target): (ClipID, TrackID) =
             reverse
-            ? ("take4-2-1@1415798@7192320", Self.dani) : ("take4-1-1@1415798@7192320", Self.joseManuel)
+            ? ("take4-2-1@1415798@7192320", Self.host) : ("take4-1-1@1415798@7192320", Self.guest)
         let name = reverse ? "reverse pair" : "C9 pair"
         let clip = try #require(plain.clip(reference)?.clip)
         let track = try #require(plain.track(target))

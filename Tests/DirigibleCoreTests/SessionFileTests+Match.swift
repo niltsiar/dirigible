@@ -58,7 +58,7 @@ extension SessionFileTests {
     /// C5: a reference name with `&`, `"`, `<`, and non-ASCII text reads back equal.
     @Test func referenceNameRoundTrips() throws {
         var session = try fullSession()
-        let name = #"Dani & "José" <studio> 🎙️"#
+        let name = #"Host & "Zoë" <studio> 🎙️"#
         try session.setMatch(["t1": VoiceMatchTests.match(VoiceMatchTests.flat, reference: name)])
 
         let read = try Session(xml: try session.checkedData())

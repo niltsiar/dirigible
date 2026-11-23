@@ -32,7 +32,7 @@ enum MatchMarkState: Equatable {
         }
     }
 
-    /// The tooltip of the mark: "Voice matched to Dani, 75%".
+    /// The tooltip of the mark: "Voice matched to Host, 75%".
     func help(reference: String, text: (L10n) -> String = { $0.text }) -> String {
         switch self {
         case .learning: value(text: text)

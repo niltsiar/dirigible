@@ -118,7 +118,7 @@ expect 'unused files' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/U
 expect 'backups' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Backup.swift'
 expect 'origin files in use' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Session+Origin.swift'
 expect 'unused files transcripts' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/UnusedFiles+Transcripts.swift'
-expect 'package edit core' "$(out sources-risk test yes)" <<<'Sources/DirigibleMCP/PackageEditCore.swift'
+expect 'package edit core' "$(out sources-risk test yes)" <<<'Sources/DirigibleAudio/Import/PackageEditCore.swift'
 expect 'prune work' "$(out sources-risk test yes)" <<<'Sources/DirigibleMCP/PruneWork.swift'
 expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow-push test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'

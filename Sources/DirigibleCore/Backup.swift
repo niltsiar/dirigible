@@ -89,12 +89,12 @@ public struct Backup: Hashable, Comparable, Sendable {
 
     /// Copies `session.xml` of `package` to `Backups/<name of its mtime>` with the durable write
     /// of a save. When a backup has that name, the name gets 1 ms more until it is free. When one
-    /// of the 19 newest backups has the same bytes, it copies nothing (a revert copy or a move
+    /// of the `count - 1` newest backups has the same bytes, it copies nothing (a revert copy or a move
     /// before the next prune can still push that backup out). When an older backup has them, it
     /// moves that backup to the new name, so the next prune keeps the state and `Backups/` holds
     /// it once. Returns the new copy, or nil when no file is added, so the caller prunes only
     /// after a new copy. Only a lock holder calls it.
-    static func keep(in package: URL) throws(SessionFileError) -> Backup? {
+    static func keep(in package: URL, keeping count: Int = BackupPolicy.count) throws(SessionFileError) -> Backup? {
         let source = package.appending(path: "session.xml")
         var info = stat()
         guard stat(source.path, &info) == 0 else { throw .readFailed(errno: errno) }
@@ -112,7 +112,7 @@ public struct Backup: Hashable, Comparable, Sendable {
             throw .writeFailed(step: "mkdir", errno: errno)
         }
         let backups = all(in: package)
-        let window = BackupPolicy.count - 1
+        let window = count - 1
         if backups.prefix(window).contains(where: { holds(folder.appending(path: $0.fileName), data) }) { return nil }
         var backup = Backup(info.st_mtimespec)
         // A coarse mtime (HFS+ 1 s, exFAT 10 ms) gives two states one name. A file with the name
@@ -189,6 +189,9 @@ public enum RevertReadError: Error, Hashable, Sendable {
 package enum BackupPolicy: Sendable {
     /// A backup when one is due, then the prune.
     case standard
+    /// A backup at each save and the 3 newest kept: the Favorites store, which has no session undo,
+    /// so a prune of the store frees the audio of a removed favorite after 3 more saves (decision 0081).
+    case store
     /// No backup step: the take-start save, between Record and the device attach (decision 0043).
     case none
 
@@ -196,6 +199,8 @@ package enum BackupPolicy: Sendable {
     package static let interval: Int64 = 600_000
     /// The backups that a prune keeps.
     package static let count = 20
+    /// The backups that a prune keeps for `.store`.
+    package static let storeCount = 3
 
     /// True when no backup is given, or when `replacing` is `interval` or more after `newest`.
     /// Both are file times, so one clock decides.
@@ -204,9 +209,9 @@ package enum BackupPolicy: Sendable {
         return replacing.milliseconds - newest.milliseconds >= interval
     }
 
-    /// Keeps a backup of `session.xml` when one is due, then prunes. The newest backup is the
-    /// newest name that is not after the mtime of the file, so a name of a clock fault does not
-    /// count. No `session.xml` keeps nothing. With less free space than the old file and the new
+    /// Keeps a backup of `session.xml` when one is due (`.store`: always), then prunes. The newest
+    /// backup is the newest name that is not after the mtime of the file, so a name of a clock
+    /// fault does not count. No `session.xml` keeps nothing. With less free space than the old file and the new
     /// data of the save (`newSize`), it keeps nothing: the copy must not take the space that the
     /// save needs. Byte sizes, not whole blocks: a volume within one block of the limit can still
     /// fail the save.
@@ -217,11 +222,14 @@ package enum BackupPolicy: Sendable {
         var info = stat()
         guard stat(package.appending(path: "session.xml").path, &info) == 0 else { return }
         let replacing = Backup(info.st_mtimespec)
-        guard Self.isDue(newest: Backup.all(in: package).first { $0 <= replacing }, replacing: replacing) else {
-            return
+        let due =
+            self == .store
+            || Self.isDue(newest: Backup.all(in: package).first { $0 <= replacing }, replacing: replacing)
+        guard due, freeBytes(package) >= Int64(info.st_size) + newSize else { return }
+        let count = self == .store ? Self.storeCount : Self.count
+        if let kept = try Backup.keep(in: package, keeping: count) {
+            Backup.prune(in: package, keeping: count, after: kept)
         }
-        guard freeBytes(package) >= Int64(info.st_size) + newSize else { return }
-        if let kept = try Backup.keep(in: package) { Backup.prune(in: package, keeping: Self.count, after: kept) }
     }
 }
 

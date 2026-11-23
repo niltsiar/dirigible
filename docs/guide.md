@@ -279,7 +279,7 @@ A bin keeps a copy of a part of the session, for example a jingle or a sound eff
 - To paste an item at the playhead, double-click it, or select it and press Command-Return. Press Shift-Return to insert it at the playhead: the clips after the playhead on all tracks move right by the length of the item. Press Return to rename the item. Control-click an item for **Paste at Playhead**, **Insert at Playhead**, **Rename**, and **Delete**. Control-click a bin for **Rename** and **Delete**.
 - Press Delete to remove the selected item. Each add, rename, and remove is one step of **Edit > Undo**.
 - The **Favorites** section is under the bins of the session, also in a session with no bin. With no favorite, it shows "No Favorites" and the hint "Select audio, then choose Edit > Add to Favorites." To paste a favorite at the playhead, select it and press Command-Return. The paste copies its audio files into the session.
-- Press Delete to remove the selected favorite. An alert asks first, with the name of the favorite. Click **Remove** to remove it from the store. Sessions that use it keep their own copy.
+- Press Delete to remove the selected favorite. An alert asks first, with the name of the favorite. Click **Remove** to remove it from the store. Sessions that use it keep their own copy. The audio file of a removed favorite stays in the store folder until 3 later changes of the store push out the backups that name it. Then **File > Remove Unused Files** (or `dirigible file prune` with the store path) moves the file to the Trash.
 - With the focus in the list, Space, J, K, and L run their menu items, and the commands that change the tracks beep.
 
 ## Select and edit

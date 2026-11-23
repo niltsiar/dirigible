@@ -29,12 +29,13 @@ package enum EditFailure<Body: Error>: Error {
 /// `body`, and saves. With `writeUnchanged` false, it does not save a session that `body` did not
 /// change. The lock is held until the save ends. `session.xml` does not change when a step fails.
 /// A save with `backups` `.standard` and a backup due can add a backup, and a save can delete the
-/// oldest backup before the replace (the Favorites store passes `.store`, decision 0081). A refused
+/// oldest backup before the replace. With no `backups`, the package of the Favorites store gets `.store`
+/// and each other package gets `.standard` (`Favorites.backups(for:environment:)`, decision 0081). A refused
 /// revert can leave the kept copy of the current file (decision 0043). With `whenMissing`, a package
 /// folder with no `session.xml` (ENOENT at the read) edits the session that it gives, and the save
 /// writes it under the lock: the Favorites store after a crash during its first write.
 package func editPackageCore<Result, Failure: Error>(
-    _ package: URL, ripple: RippleNeed, writeUnchanged: Bool = true, backups: BackupPolicy = .standard,
+    _ package: URL, ripple: RippleNeed, writeUnchanged: Bool = true, backups: BackupPolicy? = nil,
     log: () -> DiagnosticLog, whenMissing: (() -> Session)? = nil,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(EditFailure<Failure>) -> Result {
@@ -60,7 +61,8 @@ package func editPackageCore<Result, Failure: Error>(
         if !writeUnchanged && session == before { return result }
         do throws(SessionFileError) {
             // The package that the lock holds, also after a rename (decision 0014).
-            try session.write(under: lock, backups: backups)
+            let policy = backups ?? Favorites.backups(for: package, environment: ProcessInfo.processInfo.environment)
+            try session.write(under: lock, backups: policy)
         } catch {
             throw .file(error)
         }

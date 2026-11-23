@@ -23,6 +23,14 @@ package enum Favorites {
             path: "com.delineas.dirigible/Favorites.dirigible", directoryHint: .isDirectory)
     }
 
+    /// `.store` for a write of the store of this process, else `.standard`. Both URLs are standardized
+    /// and symlink-resolved, so `dirigible bin` and the `bin_*` tools get the policy of the store
+    /// whatever spelling of its path they get (decision 0081).
+    package static func backups(for package: URL, environment: [String: String]) -> BackupPolicy {
+        func resolved(_ url: URL) -> URL { url.standardizedFileURL.resolvingSymlinksInPath() }
+        return resolved(package) == resolved(Favorites.package(environment: environment)) ? .store : .standard
+    }
+
     /// Copies the frames that the clips of `clipboard` play (`Excerpt.cropped`) from `source` into the
     /// store with `copyExcerptFiles`, adds its excerpt as an item named `name` at the end of `bin`,
     /// and returns the new item ID. With no

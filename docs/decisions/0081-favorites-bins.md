@@ -34,7 +34,7 @@ Constraints from this repo:
 ## Consequences
 
 - An older app refuses a session with a bin ("unsupported version"), and does not change it (0024).
-- The store grows: a removed favorite keeps its WAV until Remove Unused Files runs on the store (`dirigible file prune <store path>`), and then only when no backup names it. The store has no session undo, so each store write keeps a backup (`BackupPolicy.store`, passed by `Favorites.add` and `Favorites.edit`) and the 3 newest stay, not the 20 of a session (0043). The WAV goes free after 3 later store writes. Another package edit keeps the standard policy.
+- The store grows: a removed favorite keeps its WAV until Remove Unused Files runs on the store (`dirigible file prune <store path>`), and then only when no backup names it. The store has no session undo, so each store write keeps a backup (`BackupPolicy.store`, chosen by `editPackageCore` for the package at `Favorites.package(environment:)`, so also for a write of `dirigible bin` or a `bin_*` tool) and the 3 newest stay, not the 20 of a session (0043). The WAV goes free after 3 later store writes. Another package edit keeps the standard policy.
 - A paste from Favorites copies the audio again for each paste, as a paste from another package (0042).
 - Two processes that write the store (the app and the CLI) take its lock for each write; the second gets a busy error and writes nothing.
 - A bin item stores no transcript words. A paste from a bin in its own package changes no words (0055: only a paste from another package adds words). The store keeps no transcripts, so a paste from Favorites brings no words.

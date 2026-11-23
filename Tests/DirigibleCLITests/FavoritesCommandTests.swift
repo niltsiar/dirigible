@@ -90,4 +90,33 @@ struct FavoritesCommandTests {
         #expect(refused.stderr.hasPrefix("Error: ") && refused.stderr.contains(store.path), "\(refused.stderr)")
         #expect(try bytes(store) == before, "the held store keeps its bytes")
     }
+
+    /// C40: `dirigible bin` on the store keeps a backup at each write and the 3 newest, so a prune
+    /// frees the audio of the removed favorite after 3 more writes.
+    @Test func aBinRemoveOfTheStoreFreesTheAudioAfterThreeWrites() async throws {
+        func unused() async throws -> String {
+            let scan = try await dirigible(["file", "prune", store.path, "--dry-run"], favorites: store)
+            return try #require(
+                scan.stdout.split(separator: "\n").first { $0.hasPrefix("Unused files: ") }.map(String.init))
+        }
+        let gone = try await run("favorites", "add", "PKG", "Gone", "--clip", "A")
+        let kept = try await run("favorites", "add", "PKG", "Kept", "--clip", "C")
+        let removed = try await dirigible(
+            ["bin", "item-remove", store.path, String(gone.stdout.dropLast())], favorites: store)
+        #expect(gone.status == 0 && kept.status == 0 && removed.status == 0, "\(gone) \(kept) \(removed)")
+        let keptID = String(kept.stdout.dropLast())
+
+        for write in 1...3 {
+            #expect(
+                try await unused() == "Unused files: 0 (0 bytes)",
+                "a backup keeps the file after \(write - 1) more writes")
+            let renamed = try await dirigible(
+                ["bin", "item-rename", store.path, keptID, "Kept \(write)"], favorites: store)
+            #expect(renamed.status == 0, "\(renamed)")
+        }
+
+        #expect(try await unused().hasPrefix("Unused files: 1 ("), "no backup names the file after 3 more writes")
+        let backups = try FileManager.default.contentsOfDirectory(atPath: store.appending(path: "Backups").path)
+        #expect(backups.count == 3, "\(backups)")
+    }
 }

@@ -73,6 +73,8 @@ extension Session {
 public enum PasteError: Error, Hashable, Sendable {
     /// The source package or a source WAV is not there, or another package is at the path.
     case sourceMissing(file: String)
+    /// `session.xml` of the source package does not read, with the fault of the read (a favorite add).
+    case sourceUnreadable(package: String, fault: SessionFileError)
     /// An iCloud or File Provider item whose data is not on this Mac (0040).
     case notDownloaded(file: String)
     /// The copied header differs from the file record.

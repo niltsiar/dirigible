@@ -59,6 +59,25 @@ struct FavoritesCommandTests {
         #expect(try Session(contentsOf: store).bins.first?.items.map(\.id) == [id, BinItemID(tool.text)])
     }
 
+    /// The refusal of an unreadable source names its real fault, here a newer version, and the source path.
+    @Test func aNewerSourceNamesTheVersion() async throws {
+        let text = try String(contentsOf: package.sessionXML, encoding: .utf8)
+            .replacing(#/ version="\d+"/#, with: #" version="9999""#)
+        try Data(text.utf8).write(to: package.sessionXML)
+        let named = "\(package.path)/session.xml was made by a newer version of Dirigible"
+
+        let refused = try await run("favorites", "add", "PKG", "Sting", "--clip", "A")
+        let answers = try await mcp(
+            [toolCall(1, "favorites_add", ["package": package.path, "name": "Sting", "clips": ["A"]])], favorites: store
+        )
+        let tool = toolResult(answer(answers, id: 1))
+
+        #expect(refused.status == 2 && refused.stdout.isEmpty, "\(refused)")
+        #expect(errorText(refused).hasPrefix(named), "\(refused)")
+        #expect(tool.isError && tool.text.hasPrefix(named), "\(tool)")
+        #expect(!FileManager.default.fileExists(atPath: store.path), "the refused add makes no store")
+    }
+
     @Test func aHeldStoreRefusesTheAdd() async throws {
         _ = try await run("favorites", "add", "PKG", "Sting", "--clip", "A")
         let before = try bytes(store)

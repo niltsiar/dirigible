@@ -149,6 +149,7 @@ extension PasteError {
     package var message: String {
         switch self {
         case .sourceMissing(let file): "the source \"\(file)\" is not there: the source package moved or was deleted."
+        case .sourceUnreadable(let package, let fault): fault.message(package: package)
         case .notDownloaded(let file): "the source file \"\(file)\" is not on this Mac. Download it first."
         case .sourceChanged(let file): "the source file \"\(file)\" does not match its record in the source session."
         case .space(let needed, let free): "the paste needs \(needed) free bytes, and the disk has \(free)."

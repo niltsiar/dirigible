@@ -23,7 +23,7 @@ extension L10n {
     /// window shows no alert for a cancel.
     private static func message(forImport error: PasteError, source: String) -> String {
         switch error {
-        case .sourceMissing: errorImportSessionMissing.format(source)
+        case .sourceMissing, .sourceUnreadable: errorImportSessionMissing.format(source)
         case .sourceChanged: errorImportSessionChanged.format(source)
         case .notDownloaded(let file): errorImportSessionSource.format(source, errorImportNotDownloaded.format(file))
         case .space, .write(_, ENOSPC): errorImportSessionSpace.format(source)

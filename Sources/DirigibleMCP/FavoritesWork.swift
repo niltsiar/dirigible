@@ -21,7 +21,7 @@ package struct FavoritesWork: Sendable {
         do throws(SessionFileError) {
             read = try Session(contentsOf: source)
         } catch {
-            throw .body(.sourceMissing(file: source.lastPathComponent))
+            throw .body(.sourceUnreadable(package: source.path, fault: error))
         }
         let excerpt: Excerpt
         do throws(SessionError) {

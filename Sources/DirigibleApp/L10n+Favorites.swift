@@ -29,7 +29,7 @@ extension L10n {
         switch error {
         case .space, .write(_, ENOSPC): errorFavoritesSpace.text
         case .write(_, let code), .convert(_, let code): errorFavoritesCopy.format(Int(code))
-        case .sourceMissing, .sourceChanged: errorFavoritesSource.text
+        case .sourceMissing, .sourceUnreadable, .sourceChanged: errorFavoritesSource.text
         case .notDownloaded(let file): errorFavoritesDownload.format(file)
         // The window shows no alert for a Cancel.
         case .cancelled, .session: errorSessionOther.text

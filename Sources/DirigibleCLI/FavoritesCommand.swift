@@ -27,11 +27,11 @@ struct FavoritesCommand: ParsableCommand {
             commandName: "add",
             abstract: "Copy a range or whole clips of a package into the Favorites store. Write the new item ID.",
             discussion: """
-                Give --from, --to, and --track for a range, or --clip for whole clips, as bin item-add. The \
-                audio files are copied into the store, and converted to 48000 Hz from another rate. The item \
-                goes to --bin, else to the first bin; an empty store gets the bin "Favorites". The store and \
-                its folders are made when they are missing. The package does not change. Exit 2 while \
-                another holder has the store lock.
+                Give --from, --to, and --track for a range, or --clip for whole clips, as bin item-add. Only \
+                the audio that the clips play is copied into the store, and converted to 48000 Hz from another \
+                rate. The item goes to --bin, else to the first bin; an empty store gets the bin "Favorites". \
+                The store and its folders are made when they are missing. The package does not change. Exit 2 \
+                while another holder has the store lock.
                 """)
         @OptionGroup var package: PackageArgument
         @Argument(help: "The item name.") var name: String

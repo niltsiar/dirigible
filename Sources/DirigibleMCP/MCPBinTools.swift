@@ -113,7 +113,7 @@ let binTools = [
         "favorites_add",
         "Copy a range of tracks (from, to, and track) or whole clips (clips) of the session into the Favorites store "
             + "as a new item, as dirigible favorites add. The store is one session package for all sessions, at "
-            + "48000 Hz, with its own copy of each file: a file at another rate is converted. The item goes to bin, "
+            + "48000 Hz, with its own copy of the audio that the clips play: audio at another rate is converted. The item goes to bin, "
             + "else to the first bin; an empty store gets the bin Favorites. The session does not change, and the "
             + "store has no undo. The bin tools change the store at the path of dirigible favorites path. Refused "
             + "while a window has the session open. Give the new item ID.",

@@ -76,7 +76,10 @@ func copyExcerptFiles<Value>(
     } catch {
         throw .session(error)
     }
-    guard !plan.copies.isEmpty else { return (plan.session, plan.value) }
+    guard !plan.copies.isEmpty else {
+        guard !isCancelled() else { throw .cancelled }
+        return (plan.session, plan.value)
+    }
     if clipboard.origin != nil, !PackageID.same(PackageID(lockFileOf: source), clipboard.origin) {
         throw .sourceMissing(file: source.lastPathComponent)
     }

@@ -25,18 +25,37 @@ public struct ImportRun: Hashable, Sendable {
 /// The cancel flag of an import, which its conversion thread reads, and the yield of a take in
 /// another studio.
 final class ImportFlags: Sendable {
-    private let state = OSAllocatedUnfairLock(initialState: (cancelled: false, yielded: false))
+    private struct State {
+        var cancelled = false
+        var yielded = false
+        var actions: [@Sendable () -> Void] = []
+    }
+    private let state = OSAllocatedUnfairLock(initialState: State())
     var isCancelled: Bool { state.withLock { $0.cancelled } }
     var isYielded: Bool { state.withLock { $0.yielded } }
 
-    /// Sets the flag. True only for the call that sets it first; only that call sets the yield, so
-    /// the first stop names the cause.
+    /// Sets the flag and runs each action of `whenCancelled`. True only for the call that sets it
+    /// first; only that call sets the yield, so the first stop names the cause.
     @discardableResult
     func cancel(yielding: Bool) -> Bool {
-        state.withLock { state in
-            defer { state = (true, state.cancelled ? state.yielded : yielding) }
-            return !state.cancelled
+        let actions = state.withLock { state -> [@Sendable () -> Void]? in
+            guard !state.cancelled else { return nil }
+            defer { state = State(cancelled: true, yielded: yielding) }
+            return state.actions
         }
+        guard let actions else { return false }
+        for action in actions { action() }
+        return true
+    }
+
+    /// Runs `action` once at the first cancel, or at once when the flag is set: a work that waits
+    /// for no block, such as a store write in a queue, ends at the Cancel.
+    func whenCancelled(_ action: @escaping @Sendable () -> Void) {
+        let now = state.withLock { state in
+            if !state.cancelled { state.actions.append(action) }
+            return state.cancelled
+        }
+        if now { action() }
     }
 }
 

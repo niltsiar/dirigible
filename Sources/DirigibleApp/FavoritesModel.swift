@@ -22,6 +22,12 @@ import Observation
     @ObservationIgnored private(set) var identity: PackageID?
     /// The number of the last reload, so the result of an older read does not replace a newer one.
     @ObservationIgnored private var reloads = 0
+    /// The number of the reload whose read the state holds.
+    @ObservationIgnored private var landed = 0
+    /// The reloads that wait for a newer read to land.
+    @ObservationIgnored private(set) var waiting: [CheckedContinuation<Void, Never>] = []
+    /// Runs before each store read, off the main actor. A test holds a read here.
+    @ObservationIgnored var readStep: @Sendable () async -> Void = {}
 
     init(store: URL?) { writer = store.map(FavoritesWriter.init(store:)) }
 
@@ -34,13 +40,22 @@ import Observation
 
     /// Reads the store `session.xml` again, with no lock, off the main actor. A store folder or a
     /// `session.xml` that does not exist reads as an empty store; each other read error is a fault.
+    /// It returns when the state holds the read of the newest reload, so a caller sees its own read
+    /// or a newer one.
     func reload() async {
         guard let store = writer?.store else { return }
         reloads += 1
         let reload = reloads
+        await readStep()
         let read = await Self.read(store)
-        guard reload == reloads else { return }
-        (state, identity) = read
+        if reload == reloads {
+            (state, identity) = read
+            landed = reload
+            for waiter in waiting { waiter.resume() }
+            waiting = []
+        } else if landed < reloads {
+            await withCheckedContinuation { waiting.append($0) }
+        }
     }
 
     /// Runs `body` on the store through the one writer, after each earlier store write of the app,

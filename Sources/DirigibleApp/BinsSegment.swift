@@ -6,7 +6,8 @@ import SwiftUI
 /// The Bins segment of the leading pane (F22): the list of the bins and their items, then the
 /// Favorites section (F23), and New Bin. A session with no bin shows "No Bins" with a New Bin button
 /// (C31) above the list, which then holds the Favorites section only. The body reads the bins and the
-/// media faults of the studio, and the store of the app, not the playhead.
+/// media faults of the studio, and the store of the app, not the playhead. Each show reads the store
+/// again, because another process can write it (C18).
 struct BinsSegment: View {
     let model: SessionWindow
     let studio: Studio
@@ -37,6 +38,7 @@ struct BinsSegment: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .task { await model.app?.favorites.reload() }
     }
 }
 

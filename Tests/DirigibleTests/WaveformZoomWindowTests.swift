@@ -78,9 +78,11 @@ import os
         app.timeline(.waveformZoomIn, event: key("\u{F700}", code: 126), in: window)
         let zoomed = model.timeline.waveformRange
         app.timeline(.waveformZoomReset, event: key("0", code: 29), in: window)
+        let reset = model.timeline.waveformRange
         let field = (text: editor.string, caret: editor.selectedRange())
         #expect(zoomed == .db72, "Option-Command-Up zooms in")
-        #expect(await shows(.db60, view, window), "Option-Command-0 resets")
+        #expect(reset == .db60, "Option-Command-0 resets")
+        #expect(await shows(.db60, view, window), "the lanes draw the reset")
         #expect(field.text == text && field.caret == NSRange(location: 1, length: 0), "the field is kept")
         await model.close()
     }

@@ -102,6 +102,7 @@ struct ParityTests {
             "It reads no package and changes none: a report zip that the user sends (decision 0059).",
         "model check":
             "It reads no package and changes none: the helper of a model file check in the app (decision 0065, D8).",
+        "favorites path": "It reads no package and changes none: the path of the Favorites store (decision 0081).",
     ]
 
     /// The commands whose tool name does not follow the name rule.

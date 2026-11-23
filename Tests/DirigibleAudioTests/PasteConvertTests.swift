@@ -152,13 +152,17 @@ struct PasteConvertLengthTests {
         let excerpt = try fixture.p.session.excerpt(of: 0..<132_300, on: ["t1"])
         let length = Frames(192_000 + delta)
 
-        let plan = try PastePlan(
-            excerpt, same: false, into: fixture.q.session, in: fixture.q.url, mode: .over(at: 480_000),
-            on: .tracks(["u1"]),
-            lengths: ["take1-mic": length], gains: [:], stems: ["take1-mic": "take1-mic"])
+        let plan = try ExcerptCopyPlan(
+            excerpt, same: false, into: fixture.q.session, in: fixture.q.url, lengths: ["take1-mic": length],
+            gains: [:], stems: ["take1-mic": "take1-mic"]
+        ) { session, mapped throws(SessionError) in
+            let paste = try PastePlan(mapped, same: false, into: session, mode: .over(at: 480_000), on: .tracks(["u1"]))
+            session = paste.session
+            return paste.clips
+        }
 
         #expect(plan.session.files["take1-mic"]?.length == length, "the record has the real length")
-        let clips = plan.clips.compactMap { plan.session.clip($0)?.clip }
+        let clips = plan.value.compactMap { plan.session.clip($0)?.clip }
         #expect(clips.count == 2 && clips.allSatisfy { $0.offset + $0.length <= length }, "each clip fits its file")
     }
 

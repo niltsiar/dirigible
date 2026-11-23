@@ -28,6 +28,9 @@ enum ToolWork: Sendable {
     case create(NewSessionSource)
     /// A paste from another package (decision 0042): files copy or convert under the lock.
     case paste(PasteWork)
+    /// `favorites_add`: a read of the package with no lock, and file copies and an edit under the
+    /// lock of the Favorites store (decision 0081).
+    case favorite(FavoritesWork)
     /// `backup_list`: no lock, as `session_info` (decision 0043).
     case backups
     /// `bin_list`: no lock, as `dirigible bin list` (F22).
@@ -96,8 +99,8 @@ enum ToolWork: Sendable {
             .splitStereo, .clipRender, .chapters,
             .transcriptExport, .read, .transcribe:
             true
-        case .edit, .takeImport, .info, .create, .paste, .backups, .bins, .revert, .episode, .marker, .episodeInfo,
-            .prune,
+        case .edit, .takeImport, .info, .create, .paste, .favorite, .backups, .bins, .revert, .episode, .marker,
+            .episodeInfo, .prune,
             .record, .transport, .words,
             .takeMap, .batch:
             false

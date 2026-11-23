@@ -1521,7 +1521,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 92 tools, in groups:
+The 93 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
@@ -1540,6 +1540,7 @@ The 92 tools, in groups:
 - Session import: `import_session`. It gives the text of `dirigible import-session`: it adds the tracks of the session package `source` as new last tracks. The agent can cancel it. It is not a batch step.
 - Preset: `preset_set`, `preset_remove`. They change the export presets of the session, as `dirigible preset set` and `dirigible preset remove`. They are not batch steps.
 - Bin: `bin_list`, `bin_add`, `bin_rename`, `bin_move`, `bin_remove`, `bin_item_add`, `bin_item_rename`, `bin_item_remove`, `bin_paste`. They list and change the clip bins of the session, as `dirigible bin`. `bin_item_add` takes a range (`from`, `to`, and `track`) or `clips`, and `bin_paste` takes `item`, `at`, `insert`, `onto`, and `source`. They are not batch steps.
+- Favorites: `favorites_add`. It copies a range or clips of the session into the Favorites store, as `dirigible favorites add`, and gives the new item ID. The bin tools change the store: give them the path that `dirigible favorites path` prints. It is not a batch step.
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.
@@ -1562,7 +1563,7 @@ The 92 tools, in groups:
 - A call that changes the sync of a take with its recording ends its text with one line for each such take: `Take sync: take 4 in sync, offset -29.496 s -> broken from 0:21:07.000 (2 shifts)` when it moved some clips of the take and not others, or `Take sync: take 4 offset -29.496 s -> -24.496 s (+5.000 s, +240000 frames)` when it moved all of them. The frames show a move under 1 ms. A take that is broken already gets no more lines, so the agent sees each break once. When a take anchor cannot be read, the call gives no sync line for that take, and `session_info` shows the fault. The terminal commands give no sync line: `dirigible info` shows the state.
 - `export` and `render` refuse an output file inside a session package, also with `replace`, so an export cannot replace a take. `out` must be an absolute path.
 - Codex stops a tool call at its time limit, 60 s in its docs, also when the call sends progress. Codex sends no cancel, so the job runs on to its end. Long calls can take more than 60 s. Add `tool_timeout_sec = 600` under `[mcp_servers.dirigible]` in `~/.codex/config.toml`.
-- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. `diagnostics collect` saves a problem report and reads no package. `model check` checks a whisper model file for the app and reads no package. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. `diagnostics collect` saves a problem report and reads no package. `model check` checks a whisper model file for the app and reads no package. `favorites path` prints the path of the Favorites store and reads no package. Run these commands in the terminal.
 
 #### What you can ask an agent
 

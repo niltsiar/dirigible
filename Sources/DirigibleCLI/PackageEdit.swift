@@ -72,12 +72,17 @@ func editPackage<Result, Failure: Error>(
         return try editPackageCore(
             package.url, ripple: ripple, writeUnchanged: writeUnchanged, log: journal.log, body)
     } catch {
-        switch error {
-        case .body(let error): throw refused(error)
-        case .file(let error): throw fail(error.message(package: package.path), code: packageError)
-        case .pendingTake: throw fail(pendingTakeMessage(package.path), code: packageError)
-        case .splitTake: throw fail(splitTakeMessage(package.path), code: unplacedAudio)
-        }
+        throw editExit(error, package: package.path, refused: refused)
+    }
+}
+
+/// The error line and the exit code of a package edit that changed nothing at `package`.
+func editExit<Failure>(_ error: EditFailure<Failure>, package: String, refused: (Failure) -> ExitCode) -> ExitCode {
+    switch error {
+    case .body(let error): refused(error)
+    case .file(let error): fail(error.message(package: package), code: packageError)
+    case .pendingTake: fail(pendingTakeMessage(package), code: packageError)
+    case .splitTake: fail(splitTakeMessage(package), code: unplacedAudio)
     }
 }
 

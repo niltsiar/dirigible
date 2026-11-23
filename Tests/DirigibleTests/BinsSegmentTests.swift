@@ -3,6 +3,7 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -265,12 +266,32 @@ import Testing
             .indexSegmentBins, .menuViewBinsShow, .menuViewBinsHide, .menuEditAddToBin, .binsNew, .binsNewName,
             .binsEmpty, .binsEmptyHint, .binsPaste, .binsInsert, .binsRename, .binsRemove, .binsMissing,
             .binsShort, .binsUnreadable, .errorBinMissing, .errorBinShort, .errorBinUnreadable, .toolbarSidebar,
-            .toolbarSidebarShow, .toolbarSidebarHide,
+            .toolbarSidebarShow, .toolbarSidebarHide, .menuEditAddToFavorites, .favoritesBanner,
+            .errorFavoritesLocked, .errorFavoritesDamaged, .errorFavoritesNewer, .errorFavoritesFile,
+            .errorFavoritesFileOther, .errorFavoritesSpace, .errorFavoritesCopy, .errorFavoritesSource,
+            .errorFavoritesDownload, .errorFavoritesYielded,
         ]
         for key in keys {
             let value = try #require(english[key.rawValue], "no English value for \(key.rawValue)")
             #expect(!value.localizedCaseInsensitiveContains("clipboard"), "\(key.rawValue): \(value)")
         }
+    }
+
+    /// C22: Edit > Add to Favorites has no key, and Option-Command-0 stays View > Reset Waveform Zoom.
+    /// The menu bar is SwiftUI, so the test reads the item in `DirigibleApp.swift`.
+    @Test func addToFavoritesKeepsTheWaveformResetKey() throws {
+        let items = TimelineCommand.viewItems + TimelineCommand.pasteboardItems + TimelineCommand.editItems
+        let zero = items.filter { $0.key.character == "0" && $0.modifiers == [.command, .option] }
+        #expect(zero.map(\.command) == [.waveformZoomReset], "Option-Command-0 is Reset Waveform Zoom")
+        #expect(!MenuKeys.all.contains(KeyboardShortcut("0", modifiers: [.command, .option])))
+        let source = try String(
+            contentsOf: URL(filePath: #filePath).deletingLastPathComponent()
+                .appending(path: "../../Sources/DirigibleApp/DirigibleApp.swift").standardized, encoding: .utf8)
+        let lines = source.split(separator: "\n").map(String.init)
+        let item = lines.indices.filter { lines[$0].contains("L10n.menuEditAddToFavorites") }
+        #expect(item.count == 1, "the Edit menu has one Add to Favorites item")
+        let statement = item.flatMap { lines[$0...min($0 + 1, lines.count - 1)] }.joined()
+        #expect(!item.isEmpty && !statement.contains("keyboardShortcut"), "Add to Favorites has no key: \(statement)")
     }
 
     @Test func templateLineCountsBinClips() async throws {

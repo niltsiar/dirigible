@@ -16,9 +16,9 @@ import SwiftUI
     var shown: Bool
     var segment: PaneSegment
     var width: IndexWidth
-    /// The Bins list, the selected bin item, and the open rename field of the Bins segment.
+    /// The Bins list, the selected item or favorite, and the open rename field of the Bins segment.
     @ObservationIgnored weak var binsTable: BinsTableView?
-    @ObservationIgnored var selectedBinItem: BinItemID?
+    @ObservationIgnored var selectedBinItem: BinsPick?
     @ObservationIgnored var binRename: BinRename?
     /// The kind filter; nil shows all kinds.
     var kind: SessionIndex.Kind?

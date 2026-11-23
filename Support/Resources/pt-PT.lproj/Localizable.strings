@@ -1096,3 +1096,9 @@
 "error.favorites.source" = "O Dirigible não pode adicionar a seleção aos favoritos. Um ficheiro de áudio desta sessão está em falta ou foi alterado. Verifique a pasta Clips da sessão e volte a tentar.";
 "error.favorites.download" = "O Dirigible não pode adicionar “%@” aos favoritos. O ficheiro não está transferido para este Mac. Transfira-o e volte a tentar.";
 "error.favorites.yielded" = "A adição aos favoritos foi interrompida por um excerto noutra janela. Volte a adicionar depois do excerto.";
+"favorites.title" = "Favoritos";
+"favorites.empty" = "Nenhum favorito";
+"favorites.empty.hint" = "Selecione áudio e escolha Edição > Adicionar aos favoritos.";
+"alert.favorites.remove" = "Remover “%@” dos favoritos?";
+"alert.favorites.remove.body" = "As sessões que o utilizam mantêm a sua própria cópia.";
+"alert.favorites.remove.confirm" = "Remover";

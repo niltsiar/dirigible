@@ -17,7 +17,8 @@ extension BinsSegmentTests {
         let (model, studio, window, route, beeps) = try await focusedList()
         let table = try #require(model.leadingPane.binsTable)
         try studio.edit(ripple: false) { session throws(SessionError) in try session.removeItem("item1") }
-        await until("the list drops the row") { table.numberOfRows == 1 }
+        // The bin Music, then the Favorites header and "No Favorites" of a test app with no store.
+        await until("the list drops the row") { table.numberOfRows == 3 }
 
         #expect(model.leadingPane.selectedBinItem == nil, "the pane keeps the removed item")
         app.timeline(.delete, event: chord("\u{7f}", code: 51, [], in: window), in: window)
@@ -42,7 +43,7 @@ extension BinsSegmentTests {
         let editor = try await renameEditor(model, window)
         editor.insertText("Typed", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
         try studio.undo()
-        await until("the list drops the new row") { table.numberOfRows == 2 }
+        await until("the list drops the new row") { table.numberOfRows == 4 }
 
         #expect(model.leadingPane.binRename == nil, "the rename of the removed item stays open")
         #expect(model.leadingPane.selectedBinItem == nil, "the pane keeps the removed item")
@@ -62,11 +63,13 @@ extension BinsSegmentTests {
         let added = try #require(studio.session.bins.first?.items.last?.id)
         _ = try await renameEditor(model, window)
 
-        #expect(model.leadingPane.selectedBinItem == added, "the new item is not the selected item")
+        #expect(model.leadingPane.selectedBinItem == .session(added), "the new item is not the selected item")
         #expect(table.selectedRow == 2, "the list selects row \(table.selectedRow)")
         route.press(chord("\r", code: 36, [], in: window), in: window)
         await until("the rename ends") { model.leadingPane.binRename == nil }
-        #expect(model.leadingPane.selectedBinItem == added && table.selectedRow == 2, "the commit lost the selection")
+        #expect(
+            model.leadingPane.selectedBinItem == .session(added) && table.selectedRow == 2,
+            "the commit lost the selection")
         await model.close()
     }
 

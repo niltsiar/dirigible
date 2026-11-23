@@ -3,15 +3,17 @@ import DirigibleAudio
 import DirigibleCore
 import SwiftUI
 
-/// The Bins segment of the leading pane (F22): the list of the bins and their items, and New Bin. A
-/// session with no bin shows "No Bins" with a New Bin button (C31). The body reads the bins and the
-/// media faults of the studio, not the playhead.
+/// The Bins segment of the leading pane (F22): the list of the bins and their items, then the
+/// Favorites section (F23), and New Bin. A session with no bin shows "No Bins" with a New Bin button
+/// (C31) above the list, which then holds the Favorites section only. The body reads the bins and the
+/// media faults of the studio, and the store of the app, not the playhead.
 struct BinsSegment: View {
     let model: SessionWindow
     let studio: Studio
 
     var body: some View {
         let bins = studio.session.bins
+        let favorites = model.app.map { BinsRow.favorites($0.favorites.state) } ?? []
         VStack(spacing: 8) {
             if bins.isEmpty {
                 ContentUnavailableView {
@@ -21,10 +23,12 @@ struct BinsSegment: View {
                 } actions: {
                     Button(L10n.binsNew.key) { model.newBin() }.disabled(!model.canEdit)
                 }
-            } else {
-                BinsTable(
-                    model: model, rows: BinsRow.rows(bins, faults: studio.missingMedia),
-                    rate: studio.session.sampleRate)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            BinsTable(
+                model: model, rows: BinsRow.rows(bins, faults: studio.missingMedia) + favorites,
+                rate: studio.session.sampleRate)
+            if !bins.isEmpty {
                 HStack {
                     Button(L10n.binsNew.key) { model.newBin() }.disabled(!model.canEdit)
                     Spacer()

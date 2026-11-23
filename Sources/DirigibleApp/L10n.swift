@@ -1079,4 +1079,10 @@ enum L10n: String, CaseIterable {
     case errorFavoritesSource = "error.favorites.source"
     case errorFavoritesDownload = "error.favorites.download"
     case errorFavoritesYielded = "error.favorites.yielded"
+    case favoritesTitle = "favorites.title"
+    case favoritesEmpty = "favorites.empty"
+    case favoritesEmptyHint = "favorites.empty.hint"
+    case alertFavoritesRemove = "alert.favorites.remove"
+    case alertFavoritesRemoveBody = "alert.favorites.remove.body"
+    case alertFavoritesRemoveConfirm = "alert.favorites.remove.confirm"
 }

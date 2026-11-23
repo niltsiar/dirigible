@@ -17,6 +17,9 @@ import Observation
     /// Nil with no store.
     @ObservationIgnored let writer: FavoritesWriter?
     private(set) var state: State = .loaded(Session(sampleRate: Favorites.sampleRate))
+    /// The identity of the store package at the last read: the origin of a paste of a favorite
+    /// (decision 0042). Nil for a store with no `.lock` file.
+    @ObservationIgnored private(set) var identity: PackageID?
     /// The number of the last reload, so the result of an older read does not replace a newer one.
     @ObservationIgnored private var reloads = 0
 
@@ -37,7 +40,7 @@ import Observation
         let reload = reloads
         let read = await Self.read(store)
         guard reload == reloads else { return }
-        state = read
+        (state, identity) = read
     }
 
     /// Runs `body` on the store through the one writer, after each earlier store write of the app,
@@ -51,7 +54,7 @@ import Observation
         return try result.get()
     }
 
-    @concurrent nonisolated private static func read(_ store: URL) async -> State {
+    @concurrent nonisolated private static func read(_ store: URL) async -> (State, PackageID?) {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let state: State
@@ -62,7 +65,7 @@ import Observation
                 } catch {
                     state = .fault(StudioError(favoritesFile: error))
                 }
-                continuation.resume(returning: state)
+                continuation.resume(returning: (state, PackageID(lockFileOf: store)))
             }
         }
     }

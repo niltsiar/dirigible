@@ -12,20 +12,20 @@ let modernVersion = "2026-07-28"
 /// with a null `id` only on a -32700 or -32600 error. It also checks that the server exits 0 at
 /// the end of stdin (C16). With `socket`, the server is the bridge to that app socket (0046).
 /// A notification line is an issue: a call with no progress token gets none (decision 0049).
-func mcp(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
-    let all = try await mcpLines(lines, socket: socket)
+func mcp(_ lines: [String], socket: URL? = nil, favorites: URL? = nil) async throws -> [Answer] {
+    let all = try await mcpLines(lines, socket: socket, favorites: favorites)
     #expect(notifications(all).isEmpty, "stdout has notifications: \(notifications(all))")
     return all.filter { !isNotification($0) }
 }
 
 /// `mcp` with the notification lines too (a `method` and no `id`, decision 0049), in stdout order.
-func mcpLines(_ lines: [String], socket: URL? = nil) async throws -> [Answer] {
+func mcpLines(_ lines: [String], socket: URL? = nil, favorites: URL? = nil) async throws -> [Answer] {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-mcp-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let input = folder.appending(path: "stdin")
     try Data(lines.map { $0 + "\n" }.joined().utf8).write(to: input)
-    let result = try await dirigible(["mcp"], input: input, socket: socket)
+    let result = try await dirigible(["mcp"], input: input, socket: socket, favorites: favorites)
     #expect(result.status == 0, "dirigible mcp exited \(result.status): \(result.stderr)")
     #expect(result.stdout.isEmpty || result.stdout.hasSuffix("\n"), "the last stdout line has no newline")
     var answers: [Answer] = []

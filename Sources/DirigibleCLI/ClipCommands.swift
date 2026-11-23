@@ -364,7 +364,7 @@ enum SourceOption {
 }
 
 /// The exit code of a refused paste: 1 for a refused edit, 2 for a source or file fault.
-private func refusedPaste(_ error: PasteError) -> ExitCode {
+func refusedPaste(_ error: PasteError) -> ExitCode {
     if case .session(let refusal) = error { return fail(refusal.message, code: editRefused) }
     return fail(error.message, code: packageError)
 }

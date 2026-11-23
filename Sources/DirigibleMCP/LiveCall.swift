@@ -104,7 +104,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             }
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (work.lines(results) + note).joined(separator: "\n"), isError: false)
-        case .paste, .revert, .prune: return refusedOpen
+        case .paste, .favorite, .revert, .prune: return refusedOpen
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, `info` to
         // `liveInfo`, and long work to `liveJob`.
         case .create, .record, .transport, .info, .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice,

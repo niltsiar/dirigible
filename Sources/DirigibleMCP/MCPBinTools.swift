@@ -20,6 +20,8 @@ private let rangeTracks = Param.defaulted(
 private let itemClips = Param.defaulted(
     "clips", "Whole clips with their time and track offsets, in place of a range.", .strings(), [String]())
 private let pasteAt = Param.required("at", "The timeline frame of the paste.", .integer())
+private let favoriteBin = Param<String?>.optional(
+    "bin", "The bin ID in the Favorites store. The default is the first bin.", .string)
 private let pasteInsert = Param.defaulted(
     "insert", "Insert: first move the later audio of all tracks by the item length.", .boolean, false)
 
@@ -106,5 +108,21 @@ let binTools = [
         let mode: PasteMode = try a[pasteInsert] ? .insert(at: frame) : .over(at: frame)
         if let work = try a.paste(.binItem(BinItemID(item)), mode: mode, onto: onto) { return .paste(work) }
         return .edit(ripple: RippleNeed { _ in mode.ripples }, BinWork.paste(item, mode: mode, onto: onto))
+    },
+    Tool(
+        "favorites_add",
+        "Copy a range of tracks (from, to, and track) or whole clips (clips) of the session into the Favorites store "
+            + "as a new item, as dirigible favorites add. The store is one session package for all sessions, at "
+            + "48000 Hz, with its own copy of each file: a file at another rate is converted. The item goes to bin, "
+            + "else to the first bin; an empty store gets the bin Favorites. The session does not change, and the "
+            + "store has no undo. The bin tools change the store at the path of dirigible favorites path. Refused "
+            + "while a window has the session open. Give the new item ID.",
+        [binName, favoriteBin, rangeFrom, rangeTo, rangeTracks, itemClips], saves: false, batch: .alone
+    ) { a throws(ToolError) in
+        let (name, bin) = (try a[binName], try a[favoriteBin])
+        let selection = try BinWork.selection(
+            from: try a[rangeFrom], to: try a[rangeTo], tracks: try a[rangeTracks], clips: try a[itemClips],
+            spelling: .tool)
+        return .favorite(FavoritesWork(selection, named: name, bin: bin))
     },
 ]

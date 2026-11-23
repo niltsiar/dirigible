@@ -77,8 +77,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
     case .stems(let work):
         return await liveStems(work, target: target, path: call.path, report: report)
     // `AgentServer` sends only long work here.
-    case .edit, .takeImport, .info, .create, .paste, .backups, .bins, .revert, .episode, .marker, .episodeInfo, .prune,
-        .record, .transport, .words,
+    case .edit, .takeImport, .info, .create, .paste, .favorite, .backups, .bins, .revert, .episode, .marker,
+        .episodeInfo, .prune, .record, .transport, .words,
         .takeMap, .batch:
         return .notOpen
     }
@@ -377,8 +377,8 @@ func serverStopMessage(_ work: ToolWork) -> String {
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
     case .read: "Dirigible stopped its agent server, so the read stopped."
     case .transcribe: "Dirigible stopped its agent server, so the transcription stopped. No words were added."
-    case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .backups, .bins, .revert, .episode,
-        .marker,
+    case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .favorite, .backups, .bins,
+        .revert, .episode, .marker,
         .episodeInfo,
         .prune, .record, .transport,
         .words, .takeMap, .batch:

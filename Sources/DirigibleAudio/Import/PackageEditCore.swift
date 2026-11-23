@@ -29,17 +29,20 @@ package enum EditFailure<Body: Error>: Error {
 /// `body`, and saves. With `writeUnchanged` false, it does not save a session that `body` did not
 /// change. The lock is held until the save ends. `session.xml` does not change when a step fails.
 /// A due save can add a backup and delete the oldest backup before the replace, and a refused
-/// revert can leave the kept copy of the current file (decision 0043).
+/// revert can leave the kept copy of the current file (decision 0043). With `whenMissing`, a package
+/// folder with no `session.xml` (ENOENT at the read) edits the session that it gives, and the save
+/// writes it under the lock: the Favorites store after a crash during its first write.
 package func editPackageCore<Result, Failure: Error>(
     _ package: URL, ripple: RippleNeed, writeUnchanged: Bool = true, log: () -> DiagnosticLog,
-    _ body: (inout Session, PackageLock) throws(Failure) -> Result
+    whenMissing: (() -> Session)? = nil, _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(EditFailure<Failure>) -> Result {
     try PackageLock.withLock(package, locked: EditFailure<Failure>.file) { lock throws(EditFailure<Failure>) in
         var session: Session
         do throws(SessionFileError) {
             session = try Session(contentsOf: package)
         } catch {
-            throw .file(error)
+            guard error == .readFailed(errno: ENOENT), let whenMissing else { throw .file(error) }
+            session = whenMissing()
         }
         session.removeTemporaryFiles(in: package)
         guard session.recording == nil else { throw .pendingTake }

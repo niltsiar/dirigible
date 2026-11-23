@@ -212,13 +212,16 @@ package enum AgentManual {
         + "new track IDs, `marker <id>` for each new marker, and a `Left out:` line when markers land outside "
         + "0...2^40."
 
-    /// What the bin tools take (F22). In the skill only: the manual has no room under its 6000
-    /// characters.
+    /// What the bin and Favorites tools take (F22, F23). In the skill only: the manual has no room under
+    /// its 6000 characters.
     static let binLine =
         "A bin is a named list of items in the session. An item keeps a range (`from`, `to`, and `track`) or "
         + "whole `clips`, with their gain, fades, envelope, and ride. `bin_add` and `bin_item_add` give the new ID, "
         + "and `bin_list` gives each bin and item ID. `bin_paste` pastes an item at `at` with the clips of a Copy "
-        + "and Paste of its source; `insert` moves the later audio first, and `source` names another package."
+        + "and Paste of its source; `insert` moves the later audio first, and `source` names another package. "
+        + "The Favorites store is one package for all sessions, at 48000 Hz, whose bins are the favorite groups: "
+        + "`favorites_add` copies a range or clips of the session into it and gives the item ID, and "
+        + "`dirigible favorites path` prints its path for the bin tools and for `source` of `bin_paste`."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =

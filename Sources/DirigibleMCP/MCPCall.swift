@@ -72,6 +72,13 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         } catch {
             throw ToolError(error.message(package: path))
         }
+    case .favorite(let work):
+        let store = Favorites.package(environment: ProcessInfo.processInfo.environment)
+        do throws(EditFailure<PasteError>) {
+            return try work.run(source: package, store: store, log: control.log).rawValue
+        } catch {
+            throw ToolError(error.message(package: store.path))
+        }
     case .create(.rate(let sampleRate)):
         do throws(SessionFileError) {
             try Session.create(at: package, sampleRate: sampleRate)

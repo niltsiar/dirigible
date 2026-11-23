@@ -14,7 +14,7 @@ struct Dirigible: AsyncParsableCommand {
             Create.self, Info.self, TrackCommand.self, FileCommand.self, CaptureCommand.self, ClipCommand.self,
             MarkerCommand.self, EpisodeCommand.self, TakeCommand.self, Devices.self, Apps.self, Record.self,
             Render.self, Export.self, ExportStemsCommand.self, PresetCommand.self, BinCommand.self,
-            ChaptersCommand.self,
+            FavoritesCommand.self, ChaptersCommand.self,
             PeaksCommand.self, LoudnessCommand.self, SilencesCommand.self, SilenceEditCommand.self,
             NearestPauseCommand.self,
             MeterCommand.self,

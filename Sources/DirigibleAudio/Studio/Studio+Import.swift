@@ -8,9 +8,9 @@ import os
 public struct ImportRun: Hashable, Sendable {
     /// What the run converts or copies: a file (decision 0040), the clips of a paste from another
     /// package (decision 0042), the stereo clips of a split (decision 0053), the clips of a clip
-    /// render (decision 0054), a clip of a drift fix (decision 0077), or the tracks of another
-    /// session package (decision 0075).
-    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender, drift, session }
+    /// render (decision 0054), a clip of a drift fix (decision 0077), the tracks of another
+    /// session package (decision 0075), or the clips of an add to Favorites (decision 0081).
+    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender, drift, session, favorite }
 
     /// The file name, the name of the source package of a paste or a session import, the name of
     /// the package of a split or a clip render, or the name of the clip of a drift fix.

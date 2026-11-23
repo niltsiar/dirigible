@@ -12,6 +12,8 @@ import Observation
     /// The one Copy and Cut of the app (decision 0042): in memory, not on `NSPasteboard`. A window
     /// close keeps it; a quit drops it.
     @ObservationIgnored var clipboard: Clipboard?
+    /// The Favorites store of all windows (decision 0081): none in a test app.
+    let favorites: FavoritesModel
     /// The window whose `NSWindow` is key. The commands act on it.
     var key: SessionWindow?
     /// The recent sessions, the newest first: the start window and File > Open Recent read it. The
@@ -172,14 +174,16 @@ import Observation
         self.init(
             recordings: ActiveRecordings(file: folders.recordings), peakCache: folders.peakCache, defaults: .standard,
             defaultFolder: FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
-                .appending(path: "Dirigible", directoryHint: .isDirectory), watchesHangs: true)
+                .appending(path: "Dirigible", directoryHint: .isDirectory), watchesHangs: true,
+            favorites: Favorites.package(environment: ProcessInfo.processInfo.environment))
     }
 
     init(
         recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil,
         agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder(), watchesHangs: Bool = false,
-        audioEnvironment: [String: String] = ProcessInfo.processInfo.environment
+        audioEnvironment: [String: String] = ProcessInfo.processInfo.environment, favorites: URL? = nil
     ) {
+        self.favorites = FavoritesModel(store: favorites)
         self.audioEnvironment = audioEnvironment
         self.recordings = recordings
         self.watchesHangs = watchesHangs
@@ -340,6 +344,7 @@ import Observation
         log = DiagnosticLog.start(.app, folder: logFolder, version: facts.version, commit: facts.commit)
         log.noteAudioOutput(environment: audioEnvironment)
         if watchesHangs { watchdog = HangWatchdog.start(log: log) }
+        Task { await favorites.reload() }
     }
 
     /// Open events come before this call (probe P7).

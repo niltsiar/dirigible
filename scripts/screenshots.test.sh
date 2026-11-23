@@ -51,6 +51,18 @@ else
     done
 fi
 
+# The launch gets a Favorites store of its own under the script folder, removed before the launch:
+# the images never read or write the store of the user, and no earlier store shows in an image.
+fav_var="$(sed -n 's/.*--env "DIRIGIBLE_FAVORITES=\$\([A-Za-z_]*\)\/Favorites.dirigible".*/\1/p' <<<"$args")"
+if [[ -z "$fav_var" ]]; then
+    fail "the launch has no --env DIRIGIBLE_FAVORITES=\$<variable>/Favorites.dirigible: $args"
+else
+    grep -q "^$fav_var=.*\\\$folder" "$shots" || fail "the Favorites folder \$$fav_var is not under the folder of the script"
+    open_line="$(grep -n '^open -a "\$app"' "$shots" | head -n 1 | cut -d: -f1)"
+    at="$(grep -n -F -x "rm -rf \"\$$fav_var\"" "$shots" | head -n 1 | cut -d: -f1)"
+    [[ -n "$at" && "$at" -lt "$open_line" ]] || fail "'rm -rf \"\$$fav_var\"' is not before the launch"
+fi
+
 # An EXIT trap ends the launched app, so no app is left open when the script stops or fails.
 exit_trap="$(sed -n "s/^trap \(.*\) EXIT\$/\1/p" "$shots")"
 [[ "$exit_trap" == *'kill "$pid"'* ]] || fail "the script sets no EXIT trap that kills the launched app: '$exit_trap'"

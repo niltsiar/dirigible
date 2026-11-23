@@ -187,9 +187,9 @@ new_case() {
 PLIST
     copy="$repo/build/verify/Dirigible-verify.app"
     exe="$copy/Contents/MacOS/Dirigible"
-    # The --env words of the open line: the socket and the journal folder, then the no-device mode.
-    sock="$repo/build/verify/mcp.sock" logs="$repo/build/verify/logs"
-    envs="--env DIRIGIBLE_MCP_SOCKET=$sock --env DIRIGIBLE_LOG_FOLDER=$logs"
+    # The --env words of the open line: the socket, the journal folder, and the Favorites store, then the no-device mode.
+    sock="$repo/build/verify/mcp.sock" logs="$repo/build/verify/logs" favorites="$repo/build/verify/Favorites.dirigible"
+    envs="--env DIRIGIBLE_MCP_SOCKET=$sock --env DIRIGIBLE_LOG_FOLDER=$logs --env DIRIGIBLE_FAVORITES=$favorites"
     noaudio="--env DIRIGIBLE_AUDIO_OUTPUT=none"
     export FAKE_STATE="$state" FAKE_COPY="$copy" HOME="$dir/home"
     export PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -198,14 +198,15 @@ PLIST
     copy_id="$("$script" id 2>/dev/null)"
 }
 
-# run <args...>: run the script; set out, err, and code. out1 and out2 are the first two lines of
-# out: start prints the PID, then the DIRIGIBLE_MCP_SOCKET line.
+# run <args...>: run the script; set out, err, and code. out1 to out3 are the first three lines of
+# out: start prints the PID, the DIRIGIBLE_MCP_SOCKET line, and the DIRIGIBLE_FAVORITES line.
 run() {
     out="$("$script" "$@" 2>"$tmp/err")"
     code=$?
     err="$(cat "$tmp/err")"
     out1="${out%%$'\n'*}"
     out2="$(sed -n 2p <<<"$out")"
+    out3="$(sed -n 3p <<<"$out")"
 }
 
 # dummy <path>: start the compiled dummy at <path> in a subshell, so launchd reaps it when it dies
@@ -253,7 +254,8 @@ is_copy "$pid" || fail "start new: '$pid' is not the PID of the copy"
     fail "start new: the bundle ID of build/Dirigible.app changed"
 codesign --verify "$copy" 2>/dev/null || fail "start new: codesign --verify of the copy failed"
 [[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy $envs $noaudio" ]] || fail "start new: open got: $(cat "$state/open.log" 2>/dev/null)"
-[[ "$out2" == "DIRIGIBLE_MCP_SOCKET=$sock" && "$(grep -c . <<<"$out")" == 2 ]] || fail "start new: stdout is not the PID and the socket line: $out"
+[[ "$out2" == "DIRIGIBLE_MCP_SOCKET=$sock" && "$out3" == "DIRIGIBLE_FAVORITES=$favorites" && "$(grep -c . <<<"$out")" == 3 ]] ||
+    fail "start new: stdout is not the PID, the socket line, and the store line: $out"
 run stop
 run start "$repo/Pilot.dirigible"
 [[ $code -eq 0 ]] && is_copy "$out1" || fail "start new with a package: exit $code: $err"

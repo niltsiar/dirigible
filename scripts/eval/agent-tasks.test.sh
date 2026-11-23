@@ -21,16 +21,20 @@ if [[ $1 == info ]]; then
 fi
 exit 0
 EOF
-# The fake claude: an init message, and a result that says whether the skill link resolves.
+# The fake claude: an init message, and a result that says whether the skill link resolves, with
+# the task folder, DIRIGIBLE_FAVORITES, and the text of the MCP config file.
 cat >"$tmp/bin/claude" <<'EOF'
 #!/bin/bash
-skill=missing
+skill=missing prompt="$2"
 [[ -f .claude/skills/dirigible/SKILL.md ]] && skill=ok
 # On T2, remove the out folder, so the step after the claude run fails.
 [[ $2 != *"trim the silence"* ]] || rm -rf ../out
 echo '{"type": "system", "subtype": "init", "skills": []}'
+mcp=""
+while [[ $# -gt 0 ]]; do [[ $1 != --mcp-config ]] || mcp="$2"; shift; done
 # The result also has the prompt, so a test can read it.
-python3 -I -c 'import json, sys; print(json.dumps({"type": "result", "result": sys.argv[1] + " " + sys.argv[2], "total_cost_usd": 0}))' "skill-$skill" "$2"
+python3 -I -c 'import json, sys; print(json.dumps({"type": "result", "result": sys.argv[1] + " " + sys.argv[2], "total_cost_usd": 0, "task": sys.argv[3], "favorites": sys.argv[4], "mcp": open(sys.argv[5]).read()}))' \
+    "skill-$skill" "$prompt" "$(cd .. && pwd -P)" "${DIRIGIBLE_FAVORITES-unset}" "$mcp"
 EOF
 chmod +x "$tmp/bin/dirigible" "$tmp/bin/claude"
 
@@ -46,6 +50,25 @@ run() {
 SKILL_LINK=Fake.app run skill T5
 grep -q skill-ok "$tmp/results/skill/T5/stream.jsonl" 2>/dev/null \
     || fail "a relative SKILL_LINK gives a dangling skill link: $(cat "$tmp/skill.log")"
+
+# Each task gets a Favorites store in its own folder: in the environment of every variant, and in
+# the arguments of the dirigible MCP server of the MCP variant. No task reaches the store of the user.
+for variant in mcp shell skill; do
+    case $variant in
+        shell) SHELL_CLI=1 run "fav-$variant" T5 ;;
+        skill) SKILL_LINK=Fake.app run "fav-$variant" T5 ;;
+        *) run "fav-$variant" T5 ;;
+    esac
+    python3 -I - "$tmp/results/fav-$variant/T5/stream.jsonl" "$variant" <<'PY' || fail "the $variant task has no Favorites store of its own: $(cat "$tmp/fav-$variant.log")"
+import json, sys
+result = [json.loads(l) for l in open(sys.argv[1]) if '"result"' in l][-1]
+store = result['task'] + '/Favorites.dirigible'
+assert result['favorites'] == store, (result['favorites'], store)
+if sys.argv[2] != 'skill':
+    args = json.loads(result['mcp'])['mcpServers']['dirigible']['args']
+    assert 'DIRIGIBLE_FAVORITES=' + store in args, args
+PY
+done
 
 # A warning of `dirigible info` on stderr does not go into after.json (code gate 1 item 7).
 FAKE_WARNING=1 run warning T5

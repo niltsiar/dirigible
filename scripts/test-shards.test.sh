@@ -7,7 +7,8 @@
 # after the other shards end. Check that a failed test fails the run with its line once in the
 # output, that a report line with no suite count counts, that TEST_SHARDS sets the count with the CLI shard in it (default: the physical cores), that the
 # weights file balances the shards and names its stale keys, that a failed build runs no shard, that the build, the list,
-# and the shards share one hold of the lock, that a journal in the default log folder fails the run,
+# and the shards share one hold of the lock, that a journal in the default log folder or a store at the
+# default Favorites path fails the run,
 # and that a TERM leaves no test process alive. Check that a call with neither DIRIGIBLE_PUSH_CHECK=1
 # (run-checks.sh sets it with a base) nor DIRIGIBLE_FULL_SUITE=1 (a person sets it) exits 1 with the
 # reason, before the build. Check the shard limit: the value from TEST_SHARD_LIMIT or from the newest
@@ -37,13 +38,14 @@ EOF
 # The stub runner: --list-tests prints the list. Else it runs the IDs of the list that match its
 # --filter (an extended regex, as Swift Testing matches the ID), and prints the lines of Swift
 # Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, FAKE_HANG, FAKE_SLOW, or
-# FAKE_JOURNAL changes the run of the shard that has it: exit 132 with no report, a failed test,
+# FAKE_JOURNAL, or FAKE_FAVORITES changes the run of the shard that has it: exit 132 with no report, a failed test,
 # one test fewer in the report, exit 0 with no report, a wait of 60 s, a wait of 1 s before the
-# tests, or a journal in DIRIGIBLE_LOG_FOLDER. FAKE_LIST_HANG makes the --list-tests call wait 60 s.
+# tests, a journal in DIRIGIBLE_LOG_FOLDER, or a store at DIRIGIBLE_FAVORITES. FAKE_LIST_HANG makes the --list-tests call wait 60 s.
 cat > "$root/scripts/test-helper.sh" <<'EOF'
 #!/bin/bash
 echo "runner $*" >> "$FAKE_DIR/args.log"
 echo "logs ${DIRIGIBLE_LOG_FOLDER:-none}" >> "$FAKE_DIR/args.log"
+echo "favorites ${DIRIGIBLE_FAVORITES:-none}" >> "$FAKE_DIR/args.log"
 echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_DIR/lock.log"
 filter="" skips=()
 while [[ $# -gt 0 ]]; do
@@ -64,6 +66,7 @@ if has "${FAKE_HANG:-}"; then echo $$ >> "$FAKE_DIR/hang.pid"; echo "◇ Test ha
 has "${FAKE_SLOW:-}" && sleep 1
 has "${FAKE_CRASH:-}" && { echo "◇ Test crash() started."; exit 132; }
 has "${FAKE_JOURNAL:-}" && : > "${DIRIGIBLE_LOG_FOLDER:-/nonexistent}/2026-10-16-192000-app-1.tsv"
+has "${FAKE_FAVORITES:-}" && { mkdir -p "$(dirname "$DIRIGIBLE_FAVORITES")" && : > "$DIRIGIBLE_FAVORITES"; }
 n=0 code=0
 while IFS= read -r id; do
     name="${id##*[./]}"
@@ -142,6 +145,10 @@ grep -q -- "--test-bundle-path $root/.build/debug/DirigiblePackageTests.xctest/C
 # Each runner gets the empty guard folder as its journal folder.
 [[ "$(grep '^logs ' "$tmp/args.log" | sort -u)" == "logs $root/.build/test-shards/default-logs" ]] ||
     fail "pass: the journal folder: $(grep '^logs ' "$tmp/args.log" | sort -u)"
+# Each runner gets a Favorites store path under .build/test-shards that no run creates.
+[[ "$(grep '^favorites ' "$tmp/args.log" | sort -u)" == "favorites $root/.build/test-shards/default-favorites/Favorites.dirigible" ]] ||
+    fail "pass: the Favorites path: $(grep '^favorites ' "$tmp/args.log" | sort -u)"
+[[ ! -e "$root/.build/test-shards/default-favorites" ]] || fail "pass: a guard folder after a clean run"
 # One hold of the lock of the repo for the build, the list, and the shards.
 [[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 5 && "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 ]] ||
     fail "pass: no one hold of the lock: $(cat "$tmp/lock.log")"
@@ -221,6 +228,15 @@ grep -qxF 'test-shards: a test wrote a journal to the default log folder: 2026-1
     fail "journal: no message: $(tail -3 "$tmp/out")"
 run TEST_SHARDS=3
 [[ $code -eq 0 ]] || fail "journal: the next run: exit $code: $(tail -3 "$tmp/out")"
+
+# A test that writes the default Favorites store fails the run and names the path; the next run
+# removes it first.
+run TEST_SHARDS=3 FAKE_FAVORITES=c1
+[[ $code -eq 1 ]] || fail "favorites: exit $code"
+grep -qxF "test-shards: a test wrote the default Favorites store: $root/.build/test-shards/default-favorites/Favorites.dirigible" "$tmp/out" ||
+    fail "favorites: no message: $(tail -3 "$tmp/out")"
+run TEST_SHARDS=3
+[[ $code -eq 0 ]] || fail "favorites: the next run: exit $code: $(tail -3 "$tmp/out")"
 
 # (g) A failed build runs no shard.
 run TEST_SHARDS=3 FAKE_BUILD_FAIL=1

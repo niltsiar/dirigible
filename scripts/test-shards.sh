@@ -19,7 +19,10 @@
 # normal failure. Each shard writes journals to the empty folder .build/test-shards/default-logs
 # (DIRIGIBLE_LOG_FOLDER): a test that starts a front end passes its own folder, so a file there
 # fails the run with "test-shards: a test wrote a journal to the default log folder: <names>"
-# (decision 0059). The last line is "test-shards: <run> of <listed> tests in <s> s". The exit is 0
+# (decision 0059). Each shard also gets DIRIGIBLE_FAVORITES at .build/test-shards/default-favorites/Favorites.dirigible,
+# a path that no run creates: a test that opens the store of the app passes its own path, so a
+# file there fails the run with "test-shards: a test wrote the default Favorites store: <path>"
+# (decision 0081). The last line is "test-shards: <run> of <listed> tests in <s> s". The exit is 0
 # only when each shard passed.
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
 # INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
@@ -83,6 +86,9 @@ rm -f "$logs"/shard-*.log "$logs"/limit-*
 guard="$logs/default-logs"
 rm -rf "$guard" && mkdir "$guard" || { echo "test-shards: no folder $guard" >&2; exit 1; }
 export DIRIGIBLE_LOG_FOLDER="$guard"
+favorites_guard="$logs/default-favorites"
+rm -rf "$favorites_guard" || { echo "test-shards: no clean $favorites_guard" >&2; exit 1; }
+export DIRIGIBLE_FAVORITES="$favorites_guard/Favorites.dirigible"
 list="$logs/list.txt"
 step_log() { echo "$(date +%FT%T) $*" >> "$steps"; }
 # live_child <pid>: succeeds while the pid is a child of this script and no zombie (a shard that
@@ -217,6 +223,11 @@ trap - INT TERM
 written="$(ls -A "$guard" | paste -sd' ' -)"
 if [[ -n "$written" ]]; then
     messages+=("test-shards: a test wrote a journal to the default log folder: $written")
+    failed=1
+fi
+
+if [[ -e "$favorites_guard" ]]; then
+    messages+=("test-shards: a test wrote the default Favorites store: $DIRIGIBLE_FAVORITES")
     failed=1
 fi
 

@@ -96,6 +96,18 @@ struct BinCommandTests {
         #expect(try package.read().bins.map(\.id.rawValue) == [first])
     }
 
+    /// A session package that is not the Favorites store keeps the standard backup rule: the first bin
+    /// write makes one backup, and the next writes within 10 minutes make none.
+    @Test func aPackageOfASessionKeepsOneBackupInTenMinutes() async throws {
+        let bin = id(try await package.run("bin", "add", "PKG", "Interviews"))
+        #expect(try await package.run("bin", "rename", "PKG", bin, "Talk") == silent)
+        #expect(try await package.run("bin", "rename", "PKG", bin, "Show") == silent)
+        #expect(try await package.run("bin", "rename", "PKG", bin, "Intro") == silent)
+
+        let backups = try FileManager.default.contentsOfDirectory(atPath: package.url.appending(path: "Backups").path)
+        #expect(backups.count == 1, "\(backups)")
+    }
+
     /// C10: an unknown bin or item, a place past the list, a name of only spaces, and an empty range exit
     /// 1 with one `Error:` line, and `session.xml` keeps its bytes. Two selections exit 64.
     @Test func refusalsChangeNothing() async throws {

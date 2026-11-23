@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -115,6 +116,34 @@ struct StudioFavoritesTests {
         let read = try Session(contentsOf: store)
         #expect(read.bins.map(\.name) == ["Jingles"], "the edit ran")
         #expect(read.bins.flatMap(\.items).map(\.id) == [first, second], "after the add")
+    }
+
+    /// C14: a Cancel of an add that waits for the writer ends it at once, before the add ahead of it
+    /// ends, and it writes nothing, also with no file to copy (a range with no clip).
+    @MainActor @Test func cancelledQueuedAddWritesNothing() async throws {
+        let (studio, writer, store, fixture, excerpt) = try await open()
+        let other = try await fixture.open(fixture.q)
+        let hold = Gate(limit: nil)
+        studio.environment.importStep = { hold.waitOnce() }
+        defer { hold.open() }
+        let first = Task { try await studio.addToFavorites(excerpt, named: "Sting", writer: writer) { _ in } }
+        await hold.entered()
+        let empty = try other.session.excerpt(of: 48_000..<96_000, on: ["u2"])
+        let ended = OSAllocatedUnfairLock(initialState: false)
+        let queued = Task {
+            defer { ended.withLock { $0 = true } }
+            return try await other.addToFavorites(empty, named: "Gap", writer: writer) { _ in }
+        }
+        await until(limit: .seconds(10), "the second add did not queue") { writer.queued == 2 }
+
+        other.cancelImport()
+        await until(limit: .seconds(10), "the cancelled add waited for the add ahead of it") { ended.withLock { $0 } }
+        hold.open()
+
+        await #expect(throws: StudioError.favoritesCopy(.cancelled)) { try await queued.value }
+        let id = try await first.value
+        let items = try Session(contentsOf: store).bins.flatMap(\.items).map(\.id)
+        #expect(items == [id], "the cancelled add wrote nothing")
     }
 
     /// C37: each `EditFailure` of `Favorites.add` and `Favorites.edit` gives a Favorites case, so the

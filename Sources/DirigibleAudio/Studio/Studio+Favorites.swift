@@ -26,7 +26,7 @@ extension Studio {
                 isCancelled: {
                     environment.importStep()
                     return flags.isCancelled
-                })
+                }, whenCancelled: flags.whenCancelled)
             await environment.importWorkDone()
             // The store holds the new files, so the run gets none to remove.
             return added.map { (session, $0, made: []) }

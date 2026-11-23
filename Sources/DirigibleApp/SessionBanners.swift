@@ -306,6 +306,7 @@ extension ImportRun {
         case .split: L10n.splitBanner.text
         case .clipRender: L10n.denoiseBanner.text
         case .drift: L10n.driftBanner.format(name)
+        case .favorite: L10n.favoritesBanner.text
         }
     }
 }

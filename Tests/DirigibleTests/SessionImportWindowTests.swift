@@ -37,7 +37,7 @@ import Testing
 
     func imported(_ model: SessionWindow, from source: URL) async {
         model.startSessionImport(source, markers: false)
-        await until(limit: .seconds(30), "the import job ends") { model.importJob == nil }
+        await model.importJob?.task?.value
     }
 
     /// C12: Import Session is the next File item after Import Transcript, which follows Import Audio.

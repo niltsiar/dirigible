@@ -187,7 +187,7 @@ extension InspectorTests {
         try #require(CGImageDestinationFinalize(destination))
 
         model.setArtwork(image)
-        await until(limit: .seconds(10), "the artwork import ends") { model.importJob == nil }
+        await model.importJob?.task?.value
         let name = try #require(studio.session.episode.artwork)
         model.removeArtwork()
         #expect(studio.session.episode.artwork == nil)

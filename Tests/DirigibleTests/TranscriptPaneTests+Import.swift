@@ -19,7 +19,7 @@ extension TranscriptPaneTests {
     }
 
     func finishImport(_ model: SessionWindow) async {
-        await until(limit: .seconds(10), "the import job ends") { model.importJob == nil }
+        await model.importJob?.task?.value
     }
 
     /// P6: the import is one edit and one undo step.

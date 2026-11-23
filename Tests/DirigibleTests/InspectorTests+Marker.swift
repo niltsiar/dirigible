@@ -250,7 +250,7 @@ extension InspectorTests {
         model.run(.markerInfo)
 
         model.setMarkerImage(try png("chapter.png"))
-        await until(limit: .seconds(10), "the image import ends") { model.importJob == nil }
+        await model.importJob?.task?.value
         let name = try #require(studio.session.markers["c3"]?.image)
         model.removeMarkerImage()
         #expect(studio.session.markers["c3"]?.image == nil)
@@ -259,7 +259,7 @@ extension InspectorTests {
 
         addMarkers(model)
         model.setMarkerImage(try png("wide.png", side: 64, height: 32))
-        await until(limit: .seconds(10), "the refused import ends") { model.importJob == nil }
+        await model.importJob?.task?.value
         #expect(model.alert != nil && studio.session.markers["c3"]?.image == nil, "the artwork alert")
         await model.close()
     }

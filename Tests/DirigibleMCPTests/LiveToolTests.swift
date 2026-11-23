@@ -293,6 +293,7 @@ struct LiveToolTests {
             ("backup_revert", ["package": package.path, "name": "session-20261009T081530.250Z.xml"]),
             ("file_prune", ["package": package.path]),
             ("file_prune", ["package": package.path, "dry_run": true]),
+            ("favorites_add", ["package": package.path, "name": "Sting", "clips": ["A"]]),
             (
                 "clip_paste",
                 [

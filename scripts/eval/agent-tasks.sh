@@ -9,6 +9,9 @@
 #   SHELL_CLI=1 also gives Bash, allowed for the copied CLI only (the shell variant).
 #   SKILL_LINK=<app> gives no MCP server, but Bash and the Skill tool, and links the skill folder
 #   of <app> as .claude/skills/dirigible in the task cwd (the skill variant).
+# Each task has its own Favorites store, <task folder>/Favorites.dirigible, in the arguments of the
+# MCP server and in the environment of the claude run (so the CLI of the shell and skill variants
+# too): no task reaches the store of the user.
 # Each task runs in a new folder under /private/tmp, outside the repo, so no CLAUDE.md, AGENTS.md,
 # setting, or hook of the repo reaches the agent. The whole claude run is inside
 # scripts/probe.sh --no-audio of that folder: the agent, its Bash commands, and the MCP server write
@@ -100,8 +103,8 @@ run_task() {
         text="${text//\{TRANSCRIPT\}/$t/transcript.json}"
     fi
     local tools=(--tools "") allowed=(--allowedTools mcp__dirigible)
-    printf '{"mcpServers": {"dirigible": {"command": "/usr/bin/env", "args": ["DIRIGIBLE_MCP_SOCKET=%s/no-app.sock", "%s/dirigible", "mcp"]}}}\n' \
-        "$t" "$t" >"$t/mcp.json"
+    printf '{"mcpServers": {"dirigible": {"command": "/usr/bin/env", "args": ["DIRIGIBLE_MCP_SOCKET=%s/no-app.sock", "DIRIGIBLE_FAVORITES=%s/Favorites.dirigible", "%s/dirigible", "mcp"]}}}\n' \
+        "$t" "$t" "$t" >"$t/mcp.json"
     if [[ $variant == shell ]]; then
         tools=(--tools Bash) allowed=(--allowedTools mcp__dirigible "Bash($t/dirigible:*)")
     elif [[ $variant == skill ]]; then
@@ -116,7 +119,7 @@ run_task() {
     local audio=(--no-audio)
     [[ $task != T10 ]] || audio=()
     "$probe" ${audio[@]+"${audio[@]}"} "$t" /bin/sh -c 'cd cwd && exec "$@"' sh \
-        env CLAUDE_CODE_TMPDIR="$t/tmp" TMPDIR="$t/tmp" claude -p "$text" --model "$model" \
+        env CLAUDE_CODE_TMPDIR="$t/tmp" TMPDIR="$t/tmp" DIRIGIBLE_FAVORITES="$t/Favorites.dirigible" claude -p "$text" --model "$model" \
         --mcp-config "$t/mcp.json" --strict-mcp-config --setting-sources project "${tools[@]}" "${allowed[@]}" \
         --output-format stream-json --verbose --no-session-persistence \
         </dev/null >"$out/stream.jsonl" 2>"$out/stderr.txt" || echo "claude exit $?" >>"$out/stderr.txt"

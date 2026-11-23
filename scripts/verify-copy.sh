@@ -11,8 +11,11 @@
 #                                  state, delete the old copy bundle, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it with its own MCP socket
 #                                  (DIRIGIBLE_MCP_SOCKET=build/verify/mcp.sock) and its own journal
-#                                  folder (DIRIGIBLE_LOG_FOLDER=build/verify/logs), and print its
-#                                  PID and a DIRIGIBLE_MCP_SOCKET line for an MCP client. The copy
+#                                  folder (DIRIGIBLE_LOG_FOLDER=build/verify/logs) and its own
+#                                  Favorites store (DIRIGIBLE_FAVORITES=build/verify/
+#                                  Favorites.dirigible, never the store of the user), and print its
+#                                  PID, a DIRIGIBLE_MCP_SOCKET line, and a DIRIGIBLE_FAVORITES
+#                                  line for an MCP client. The copy
 #                                  plays to no device (DIRIGIBLE_AUDIO_OUTPUT=none); --audible
 #                                  plays to the real output. --agents turns the agents switch on;
 #                                  --accent <n> (-1 Graphite to 6) writes the global accent
@@ -282,7 +285,7 @@ start() {
         [[ $has_args -eq 1 ]] || open_args+=(--args)
         open_args+=(-agents.edit.open.sessions YES)
     fi
-    env_args=(--env "DIRIGIBLE_MCP_SOCKET=$socket" --env "DIRIGIBLE_LOG_FOLDER=$root/build/verify/logs")
+    env_args=(--env "DIRIGIBLE_MCP_SOCKET=$socket" --env "DIRIGIBLE_LOG_FOLDER=$root/build/verify/logs" --env "DIRIGIBLE_FAVORITES=$root/build/verify/Favorites.dirigible")
     [[ $audible -eq 1 ]] || env_args+=(--env DIRIGIBLE_AUDIO_OUTPUT=none)
     open -a "$copy" "${env_args[@]}" ${open_args[@]+"${open_args[@]}"}
     for _ in $(seq 50); do
@@ -296,6 +299,7 @@ start() {
     trap - EXIT
     echo "$pid"
     echo "DIRIGIBLE_MCP_SOCKET=$socket"
+    echo "DIRIGIBLE_FAVORITES=$root/build/verify/Favorites.dirigible"
 }
 
 # One poll: find the prompt window of UserNotificationCenter, check that its text names the app,

@@ -281,7 +281,8 @@ import Testing
     }
 
     /// C22: Edit > Add to Favorites has no key, and Option-Command-0 stays View > Reset Waveform Zoom.
-    /// The menu bar is SwiftUI, so the test reads the item in `DirigibleApp.swift`.
+    /// The menu bar is SwiftUI, so the test reads the item in `DirigibleApp.swift`: each line of its
+    /// modifier chain, up to the next `Button` or `Divider`.
     @Test func addToFavoritesKeepsTheWaveformResetKey() throws {
         let items = TimelineCommand.viewItems + TimelineCommand.pasteboardItems + TimelineCommand.editItems
         let zero = items.filter { $0.key.character == "0" && $0.modifiers == [.command, .option] }
@@ -293,8 +294,13 @@ import Testing
         let lines = source.split(separator: "\n").map(String.init)
         let item = lines.indices.filter { lines[$0].contains("L10n.menuEditAddToFavorites") }
         #expect(item.count == 1, "the Edit menu has one Add to Favorites item")
-        let statement = item.flatMap { lines[$0...min($0 + 1, lines.count - 1)] }.joined()
-        #expect(!item.isEmpty && !statement.contains("keyboardShortcut"), "Add to Favorites has no key: \(statement)")
+        let start = try #require(item.first)
+        let end = try #require(
+            lines[(start + 1)...].firstIndex { $0.contains("Button(") || $0.contains("Divider()") },
+            "the chain ends at a Button or a Divider")
+        let chain = lines[start..<end].joined(separator: "\n")
+        #expect(chain.contains("canAddToFavorites"), "the chain holds the modifier lines: \(chain)")
+        #expect(!chain.contains("keyboardShortcut"), "Add to Favorites has no key: \(chain)")
     }
 
     @Test func templateLineCountsBinClips() async throws {

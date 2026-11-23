@@ -124,6 +124,31 @@ struct FavoritesTests {
         #expect(try Session(contentsOf: store).bins.flatMap(\.items).map(\.id) == [id])
     }
 
+    /// C40: the store keeps the 3 newest backups, one at each write, so a prune frees the audio of a
+    /// removed favorite after 3 more writes.
+    @Test func aPruneFreesTheAudioOfARemovedFavorite() throws {
+        let store = source.folder.url.appending(path: "Favorites.dirigible")
+        let log = { favoritesJournal(source.folder) }
+        let gone = try add(to: store, named: "Gone")
+        let goneFiles = try clipNames(store)
+        let kept = try add(to: store, named: "Kept")
+        try Favorites.edit(store: store, log: log) { session throws(SessionError) in try session.removeItem(gone) }
+        func freed() throws -> [String] {
+            try UnusedFiles(scanning: Session(contentsOf: store), keptBy: [], soleCopies: [], in: store).items.map(
+                \.path)
+        }
+
+        for write in 1...3 {
+            #expect(try freed().isEmpty, "a backup of the earlier state keeps the file after \(write - 1) more writes")
+            try Favorites.edit(store: store, log: log) { session throws(SessionError) in
+                try session.renameItem(kept, to: "Kept \(write)")
+            }
+        }
+
+        #expect(try freed() == goneFiles, "no backup names the file after 3 more writes")
+        #expect(Backup.all(in: store).count == 3)
+    }
+
     /// C18: each edit reads the store under the lock, so a remove from a list read before an add keeps
     /// that add; a remove of an item that is gone changes no byte.
     @Test func staleRemoveKeepsAdd() throws {

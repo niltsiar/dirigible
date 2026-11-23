@@ -42,7 +42,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F20 | Ripple edit: cut closes the gap, insert pushes later clips | Hindenburg PRO | done, Release 2 run 12 | R7, R10 |
 | F21 | Replace, room-tone fill, duplicate | Hindenburg PRO | done, Release 6 run 1; Later: Duplicate | R7 |
 | F22 | Clipboard with groups (bins) | Hindenburg PRO | done, Release 7 run 6 (bins in the session: the Bins part of the sidebar, Edit > Add to Bin, dirigible bin and the bin MCP tools; a paste near the last track adds tracks, as in Audition); Later: drag to and from a bin | R7, R10 |
-| F23 | Favorites: a clipboard shared by all sessions | Hindenburg PRO | Release 7 | R10 |
+| F23 | Favorites: a clipboard shared by all sessions | Hindenburg PRO | done, Release 7 run 7 (one Favorites store for all sessions: the Favorites section of the Bins part of the sidebar, Edit > Add to Favorites, dirigible favorites and the favorites_add tool); Later: favorites_add on a session that the app has open | R10 |
 | F24 | Group or link tracks; merge clips | Hindenburg PRO | Later | R7 |
 | F25 | Split a stereo clip into two mono clips | Hindenburg PRO | done, Release 4 run 17 | R7 |
 | F26 | Silence removal | Logic Pro | done, Release 5 run 4 (Shorten in Tools > Find Silences, `dirigible silence-edit`, and the agent tool `silence_edit`) | R10 |

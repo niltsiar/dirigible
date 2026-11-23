@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.bin.short" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
 "error.bin.unreadable" = "Dirigible kan de clip van de bak niet plakken. Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";
+"menu.edit.add.to.favorites" = "Voeg toe aan favorieten";
+"favorites.banner" = "Toevoegen aan favorieten";
+"error.favorites.locked" = "De dirigible-tool of een venster van de favorietenopslag gebruikt de favorieten nu. Probeer het later opnieuw.";
+"error.favorites.damaged" = "De favorietenopslag is beschadigd, dus Dirigible kan de favorieten niet lezen of wijzigen.";
+"error.favorites.newer" = "Een nieuwere versie van Dirigible heeft de favorietenopslag gemaakt. Werk Dirigible bij om de favorieten te gebruiken.";
+"error.favorites.file" = "Dirigible kan de favorieten niet lezen of bewaren (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.favorites.file.other" = "Dirigible kan de favorieten niet lezen of bewaren. Controleer de favorietenopslag en probeer het opnieuw.";
+"error.favorites.space" = "De schijf van de favorietenopslag heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.favorites.copy" = "De audio is niet naar de favorieten gekopieerd (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.favorites.source" = "Dirigible kan de selectie niet aan de favorieten toevoegen. Een audiobestand van deze sessie ontbreekt of is gewijzigd. Controleer de map Clips van de sessie en probeer het opnieuw.";
+"error.favorites.download" = "Dirigible kan '%@' niet aan de favorieten toevoegen. Het bestand is niet naar deze Mac gedownload. Download het en probeer het opnieuw.";
+"error.favorites.yielded" = "Het toevoegen aan de favorieten is gestopt vanwege een take in een ander venster. Voeg opnieuw toe na de take.";

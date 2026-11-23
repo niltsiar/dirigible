@@ -155,4 +155,17 @@ public enum StudioError: Error, Hashable, Sendable {
     /// The take play of a pre-roll take stopped at its start with this stop, so the take did not
     /// start (decision 0070). Nothing changed.
     case preRollStopped(PlaybackStop)
+    /// Another process, or a window of the store that the user opened, holds the lock of the
+    /// Favorites store (decision 0081). The store did not change.
+    case favoritesLocked
+    /// The store `session.xml` does not read as a session of this build: a parse error, a model
+    /// error, or a newer version; nil for a store that holds a take. The store did not change.
+    case favoritesDamaged(SessionFileError?)
+    /// Another read or write fault of the Favorites store. The store did not change.
+    case favoritesFile(SessionFileError)
+    /// A copy into the Favorites store failed, or the disk of the store is full; `.cancelled` for a
+    /// Cancel of the add. The store did not change.
+    case favoritesCopy(PasteError)
+    /// A take in another studio stopped the add to Favorites (decision 0019).
+    case favoritesYielded
 }

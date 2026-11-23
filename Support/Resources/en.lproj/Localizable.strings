@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible cannot paste the bin clip. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
 "error.bin.short" = "Dirigible cannot paste the bin clip. The audio file “%@” is shorter than the session says. Restore the file and try again.";
 "error.bin.unreadable" = "Dirigible cannot paste the bin clip. The audio file “%@” did not read. Check the disk and try again.";
+"menu.edit.add.to.favorites" = "Add to Favorites";
+"favorites.banner" = "Adding to Favorites";
+"error.favorites.locked" = "The dirigible tool or a window of the Favorites store uses Favorites now. Try again later.";
+"error.favorites.damaged" = "The Favorites store is damaged, so Dirigible cannot read or change Favorites.";
+"error.favorites.newer" = "A newer version of Dirigible made the Favorites store. Update Dirigible to use Favorites.";
+"error.favorites.file" = "Dirigible cannot read or save Favorites (error %lld). Check the disk and try again.";
+"error.favorites.file.other" = "Dirigible cannot read or save Favorites. Check the Favorites store and try again.";
+"error.favorites.space" = "The disk of the Favorites store does not have enough free space. Free some disk space and try again.";
+"error.favorites.copy" = "The audio did not copy into Favorites (error %lld). Check the disk and try again.";
+"error.favorites.source" = "Dirigible cannot add the selection to Favorites. An audio file of this session is missing or changed. Check the Clips folder of the session and try again.";
+"error.favorites.download" = "Dirigible cannot add “%@” to Favorites. The file is not downloaded to this Mac. Download it and try again.";
+"error.favorites.yielded" = "The add to Favorites stopped for a take in another window. Add again after the take.";

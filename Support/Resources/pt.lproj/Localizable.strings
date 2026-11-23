@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "O Dirigible não pode colar o clipe do compartimento. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
 "error.bin.short" = "O Dirigible não pode colar o clipe do compartimento. O arquivo de áudio “%@” é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
 "error.bin.unreadable" = "O Dirigible não pode colar o clipe do compartimento. Não foi possível ler o arquivo de áudio “%@”. Verifique o disco e tente novamente.";
+"menu.edit.add.to.favorites" = "Adicionar aos Favoritos";
+"favorites.banner" = "Adicionando aos Favoritos";
+"error.favorites.locked" = "A ferramenta dirigible ou uma janela do repositório de Favoritos está usando os Favoritos. Tente novamente mais tarde.";
+"error.favorites.damaged" = "O repositório de Favoritos está danificado, então o Dirigible não pode ler nem alterar os Favoritos.";
+"error.favorites.newer" = "Uma versão mais recente do Dirigible criou o repositório de Favoritos. Atualize o Dirigible para usar os Favoritos.";
+"error.favorites.file" = "O Dirigible não pode ler nem salvar os Favoritos (erro %lld). Verifique o disco e tente novamente.";
+"error.favorites.file.other" = "O Dirigible não pode ler nem salvar os Favoritos. Verifique o repositório de Favoritos e tente novamente.";
+"error.favorites.space" = "O disco do repositório de Favoritos não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
+"error.favorites.copy" = "O áudio não foi copiado para os Favoritos (erro %lld). Verifique o disco e tente novamente.";
+"error.favorites.source" = "O Dirigible não pode adicionar a seleção aos Favoritos. Um arquivo de áudio desta sessão está ausente ou foi alterado. Verifique a pasta Clips da sessão e tente novamente.";
+"error.favorites.download" = "O Dirigible não pode adicionar “%@” aos Favoritos. O arquivo não foi baixado para este Mac. Baixe-o e tente novamente.";
+"error.favorites.yielded" = "A adição aos Favoritos foi interrompida por uma tomada em outra janela. Adicione novamente depois da tomada.";

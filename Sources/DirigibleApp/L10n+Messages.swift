@@ -131,6 +131,12 @@ extension L10n {
         case .writerDidNotStop(let name): return errorWriterDidNotStop.format(name, menuRecordRetry.text)
         case .outputTermUnavailable: return errorOutputTermUnavailable.text
         case .preRollStopped(let stop): return message(for: stop)
+        case .favoritesLocked: return errorFavoritesLocked.text
+        case .favoritesDamaged(let error): return favoritesMessage(damaged: error)
+        case .favoritesFile(let error): return favoritesMessage(file: error)
+        case .favoritesCopy(.session(let error)): return message(for: error, name: name)
+        case .favoritesCopy(let error): return favoritesMessage(copy: error)
+        case .favoritesYielded: return errorFavoritesYielded.text
         }
     }
 

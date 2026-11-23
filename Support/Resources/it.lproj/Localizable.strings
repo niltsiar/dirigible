@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible non può incollare la clip del contenitore. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.bin.short" = "Dirigible non può incollare la clip del contenitore. Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
 "error.bin.unreadable" = "Dirigible non può incollare la clip del contenitore. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";
+"menu.edit.add.to.favorites" = "Aggiungi a Preferiti";
+"favorites.banner" = "Aggiunta a Preferiti in corso";
+"error.favorites.locked" = "Lo strumento dirigible o una finestra dell’archivio Preferiti usa i Preferiti. Riprova più tardi.";
+"error.favorites.damaged" = "L’archivio Preferiti è danneggiato, quindi Dirigible non può leggere né modificare i Preferiti.";
+"error.favorites.newer" = "Una versione più recente di Dirigible ha creato l’archivio Preferiti. Aggiorna Dirigible per usare i Preferiti.";
+"error.favorites.file" = "Dirigible non può leggere né salvare i Preferiti (errore %lld). Controlla il disco e riprova.";
+"error.favorites.file.other" = "Dirigible non può leggere né salvare i Preferiti. Controlla l’archivio Preferiti e riprova.";
+"error.favorites.space" = "Il disco dell’archivio Preferiti non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
+"error.favorites.copy" = "L’audio non è stato copiato nei Preferiti (errore %lld). Controlla il disco e riprova.";
+"error.favorites.source" = "Dirigible non può aggiungere la selezione ai Preferiti. Un file audio di questa sessione manca o è cambiato. Controlla la cartella Clips della sessione e riprova.";
+"error.favorites.download" = "Dirigible non può aggiungere “%@” ai Preferiti. Il file non è scaricato su questo Mac. Scaricalo e riprova.";
+"error.favorites.yielded" = "L’aggiunta ai Preferiti si è interrotta a causa di un take in un’altra finestra. Aggiungi di nuovo dopo il take.";

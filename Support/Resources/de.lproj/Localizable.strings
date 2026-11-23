@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.bin.short" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
 "error.bin.unreadable" = "Dirigible kann den Clip der Ablage nicht einsetzen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
+"menu.edit.add.to.favorites" = "Zu Favoriten hinzufügen";
+"favorites.banner" = "Wird zu Favoriten hinzugefügt";
+"error.favorites.locked" = "Das Werkzeug dirigible oder ein Fenster des Favoritenspeichers verwendet gerade die Favoriten. Versuche es später erneut.";
+"error.favorites.damaged" = "Der Favoritenspeicher ist beschädigt, daher kann Dirigible die Favoriten nicht lesen oder ändern.";
+"error.favorites.newer" = "Eine neuere Version von Dirigible hat den Favoritenspeicher erstellt. Aktualisiere Dirigible, um die Favoriten zu verwenden.";
+"error.favorites.file" = "Dirigible kann die Favoriten nicht lesen oder sichern (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.favorites.file.other" = "Dirigible kann die Favoriten nicht lesen oder sichern. Prüfe den Favoritenspeicher und versuche es erneut.";
+"error.favorites.space" = "Die Festplatte des Favoritenspeichers hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
+"error.favorites.copy" = "Das Audio wurde nicht in die Favoriten kopiert (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.favorites.source" = "Dirigible kann die Auswahl nicht zu den Favoriten hinzufügen. Eine Audiodatei dieser Session fehlt oder wurde geändert. Prüfe den Ordner „Clips“ der Session und versuche es erneut.";
+"error.favorites.download" = "Dirigible kann „%@“ nicht zu den Favoriten hinzufügen. Die Datei ist nicht auf diesen Mac geladen. Lade sie und versuche es erneut.";
+"error.favorites.yielded" = "Das Hinzufügen zu den Favoriten wurde für einen Take in einem anderen Fenster gestoppt. Füge nach dem Take erneut hinzu.";

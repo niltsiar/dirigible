@@ -20,14 +20,15 @@ enum SetupClient: CaseIterable, Sendable {
 
 /// The registration text of `client` for the `dirigible` helper of the app at `bundle`. Nil for an
 /// app in App Translocation or on a `readOnly` volume (a mounted disk image): that path is gone
-/// after the next launch. With `DIRIGIBLE_MCP_SOCKET` set (the verify copy), the server gets the
-/// same socket.
+/// after the next launch. With `DIRIGIBLE_MCP_SOCKET` or `DIRIGIBLE_FAVORITES` set (the verify
+/// copy), the server gets the same socket and the same Favorites store.
 func setupCommand(_ client: SetupClient, bundle: URL, readOnly: Bool, environment: [String: String]) -> String? {
     guard !readOnly, !bundle.path.contains("/AppTranslocation/") else { return nil }
     var server = shellQuoted(bundle.appending(path: "Contents/Helpers/dirigible").path) + " mcp"
-    if let socket = environment["DIRIGIBLE_MCP_SOCKET"], !socket.isEmpty {
-        server = "env " + shellQuoted("DIRIGIBLE_MCP_SOCKET=" + socket) + " " + server
+    let settings = ["DIRIGIBLE_MCP_SOCKET", "DIRIGIBLE_FAVORITES"].compactMap { name in
+        environment[name].flatMap { $0.isEmpty ? nil : shellQuoted(name + "=" + $0) }
     }
+    if !settings.isEmpty { server = "env " + settings.joined(separator: " ") + " " + server }
     switch client {
     case .claudeCode: return "claude mcp add --scope user dirigible -- " + server
     case .codex: return "codex mcp add dirigible -- " + server

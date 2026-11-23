@@ -313,6 +313,11 @@ extension StudioError {
                 + "Dirigible to finish the take."
         case .outputTermUnavailable: "the output latency of the playback device did not read; a pre-roll take needs it."
         case .preRollStopped(let stop): "the pre-roll play stopped because \(stop.reason), so the take did not start."
+        case .favoritesLocked: "another process or a window has the Favorites store open."
+        case .favoritesDamaged(let error): "the Favorites store does not read (\(error.map { "\($0)" } ?? "a take"))."
+        case .favoritesFile(let error): "the Favorites store failed (\(error))."
+        case .favoritesCopy(let error): "the copy into the Favorites store failed (\(error))."
+        case .favoritesYielded: "a take in another studio stopped the add to Favorites."
         }
     }
 }

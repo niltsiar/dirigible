@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelve a poner el archivo en esa carpeta e inténtalo de nuevo.";
 "error.bin.short" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» es más corto de lo que dice la sesión. Restaura el archivo e inténtalo de nuevo.";
 "error.bin.unreadable" = "Dirigible no puede pegar el clip de la bandeja. El archivo de audio «%@» no se pudo leer. Comprueba el disco e inténtalo de nuevo.";
+"menu.edit.add.to.favorites" = "Añadir a Favoritos";
+"favorites.banner" = "Añadiendo a Favoritos";
+"error.favorites.locked" = "La herramienta dirigible o una ventana del almacén de Favoritos usa Favoritos ahora. Inténtalo de nuevo más tarde.";
+"error.favorites.damaged" = "El almacén de Favoritos está dañado, así que Dirigible no puede leer ni cambiar Favoritos.";
+"error.favorites.newer" = "Una versión más reciente de Dirigible creó el almacén de Favoritos. Actualiza Dirigible para usar Favoritos.";
+"error.favorites.file" = "Dirigible no puede leer ni guardar Favoritos (error %lld). Comprueba el disco e inténtalo de nuevo.";
+"error.favorites.file.other" = "Dirigible no puede leer ni guardar Favoritos. Comprueba el almacén de Favoritos e inténtalo de nuevo.";
+"error.favorites.space" = "El disco del almacén de Favoritos no tiene suficiente espacio libre. Libera espacio en el disco e inténtalo de nuevo.";
+"error.favorites.copy" = "El audio no se copió en Favoritos (error %lld). Comprueba el disco e inténtalo de nuevo.";
+"error.favorites.source" = "Dirigible no puede añadir la selección a Favoritos. Falta un archivo de audio de esta sesión o ha cambiado. Comprueba la carpeta Clips de la sesión e inténtalo de nuevo.";
+"error.favorites.download" = "Dirigible no puede añadir «%@» a Favoritos. El archivo no está descargado en este Mac. Descárgalo e inténtalo de nuevo.";
+"error.favorites.yielded" = "La acción de añadir a Favoritos se detuvo por una toma en otra ventana. Vuelve a añadir después de la toma.";

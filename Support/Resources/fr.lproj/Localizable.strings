@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.bin.short" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » est plus court que ne l’indique la session. Restaurez le fichier et réessayez.";
 "error.bin.unreadable" = "Dirigible ne peut pas coller le clip du chutier. Le fichier audio « %@ » n’a pas pu être lu. Vérifiez le disque et réessayez.";
+"menu.edit.add.to.favorites" = "Ajouter aux favoris";
+"favorites.banner" = "Ajout aux favoris";
+"error.favorites.locked" = "L’outil dirigible ou une fenêtre du stockage des favoris utilise les favoris. Réessayez plus tard.";
+"error.favorites.damaged" = "Le stockage des favoris est endommagé, donc Dirigible ne peut pas lire ni modifier les favoris.";
+"error.favorites.newer" = "Une version plus récente de Dirigible a créé le stockage des favoris. Mettez à jour Dirigible pour utiliser les favoris.";
+"error.favorites.file" = "Dirigible ne peut pas lire ni enregistrer les favoris (erreur %lld). Vérifiez le disque et réessayez.";
+"error.favorites.file.other" = "Dirigible ne peut pas lire ni enregistrer les favoris. Vérifiez le stockage des favoris et réessayez.";
+"error.favorites.space" = "Le disque du stockage des favoris n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
+"error.favorites.copy" = "L’audio n’a pas été copié dans les favoris (erreur %lld). Vérifiez le disque et réessayez.";
+"error.favorites.source" = "Dirigible ne peut pas ajouter la sélection aux favoris. Un fichier audio de cette session est absent ou a changé. Vérifiez le dossier Clips de la session et réessayez.";
+"error.favorites.download" = "Dirigible ne peut pas ajouter « %@ » aux favoris. Le fichier n’est pas téléchargé sur ce Mac. Téléchargez-le et réessayez.";
+"error.favorites.yielded" = "L’ajout aux favoris s’est arrêté à cause d’une prise dans une autre fenêtre. Ajoutez à nouveau après la prise.";

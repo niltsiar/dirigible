@@ -144,6 +144,11 @@ extension StudioError {
         case .writerDidNotStop: "writerDidNotStop"
         case .outputTermUnavailable: "outputTermUnavailable"
         case .preRollStopped: "preRollStopped"
+        case .favoritesLocked: "favoritesLocked"
+        case .favoritesDamaged: "favoritesDamaged"
+        case .favoritesFile: "favoritesFile"
+        case .favoritesCopy: "favoritesCopy"
+        case .favoritesYielded: "favoritesYielded"
         }
     }
 }

@@ -1084,3 +1084,15 @@
 "error.bin.missing" = "O Dirigible não pode colar o clipe do compartimento. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
 "error.bin.short" = "O Dirigible não pode colar o clipe do compartimento. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
 "error.bin.unreadable" = "O Dirigible não pode colar o clipe do compartimento. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
+"menu.edit.add.to.favorites" = "Adicionar aos favoritos";
+"favorites.banner" = "A adicionar aos favoritos";
+"error.favorites.locked" = "A ferramenta dirigible ou uma janela do repositório de favoritos usa os favoritos neste momento. Volte a tentar mais tarde.";
+"error.favorites.damaged" = "O repositório de favoritos está danificado, pelo que o Dirigible não pode ler nem alterar os favoritos.";
+"error.favorites.newer" = "Uma versão mais recente do Dirigible criou o repositório de favoritos. Atualize o Dirigible para usar os favoritos.";
+"error.favorites.file" = "O Dirigible não pode ler nem guardar os favoritos (erro %lld). Verifique o disco e volte a tentar.";
+"error.favorites.file.other" = "O Dirigible não pode ler nem guardar os favoritos. Verifique o repositório de favoritos e volte a tentar.";
+"error.favorites.space" = "O disco do repositório de favoritos não tem espaço livre suficiente. Liberte espaço no disco e volte a tentar.";
+"error.favorites.copy" = "O áudio não foi copiado para os favoritos (erro %lld). Verifique o disco e volte a tentar.";
+"error.favorites.source" = "O Dirigible não pode adicionar a seleção aos favoritos. Um ficheiro de áudio desta sessão está em falta ou foi alterado. Verifique a pasta Clips da sessão e volte a tentar.";
+"error.favorites.download" = "O Dirigible não pode adicionar “%@” aos favoritos. O ficheiro não está transferido para este Mac. Transfira-o e volte a tentar.";
+"error.favorites.yielded" = "A adição aos favoritos foi interrompida por um excerto noutra janela. Volte a adicionar depois do excerto.";

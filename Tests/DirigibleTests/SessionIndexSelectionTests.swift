@@ -281,7 +281,10 @@ import Testing
         try windows.addMarkers(to: studio)
         await until("the list shows 46 rows") { table.numberOfRows == 46 }
         let shown = table.rows(in: table.visibleRect)
-        let last = shown.upperBound - 1
+        // The last row with its whole height in view: the click goes to the middle of the row, and the
+        // middle of a row that shows less than half is under the view below the list.
+        let last = try #require(
+            (shown.location..<NSMaxRange(shown)).last { table.rect(ofRow: $0).maxY <= table.visibleRect.maxY })
         try #require(last < 40, "the list shows part of the rows")
         try windows.click(row: last - 1, table, in: window)
         try windows.click(row: last, table, in: window, flags: .shift)

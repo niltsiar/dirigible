@@ -64,14 +64,31 @@ import Testing
     }
 
     /// C13: the verify copy sets `DIRIGIBLE_MCP_SOCKET` for the server, so the copied text reaches
-    /// the copy and not the installed app.
+    /// the copy and not the installed app. C35: it also sets `DIRIGIBLE_FAVORITES`, so the server
+    /// writes the store of the copy and not the store of the user.
     @Test func setupCommandKeepsTheSocketOfTheCopy() {
+        let bundle = URL(filePath: "/tmp/v/Dirigible.app")
         let text = setupCommand(
-            .codex, bundle: URL(filePath: "/tmp/v/Dirigible.app"), readOnly: false,
-            environment: ["DIRIGIBLE_MCP_SOCKET": "/tmp/v/mcp.sock"])
+            .codex, bundle: bundle, readOnly: false, environment: ["DIRIGIBLE_MCP_SOCKET": "/tmp/v/mcp.sock"])
         #expect(
             text == "codex mcp add dirigible -- env 'DIRIGIBLE_MCP_SOCKET=/tmp/v/mcp.sock' "
                 + "'/tmp/v/Dirigible.app/Contents/Helpers/dirigible' mcp")
+        let copy = setupCommand(
+            .codex, bundle: bundle, readOnly: false,
+            environment: [
+                "DIRIGIBLE_MCP_SOCKET": "/tmp/v/mcp.sock", "DIRIGIBLE_FAVORITES": "/tmp/v/Favorites.dirigible",
+            ])
+        #expect(
+            copy == "codex mcp add dirigible -- env 'DIRIGIBLE_MCP_SOCKET=/tmp/v/mcp.sock' "
+                + "'DIRIGIBLE_FAVORITES=/tmp/v/Favorites.dirigible' '/tmp/v/Dirigible.app/Contents/Helpers/dirigible' mcp",
+            "the server of the copy gets its store")
+        let store = setupCommand(
+            .anyApp, bundle: bundle, readOnly: false,
+            environment: ["DIRIGIBLE_FAVORITES": "/tmp/v/Favorites.dirigible"])
+        #expect(
+            store == "env 'DIRIGIBLE_FAVORITES=/tmp/v/Favorites.dirigible' "
+                + "'/tmp/v/Dirigible.app/Contents/Helpers/dirigible' mcp",
+            "a store with no socket")
     }
 
     /// C13: an app in App Translocation or on a read-only volume (a mounted disk image) copies

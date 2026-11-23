@@ -1,6 +1,13 @@
-import DirigibleAudio
 import DirigibleCore
 import Foundation
+
+/// Whether an edit ripples, so that a split take refuses it. A literal is a fixed answer. A plan
+/// whose cuts depend on the sample rate asks the session that the edit opens.
+package struct RippleNeed: ExpressibleByBooleanLiteral, Sendable {
+    package let isNeeded: @Sendable (Session) -> Bool
+    package init(booleanLiteral value: Bool) { isNeeded = { _ in value } }
+    package init(_ isNeeded: @escaping @Sendable (Session) -> Bool) { self.isNeeded = isNeeded }
+}
 
 /// Why a package edit changed nothing. The CLI maps each case to an exit code, and an MCP tool
 /// to an error result.

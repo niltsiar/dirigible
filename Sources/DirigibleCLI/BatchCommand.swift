@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleMCP
 import Foundation
 

@@ -23,7 +23,7 @@ import Testing
     }
 
     /// A match with a curve that has +8.4 dB and -6.2 dB, as C24 states.
-    func match(_ percent: Int = 75, reference: String = "Dani", bypassed: Bool = false) throws -> VoiceMatch {
+    func match(_ percent: Int = 75, reference: String = "Host", bypassed: Bool = false) throws -> VoiceMatch {
         var curve = Array(repeating: 0.0, count: 25)
         (curve[10], curve[20]) = (8.4, -6.2)
         let amount = try #require(VoiceMatch.Amount(percent))
@@ -56,10 +56,10 @@ import Testing
         #expect(value(on, tables[1]) == "Igualada, 75%", "the percent is in the format of the locale")
         #expect(value(off, tables[1]) == "Igualada, desactivada")
         func help(_ state: MatchMarkState?, _ table: [String: String]) -> String? {
-            state?.help(reference: "Dani") { table[$0.rawValue] ?? $0.rawValue }
+            state?.help(reference: "Host") { table[$0.rawValue] ?? $0.rawValue }
         }
         #expect(
-            help(on, tables[0]) == "Voice matched to Dani, 75%" && help(off, tables[0]) == "Voice matched to Dani, off")
+            help(on, tables[0]) == "Voice matched to Host, 75%" && help(off, tables[0]) == "Voice matched to Host, off")
     }
 
     /// C24: the popover line gives the largest boost and cut of the stored curve at the amount, to
@@ -70,12 +70,12 @@ import Testing
         func title(_ match: VoiceMatch) -> String {
             match.title(locale: Locale(identifier: "en_US")) { en[$0.rawValue] ?? $0.rawValue }
         }
-        #expect(title(try match(50)) == "Matched to Dani (+4.2 dB, -3.1 dB)")
-        #expect(title(try match(49)) == "Matched to Dani (+4.1 dB, -3.0 dB)")
+        #expect(title(try match(50)) == "Matched to Host (+4.2 dB, -3.1 dB)")
+        #expect(title(try match(49)) == "Matched to Host (+4.1 dB, -3.0 dB)")
         let flat = try VoiceMatch(
-            amount: try #require(.init(100)), reference: "Dani", curve: Array(repeating: 3.0, count: 25),
+            amount: try #require(.init(100)), reference: "Host", curve: Array(repeating: 3.0, count: 25),
             targetPowers: Array(repeating: 1, count: 25))
-        #expect(title(flat) == "Matched to Dani (+3.0 dB, 0.0 dB)")
+        #expect(title(flat) == "Matched to Host (+3.0 dB, 0.0 dB)")
     }
 
     /// C20 and C17: a clip set of one clip, and a range on one track inside one clip, give a

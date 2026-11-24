@@ -32,6 +32,20 @@ The README banner has a light and a dark version. Make them again after a change
 
 The script writes `docs/images/banner-light.png` and `docs/images/banner-dark.png` at 1600 x 400 pixels.
 
-## Keep the user guide true
+## Keep the docs true
 
-Each run that changes what a user sees or does updates the [user guide](guide.md). `make check-docs` fails when a `menu.*` name of `Support/Resources/en.lproj/Localizable.strings` or `es.lproj/Localizable.strings` is not in bold in the user guide. It also fails when a relative link of the user guide or of `README.md` names no file, or no heading of the .md file that it names.
+`make check-docs` and the `ParityTests` suite fail on the drift that a script can see. The rules are in the headers of `scripts/check-docs.sh` and `scripts/check-docs-drift.py`. Know two of them before you write:
+
+- In prose, write the ellipsis of a menu item as three dots: **File > Import Session...**.
+- In a menu table, write the plain name of a menu item, with no ellipsis.
+
+The docs pass reads what no script can judge. When the run diff changes a path that the header of `scripts/check-governance.sh` lists for a docs pass, run the pass in deliver Phase 7, on `git diff origin/main`:
+
+1. List each name, key, command, tool, number, and limit that the diff adds, changes, or removes.
+2. Grep the old and the new text of each item in the files of the deliver Phase 2 grep, and in `CONTEXT.md`. Fix each line that the diff makes false.
+3. For each feature that the run lands, grep its terms with "not yet", "does not", "for now", and "later" in `README.md` and the user guide. Remove each limit that the run ends.
+4. Give each landed feature that has a guide section its line in the feature list of `README.md`.
+5. When the window changed, make the screenshots again (Make the screenshots again).
+6. Commit the fixes of steps 2 to 5, then write the list of step 1, and each grep of step 2 with its hits, to `logs/docs-pass.log` in the run folder. Log one phase 7 row whose decision starts with `docs pass` and whose evidence names `logs/docs-pass.log`, with the hits and the fixes, or "no hit".
+
+The pass is done when each item of step 1 has its grep of step 2. A later commit that changes a path of the gate needs a new pass: the gate refuses a row that is older than that commit, and `scripts/land.sh` runs the gate again. The commit of the feature states, which changes only `docs/requirements/features.md`, needs no new pass.

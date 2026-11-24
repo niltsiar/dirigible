@@ -61,6 +61,14 @@
 #   commit). The pooled rule grades a rerun due ID on the bound of its counts: new passes over old passes
 #   minus 2, or, with 12 or more runs in the smaller set, old minus new at or under 2 x sqrt(k x p x
 #   (1 - p)), k the runs of both sets and p the pooled pass rate.
+# - With a run folder, a branch that changes a path listed here for a docs pass has a docs pass row:
+#   Sources/ (the app, Sources/DirigibleCLI, and Sources/DirigibleMCP), Support/, README.md,
+#   CONTEXT.md, docs/guide.md, docs/CONTRIBUTING.md, and docs/requirements/. The newest phase 7 row of
+#   decisions.tsv whose decision starts with `docs pass` names logs/docs-pass.log, that file of the
+#   run folder has text, and the row time is at or after the author time (local, minute) of the last
+#   commit of the branch that changes one of these paths. A commit that changes only
+#   docs/requirements/features.md (the feature states of deliver Phase 7) does not make the row old.
+#   docs/CONTRIBUTING.md, "Keep the docs true", has the pass.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -406,6 +414,27 @@ if [[ -n "$run" ]]; then
             fi
         done < "$due"
     done
+fi
+docs_pass_paths='^(Sources/|Support/|README\.md$|CONTEXT\.md$|docs/guide\.md$|docs/CONTRIBUTING\.md$|docs/requirements/)'
+if [[ -n "$run" ]] && grep -qE "$docs_pass_paths" <<<"$(git diff --name-only --no-renames "$base...HEAD")"; then
+    fix="run the docs pass of docs/CONTRIBUTING.md (Keep the docs true), commit its fixes, and log the phase 7 row again"
+    pass_row="$(awk -F'\t' '$2 == "7" && $3 ~ /^docs pass/ && $1 > t { t = $1; e = $5 } END { print t "\t" e }' "$run/decisions.tsv" 2>/dev/null || true)"
+    pass_time="${pass_row%%$'\t'*}" pass_evidence="${pass_row#*$'\t'}"
+    # The rebase of the land keeps the author dates; the row time is local, so the date is too.
+    last_time="$(git log --no-renames --format=%x01%ad --date=format-local:%FT%R --name-only "$base..HEAD" | DOCS_RE="$docs_pass_paths" awk '
+        substr($0, 1, 1) == "\001" { t = substr($0, 2); next }
+        $0 != "docs/requirements/features.md" && $0 ~ ENVIRON["DOCS_RE"] && t > last { last = t }
+        END { print last }')"
+    if [[ -z "$pass_time" ]]; then
+        echo "check-governance: the branch changes a docs pass path and $run/decisions.tsv has no phase 7 row that starts with \"docs pass\"; $fix" >&2
+        fail=1
+    elif [[ "$pass_evidence" != *logs/docs-pass.log* || ! -s "$run/logs/docs-pass.log" ]]; then
+        echo "check-governance: the docs pass row of $pass_time must name logs/docs-pass.log in its evidence, and that file of $run must have text" >&2
+        fail=1
+    elif [[ -n "$last_time" && "$pass_time" < "$last_time" ]]; then
+        echo "check-governance: the docs pass row of $run/decisions.tsv ($pass_time) is older than the last commit of a docs pass path ($last_time); $fix" >&2
+        fail=1
+    fi
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2

@@ -9,8 +9,9 @@
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run with status next in the wiki after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
-# fix, or perf run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
-# and a branch.
+# fix, or perf run that changes app code with no `- Lands:` line, and a run that changes a docs pass path with no
+# docs pass row, no log, or a row older than the last commit of such a path. Each case uses a temporary repo with a
+# base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
@@ -71,10 +72,18 @@ new_repo() {
   g commit -q -m base
   g switch -q -c feat/x
   printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$tmp/run/decisions.tsv"
+  # A docs pass row newer than any commit, so the cases that change a docs pass path need no row of their own.
+  docs_pass_row 2999-12-31T23:59
   printf '## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T01:00 |\n' > "$tmp/run/analysis.md"
   printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n- Check: check-docs.\n' > "$tmp/run/plan.md"
 }
 commit() { g add -A && g commit -q -m change; }
+# docs_pass_row <time>: a docs pass row of the run at the time, and a log that is not empty.
+docs_pass_row() {
+  printf '%s\t7\tdocs pass: no hit\tw\tlogs/docs-pass.log\tdone\n' "$1" >> "$tmp/run/decisions.tsv"
+  mkdir -p "$tmp/run/logs"
+  echo 'no hit' > "$tmp/run/logs/docs-pass.log"
+}
 row() { printf 'path\twords\tdecision\na.md\t%s\t%s\nb.md\t100\tbaseline\nTOTAL\t%s\tbaseline\n' "$1" "$2" "$sum0" > "$budgets"; }
 why() { if [[ "$1" == delete ]]; then echo 'stale: r'; else echo r; fi; }
 verdicts() { printf '%s\nA-1\ta.md\t%s\ta.md\t%s\ts\t\tx\nA-2\ta.md\t%s\tA-1\t%s\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "$1" "$(why "$1")" "$2" "$(why "$2")" > "$rules"; }
@@ -697,6 +706,51 @@ printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | O
 refuse 'an evals.md key with no graded eval folder' 'E4 has a new or changed key' "$tmp/run"
 mkdir "$tmp/run/eval"; printf '## E4\n(a) new.\n\n' > "$tmp/run/eval/keys.md"; printf 'p7\tE4\tpolicy\ta\t1\tPASS\t\n' > "$tmp/run/eval/scores.tsv"
 pass 'an evals.md key with a graded eval folder' "$tmp/run"
+
+# The docs pass gate: a branch that changes a docs pass path (the list in the header of check-governance.sh)
+# needs a phase 7 row that starts with `docs pass`, with a log of the run that is not empty, at or after the
+# last commit of such a path. A commit that changes only docs/requirements/features.md (the feature states)
+# does not make the row old. new_repo writes a row of 2999, so these cases write their own run files.
+# pass_repo: no docs pass row and no log. pass_commit <path> <minute>: a commit of the path with that author minute.
+pass_repo() { new_repo; printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$tmp/run/decisions.tsv"; rm -rf "$tmp/run/logs"; }
+pass_commit() {
+  mkdir -p "$tmp/r/$(dirname "$1")"; echo "$1 $2" > "$tmp/r/$1"
+  g add -A && GIT_AUTHOR_DATE="$2:00" g commit -q -m "$1"
+}
+pass_repo; pass_commit README.md 2026-10-01T10:05
+refuse 'a README.md change and no docs pass row' 'has no phase 7 row that starts with "docs pass"' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; printf '2026-10-01T10:10\t7\tdocs pass: no hit\tw\tlogs/docs-pass.log\tdone\n' >> "$tmp/run/decisions.tsv"
+refuse 'a docs pass row and no log' 'logs/docs-pass.log' "$tmp/run"
+mkdir -p "$tmp/run/logs"; : > "$tmp/run/logs/docs-pass.log"
+refuse 'a docs pass row and an empty log' 'logs/docs-pass.log' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:00
+refuse 'a docs pass row older than the last README.md commit' 'is older than the last commit' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:10
+pass 'a docs pass row after the last README.md commit' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:05
+pass 'a docs pass row in the minute of the last README.md commit' "$tmp/run"
+pass_repo; pass_commit scripts/x.sh 2026-10-01T10:05
+pass 'a scripts/ branch and no docs pass row' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:10; pass_commit docs/requirements/features.md 2026-10-01T10:20
+pass 'a docs pass row and then a commit of only features.md' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:10; pass_commit README.md 2026-10-01T10:20
+refuse 'a docs pass row and then a README.md commit' 'is older than the last commit' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:10
+mkdir -p "$tmp/r/docs/requirements"; echo f > "$tmp/r/docs/requirements/features.md"; echo r > "$tmp/r/README.md"; g add -A && GIT_AUTHOR_DATE='2026-10-01T10:20:00' g commit -q -m 'both'
+refuse 'a docs pass row and then one commit of features.md and README.md' 'is older than the last commit' "$tmp/run"
+pass_repo; pass_commit README.md 2026-10-01T10:05; docs_pass_row 2026-10-01T10:10
+printf '2026-10-01T10:30\t7\tdocs pass: two hits\tw\tlogs/other.log\tdone\n' >> "$tmp/run/decisions.tsv"
+refuse 'a newest docs pass row that names no docs-pass.log' 'logs/docs-pass.log' "$tmp/run"
+for trigger in Sources/DirigibleCLI/A.swift Sources/DirigibleMCP/A.swift Sources/A.swift Support/Info.plist README.md CONTEXT.md docs/guide.md docs/CONTRIBUTING.md docs/requirements/releases.md; do
+  pass_repo; pass_commit "$trigger" 2026-10-01T10:05
+  refuse "a change of $trigger and no docs pass row" 'has no phase 7 row that starts with "docs pass"' "$tmp/run"
+done
+for other in docs/workflow/evals.md docs/decisions/0001-x.md Tests/T.swift scripts/x.sh AGENTS.md; do
+  pass_repo; pass_commit "$other" 2026-10-01T10:05
+  pass "a change of $other and no docs pass row" "$tmp/run"
+done
+pass_repo; pass_commit README.md 2026-10-01T10:05
+pass 'a README.md change and no run folder'
 
 # The script that counts the words has its own test; this test runs it, so make test-hooks covers it.
 ww_out="$(bash "$(dirname "$script")/workflow-words.test.sh" 2>&1)" || fail "workflow-words.test.sh: $ww_out"

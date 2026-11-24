@@ -1,10 +1,10 @@
 # Model routing
 
-The model and effort of each job of a deliver run. Read this file before each `Agent` or `delegate_task` call that starts a phase, slice, gate-fix, or check job. The evidence is in run `2026-10-16-agent-setup`: its usage report and its free-model bench.
+The model and effort of each job of a deliver run. Read this file before each `Agent` or `delegate_task` call that starts a phase, slice, gate-fix, or check job.
 
 ## Usage limits
 
-The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `Agent`, `Workflow`, `SendMessage`, and `delegate_task` start. With no usage-mode line in the tool context, run `.claude/skills/deliver/scripts/usage-mode.sh` before the call. The script reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and a Claude Code mod of the user setup (a turn hook) writes it after each main-agent turn. With no file, the mode is `normal`. A non-zero exit is `normal`.
+The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `Agent`, `Workflow`, `SendMessage`, and `delegate_task` start. With no usage-mode line in the tool context, run `.claude/skills/deliver/scripts/usage-mode.sh` before the call. The script reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and its writer is outside this repo. With no file, the mode is `normal`. A non-zero exit is `normal`.
 
 | Mode | Change |
 |---|---|
@@ -24,9 +24,9 @@ The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `
 
 ## Free jobs
 
-Free jobs run on the free models of OpenCode Zen and on the Antigravity models of T3. They are optional extras. A job has no result when it hits the rate limit, returns an error, has its isolation refused, its audit fails, it has no answer when the Claude steps end, or the lead has no `delegate_task`. A row says if its Claude step runs always, or only on no result.
+These jobs need the T3 Code harness and the maintainers' accounts: with none, skip this section. Free jobs run on the free models of OpenCode Zen and on the Antigravity models of T3. They are optional extras. A job has no result when it hits the rate limit, returns an error, has its isolation refused, its audit fails, it has no answer when the Claude steps end, or the lead has no `delegate_task`. A row says if its Claude step runs always, or only on no result.
 
-Any free model can get repo text and train on it: the project goes open source (user, 2026-10-16). The Antigravity models take the same rule. No credential, personal data, or real-voice recording goes to a model.
+The repo is public. Any free model can get repo text and train on it. The Antigravity models take the same rule. No credential, personal data, or real-voice recording goes to a model.
 
 | Job | Model | Claude step | Use |
 |---|---|---|---|

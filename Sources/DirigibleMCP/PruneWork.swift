@@ -11,8 +11,10 @@ package struct PruneOutput: Sendable {
 }
 
 /// The body of `file prune` and of `file_prune`. It holds the package lock from the read to the
-/// last move, refuses a pending take, and scans. With `dryRun`, it writes nothing. Else it removes
-/// the leftover temporary files and moves the unused files to the Trash.
+/// last move, refuses a pending take, and scans. With `dryRun`, it writes nothing. Else, when the
+/// scan has an item and the package is archived, it unarchives first (`unarchiveForWrite`,
+/// decision 0072) and scans again. Then it removes the leftover temporary files and moves the
+/// unused files to the Trash.
 package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<UnusedFilesError>) -> PruneOutput {
     try PackageLock.withLock(package, locked: EditFailure<UnusedFilesError>.file) {
         lock throws(EditFailure<UnusedFilesError>) in
@@ -23,11 +25,24 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
             throw .file(error)
         }
         guard session.recording == nil else { throw .pendingTake }
-        let scan: UnusedFiles
-        do throws(UnusedFilesError) {
-            scan = try UnusedFiles(scanningWithCaptures: session, keptBy: [], in: package)
-        } catch {
-            throw .body(error)
+        func scanned() throws(EditFailure<UnusedFilesError>) -> UnusedFiles {
+            do throws(UnusedFilesError) {
+                return try UnusedFiles(scanningWithCaptures: session, keptBy: [], in: package)
+            } catch {
+                throw .body(error)
+            }
+        }
+        var scan = try scanned()
+        // The step writes a new file at each `<stem>.wav`, and the move checks each identity
+        // against its scan.
+        if !dryRun, !scan.items.isEmpty, needsUnarchive(session) {
+            let before = session
+            do throws(ArchiveFault) {
+                try unarchiveForWrite(&session, before: before, in: package, under: lock, log: standardErrorLine)
+            } catch {
+                throw .archive(error)
+            }
+            scan = try scanned()
         }
         var lines = scan.damagedBackups.map { "Damaged backup, it keeps no file: \(backupsFolderName)/\($0.fileName)" }
         lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }

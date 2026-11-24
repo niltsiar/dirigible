@@ -52,7 +52,9 @@ struct PresetCommand: ParsableCommand {
 
         func run() throws {
             let edit = try edit()
-            try editPackage(package, ripple: false) { session throws(SessionError) in try edit(&session) }
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
+                try edit(&session)
+            }
         }
     }
 
@@ -74,7 +76,9 @@ struct PresetCommand: ParsableCommand {
 
         func run() throws {
             let edit = try edit()
-            try editPackage(package, ripple: false) { session throws(SessionError) in try edit(&session) }
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
+                try edit(&session)
+            }
         }
     }
 }

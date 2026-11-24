@@ -235,7 +235,9 @@ package struct SyncWork: Sendable {
     /// nothing. A moved clip with take audio adds the take sync lines (decision 0061).
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<SyncRefusal>) {
-            let (moved, note) = try editPackageCore(package, ripple: false, writeUnchanged: false, log: control.log) {
+            let (moved, note) = try editPackageCore(
+                package, ripple: false, touchesClips: true, writeUnchanged: false, log: control.log
+            ) {
                 session, lock throws(SyncRefusal) in
                 try TakeWork.noted(&session, package: package) { session throws(SyncRefusal) in
                     try run(

@@ -66,7 +66,9 @@ extension ClipCommand {
             let work = try work()
             let interrupt = cancelOnInterrupt()
             defer { interrupt.source.cancel() }
-            let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
+            let moved = try editPackage(
+                package, ripple: false, touchesClips: true, writeUnchanged: false, refused: failure
+            ) {
                 session, lock throws(SyncRefusal) in
                 try work.run(
                     &session, package: package.url, freeBytes: { lock.freeBytes() }, isCancelled: interrupt.isCancelled)

@@ -42,6 +42,7 @@ extension StudioError {
         // A store never records, and its edits do not ripple.
         case .pendingTake, .splitTake: self = .favoritesDamaged(nil)
         case .body(let error): self = .favoritesCopy(error)
+        case .archive(let fault): self = .archive(fault)
         }
     }
 
@@ -52,6 +53,7 @@ extension StudioError {
         case .file(let error): self = .init(favoritesFile: error)
         case .pendingTake, .splitTake: self = .favoritesDamaged(nil)
         case .body(let error): self = .session(error)
+        case .archive(let fault): self = .archive(fault)
         }
     }
 

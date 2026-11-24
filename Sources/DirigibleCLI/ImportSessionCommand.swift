@@ -32,7 +32,7 @@ struct ImportSessionCommand: ParsableCommand {
 
     func run() throws {
         let work = ImportSessionWork(source: source, at: at, markers: markers)
-        let imported = try editPackage(package, ripple: false, refused: failure) {
+        let imported = try editPackage(package, ripple: false, touchesClips: true, refused: failure) {
             session, lock throws(ImportSessionWork.Failure) in
             try work.run(&session, lock: lock, package: package.url)
         }

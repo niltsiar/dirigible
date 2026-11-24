@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "„%@“ aus den Favoriten entfernen?";
 "alert.favorites.remove.body" = "Sessions, die es verwenden, behalten ihre eigene Kopie.";
 "alert.favorites.remove.confirm" = "Entfernen";
+"error.archive.space" = "Dirigible kann die Audiodateien nicht zurück in WAV umwandeln. Die Festplatte braucht %@ frei, und %@ sind frei. Gib Speicherplatz frei und versuche es erneut.";
+"error.archive.clip" = "Dirigible kann die Audiodatei %@ nicht umwandeln (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.archive.clip.other" = "Dirigible kann die Audiodatei %@ nicht umwandeln. Prüfe den Ordner Clips der Session und versuche es erneut.";
+"error.archive.store" = "Der Favoritenspeicher wird nie archiviert.";

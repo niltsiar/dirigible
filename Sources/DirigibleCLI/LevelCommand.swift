@@ -29,7 +29,9 @@ struct LevelCommand: ParsableCommand {
 
     func run() throws {
         let work = LevelWork(clips: clips, perTrack: perTrack)
-        let (lines, report) = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
+        let (lines, report) = try editPackage(
+            package, ripple: false, touchesClips: true, writeUnchanged: false, refused: failure
+        ) {
             session, _ throws(LevelFailure) in
             try work.run(&session, package: package.url)
         }

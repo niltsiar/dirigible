@@ -24,7 +24,7 @@ extension ClipCommand {
         @Option(parsing: .unconditional, help: "The new timeline frame of the first clip frame.") var start: Int
 
         func run() throws {
-            try editPackage(package, ripple: true) { session throws(SessionError) in
+            try editPackage(package, ripple: true, touchesClips: false) { session throws(SessionError) in
                 try session.shuffle(ClipID(clip), to: TrackID(track), start: Frames(start))
             }
         }
@@ -40,7 +40,7 @@ extension ClipCommand {
         @Argument var clips: [String]
 
         func run() throws {
-            let moved = try editPackage(package, ripple: false) { session throws(SessionError) in
+            let moved = try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.closeGaps(clips.map { ClipID($0) })
             }
             for id in moved { print(id) }
@@ -57,7 +57,7 @@ extension ClipCommand {
         @Option(parsing: .unconditional, help: "The frames to move the join; negative moves it left.") var by: Int
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.roll(ClipID(clip), by: Frames(by))
             }
         }
@@ -75,7 +75,7 @@ extension ClipCommand {
         var by: Int
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.slip(clips.map { ClipID($0) }, by: Frames(by))
             }
         }

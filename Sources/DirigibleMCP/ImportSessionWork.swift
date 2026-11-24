@@ -87,7 +87,7 @@ package struct ImportSessionWork: Sendable {
     /// take sync note.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<Failure>) {
-            let (imported, note) = try editPackageCore(package, ripple: false, log: control.log) {
+            let (imported, note) = try editPackageCore(package, ripple: false, touchesClips: true, log: control.log) {
                 session, lock throws(Failure) in
                 try TakeWork.noted(&session, package: package) { session throws(Failure) in
                     try run(
@@ -103,6 +103,7 @@ package struct ImportSessionWork: Sendable {
                 case .file(let error): error.message(package: path)
                 case .pendingTake: pendingTakeMessage(path)
                 case .splitTake: splitTakeMessage(path)
+                case .archive(let fault): fault.message(package: path)
                 }
             throw ToolError(message)
         }

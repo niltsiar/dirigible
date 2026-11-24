@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "'%@' uit favorieten verwijderen?";
 "alert.favorites.remove.body" = "Sessies die het gebruiken, houden hun eigen kopie.";
 "alert.favorites.remove.confirm" = "Verwijder";
+"error.archive.space" = "Dirigible kan de audiobestanden niet terugzetten naar WAV. De schijf heeft %@ vrije ruimte nodig, en %@ is vrij. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.archive.clip" = "Dirigible kan het audiobestand %@ niet omzetten (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.archive.clip.other" = "Dirigible kan het audiobestand %@ niet omzetten. Controleer de map Clips van de sessie en probeer het opnieuw.";
+"error.archive.store" = "De favorietenopslag wordt nooit gearchiveerd.";

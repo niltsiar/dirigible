@@ -20,7 +20,7 @@ struct TrackCommand: ParsableCommand {
 
         func run() throws {
             let id = id.map { TrackID($0) } ?? TrackID()
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.addTrack(id, name: name, layout: layout)
             }
             print(id)
@@ -59,7 +59,7 @@ struct TrackCommand: ParsableCommand {
             if case .mono(let uid, let channel) = EditRules.hostDevice(device: device, channels: channels) {
                 hostDevice = (uid, channel)
             }
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.addCallTracks(
                     host: host, guest: guest, names: (host: "Host", guest: "Guest"), hostDevice: hostDevice,
                     guestApp: app)
@@ -75,7 +75,7 @@ struct TrackCommand: ParsableCommand {
         @Argument var track: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.removeTrack(TrackID(track))
             }
         }
@@ -88,7 +88,7 @@ struct TrackCommand: ParsableCommand {
         @Argument var name: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.renameTrack(TrackID(track), to: name)
             }
         }
@@ -101,7 +101,7 @@ struct TrackCommand: ParsableCommand {
         @Option(parsing: .unconditional, help: "The gain in dB.", transform: parseGain) var db: Gain
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setGain(db, track: TrackID(track))
             }
         }
@@ -117,7 +117,7 @@ struct TrackCommand: ParsableCommand {
         func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setMuted(!off, tracks: tracks.map { TrackID($0) })
             }
         }
@@ -133,7 +133,7 @@ struct TrackCommand: ParsableCommand {
         func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setSoloed(!off, tracks: tracks.map { TrackID($0) })
             }
         }
@@ -149,7 +149,7 @@ struct TrackCommand: ParsableCommand {
         func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setFollowTrack(!off, tracks: tracks.map { TrackID($0) })
             }
         }
@@ -172,7 +172,7 @@ struct TrackCommand: ParsableCommand {
         func run() throws {
             // `validate()` checked the word.
             let role = EditRules.role(role) ?? nil
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setRole(role, tracks: [TrackID(track)])
             }
         }
@@ -190,7 +190,7 @@ struct TrackCommand: ParsableCommand {
 
         func apply(tapsAvailable: Bool) throws {
             try route.checkAvailable(tapsAvailable)
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setLayout(layout, route: route.route, track: TrackID(track))
             }
         }
@@ -206,7 +206,7 @@ struct TrackCommand: ParsableCommand {
 
         func apply(tapsAvailable: Bool) throws {
             try route.checkAvailable(tapsAvailable)
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setRoute(route.route, track: TrackID(track))
             }
         }

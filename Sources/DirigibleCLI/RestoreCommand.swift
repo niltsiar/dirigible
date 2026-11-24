@@ -24,7 +24,7 @@ extension ClipCommand {
 
         func run() throws {
             let ids = clips.map { ClipID($0) }
-            let lines = try editPackage(package, ripple: false, writeUnchanged: false) {
+            let lines = try editPackage(package, ripple: false, touchesClips: false, writeUnchanged: false) {
                 session throws(SessionError) in
                 try restoredClips(ids, in: &session)
             }

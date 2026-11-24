@@ -62,7 +62,7 @@ struct RangePaste: ParsableArguments {
         }
         // `validate()` checked the targets.
         let targets = (EditRules.pasteTargets(sources: track, onto: onto) ?? []).map { TrackID($0) }
-        let pasted = try editPackage(package, ripple: RippleNeed { _ in mode.ripples }) {
+        let pasted = try editPackage(package, ripple: RippleNeed { _ in mode.ripples }, touchesClips: false) {
             session throws(SessionError) in
             try session.paste(try session.excerpt(of: range.frames, on: sources), mode: mode, on: targets)
         }

@@ -66,7 +66,7 @@ struct MCPDuckToolTests {
         let noLog: () -> DiagnosticLog = { .disabled }
 
         let failure = #expect(throws: EditFailure<DuckFailure>.self) {
-            try editPackageCore(url, ripple: false, writeUnchanged: false, log: noLog) {
+            try editPackageCore(url, ripple: false, touchesClips: false, writeUnchanged: false, log: noLog) {
                 session, _ throws(DuckFailure) in
                 try work.run(
                     &session, package: url, progress: { if $0 >= 1 { readEnded.withLock { $0 = true } } },

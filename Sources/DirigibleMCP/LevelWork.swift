@@ -77,7 +77,9 @@ package struct LevelWork: Sendable {
     /// writes nothing.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<LevelFailure>) {
-            let result = try editPackageCore(package, ripple: false, writeUnchanged: false, log: control.log) {
+            let result = try editPackageCore(
+                package, ripple: false, touchesClips: true, writeUnchanged: false, log: control.log
+            ) {
                 session, _ throws(LevelFailure) in
                 try run(
                     &session, package: package, progress: { control.report($0) },

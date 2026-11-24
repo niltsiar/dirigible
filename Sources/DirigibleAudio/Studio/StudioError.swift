@@ -168,4 +168,6 @@ public enum StudioError: Error, Hashable, Sendable {
     case favoritesCopy(PasteError)
     /// A take in another studio stopped the add to Favorites (decision 0019).
     case favoritesYielded
+    /// The unarchive step of a write into an archived Favorites store failed (decision 0072).
+    case archive(ArchiveFault)
 }

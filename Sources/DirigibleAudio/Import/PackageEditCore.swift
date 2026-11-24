@@ -20,6 +20,8 @@ package enum EditFailure<Body: Error>: Error {
     case splitTake
     /// The error of the edit body.
     case body(Body)
+    /// The unarchive step before the save or the body (decision 0072).
+    case archive(ArchiveFault)
 }
 
 /// Takes the package lock (decision 0012), reads the package, removes the leftover temporary
@@ -27,15 +29,19 @@ package enum EditFailure<Body: Error>: Error {
 /// P4), refuses a pending take, removes the raw CAF of each segment with a finalize record
 /// (decision 0071; a fault goes to `log()`), refuses a split take when `ripple` is true, applies
 /// `body`, and saves. With `writeUnchanged` false, it does not save a session that `body` did not
-/// change. The lock is held until the save ends. `session.xml` does not change when a step fails.
-/// A save with `backups` `.standard` and a backup due can add a backup, and a save can delete the
+/// change. The lock is held until the save ends. An archived package unarchives first
+/// (`unarchiveForWrite`, decision 0072): after `body` and before the save when `touchesClips` is
+/// false, and before `body` when `body` opens or writes a clip file or copies `session.xml` to
+/// `Backups/`. `session.xml` does not change when a step fails, except after a fault of a
+/// `touchesClips` body: the package then stays unarchived with the session facts of before. A save
+/// with `backups` `.standard` and a backup due can add a backup, and a save can delete the
 /// oldest backup before the replace. With no `backups`, the package of the Favorites store gets `.store`
 /// and each other package gets `.standard` (`Favorites.backups(for:environment:)`, decision 0081). A refused
 /// revert can leave the kept copy of the current file (decision 0043). With `whenMissing`, a package
 /// folder with no `session.xml` (ENOENT at the read) edits the session that it gives, and the save
 /// writes it under the lock: the Favorites store after a crash during its first write.
 package func editPackageCore<Result, Failure: Error>(
-    _ package: URL, ripple: RippleNeed, writeUnchanged: Bool = true, backups: BackupPolicy? = nil,
+    _ package: URL, ripple: RippleNeed, touchesClips: Bool, writeUnchanged: Bool = true, backups: BackupPolicy? = nil,
     log: () -> DiagnosticLog, whenMissing: (() -> Session)? = nil,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(EditFailure<Failure>) -> Result {
@@ -51,7 +57,18 @@ package func editPackageCore<Result, Failure: Error>(
         guard session.recording == nil else { throw .pendingTake }
         if lock.isHeld { removeRecordedRawCaptures(of: session, in: package, log: log) }
         if ripple.isNeeded(session), rippleBlocked(in: package, session: session) { throw .splitTake }
-        let before = session
+        var before = session
+        func unarchive() throws(EditFailure<Failure>) {
+            do throws(ArchiveFault) {
+                try unarchiveForWrite(&session, before: before, in: package, under: lock, log: standardErrorLine)
+            } catch {
+                throw .archive(error)
+            }
+        }
+        if touchesClips {
+            try unarchive()
+            before = session
+        }
         let result: Result
         do throws(Failure) {
             result = try body(&session, lock)
@@ -59,6 +76,7 @@ package func editPackageCore<Result, Failure: Error>(
             throw .body(error)
         }
         if !writeUnchanged && session == before { return result }
+        if !touchesClips { try unarchive() }
         do throws(SessionFileError) {
             // The package that the lock holds, also after a rename (decision 0014).
             let policy = backups ?? Favorites.backups(for: package, environment: ProcessInfo.processInfo.environment)

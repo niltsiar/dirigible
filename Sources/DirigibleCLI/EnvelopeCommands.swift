@@ -31,7 +31,7 @@ extension ClipCommand {
 
         func run() throws {
             let map = Dictionary(uniqueKeysWithValues: try points.map(parsePoint))
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.setEnvelope(map, clip: ClipID(clip))
             }
         }
@@ -59,7 +59,7 @@ extension ClipCommand {
         }
 
         func run() throws {
-            let changed = try editPackage(package, ripple: false) { session throws(SessionError) in
+            let changed = try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.changeGain(
                     by: db, in: Frames(from)..<Frames(to), on: track.map { TrackID($0) },
                     ramp: ramp.map { Frames($0) } ?? session.gainRamp)

@@ -48,7 +48,7 @@ struct SilenceEditCommand: ParsableCommand {
         let work = try work()
         let plan = work.plan
         let ripple = RippleNeed { plan.removesFrames(sampleRate: $0.sampleRate) }
-        let lines = try editPackage(package, ripple: ripple) { session throws(SessionError) in
+        let lines = try editPackage(package, ripple: ripple, touchesClips: false) { session throws(SessionError) in
             work.lines(try session.editSilences(work.plan, muting: EditRules.tracks(track, of: session)))
         }
         print(lines.joined(separator: "\n"))

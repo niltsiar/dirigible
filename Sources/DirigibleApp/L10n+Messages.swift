@@ -137,6 +137,7 @@ extension L10n {
         case .favoritesCopy(.session(let error)): return message(for: error, name: name)
         case .favoritesCopy(let error): return favoritesMessage(copy: error)
         case .favoritesYielded: return errorFavoritesYielded.text
+        case .archive(let fault): return message(for: fault)
         }
     }
 

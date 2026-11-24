@@ -223,7 +223,8 @@ package struct BatchWork: Sendable {
     package func runOnFiles(
         _ package: URL, log: () -> DiagnosticLog, scan: (URL) -> (Session) -> Bool = rippleBlocked(in:)
     ) throws(EditFailure<Failure>) -> [String] {
-        let (results, note) = try editPackageCore(package, ripple: false, log: log) { session, _ throws(Failure) in
+        let (results, note) = try editPackageCore(package, ripple: false, touchesClips: false, log: log) {
+            session, _ throws(Failure) in
             let blocked = steps.contains { $0.ripple.isNeeded(session) } ? scan(package) : { _ in false }
             return try TakeWork.noted(&session, package: package) { session throws(Failure) in
                 try run(&session, canRipple: { !blocked($0) })

@@ -30,7 +30,9 @@ struct CaptureCommand: AsyncParsableCommand {
                 hostTimeNanos: hostTime, sampleTime: sampleTime, nominalSampleRate: nominalRate,
                 measuredSampleRate: measuredRate, latency: latency, resampledFromRate: resampledFrom,
                 driftCorrected: !driftNotCorrected)
-            try editPackage(package, ripple: false) { session throws(SessionError) in try session.addCapture(capture) }
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
+                try session.addCapture(capture)
+            }
             print(capture.id)
         }
     }
@@ -41,7 +43,7 @@ struct CaptureCommand: AsyncParsableCommand {
         @Argument var capture: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.removeCapture(CaptureID(capture))
             }
         }
@@ -67,7 +69,9 @@ struct FileCommand: ParsableCommand {
             let file = AudioFile(
                 id: id.map { FileID($0) } ?? FileID(), path: path, layout: layout, length: Frames(length),
                 capture: capture.map { CaptureID($0) })
-            try editPackage(package, ripple: false) { session throws(SessionError) in try session.addFile(file) }
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
+                try session.addFile(file)
+            }
             print(file.id)
         }
     }
@@ -78,7 +82,7 @@ struct FileCommand: ParsableCommand {
         @Argument var file: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.removeFile(FileID(file))
             }
         }

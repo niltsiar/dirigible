@@ -125,6 +125,17 @@ public enum PeakFile {
         throw posix(failure)
     }
 
+    /// Writes the cache file of `path` with the stamp `new` from the cache file of `old`, for a
+    /// file that a package job converted: its check proves equal samples, so the bins are equal
+    /// (decision 0072). No cache file of `old` writes nothing. A write error is a miss (decision
+    /// 0024 P5): the next pass computes the peaks again. The file of `old` stays for `prune`, as
+    /// another package can hold a pool file with that path and stamp.
+    static func rekey(path: String, from old: FileStamp, to new: FileStamp, channels: Int, rate: Int, in folder: URL) {
+        guard let peaks = read(path: path, stamp: old, channels: channels, rate: rate, in: folder) else { return }
+        let moved = Peaks(frames: peaks.frames, stamp: new, channels: channels, sampleRate: rate, levels: peaks.levels)
+        try? write(moved, path: path, in: folder)
+    }
+
     /// The time after which the launch removes a cache file that no pass used.
     public static let unusedLimit: TimeInterval = 90 * 86_400
 

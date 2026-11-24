@@ -40,8 +40,8 @@ A segment that fails a clause keeps its CAF. `dirigible info` writes one line fo
 ## Consequences
 
 - A take that passes the gate uses 3 bytes per sample and channel after the removal. The three tester packages free 4,568,082,080 bytes.
-- Two hardware clocks can be up to 2 ms apart after a removal, because each segment is 1 ms or less against the host clock. The 0004 hardware check with two USB devices stays a manual check (backlog 1530). A piecewise fit can reduce the bow (backlog 1531).
-- A take whose CAF is gone cannot get the piecewise fit of backlog 1531: the fit reads the CAF.
+- Two hardware clocks can be up to 2 ms apart after a removal, because each segment is 1 ms or less against the host clock. The 0004 hardware check with two USB devices stays a manual check, because it needs a Mac with two hardware inputs. A piecewise fit can reduce the bow: a later backlog item plans it.
+- A take whose CAF is gone cannot get the piecewise fit that a later backlog item plans: the fit reads the CAF.
 - The first open of an older package reads each WAV once, and each CAF whose WAV peak is near full scale, in the background.
 - An edit during the sweep keeps the CAF: the turn checks the gate again on the saved session. A segment whose CAF is gone, and whose clips an edit after the removal deletes, keeps its WAV under an unused pool entry, and it is not an unplaced segment while that entry exists. Undo in the same window brings the clips back. After a close and an open, a backup that names the clip keeps it for a revert; with no holder, Remove Unused Files moves the WAV and the sidecar to the Trash, as it moves the WAV, the CAF, and the sidecar of a CAF-backed segment. So no prune leaves a segment that blocks a ripple.
 - A take in one studio holds the sweep of every other studio. A held job runs again at the next open, take end, or placement of its own studio, so its CAFs stay until then.

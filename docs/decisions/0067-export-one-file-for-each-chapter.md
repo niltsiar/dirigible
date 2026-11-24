@@ -17,7 +17,7 @@ Facts that constrain the design (main e9e9274a):
 - `StudioError.exportYielded` has no payload, and the stop texts of the live tool say "No file was written." (`LiveJob.swift` `stopMessage`). A set that stops after part 1 has files on disk, so it needs its own error.
 - The callers read the session before awaits (the media check, the save panel, the replace sheet), and the job renders the Studio session of the job start (`Studio+Export.swift:50`).
 - `Session.chapterList(in:)` drops a chapter at the millisecond of the chapter before it. The MP3, the M4A, and chapters.json use it.
-- The `export` tool kind is in three hand-synced lists (backlog 0245). The agent manual core has 1 free character (run `2026-10-23-read-by-time`, P1).
+- The `export` tool kind is in three hand-synced lists. A later backlog item replaces them with one tool-kind property. The agent manual core has 1 free character (run `2026-10-23-read-by-time`, P1).
 
 Rubric: (R1) a take start or a close stops the whole set; (R2) one owner of the split rule for the app, the CLI, and the tool; (R3) no change of the behavior of `exportMix` or of the tag writers in the risk floor (`Export.swift` gets only the `exportNameLimit` constant and the `.tag.tmp` suffix constant that it reads); (R4) the CLI and the tool keep their kind and their texts when there is no split; (R5) a refusal (an existing file, a media fault, no split point) comes before the first file.
 
@@ -138,7 +138,7 @@ public func exportParts(
 
 ## Consequences
 
-- A per-chapter M4A goes through the `AVAssetWriter` chapter copy of 0045 for its one chapter, so each M4A part pays that copy and its cancel wait (up to 10 s, backlog 0426).
+- A per-chapter M4A goes through the `AVAssetWriter` chapter copy of 0045 for its one chapter, so each M4A part pays that copy and its cancel wait (up to 10 s).
 - A stop leaves a partial set; the error, the CLI and tool lines, and the app banner name the written files and the files not written. A replace of an old set can leave old and new files mixed after a stop.
 - Old files of the prefix that the new set does not write (a renamed or deleted chapter) stay. The app replace sheet lists them when a target exists, the done banner names them after each set, and the CLI and the tool print one line that names them. A stop does not name them.
 - A crash during a set leaves a hidden temporary file that the leftover sweep misses when the part title changes (later item).
@@ -150,5 +150,5 @@ public func exportParts(
 
 - **Candidate 2: callers loop `Studio.export` once per file.** No new DirigibleAudio API. Rejected: R1 fails (a take start between two files finds no job, and the loop starts the next file), and the target check, the progress, and the cancel go into four callers (CLI, the tool on files, the live tool, the window), so R2 fails.
 - **A parts mode inside `exportMix`.** One call writes all files. Rejected: R3 fails; `exportMix` is 350 lines in the risk floor, and its loudness search, tag pass, and move are for one file.
-- **A new tool `export_parts` and a new command.** Rejected: R4 fails; it needs the three kind lists (backlog 0245) and a manual line that does not fit.
+- **A new tool `export_parts` and a new command.** Rejected: R4 fails; it needs the three kind lists and a manual line that does not fit.
 - **A move of all files at the end of the set.** All or nothing for a stop. Rejected for now: it needs a write-only mode of `exportMix` (R3). Later item.

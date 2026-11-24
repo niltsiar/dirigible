@@ -11,9 +11,9 @@
 # reuses the stamp of the rebased HEAD. No stamp, or a stamp that is not an ancestor, runs the full
 # push check; the governance and the ancestor checks still run. The land reads the stamp
 # before its rebase: the delta is the tree diff to the rebased HEAD, with the test targets that
-# check-changed.sh adds for a file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
-# the stamp commit. The ratchet case runs the real make check-changed first, so the land runs no
-# check after it. A partial stamp is no pass. The tool-author guard of check-commits.sh: a tool
+# check-changed.sh adds for a file that a code line of a Swift test names whole, and a second land
+# of a stopped branch reuses the stamp commit. The ratchet case runs the real make check-changed
+# first, so the land runs no check after it. A partial stamp is no pass. The tool-author guard of check-commits.sh: a tool
 # name in the author, the committer, or a Co-Authored-By trailer refuses the land and the push
 # (.githooks/pre-push) for each field and name, and the owner passes; a tool commit below the base
 # is out of the range.

@@ -52,7 +52,7 @@
 # name exits 3 with the full FILTER in the reason, so with-lock.sh exits before the build lock.
 # With no changed path, FILTER gives the target test-filter and one stderr note. The mode --paths
 # keeps the targets (a probe of the table).
-# A docs path gets check-docs. A doc that a Swift test reads also gets test-filter with READERS=<suites>.
+# A docs path gets check-docs.
 # A changed path outside Sources/ and Tests/ that a code line of Tests/ names as a whole
 # string-literal path (reader_scan) adds the suites of that test file in the word
 # READERS=<a>,<b>, joined with commas as PUSH_RUN is; the test-filter recipe of the Makefile splits it
@@ -604,15 +604,11 @@ for c in $found; do
 done
 
 # reader_scan <paths>: the Swift tests that read a changed file of another class (docs/guide.md,
-# scripts/version.sh). One pass over Tests/ (grep for the lines with a string that can hold a path,
-# then awk) finds each file with a code line that holds a changed path outside Sources/ and
-# Tests/ as a whole string-literal path: the path after a quote or a /, and a quote after it. A
-# line that starts with //, /*, or * does not count. The suites of such a file come from
-# swift-suites.sh (the types with a @Test in it, slow-gated tests left out), so a file that
-# extends AppBundleTests is a reader of that suite whatever its name is.
+# scripts/version.sh); the header has the match rule. One pass over Tests/ (grep, then awk) finds
+# the files. The suites of a file come from swift-suites.sh (the types with a @Test in it, slow-gated
+# tests left out), so a file that extends AppBundleTests is a reader of that suite whatever its name.
 # It sets reader_names (the suites, joined with commas) and reader_test, reader_app, reader_dmg
-# (yes or no): a file with no suite needs test, AppBundleTests needs test-app, and DiskImageTests
-# needs test-dmg, because test-filter and test skip both (skip_suites).
+# (yes or no), as the header says.
 reader_scan() {
     local list bare strings p files f s d
     reader_names="" reader_test=no reader_app=no reader_dmg=no

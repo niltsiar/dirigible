@@ -46,6 +46,7 @@ final class PieceProgress {
 final class WhisperEngine {
     private let context: OpaquePointer
     private let vadPath: String?
+    private let log: DiagnosticLog
 
     /// A model file of the user loads from the file that its check opened, and a set `stop` ends
     /// that load with `.modelLoad` (`ModelFileLoad`). A catalog model loads from its path.
@@ -61,6 +62,7 @@ final class WhisperEngine {
             self.context = context
         }
         vadPath = vad?.path
+        self.log = log
     }
 
     deinit { whisper_free(context) }
@@ -97,11 +99,51 @@ final class WhisperEngine {
     }
 
     /// One piece of 16 kHz mono samples. It does not read the flag before `whisper_full`, so a set
-    /// flag reaches the abort checks. Each NaN or infinite sample is 0.
+    /// flag reaches the abort checks. Each NaN or infinite sample is 0. After the first call, each
+    /// span of `ThinSegments.spans` gets a second call in the first-pass language, and
+    /// `ThinSegments.compose` gives the words (decision 0065 D7b). Each second call writes one
+    /// `transcript redecode` note.
     func transcribe(piece: [Float], language: WhisperLanguage, stop: StopFlag, progress: PieceProgress? = nil)
         throws(TranscribeError) -> PieceOutcome
     {
         let samples = piece.map { $0.isFinite ? $0 : 0 }
+        let params = Self.callParams(stop: stop, progress: progress)
+        defer { withExtendedLifetime(progress) {} }
+        switch whisperOutcome(code: run(params, samples[...], language: language), stopFlagSet: stop.isSet) {
+        case .stopped: return .stopped
+        case .failed(let error): throw error
+        case .finished: break
+        }
+        let first = WhisperWords.joinWithSegments(tokens())
+        let firstLanguage = detectedLanguage()
+        let segments = ThinSegments.segments(segmentBounds(), wordSegments: first.map(\.segment))
+        let pieceEnd = (samples.count + WordEnds.samplesPerTick - 1) / WordEnds.samplesPerTick
+        var redecodes: [Redecode] = []
+        for span in ThinSegments.spans(of: segments, pieceEnd: pieceEnd, language: firstLanguage) {
+            let range = ThinSegments.sampleRange(ticks: span.start..<span.end, count: samples.count)
+            let code = run(params, samples[range], language: span.language)
+            let outcome: RedecodeOutcome
+            switch whisperOutcome(code: code, stopFlagSet: stop.isSet) {
+            case .stopped: outcome = .stopped
+            case .failed: outcome = .failed(code: code)
+            case .finished:
+                let words = ThinSegments.shifted(WhisperWords.join(tokens()), byTicks: span.start)
+                outcome = .words(words, language: detectedLanguage())
+            }
+            redecodes.append(Redecode(span: span, outcome: outcome))
+            if outcome == .stopped { break }
+        }
+        let composed = ThinSegments.compose(first: first.map(\.word), language: firstLanguage, redecodes: redecodes)
+        for note in composed.notes { note.write(to: log) }
+        switch composed.outcome {
+        case .stopped: return .stopped
+        case .words(let words, let language): return .words(WordEnds.place(words, samples: samples), language: language)
+        }
+    }
+
+    /// The params of each `whisper_full` call of a piece, so each call stops at the flag of the job.
+    /// The progress pointer is unretained: the caller keeps `progress` alive for each call.
+    static func callParams(stop: StopFlag, progress: PieceProgress?) -> whisper_full_params {
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
         params.n_threads = 4
         params.print_progress = false
@@ -112,7 +154,7 @@ final class WhisperEngine {
         params.abort_callback = stop.abortCallback
         params.abort_callback_user_data = stop.userData
         if let progress {
-            // whisper.cpp calls it on this thread once per 30 s window, with the percent of the piece.
+            // whisper.cpp calls it on this thread once per 30 s window, with the percent of the call.
             params.progress_callback = { _, _, percent, data in
                 guard let data else { return }
                 let progress = Unmanaged<PieceProgress>.fromOpaque(data).takeUnretainedValue()
@@ -120,28 +162,35 @@ final class WhisperEngine {
             }
             params.progress_callback_user_data = Unmanaged.passUnretained(progress).toOpaque()
         }
+        return params
+    }
+
+    /// One `whisper_full` call on `samples`, with VAD when the engine has a VAD model.
+    private func run(_ params: whisper_full_params, _ samples: ArraySlice<Float>, language: WhisperLanguage) -> Int32 {
+        var params = params
         let code: String
         switch language {
         case .automatic: code = "auto"
         case .code(let value): code = value
         }
-        let result = withExtendedLifetime(progress) {
-            code.withCString { language in
-                params.language = language
-                guard let vadPath else { return whisper_full(context, params, samples, Int32(samples.count)) }
+        return code.withCString { language in
+            params.language = language
+            return samples.withUnsafeBufferPointer { buffer in
+                guard let vadPath else { return whisper_full(context, params, buffer.baseAddress, Int32(buffer.count)) }
                 return vadPath.withCString { vad in
                     params.vad = true
                     params.vad_model_path = vad
-                    return whisper_full(context, params, samples, Int32(samples.count))
+                    return whisper_full(context, params, buffer.baseAddress, Int32(buffer.count))
                 }
             }
         }
-        switch whisperOutcome(code: result, stopFlagSet: stop.isSet) {
-        case .stopped: return .stopped
-        case .failed(let error): throw error
-        case .finished:
-            let words = WordEnds.place(WhisperWords.join(tokens()), samples: samples)
-            return .words(words, language: String(cString: whisper_lang_str(whisper_full_lang_id(context))))
+    }
+
+    private func detectedLanguage() -> String { String(cString: whisper_lang_str(whisper_full_lang_id(context))) }
+
+    private func segmentBounds() -> [(start: Int, end: Int)] {
+        (0..<whisper_full_n_segments(context)).map {
+            (Int(whisper_full_get_segment_t0(context, $0)), Int(whisper_full_get_segment_t1(context, $0)))
         }
     }
 
@@ -156,7 +205,8 @@ final class WhisperEngine {
                         bytes: Array(UnsafeRawBufferPointer(start: text, count: strlen(text))),
                         start: Int(whisper_full_get_token_t0(context, segment, index)),
                         end: Int(whisper_full_get_token_t1(context, segment, index)),
-                        isSpecial: whisper_full_get_token_id(context, segment, index) >= endOfText))
+                        isSpecial: whisper_full_get_token_id(context, segment, index) >= endOfText,
+                        segment: Int(segment)))
             }
         }
         return tokens
@@ -185,6 +235,20 @@ final class WhisperLog: Sendable {
         let log = Unmanaged<WhisperLog>.fromOpaque(data).takeUnretainedValue().target.withLock { $0 }
         let line = String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)
         log.note(.app, "whisper log", level: .error, ["text": .text(line)])
+    }
+}
+
+extension RedecodeNote {
+    /// Writes the journal line `transcript redecode`: the span in piece ticks, the word counts, the
+    /// kept pass, and the return code of a failed call.
+    func write(to log: DiagnosticLog) {
+        var fields: [(key: String, value: DiagnosticValue)] = [
+            ("start", .number(Int64(start))), ("end", .number(Int64(end))), ("before", .number(Int64(before))),
+        ]
+        if let after { fields.append(("after", .number(Int64(after)))) }
+        fields.append(("kept", .text(kept.rawValue)))
+        if let fault { fields.append(("fault", .number(Int64(fault)))) }
+        log.note(.app, "transcript redecode", fields: fields)
     }
 }
 

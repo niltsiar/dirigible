@@ -21,6 +21,8 @@ struct WhisperToken: Hashable, Sendable {
     var start: Int
     var end: Int
     var isSpecial: Bool
+    /// The index of its segment in the `whisper_full` result.
+    var segment = 0
 }
 
 /// The language that a job asks the engine for.

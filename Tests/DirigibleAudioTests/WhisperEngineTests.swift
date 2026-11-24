@@ -91,6 +91,19 @@ struct WhisperEngineTests {
         #expect(whisperOutcome(code: 0, stopFlagSet: false) == .finished)
     }
 
+    /// Decision 0065 D7b: the first and the second calls of a piece take these params, so each call
+    /// stops at the flag of the job.
+    @Test func theCallParamsCarryTheStopFlag() throws {
+        let stop = StopFlag()
+        let params = WhisperEngine.callParams(stop: stop, progress: nil)
+        let abort = try #require(params.abort_callback)
+        #expect(params.abort_callback_user_data == stop.userData)
+        #expect(!abort(params.abort_callback_user_data))
+        stop.set()
+        #expect(abort(params.abort_callback_user_data))
+        #expect(params.token_timestamps)
+    }
+
     @Test func aStopFlagReadsWhatASetWrote() {
         let flag = StopFlag()
         #expect(!flag.isSet && !cwhisper_stop_abort(flag.userData))

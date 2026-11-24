@@ -9,17 +9,21 @@ enum WhisperWords {
     /// two tokens joins. A scalar that `isStorableInSession` refuses is a word break: a control
     /// byte breaks inside its token, and the part after it starts at the token start; U+FFFE and
     /// U+FFFF can span two tokens, so they break the decoded word, and each part keeps its times.
-    static func join(_ tokens: [WhisperToken]) -> [TimedWord] {
-        var words: [TimedWord] = []
+    static func join(_ tokens: [WhisperToken]) -> [TimedWord] { joinWithSegments(tokens).map(\.word) }
+
+    /// `join`, and the segment of each word: the segment of its first token with a letter or a digit.
+    static func joinWithSegments(_ tokens: [WhisperToken]) -> [(word: TimedWord, segment: Int)] {
+        var words: [(word: TimedWord, segment: Int)] = []
         var bytes: [UInt8] = []
         var start: Int?
+        var segment = 0
         var end = 0
         func flush() {
             if let start {
                 let text = String(decoding: bytes, as: UTF8.self)
                 for part in text.unicodeScalars.split(whereSeparator: { !$0.isStorableInSession }) {
                     let word = String(String.UnicodeScalarView(part)).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if hasLetterOrDigit(word) { words.append(TimedWord(text: word, start: start, end: end)) }
+                    if hasLetterOrDigit(word) { words.append((TimedWord(text: word, start: start, end: end), segment)) }
                 }
             }
             bytes = []
@@ -33,7 +37,10 @@ enum WhisperWords {
                 guard !part.isEmpty else { continue }
                 if part.first == 0x20 && bytes.contains(where: { $0 != 0x20 }) { flush() }
                 bytes += part
-                if start == nil && hasLetterOrDigit(String(decoding: part, as: UTF8.self)) { start = token.start }
+                if start == nil && hasLetterOrDigit(String(decoding: part, as: UTF8.self)) {
+                    start = token.start
+                    segment = token.segment
+                }
                 if start != nil { end = token.end }
             }
         }

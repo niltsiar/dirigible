@@ -93,16 +93,30 @@ struct ThinSegmentsTests {
         #expect(spans.map { $0.thin.map(\.start) } == [[1068, 4281, 5735]])
     }
 
-    /// Five disjoint thin spans with 3, 2, 4, 2, and 5 words: the second 2 goes, a tie that comes later.
-    @Test func aPieceStopsAtTheCapOfSecondCalls() {
-        let rows = [3, 2, 4, 2, 5].enumerated().map { n, words in
-            "\(2000 * n + 100) \(2000 * n + 1100) \(words)  \(2000 * n + 1200) \(2000 * n + 1400) 3"
-        }
-        let segments = Self.segments(rows.joined(separator: "  "))
+    /// Five disjoint thin segments of 10 s with 3, 4, 5, 6, and 2 words. The first span is 12 s long
+    /// and the others 18 s, so at 2.8 words per second they miss 30.6, 46.4, 45.4, 44.4, and 48.4 words.
+    static let fiveThinSpans = [3, 4, 5, 6, 2].enumerated().map { n, words in
+        "\(2000 * n + 100) \(2000 * n + 1100) \(words)  \(2000 * n + 1200) \(2000 * n + 1400) 3"
+    }.joined(separator: "  ")
+
+    /// The span with the fewest first-pass words misses the most words, so it ranks first.
+    @Test func aPieceKeepsTheCallsThatMissTheMostWordsAtTheCap() {
+        let segments = Self.segments(Self.fiveThinSpans)
         #expect(ThinSegments.calls(of: segments, pieceEnd: 10_000, language: "es").count == 5)
         let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es")
-        #expect(spans.map(\.start) == [0, 1400, 3400, 7400])
-        #expect(spans.map(\.firstPassWordCount) == [3, 2, 4, 5])
+        #expect(spans.map(\.start) == [1400, 3400, 5400, 7400])
+        #expect(spans.map(\.firstPassWordCount) == [4, 5, 6, 2])
+    }
+
+    /// Five spans of 18 s with 3, 4, 5, 4, and 5 words: the two spans with 5 words miss the fewest
+    /// words, and the later one goes.
+    @Test func aTieAtTheCapKeepsTheEarlierCall() {
+        let rows = [3, 4, 5, 4, 5].enumerated().map { n, words in
+            "\(2000 * n + 700) \(2000 * n + 1700) \(words)  \(2000 * n + 1800) \(2000 * n + 2000) 3"
+        }
+        let segments = Self.segments(rows.joined(separator: "  "))
+        let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es")
+        #expect(spans.map(\.start) == [0, 2000, 4000, 6000])
     }
 
     @Test func aLanguageWithNoSpacesHasNoThinSpan() {

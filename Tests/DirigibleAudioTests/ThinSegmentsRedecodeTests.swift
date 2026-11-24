@@ -34,12 +34,40 @@ struct ThinSegmentsRedecodeTests {
         }
     }
 
-    /// The fields of each `transcript redecode` line of the journal in `folder`.
-    static func notes(in folder: URL) throws -> [[String: String]] {
+    /// The fields of each `event` line of the journal in `folder`.
+    static func notes(_ event: String = "transcript redecode", in folder: URL) throws -> [[String: String]] {
         try journalLines(of: try #require(journalFiles(in: folder).first))
             .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
-            .filter { $0.count > 5 && $0[5] == "transcript redecode" }
+            .filter { $0.count > 5 && $0[5] == event }
             .map(fieldValues)
+    }
+
+    /// The five thin spans of `ThinSegmentsTests.fiveThinSpans`: the cap drops the span of 0 s to 12 s,
+    /// and the journal names it. The two-span piece writes no cap note.
+    @Test func theJournalNamesEachSpanThatTheCapDrops() throws {
+        let segments = ThinSegmentsTests.segments(ThinSegmentsTests.fiveThinSpans)
+        let first = segments.enumerated().flatMap { n, segment in
+            segment.words.map {
+                (word: TimedWord(text: "w\($0)", start: segment.start + $0, end: segment.start + $0 + 1), segment: n)
+            }
+        }
+        let folder = try TemporaryFolder()
+        let log = startLog(in: folder.url)
+        var calls = 0
+        _ = ThinSegments.redecode(
+            first: first, bounds: segments.map { (start: $0.start, end: $0.end) }, sampleCount: 10_000 * 160,
+            language: "es",
+            log: log
+        ) { _, _ in
+            calls += 1
+            return .words([])
+        }
+        var twoSpans: [(range: Range<Int>, language: String)] = []
+        _ = Self.redecode(log: log, calls: &twoSpans) { _ in .words([]) }
+        log.drain()
+        #expect(calls == 4)
+        #expect(try Self.notes("transcript redecode cap", in: folder.url) == [["dropped": "1", "spans": "0-1200"]])
+        #expect(try Self.notes(in: folder.url).count == 6)
     }
 
     /// The job language does not reach the calls: a job with `.automatic` and a job with

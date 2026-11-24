@@ -491,6 +491,7 @@ Dirigible can write the words of a track for you. It runs whisper.cpp on this Ma
 - When the job finds no word, a banner says "No words found. The track is unchanged." and the old words stay.
 - When a take starts, the banner says "Transcription stopped because recording started." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
 - In fast speech with less than 0.2 s of silence between words, the end of a word can be up to 0.42 s off (0.095 s on average). A cut at that word can keep or lose a part of it.
+- Sometimes whisper skips the speech of a long passage and gives only a few words for it. Dirigible finds a segment with 5 s of speech or more and less than one word per second, and transcribes that passage again. It keeps the new words only when they are more and pass its checks. Else the first words stay.
 - Rarely, whisper gives a word no length. Dirigible then takes the end of that word from the sound level, at most 1.0 s after its start. A cut at that word can keep or lose up to 1.0 s of audio.
 - The words show in the **Transcript** tab when the job ends.
 

@@ -223,6 +223,15 @@ package enum AgentManual {
         + "`favorites_add` copies a range or clips of the session into it and gives the item ID, and "
         + "`dirigible favorites path` prints its path for the bin tools and for `source` of `bin_paste`."
 
+    /// What the archive tools do (decision 0072). In the skill only: the manual has no room under its
+    /// 6000 characters.
+    static let archiveLine =
+        "`file_archive` (CLI: `dirigible file archive <package>`) converts each 24-bit clip WAV to FLAC with the "
+        + "same samples to save disk space. An edit or `file_prune` converts the files back first, and "
+        + "`file_unarchive` does it alone. An archived session has the `archive` key in `session_info` (CLI: the "
+        + "`archive:` line of `info`). A damaged FLAC stays, and `file_unarchive` then gives an error that names it. "
+        + archiveStoreRule
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -287,6 +296,8 @@ package enum AgentManual {
             \(binLine)
 
             \(sessionImportLine)
+
+            \(archiveLine)
 
             | Tool | Command |
             |---|---|

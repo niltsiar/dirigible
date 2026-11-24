@@ -29,7 +29,7 @@ struct Render: ParsableCommand {
         let work = ExportWork(
             out: out, options: .render, from: from, to: to, tracks: [], replace: false, allowMissing: true,
             spelling: .cli)
-        try runWork(work, package: package.url, session: try readPackage(package))
+        try runWork(work, package: package.url, session: try readForSamples(package))
     }
 }
 

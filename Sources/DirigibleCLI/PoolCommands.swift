@@ -52,8 +52,8 @@ struct CaptureCommand: AsyncParsableCommand {
 
 struct FileCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "file", abstract: "Add and remove audio files in the pool.",
-        subcommands: [Add.self, Remove.self, Prune.self])
+        commandName: "file", abstract: "Add, remove, and archive audio files in the pool.",
+        subcommands: [Add.self, Remove.self, Prune.self, Archive.self, Unarchive.self])
 
     struct Add: ParsableCommand {
         static let configuration = CommandConfiguration(
@@ -120,4 +120,49 @@ extension FileCommand {
             if let exit { throw exit }
         }
     }
+
+    /// `dirigible file archive` (decision 0072).
+    struct Archive: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Convert each 24-bit pool WAV to FLAC with the same samples to save disk space.",
+            discussion: """
+                It saves session.xml with archive="flac" first, so an older Dirigible refuses the package, then \
+                converts each pool WAV and removes it. An edit converts the files back first. A file that does not \
+                convert stays, with a line. The report gives the freed bytes, the written bytes, and the net change. \
+                \(archiveStoreRule) Exit 2 when the package cannot be read or written, is locked, has a take that is \
+                not finalized, is the Favorites store, or the disk has too little free space.
+                """)
+        @OptionGroup var package: PackageArgument
+
+        func run() throws { try runArchive(.archive, package) }
+    }
+
+    /// `dirigible file unarchive` (decision 0072).
+    struct Unarchive: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Convert each FLAC clip file back to a WAV.",
+            discussion: """
+                It also repairs a package that a stopped job left with FLAC and WAV files. A damaged FLAC stays, with \
+                one line on stderr that gives its decoded frames. Exit 1 when a FLAC stays as damaged, 2 when the \
+                package cannot be read or written, is locked, or the disk has too little free space.
+                """)
+        @OptionGroup var package: PackageArgument
+
+        func run() throws { try runArchive(.unarchive, package) }
+    }
+}
+
+/// Runs a package job of decision 0072: the report on stdout, the progress on stderr, and one
+/// error line for each FLAC that stays as damaged.
+private func runArchive(_ direction: ArchiveDirection, _ package: PackageArgument) throws {
+    let output: ArchiveOutput
+    do throws(ArchiveFault) {
+        output = try runArchiveJob(direction, on: package.url, log: standardErrorLine)
+    } catch {
+        throw fail(error.message(package: package.path), code: packageError)
+    }
+    for line in output.lines { print(line) }
+    var exit: ExitCode?
+    for line in output.failed { exit = fail(line, code: editRefused) }
+    if let exit { throw exit }
 }

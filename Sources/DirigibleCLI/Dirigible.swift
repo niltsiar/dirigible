@@ -132,10 +132,14 @@ struct Info: ParsableCommand {
         }
         let takeMap = TakeMap.of(session, anchors: TakeAnchors.result(package.url))
         let raw = rawCaptures(of: session, in: package.url)
+        let archive = ArchiveState(session, in: package.url)
         print(
             json
-                ? try SessionView(session, media: media, takeMap: takeMap, raw: raw).json(compact: compact)
-                : summary(of: session, name: package.url.lastPathComponent, media: media, takeMap: takeMap, raw: raw),
+                ? try SessionView(session, media: media, takeMap: takeMap, raw: raw, archive: archive)
+                    .json(compact: compact)
+                : summary(
+                    of: session, name: package.url.lastPathComponent, media: media, takeMap: takeMap, raw: raw,
+                    archive: archive),
             terminator: "")
     }
 }

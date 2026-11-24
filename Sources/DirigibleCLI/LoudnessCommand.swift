@@ -22,7 +22,7 @@ struct LoudnessCommand: ParsableCommand {
     @Argument(help: "The IDs of the clips to measure. The default is every clip.") var clips: [String] = []
 
     func run() throws {
-        let session = try readPackage(package)
+        let session = try readForSamples(package)
         let chosen: [Clip]
         do throws(SessionError) { chosen = try loudnessClips(clips, in: session) } catch {
             throw fail(error.message, code: packageError)

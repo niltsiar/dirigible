@@ -77,5 +77,6 @@ Sources/DirigibleCore/SessionTemplate.swift	let clips = Set(pool).sorted().map {
 Sources/DirigibleCore/SessionWriter.swift	unlink(clips.appending(path: name).path)	a temporary file name from the listing of Clips/
 Sources/DirigibleCore/UnusedFiles.swift	.map { (.stray, $0, "\(clipsFolderName)/\($0)") }	a name from the listing of Clips/
 Sources/DirigibleCore/UnusedFiles.swift	&& lstat(clips.appending(path: name).path, &info) == 0 && info.st_mode & S_IFMT == S_IFREG	a name from the listing of Clips/
+Sources/DirigibleMCP/ArchiveWork.swift	return "Kept: \(clipsFolderName)/\(path), \(text)"	the file name in an output line; it opens nothing
 Sources/DirigibleMCP/ErrorText.swift	"cannot read \(package)/\(clipsFolderName): \(String(cString: strerror(code)))."	the folder name in an error; it opens nothing
 Sources/DirigibleMCP/PruneWork.swift	lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }	the file name in an output line; it opens nothing

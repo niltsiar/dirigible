@@ -18,9 +18,10 @@ struct ReadTracks: ParsableArguments {
 
 /// Reads `package` with `work`: the warning lines on stderr, the result lines on stdout. A bad
 /// value for the session exits 64; an unknown track, a file that refuses the read, or a package
-/// that cannot be read exits 2. Control-C exits as the default action does.
+/// that cannot be read exits 2. Control-C exits as the default action does. An archived package
+/// unarchives first (`readForSamples`).
 func runRead(_ work: ReadWork, package: PackageArgument) throws {
-    let session = try readPackage(package)
+    let session = try readForSamples(package)
     let interrupt = cancelOnInterrupt()
     defer { interrupt.source.cancel() }
     let output: ReadOutput

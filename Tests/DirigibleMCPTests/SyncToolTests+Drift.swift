@@ -141,7 +141,7 @@ extension SyncToolTests {
         let text = summary(
             of: session, name: "Show.dirigible", media: [:],
             takeMap: TakeMap.of(session, anchors: TakeAnchors.result(package.url)),
-            raw: [:])
+            raw: [:], archive: nil)
         let fileLines = text.split(separator: "\n").filter { $0.hasPrefix("file ") }
         #expect(
             fileLines == [

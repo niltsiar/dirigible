@@ -104,7 +104,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             }
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (work.lines(results) + note).joined(separator: "\n"), isError: false)
-        case .paste, .favorite, .revert, .prune: return refusedOpen
+        case .paste, .favorite, .revert, .prune, .archive: return refusedOpen
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, `info` to
         // `liveInfo`, and long work to `liveJob`.
         case .create, .record, .transport, .info, .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice,
@@ -129,10 +129,11 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
 func liveInfo(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool, target: AgentTarget) async -> AgentReply {
     let studio = target.studio
     let (session, media, takeMap) = (studio.session, studio.missingMedia, studio.takeMap)
-    let raw = await rawVerdicts(of: session, in: studio.url)
+    let (raw, archive) = await rawVerdicts(of: session, in: studio.url)
     do throws(ToolError) {
         let text = try infoText(
-            session, media: media, takeMap: takeMap, raw: raw, tracks: tracks, range: range, compact: compact)
+            session, media: media, takeMap: takeMap, raw: raw, archive: archive, tracks: tracks, range: range,
+            compact: compact)
         return .result(text: text, isError: false)
     } catch {
         return .result(text: error.message, isError: true)
@@ -140,9 +141,9 @@ func liveInfo(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool, target: 
 }
 
 @concurrent nonisolated private func rawVerdicts(of session: Session, in package: URL) async
-    -> [SegmentName: RawVerdict]
+    -> ([SegmentName: RawVerdict], ArchiveState?)
 {
-    rawCaptures(of: session, in: package)
+    (rawCaptures(of: session, in: package), ArchiveState(session, in: package))
 }
 
 /// Asks the window of the package to record (decision 0048). The reply waits for the answer of

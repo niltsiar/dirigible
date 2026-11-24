@@ -47,6 +47,8 @@ enum ToolWork: Sendable {
     case words(TranscriptQuery)
     /// `file_prune`: the scan, and with `dryRun` false the moves to the Trash, under the lock.
     case prune(dryRun: Bool)
+    /// `file_archive` and `file_unarchive`: the package job under the lock (decision 0072).
+    case archive(ArchiveDirection)
     /// `record`: only the app records, after the consent of the user (decision 0048).
     case record(RecordRequest)
     /// `transport_play`, `transport_stop`, and `transport_locate`: only the app has a playhead.
@@ -100,7 +102,7 @@ enum ToolWork: Sendable {
             .transcriptExport, .read, .transcribe:
             true
         case .edit, .takeImport, .info, .create, .paste, .favorite, .backups, .bins, .revert, .episode, .marker,
-            .episodeInfo, .prune,
+            .episodeInfo, .prune, .archive,
             .record, .transport, .words,
             .takeMap, .batch:
             false

@@ -71,7 +71,9 @@ enum ThinSegments {
     static let thinTicksPerWord = 100
     static let callCap = 4
     static let densestWordsPerSecond = 6
-    /// A second-pass word at an edge of a call goes when it repeats its first-pass neighbour within 1.0 s.
+    /// A run of at most 4 second-pass words at an edge of a call goes when it repeats the first-pass
+    /// words on that side within 1.0 s.
+    static let edgeRepeatWords = 4
     static let edgeRepeatTicks = 100
     /// A loop is an n-gram of 1 to 8 words that comes 3 times or more back to back, over 6 words or more.
     static let loopLongestGram = 8
@@ -136,20 +138,32 @@ enum ThinSegments {
         words.map { TimedWord(text: $0.text, start: $0.start + ticks, end: $0.end + ticks) }
     }
 
-    /// The second-pass words of `span` that the merge keeps: all, except a first or a last word that
-    /// repeats the nearest first-pass word on its side that is not a word of the thin segments, with
-    /// starts 1.0 s apart or less.
+    /// The second-pass words of `span` that the merge keeps: all, except the longest run of at most
+    /// `edgeRepeatWords` words at the start that repeats the last first-pass words before the thin
+    /// segments, and the mirror at the end. The runs end (start) or start (end) 1.0 s apart or less:
+    /// with VAD, a first-pass word can start long before its speech.
     static func kept(_ again: [TimedWord], first: [TimedWord], span: ThinSpan) -> [TimedWord] {
-        func repeats(_ word: TimedWord, _ index: Int) -> Bool {
-            first.indices.contains(index) && normalized(word.text) == normalized(first[index].text)
-                && abs(word.start - first[index].start) <= edgeRepeatTicks
+        let before = first[..<span.thin[0].words.lowerBound]
+        let after = first[span.thin[span.thin.count - 1].words.upperBound...]
+        func same(_ a: ArraySlice<TimedWord>, _ b: ArraySlice<TimedWord>) -> Bool {
+            a.map { normalized($0.text) } == b.map { normalized($0.text) }
         }
-        var kept = again[...]
-        if let word = kept.first, repeats(word, span.thin[0].words.lowerBound - 1) { kept = kept.dropFirst() }
-        if let word = kept.last, repeats(word, span.thin[span.thin.count - 1].words.upperBound) {
-            kept = kept.dropLast()
+        var lead = min(edgeRepeatWords, again.count, before.count)
+        while lead > 0
+            && !(same(again.prefix(lead), before.suffix(lead))
+                && abs(again[lead - 1].end - before[before.endIndex - 1].end) <= edgeRepeatTicks)
+        {
+            lead -= 1
         }
-        return Array(kept)
+        let rest = again[lead...]
+        var trail = min(edgeRepeatWords, rest.count, after.count)
+        while trail > 0
+            && !(same(rest.suffix(trail), after.prefix(trail))
+                && abs(rest[rest.endIndex - trail].start - after[after.startIndex].start) <= edgeRepeatTicks)
+        {
+            trail -= 1
+        }
+        return Array(rest.dropLast(trail))
     }
 
     /// True when the kept second-pass words replace the first-pass words of `thin`: they are more, at
@@ -229,9 +243,10 @@ enum ThinSegments {
         return (.words(merge(first, blocks: blocks), language: language), notes)
     }
 
-    /// Case and punctuation do not count.
+    /// Case, punctuation, and accents do not count.
     private static func normalized(_ text: String) -> String {
-        let kept = text.lowercased().unicodeScalars.filter {
+        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        let kept = folded.unicodeScalars.filter {
             $0.properties.isAlphabetic || $0.properties.numericType != nil
         }
         return String(kept)

@@ -127,16 +127,43 @@ struct ThinSegmentsTests {
         #expect(obra.map { merged[$0 + 1].text } == "Esto")
     }
 
-    @Test func aSecondPassWordThatRepeatsItsNeighbourGoes() {
-        let esto = TimedWord(text: "Esto", start: 11710, end: 11718)
-        let after = ThinSegments.kept(Self.redecoded + [esto], first: Self.firstPass, span: Self.dropSpan)
-        #expect(after == Self.redecoded)
-        let memoria = TimedWord(text: "Memoria", start: 10346, end: 10360)
-        let before = ThinSegments.kept([memoria] + Self.redecoded, first: Self.firstPass, span: Self.dropSpan)
-        #expect(before == Self.redecoded)
+    /// A copy of the 1 to 4 first-pass words on each side of the drop span, at an edge of the second
+    /// pass, goes; a copy of 5 words is over the cap and stays.
+    @Test func anEdgeRunOfUpToFourRepeatedWordsGoes() {
+        func kept(_ again: [TimedWord]) -> [TimedWord] {
+            ThinSegments.kept(again, first: Self.firstPass, span: Self.dropSpan)
+        }
+        let (before, after) = (Self.firstPass[0..<9], Self.firstPass[19...])
+        for count in 1...4 {
+            #expect(kept(Array(before.suffix(count)) + Self.redecoded) == Self.redecoded, "\(count) before")
+            #expect(kept(Self.redecoded + Array(after.prefix(count))) == Self.redecoded, "\(count) after")
+        }
+        let five = Array(before.suffix(5)) + Self.redecoded
+        #expect(kept(five) == five)
+        let memoria = TimedWord(text: "Memória,", start: 10346, end: 10360)
+        #expect(kept([memoria] + Self.redecoded) == Self.redecoded, "case, accents, and punctuation ignored")
         let later = TimedWord(text: "Esto", start: 11830, end: 11840)
-        let far = ThinSegments.kept(Self.redecoded + [later], first: Self.firstPass, span: Self.dropSpan)
-        #expect(far == Self.redecoded + [later], "1.21 s after the first-pass Esto")
+        #expect(kept(Self.redecoded + [later]) == Self.redecoded + [later], "1.21 s after the first-pass Esto")
+    }
+
+    /// S1 t1, the call on 42.81 s to 57.35 s: the first pass before the thin segment ends "si es verdad",
+    /// and its "verdad" starts at 16.50 s, 26.82 s before the speech, because of the VAD time map.
+    @Test func aSecondPassRunThatRepeatsTheWordsBeforeTheSpanGoes() {
+        let first = Self.words(
+            """
+            fritas 1025 1074  si 1125 1459  es 1485 1623  verdad 1650 4302  teatra 4326 5458  ¿no? 5490 5600
+            en 5646 5770  esta 6513 7508
+            """)
+        let segments = Self.segments("1024 1068 1  1068 4281 3  4281 5507 2  5735 7697 2")
+        let span = ThinSpan(start: 4281, end: 5735, thin: [segments[2]])
+        let again = Self.words("Es 4332 4333  verdad. 4333 4363  Tracatrá, 4869 4883  ¿no? 5381 5600")
+        #expect(ThinSegments.kept(again, first: first, span: span) == Array(again[2...]))
+    }
+
+    /// The second pass of the drop span ends "obra. Esto no", and the next segment starts "Esto no tiene".
+    @Test func aSecondPassRunThatRepeatsTheWordsAfterTheSpanGoes() {
+        let again = Self.redecoded + Self.words("Esto 11710 11718  no 11719 11720")
+        #expect(ThinSegments.kept(again, first: Self.firstPass, span: Self.dropSpan) == Self.redecoded)
     }
 
     @Test func aSecondPassWordBeforeTheThinSegmentInsideTheSpanStays() {

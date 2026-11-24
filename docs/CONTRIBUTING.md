@@ -2,7 +2,7 @@
 
 The code is open to read, fork, and build under the Apache License 2.0. The project takes issues and pull requests only from collaborators.
 
-The project takes no bug reports and no pull requests from other people. A person who got a DMG from the maintainer reports a bug to the maintainer: give the text of **Dirigible > About Dirigible** and the zip of **Help > Report a Problem…** (see [Report a problem](guide.md#report-a-problem)).
+The project takes no bug reports and no pull requests from other people. A person who got a DMG from the maintainer reports a bug to the maintainer: give the text of **Dirigible > About Dirigible** and the zip of **Help > Report a Problem...** (see [Report a problem](guide.md#report-a-problem)).
 
 To report a security problem, use GitHub private vulnerability reporting, as [SECURITY.md](SECURITY.md) says. Never report it in an issue.
 

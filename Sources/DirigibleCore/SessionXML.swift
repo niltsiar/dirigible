@@ -79,6 +79,7 @@ private final class DepthCount: NSObject, XMLParserDelegate {
 extension Session {
     func xmlDocument() -> XMLDocument {
         let root = element("session", ("version", String(fileVersion)), ("sampleRate", String(sampleRate)))
+        if let archive { add(("archive", archive.rawValue), to: root) }
         let namespace = XMLNode(kind: .namespace)
         namespace.name = ""
         namespace.stringValue = sessionNamespace

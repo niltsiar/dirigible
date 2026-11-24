@@ -167,7 +167,7 @@ struct SessionVersionTests {
         }
         #expect(rideSessionVersion > followSessionVersion && matchSessionVersion > rideSessionVersion)
         #expect(driftSessionVersion > matchSessionVersion && presetSessionVersion > driftSessionVersion)
-        #expect(binSessionVersion > presetSessionVersion)
-        #expect(sessionVersion == binSessionVersion)
+        #expect(binSessionVersion > presetSessionVersion && archiveSessionVersion > binSessionVersion)
+        #expect(sessionVersion == archiveSessionVersion)
     }
 }

@@ -20,6 +20,9 @@ public struct Session: Hashable, Sendable {
     public internal(set) var exportPresets: [ExportPreset] = []
     /// The bins of the session in the order that the user sees (F22). Empty by default.
     public internal(set) var bins: [Bin] = []
+    /// The form of the clip files while the session is archived (decision 0072), nil for a working
+    /// session. Undo, redo, and a revert keep the current value, as for `recording`.
+    public package(set) var archive: SessionArchive?
 
     public init(sampleRate: Int) {
         precondition(sampleRate > 0, "A sample rate is positive")
@@ -252,7 +255,8 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
+    /// The `session.xml` version that holds this session (decision 0024 P6): `archiveSessionVersion`
+    /// while the session is archived (decision 0072); else from 12 on, the largest
     /// version of the present features: `binSessionVersion` with a bin (F22), `presetSessionVersion`
     /// with an export preset (decision 0080),
     /// `driftSessionVersion` with a drift link (decision 0077), `matchSessionVersion` with a voice match
@@ -267,6 +271,7 @@ public struct Session: Hashable, Sendable {
     /// (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route (decision 0029),
     /// else 1.
     public var fileVersion: Int {
+        if archive != nil { return archiveSessionVersion }
         let features = [
             bins.isEmpty ? nil : binSessionVersion,
             exportPresets.isEmpty ? nil : presetSessionVersion,

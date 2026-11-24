@@ -316,11 +316,18 @@ struct SpanReader {
     }
 
     private func read(_ file: AudioFile, from start: Int, count: Int) throws(TranscribeError) -> [Float] {
-        let url = package.appending(path: "\(clipsFolderName)/\(file.path)")
-        let audio: AVAudioFile
-        do {
-            audio = try AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)
-        } catch {
+        let reading = { (url: URL) in
+            try? AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)
+        }
+        let name = poolFileName(file, in: package)
+        var url = package.appending(path: name.name)
+        var opened = reading(url)
+        // A package job of another process can convert the file after the resolve (decision 0072).
+        if opened == nil, access(url.path, F_OK) != 0, errno == ENOENT, let other = name.other(of: file) {
+            url = package.appending(path: other.name)
+            opened = reading(url)
+        }
+        guard let audio = opened else {
             throw .audioRead(file: file.path, errno: access(url.path, R_OK) == 0 ? EIO : errno)
         }
         let channels = Int(audio.processingFormat.channelCount)

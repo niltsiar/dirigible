@@ -85,10 +85,12 @@ public func splitStereo(
     for (index, (run, source)) in runs.enumerated() {
         let span = AVAudioFramePosition(run.span.lowerBound.count)..<AVAudioFramePosition(run.span.upperBound.count)
         let count = span.upperBound - span.lowerBound
-        let url = sourceURL(source, in: package)
-        let opened: (descriptor: Int32, file: AVAudioFile)
-        do throws(ImportError) { opened = try openAudio(url) } catch { throw SplitError(error, source: source.path) }
+        let opened: (descriptor: Int32, file: AVAudioFile, url: URL)
+        do throws(ImportError) { opened = try openPoolAudio(source, in: package) } catch {
+            throw SplitError(error, source: source.path)
+        }
         defer { close(opened.descriptor) }
+        let url = opened.url
         guard opened.file.fileFormat.channelCount == 2, opened.file.length >= span.upperBound else {
             throw .sourceUnreadable(file: source.path, errno: EIO)
         }
@@ -131,9 +133,9 @@ public func splitStereo(
     return (split, parts, files.made)
 }
 
-/// The URL of the WAV of `file` in `Clips/` of `package`.
+/// The URL of `file` on disk in `package`: its WAV, or its FLAC in an archived package.
 private func sourceURL(_ file: AudioFile, in package: URL) -> URL {
-    package.appending(path: "\(clipsFolderName)/\(file.path)")
+    package.appending(path: poolFileName(file, in: package).name)
 }
 
 extension SplitError {

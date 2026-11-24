@@ -33,9 +33,9 @@ func renderPreview(
     guard let file = session.files[window.file] else { throw .session(.unknownFile(window.file)) }
     let channels = file.layout.channelCount
     let rate = Double(session.sampleRate)
-    let opened: (descriptor: Int32, file: AVAudioFile)
+    let opened: (descriptor: Int32, file: AVAudioFile, url: URL)
     do throws(ImportError) {
-        opened = try openAudio(package.appending(path: "\(clipsFolderName)/\(file.path)"))
+        opened = try openPoolAudio(file, in: package)
     } catch {
         throw ClipRenderError(error, source: file.path)
     }

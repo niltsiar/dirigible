@@ -187,8 +187,7 @@ private func writeDriftFiles(
     edit: ([DriftFile]) throws(DriftFailure) -> (Session, DriftCorrection)
 ) throws(DriftFailure) -> (Session, DriftCorrection, [URL]) {
     guard let source = session.files[plan.source] else { throw .session(.unknownFile(plan.source)) }
-    let url = package.appending(path: "\(clipsFolderName)/\(source.path)")
-    guard access(url.path, F_OK) == 0 else {
+    guard access(package.appending(path: poolFileName(source, in: package).name).path, F_OK) == 0 else {
         let code = errno
         throw .write(
             code == ENOENT ? .sourceMissing(file: source.path) : .sourceUnreadable(file: source.path, errno: code))
@@ -213,11 +212,12 @@ private func writeDriftFiles(
             throw .write(ClipRenderError(error))
         }
     }
-    let opened: (descriptor: Int32, file: AVAudioFile)
-    do throws(ImportError) { opened = try openAudio(url) } catch {
+    let opened: (descriptor: Int32, file: AVAudioFile, url: URL)
+    do throws(ImportError) { opened = try openPoolAudio(source, in: package) } catch {
         throw .write(ClipRenderError(error, source: source.path))
     }
     defer { close(opened.descriptor) }
+    let url = opened.url
     let format = opened.file.fileFormat
     guard Int(format.channelCount) == channels, format.sampleRate == rate,
         opened.file.length >= AVAudioFramePosition(plan.spans.map(\.upperBound.count).max() ?? 0)

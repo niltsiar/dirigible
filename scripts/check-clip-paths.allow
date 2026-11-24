@@ -12,7 +12,6 @@ Sources/DirigibleAudio/Archive/PackageArchive.swift	let stamp = stampOnDisk(clip
 Sources/DirigibleAudio/Archive/PackageArchive.swift	report.kept[path] = .damaged(frames: decodedFrames(of: clips.appending(path: source.flac)))	the unarchive job: the frames of a damaged FLAC that it keeps
 Sources/DirigibleAudio/Archive/PackageArchive.swift	report.bytesWritten += try sizes(clips.appending(path: path), path, seams).bytes	the unarchive job: the size of the WAV that it wrote
 Sources/DirigibleAudio/Archive/PackageArchive.swift	rekeyPeaks(of: source.file, from: stamp, to: clips.appending(path: path), rate: session.sampleRate, in: cache)	the unarchive job: the peak re-key of the WAV that it wrote
-Sources/DirigibleAudio/DSP/DriftRequest.swift	let url = package.appending(path: "\(clipsFolderName)/\(source.path)")	reader by hand: the source of a drift correction
 Sources/DirigibleAudio/DSP/DriftRequest.swift	let wav = "\(clipsFolderName)/\(temporary.stem).wav"	a writer of a new clip: the corrected WAV
 Sources/DirigibleAudio/Finalize/Finalize.swift	atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).\(clipExtension)").path)	reader by hand: the clip file of a WAV-backed segment (wavBackedSegments)
 Sources/DirigibleAudio/Finalize/NewClipFiles.swift	let temporary = clips.appending(path: temporaryWAV(of: stem))	a writer of a new clip: the temporary WAV
@@ -31,8 +30,8 @@ Sources/DirigibleAudio/Import/Artwork.swift	let descriptor = open(path, O_WRONLY
 Sources/DirigibleAudio/Import/AudioImport.swift	let (descriptor, input) = try openAudio(source)	an import source that the user picked
 Sources/DirigibleAudio/Import/AudioImport.swift	let wav = "\(clipsFolderName)/\(stem).wav"	a writer of a new clip: the WAV of an import
 Sources/DirigibleAudio/Import/AudioImport.swift	let made = open(temporary.path, O_RDONLY | O_CLOEXEC)	the temporary WAV that the import wrote
-Sources/DirigibleAudio/Import/AudioImport.swift	let other = open(	reader by hand: a pool file that an import compares with its new WAV
-Sources/DirigibleAudio/Import/AudioImport.swift	package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	reader by hand: a pool file that an import compares with its new WAV
+Sources/DirigibleAudio/Import/AudioImport.swift	let other = open(package.appending(path: candidate.name).path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	resolver name: candidate (the import compare: a pool file in the WAV form)
+Sources/DirigibleAudio/Import/AudioImport.swift	let opened = try openAudio(url)	resolver name: url (openPoolAudio: the name of poolFileName, or its other name after ENOENT)
 Sources/DirigibleAudio/Import/AudioImport.swift	func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: AVAudioFile) {	the helper itself; each caller has its own entry
 Sources/DirigibleAudio/Import/AudioImport.swift	let descriptor = open(source.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	the helper openAudio opens the URL of its caller
 Sources/DirigibleAudio/Import/AudioImport.swift	return (descriptor, try AVAudioFile(forReading: source))	the helper openAudio opens the URL of its caller
@@ -48,20 +47,15 @@ Sources/DirigibleAudio/Import/SessionImport.swift	package.appending(path: "\(cli
 Sources/DirigibleAudio/Import/SessionImport.swift	let folder = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the source package
 Sources/DirigibleAudio/Import/SessionImport.swift	let item = "\(clipsFolderName)/\(path)"	reader by hand: the source file of a session import
 Sources/DirigibleAudio/Import/SessionImport.swift	do { close(try openChecked(item, in: folder).descriptor) } catch {	reader by hand: the source file of a session import
-Sources/DirigibleAudio/Import/StereoSplit.swift	do throws(ImportError) { opened = try openAudio(url) } catch { throw SplitError(error, source: source.path) }	reader by hand: the source file of a stereo split
 Sources/DirigibleAudio/Import/StereoSplit.swift	let wav = "\(clipsFolderName)/\(stem).wav"	a writer of a new clip: the WAV of one side of a stereo split
-Sources/DirigibleAudio/Import/StereoSplit.swift	package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the source file of a stereo split
 Sources/DirigibleAudio/Import/TemplateCopy.swift	do { return try openChecked(path, in: folder) } catch {	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (check pass)
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let packageFD = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the template package
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let stagingFD = open(staging.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the staging folder
 Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let reopened = try? openChecked(path, in: packageFD) else { throw .sourceChanged(path) }	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (copy pass)
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let target = openat(folder, path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)	a new file in the staging folder (O_CREAT)
-Sources/DirigibleAudio/Render/EffectPreview.swift	opened = try openAudio(package.appending(path: "\(clipsFolderName)/\(file.path)"))	reader by hand: the source file of an effect preview
-Sources/DirigibleAudio/Render/EffectRender.swift	opened = try openAudio(sourceURL(source, in: package))	reader by hand: the source file of an effect render
 Sources/DirigibleAudio/Render/EffectRender.swift	let wav = "\(clipsFolderName)/\(stems[index]).wav"	a writer of a new clip: the WAV of an effect render
 Sources/DirigibleAudio/Render/EffectRender.swift	let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)	the read-back of the new WAV of an effect render
 Sources/DirigibleAudio/Render/EffectRender.swift	return Int(try AVAudioFile(forReading: url).length)	the read-back of the new WAV of an effect render
-Sources/DirigibleAudio/Render/EffectRender.swift	package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the source file of an effect render
 Sources/DirigibleAudio/Render/Export.swift	var held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_EXLOCK | O_CLOEXEC, 0o644)	the temporary file of an export (O_CREAT)
 Sources/DirigibleAudio/Render/Export.swift	held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	the temporary file of an export (O_CREAT)
 Sources/DirigibleAudio/Render/Export.swift	let dead = open(path, O_RDONLY | O_EXLOCK | O_NONBLOCK | O_CLOEXEC)	the lock test of a temporary export file from the listing of the export folder
@@ -75,10 +69,8 @@ Sources/DirigibleAudio/Render/Media.swift	guard let audio = try? AVAudioFile(for
 Sources/DirigibleAudio/Render/MixReader.swift	guard let file = open(id) else { return nil }	the file cache of the mix reader, which opens through openMedia
 Sources/DirigibleAudio/Render/MixReader.swift	private func open(_ id: FileID) -> AVAudioFile? {	the file cache of the mix reader, which opens through openMedia
 Sources/DirigibleAudio/Render/PeakFile.swift	let descriptor = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	the temporary file of a peak cache entry (O_CREAT)
-Sources/DirigibleAudio/Studio/Studio+Files.swift	return paths.sorted().map { clips.appending(path: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }	reader by hand: the clip files of Show Clips in Finder (existingClipURLs)
 Sources/DirigibleAudio/Transcribe/OpenModelFile.swift	let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	a model file, not a pool file
-Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	let url = package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the clip file of a transcription
-Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	audio = try AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)	reader by hand: the clip file of a transcription
+Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	try? AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)	resolver name: url (the clip file of a transcription: the name of poolFileName, or its other name after ENOENT)
 Sources/DirigibleAudio/Transcribe/WhisperModelFile.swift	let descriptor = open(url.path, O_RDONLY)	a model file, not a pool file
 Sources/DirigibleAudio/Transcribe/WhisperModelStore.swift	let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)	the temporary file of a model download (O_CREAT)
 Sources/DirigibleCore/PackageItems.swift	"\(clipsFolderName)/\($0.path)"	checkPoolPaths reads the link kind of a named path, and a missing path passes; it opens nothing

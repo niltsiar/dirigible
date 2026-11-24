@@ -28,17 +28,18 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 ## End of a release
 
-- End a release with these steps in order: the architecture run, the UI polish run, the hardening pass, and one release post to the testers.
+- End a release with these steps in order: the architecture run, the UI polish run, the hardening pass, the docs coherence pass, one release post to the testers, and last, the `Status: closed` line of the release in `docs/requirements/releases.md`.
+- The docs coherence pass reads `README.md`, `docs/guide.md`, `docs/CONTRIBUTING.md`, `CONTEXT.md`, `docs/requirements/`, and the docs map against each other and the code. It fixes each contradiction, each term with two names, each menu table out of menu order, each duplicate or misplaced section, and each stale behavior claim, in one docs run with the doc lenses.
 - The UI polish run asks the UI panel: UI expert agents for Hindenburg PRO, Logic Pro, GarageBand, and Final Cut Pro.
 
 ## Posts
 
-- After each tag, `scripts/tag-release.sh` prints one reminder: post the DMG to the testers, and after the last run of a release, post the release summary.
+- After each tag, `scripts/tag-release.sh` prints one reminder: post the DMG to the testers, and after the last run of a release, run the docs coherence pass, post the release summary, and close the release.
 - The post is by hand: no script in the repo posts it.
 
 ## Rules that continue from Release 2
 
 - Each run lands through its own pull request.
-- Three rules have their own home: the guide and the screenshots (`.claude/skills/deliver/SKILL.md`), the CLI and MCP parity (`docs/decisions/0011-command-line-front-end.md`), and the bench limit (`scripts/bench-pairs.sh`).
+- Three rules have their own home: the guide and the screenshots (`docs/CONTRIBUTING.md`, "Keep the docs true"), the CLI and MCP parity (`docs/decisions/0011-command-line-front-end.md`), and the bench limit (`scripts/bench-pairs.sh`).
 - Each command has a menu item with a key (F16).
 - A run that adds user data to `session.xml` raises `sessionVersion` to the next free number, in land order (0024).

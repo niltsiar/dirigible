@@ -25,13 +25,22 @@ struct ThinSegmentsRedecodeTests {
 
     /// Runs the second calls with `log`; `answer` gives the outcome of call n. The calls go to `calls`.
     static func redecode(
-        language: String = "es", log: DiagnosticLog = .disabled, calls: inout [(range: Range<Int>, language: String)],
-        answer: (Int) -> RedecodeOutcome
+        language: String = "es", speech: [Range<Int>]? = nil, log: DiagnosticLog = .disabled,
+        calls: inout [(range: Range<Int>, language: String)], answer: (Int) -> RedecodeOutcome
     ) -> PieceOutcome {
-        ThinSegments.redecode(first: first, bounds: bounds, sampleCount: sampleCount, language: language, log: log) {
+        ThinSegments.redecode(
+            first: first, bounds: bounds, speech: speech, sampleCount: sampleCount, language: language, log: log
+        ) {
             calls.append(($0, $1))
             return answer(calls.count - 1)
         }
+    }
+
+    /// The VAD finds speech only round the 2 words of the fourth segment, so its span gets no call.
+    @Test func aThinSegmentWithLittleVADSpeechGetsNoCall() {
+        var calls: [(range: Range<Int>, language: String)] = []
+        _ = Self.redecode(speech: [10141..<11720, 12300..<12320, 12800..<12820], calls: &calls) { _ in .words([]) }
+        #expect(calls.map { $0.range } == [Self.spanRanges[0]])
     }
 
     /// The fields of each `event` line of the journal in `folder`.
@@ -55,9 +64,8 @@ struct ThinSegmentsRedecodeTests {
         let log = startLog(in: folder.url)
         var calls = 0
         _ = ThinSegments.redecode(
-            first: first, bounds: segments.map { (start: $0.start, end: $0.end) }, sampleCount: 10_000 * 160,
-            language: "es",
-            log: log
+            first: first, bounds: segments.map { (start: $0.start, end: $0.end) }, speech: nil,
+            sampleCount: 10_000 * 160, language: "es", log: log
         ) { _, _ in
             calls += 1
             return .words([])

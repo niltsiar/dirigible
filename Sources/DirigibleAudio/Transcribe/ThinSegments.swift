@@ -9,18 +9,30 @@ struct DecodedSegment: Hashable, Sendable {
     var words: Range<Int>
 }
 
-/// One second `whisper_full` call of a piece: its span in piece ticks and the thin segments that it
-/// decodes again (one or more, in time order).
+/// One second `whisper_full` call of a piece: its span in piece ticks, the thin segments that it
+/// decodes again (one or more, in time order), and the speech ticks (`ThinSegments.speechTicks`) of
+/// the thin segments and of the span.
 struct ThinSpan: Hashable, Sendable {
     var start: Int
     var end: Int
     var thin: [DecodedSegment]
+    var thinSpeech: Int
+    var spanSpeech: Int
+
+    /// `speech` is the VAD speech of the piece, or nil for a call with no VAD.
+    init(start: Int, end: Int, thin: [DecodedSegment], speech: [Range<Int>]?) {
+        self.start = start
+        self.end = end
+        self.thin = thin
+        thinSpeech = thin.reduce(0) { $0 + ThinSegments.speechTicks(from: $1.start, to: $1.end, speech: speech) }
+        spanSpeech = ThinSegments.speechTicks(from: start, to: end, speech: speech)
+    }
 
     var firstPassWordCount: Int { thin.reduce(0) { $0 + $1.words.count } }
 
-    /// The words of the span length at `ThinSegments.typicalWordsPerSecond`, less the first-pass words.
+    /// The words of the span speech at `ThinSegments.typicalWordsPerSecond`, less the first-pass words.
     var missingWords: Double {
-        Double(end - start) / 100 * ThinSegments.typicalWordsPerSecond - Double(firstPassWordCount)
+        Double(spanSpeech) / 100 * ThinSegments.typicalWordsPerSecond - Double(firstPassWordCount)
     }
 }
 
@@ -103,10 +115,30 @@ enum ThinSegments {
         ticks >= shortestThinTicks && ticks > thinTicksPerWord * words
     }
 
+    /// The ticks from `start` to `end` that the VAD `speech` ranges (in time order) cover, each tick
+    /// once. With no VAD (nil), all ticks count. With VAD, a segment of short replies maps back over
+    /// the silence that VAD removed, so its length is not its speech.
+    static func speechTicks(from start: Int, to end: Int, speech: [Range<Int>]?) -> Int {
+        guard let speech else { return max(0, end - start) }
+        var covered = start
+        var total = 0
+        for part in speech {
+            let upper = min(part.upperBound, end)
+            let lower = max(part.lowerBound, covered)
+            if upper > lower {
+                total += upper - lower
+                covered = upper
+            }
+        }
+        return total
+    }
+
     /// The second calls of a piece: at most `callCap` of `calls`, the calls with the most missing
     /// words first, ties in time order. The result is in time order.
-    static func spans(of segments: [DecodedSegment], pieceEnd: Int, language: String) -> [ThinSpan] {
-        let all = calls(of: segments, pieceEnd: pieceEnd, language: language)
+    static func spans(of segments: [DecodedSegment], pieceEnd: Int, language: String, speech: [Range<Int>]?)
+        -> [ThinSpan]
+    {
+        let all = calls(of: segments, pieceEnd: pieceEnd, language: language, speech: speech)
         let ranked = all.indices.sorted { a, b in
             let (missingA, missingB) = (all[a].missingWords, all[b].missingWords)
             return missingA != missingB ? missingA > missingB : a < b
@@ -116,22 +148,26 @@ enum ThinSegments {
 
     /// The span of each thin segment runs from the end of the segment before it (the piece start for
     /// the first) to the start of the segment after it (the piece end for the last). Spans that
-    /// overlap or touch make one call. A language with no spaces gives no call.
-    static func calls(of segments: [DecodedSegment], pieceEnd: Int, language: String) -> [ThinSpan] {
+    /// overlap or touch make one call. A segment is thin over its speech ticks. A language with no
+    /// spaces gives no call.
+    static func calls(of segments: [DecodedSegment], pieceEnd: Int, language: String, speech: [Range<Int>]?)
+        -> [ThinSpan]
+    {
         guard !unspacedLanguages.contains(language) else { return [] }
-        var found: [ThinSpan] = []
+        var found: [(start: Int, end: Int, thin: [DecodedSegment])] = []
         for (n, segment) in segments.enumerated() {
-            guard isThin(ticks: segment.end - segment.start, words: segment.words.count) else { continue }
+            let ticks = speechTicks(from: segment.start, to: segment.end, speech: speech)
+            guard isThin(ticks: ticks, words: segment.words.count) else { continue }
             let start = min(n > 0 ? segments[n - 1].end : 0, segment.start)
             let end = max(n + 1 < segments.count ? segments[n + 1].start : pieceEnd, segment.end)
             if let last = found.indices.last, start <= found[last].end {
                 found[last].end = max(found[last].end, end)
                 found[last].thin.append(segment)
             } else {
-                found.append(ThinSpan(start: start, end: end, thin: [segment]))
+                found.append((start, end, [segment]))
             }
         }
-        return found
+        return found.map { ThinSpan(start: $0.start, end: $0.end, thin: $0.thin, speech: speech) }
     }
 
     /// The samples of a span of ticks, at `WordEnds.samplesPerTick` samples per tick, clamped to a
@@ -173,13 +209,12 @@ enum ThinSegments {
         return Array(rest.dropLast(trail))
     }
 
-    /// True when the kept second-pass words replace the first-pass words of `thin`: they are more, at
-    /// most `densestWordsPerSecond` over the thin segments, not thin over the same time, and no loop.
-    static func accepts(_ again: [TimedWord], over thin: [DecodedSegment]) -> Bool {
-        let before = thin.reduce(0) { $0 + $1.words.count }
-        let ticks = thin.reduce(0) { $0 + $1.end - $1.start }
-        return again.count > before && again.count * 100 <= densestWordsPerSecond * ticks
-            && !isThin(ticks: ticks, words: again.count) && !hasLoop(again.map { normalized($0.text) })
+    /// True when the kept second-pass words replace the first-pass words of the thin segments of
+    /// `span`: they are more, at most `densestWordsPerSecond` over the speech of the span (the time
+    /// that the call decodes), not thin over the speech of the thin segments, and no loop.
+    static func accepts(_ again: [TimedWord], over span: ThinSpan) -> Bool {
+        again.count > span.firstPassWordCount && again.count * 100 <= densestWordsPerSecond * span.spanSpeech
+            && !isThin(ticks: span.thinSpeech, words: again.count) && !hasLoop(again.map { normalized($0.text) })
     }
 
     /// `first` with the words of the thin segments of each block replaced by the words of the block,
@@ -202,17 +237,19 @@ enum ThinSegments {
     /// The second calls of one piece after its first call (decision 0065 D7b). `first` holds the
     /// first-pass words with the segment of each, `bounds` the segment bounds in ticks, and
     /// `language` the first-pass language code. `decode` runs one call on a sample range of the
-    /// piece in that language and gives its words in call time. A stopped call ends the loop. Each
-    /// call that ends writes one `transcript redecode` note to `log`; a stopped call writes none.
-    /// When the cap drops spans, one `transcript redecode cap` note names them.
+    /// piece in that language and gives its words in call time. `speech` is the VAD speech of the
+    /// first call in ticks, or nil with no VAD. A stopped call ends the loop. Each call that ends
+    /// writes one `transcript redecode` note to `log`; a stopped call writes none. When the cap drops
+    /// spans, one `transcript redecode cap` note names them.
     static func redecode(
-        first: [(word: TimedWord, segment: Int)], bounds: [(start: Int, end: Int)], sampleCount: Int,
-        language: String, log: DiagnosticLog, decode: (Range<Int>, String) -> RedecodeOutcome
+        first: [(word: TimedWord, segment: Int)], bounds: [(start: Int, end: Int)], speech: [Range<Int>]?,
+        sampleCount: Int, language: String, log: DiagnosticLog, decode: (Range<Int>, String) -> RedecodeOutcome
     ) -> PieceOutcome {
         let decoded = segments(bounds, wordSegments: first.map(\.segment))
         let pieceEnd = (sampleCount + WordEnds.samplesPerTick - 1) / WordEnds.samplesPerTick
-        let chosen = spans(of: decoded, pieceEnd: pieceEnd, language: language)
-        let dropped = calls(of: decoded, pieceEnd: pieceEnd, language: language).filter { !chosen.contains($0) }
+        let chosen = spans(of: decoded, pieceEnd: pieceEnd, language: language, speech: speech)
+        let dropped = calls(of: decoded, pieceEnd: pieceEnd, language: language, speech: speech)
+            .filter { !chosen.contains($0) }
         if !dropped.isEmpty {
             log.note(
                 .app, "transcript redecode cap",
@@ -251,7 +288,7 @@ enum ThinSegments {
                 result = .failed(code: code)
             case .words(let again):
                 let words = kept(again, first: first, span: span)
-                let accepted = accepts(words, over: span.thin)
+                let accepted = accepts(words, over: span)
                 if accepted { blocks.append((span, words)) }
                 result = .compared(after: words.count, kept: accepted ? .secondPass : .firstPass)
             }

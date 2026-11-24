@@ -44,7 +44,7 @@ struct ThinSegmentsTests {
         tengo 11958 11983  la 11983 11996  bola 11996 12022  de 12022 12040  cristal. 12040 12112
         """)
     static let pieceSegments = segments("10141 10345 9  10391 11645 10  11720 12112 17")
-    static let dropSpan = ThinSpan(start: 10345, end: 11720, thin: [pieceSegments[1]])
+    static let dropSpan = ThinSpan(start: 10345, end: 11720, thin: [pieceSegments[1]], speech: nil)
     /// The fresh call on the span: "o" starts at the span start, before the thin segment start 103.91 s.
     static let redecoded = words(
         """
@@ -56,8 +56,10 @@ struct ThinSegmentsTests {
         de 11577 11598  obra. 11598 11648
         """)
 
-    static func spans(_ rows: String, samples: Int, language: String = "es") -> [ThinSpan] {
-        ThinSegments.spans(of: segments(rows), pieceEnd: ticks(samples: samples), language: language)
+    static func spans(_ rows: String, samples: Int, language: String = "es", speech: [Range<Int>]? = nil)
+        -> [ThinSpan]
+    {
+        ThinSegments.spans(of: segments(rows), pieceEnd: ticks(samples: samples), language: language, speech: speech)
     }
 
     @Test func theDroppedSegmentOfEpisode360IsTheOnlyThinSpan() {
@@ -66,10 +68,42 @@ struct ThinSegmentsTests {
         #expect(spans.map(\.thin) == [[DecodedSegment(start: 10391, end: 11645, words: 286..<296)]])
     }
 
+    @Test func speechTicksCountEachVADTickInsideTheRangeOnce() {
+        #expect(ThinSegments.speechTicks(from: 100, to: 500, speech: [0..<150, 140..<200, 450..<900]) == 150)
+        #expect(ThinSegments.speechTicks(from: 100, to: 500, speech: []) == 0)
+        #expect(ThinSegments.speechTicks(from: 100, to: 500, speech: nil) == 400, "no VAD: all ticks")
+    }
+
+    /// The VAD ranges of run a (piece 2 cut to 0 s to 200 s): range 8 holds the drop. The segments
+    /// after 200 s have no speech in this list, so they cannot be thin.
+    @Test func theDropOf360StaysThinOverItsVADSpeech() {
+        let spans = Self.spans(
+            ThinSegmentsTables.pieceTwo, samples: ThinSegmentsTables.pieceTwoSamples,
+            speech: [
+                19..<4118, 4135..<4560, 4589..<5171, 5187..<6109, 6141..<6486, 6506..<8259, 8275..<8435, 8451..<8579,
+                8643..<11689, 11706..<12131, 12157..<12845, 12861..<14880, 14906..<15421, 15450..<16227,
+                16263..<16678, 16695..<17411, 17443..<19501, 19520..<20000,
+            ])
+        #expect(spans.map { $0.start..<$0.end } == [10345..<11720])
+        #expect(spans.map(\.thinSpeech) == [1254])
+        #expect(spans.map(\.spanSpeech) == [1358])
+        #expect(spans.allSatisfy { ThinSegments.accepts(Self.redecoded, over: $0) })
+    }
+
+    /// The S1 t1 table, with VAD speech only round its words (the shape that VAD gives to short
+    /// replies; the probe logs do not hold the real ranges). Over its speech, no segment is thin.
+    @Test func aSegmentOfShortRepliesWithLittleVADSpeechIsNotThin() throws {
+        let track = try #require(ThinSegmentsTables.trialTracks.first { $0.name == "S1-t1" })
+        #expect(Self.spans(track.rows, samples: track.samples).count == 1, "with no VAD")
+        let speech = [1030..<1300, 4250..<4400, 5350..<5610, 7400..<7900]
+        #expect(Self.spans(track.rows, samples: track.samples, speech: speech).isEmpty)
+    }
+
     @Test func aSegmentAtTheLimitsIsNotThin() {
         func spanCount(ticks: Int, words: Int) -> Int {
             ThinSegments.spans(
-                of: [DecodedSegment(start: 1000, end: 1000 + ticks, words: 0..<words)], pieceEnd: 5000, language: "es"
+                of: [DecodedSegment(start: 1000, end: 1000 + ticks, words: 0..<words)], pieceEnd: 5000, language: "es",
+                speech: nil
             ).count
         }
         #expect(spanCount(ticks: 490, words: 2) == 0, "4.9 s, under the 5.0 s floor")
@@ -81,7 +115,7 @@ struct ThinSegmentsTests {
 
     @Test func theFirstAndLastSegmentUseThePieceBounds() {
         let spans = ThinSegments.spans(
-            of: Self.segments("300 900 2  1000 1200 5  1300 2000 3"), pieceEnd: 2500, language: "es")
+            of: Self.segments("300 900 2  1000 1200 5  1300 2000 3"), pieceEnd: 2500, language: "es", speech: nil)
         #expect(spans.map { $0.start..<$0.end } == [0..<1000, 1200..<2500])
     }
 
@@ -102,8 +136,8 @@ struct ThinSegmentsTests {
     /// The span with the fewest first-pass words misses the most words, so it ranks first.
     @Test func aPieceKeepsTheCallsThatMissTheMostWordsAtTheCap() {
         let segments = Self.segments(Self.fiveThinSpans)
-        #expect(ThinSegments.calls(of: segments, pieceEnd: 10_000, language: "es").count == 5)
-        let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es")
+        #expect(ThinSegments.calls(of: segments, pieceEnd: 10_000, language: "es", speech: nil).count == 5)
+        let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es", speech: nil)
         #expect(spans.map(\.start) == [1400, 3400, 5400, 7400])
         #expect(spans.map(\.firstPassWordCount) == [4, 5, 6, 2])
     }
@@ -115,7 +149,7 @@ struct ThinSegmentsTests {
             "\(2000 * n + 700) \(2000 * n + 1700) \(words)  \(2000 * n + 1800) \(2000 * n + 2000) 3"
         }
         let segments = Self.segments(rows.joined(separator: "  "))
-        let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es")
+        let spans = ThinSegments.spans(of: segments, pieceEnd: 10_000, language: "es", speech: nil)
         #expect(spans.map(\.start) == [0, 2000, 4000, 6000])
     }
 
@@ -169,7 +203,7 @@ struct ThinSegmentsTests {
             en 5646 5770  esta 6513 7508
             """)
         let segments = Self.segments("1024 1068 1  1068 4281 3  4281 5507 2  5735 7697 2")
-        let span = ThinSpan(start: 4281, end: 5735, thin: [segments[2]])
+        let span = ThinSpan(start: 4281, end: 5735, thin: [segments[2]], speech: nil)
         let again = Self.words("Es 4332 4333  verdad. 4333 4363  Tracatrá, 4869 4883  ¿no? 5381 5600")
         #expect(ThinSegments.kept(again, first: first, span: span) == Array(again[2...]))
     }
@@ -195,7 +229,7 @@ struct ThinSegmentsTests {
             con 15300 15400  los 15400 15500  100 15500 15700  de 15700 15800  esto. 15800 16031  Vale 16039 16100
             """)
         let segments = Self.segments("13900 14131 1  14131 16031 10  16039 16200 1")
-        let span = ThinSpan(start: 14131, end: 16039, thin: [segments[1]])
+        let span = ThinSpan(start: 14131, end: 16039, thin: [segments[1]], speech: nil)
         let again = Self.words(
             """
             o 14131 14140  sea 14140 14200  que 16039 16040  ahora 16040 16041  estás 16041 16042  con 16042 16043
@@ -206,7 +240,7 @@ struct ThinSegmentsTests {
     }
 
     @Test func theRedecodeOfEpisode360IsAccepted() {
-        #expect(ThinSegments.accepts(Self.redecoded, over: Self.dropSpan.thin))
+        #expect(ThinSegments.accepts(Self.redecoded, over: Self.dropSpan))
         let composed = ThinSegments.compose(
             first: Self.firstPass, language: "es",
             redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded))])
@@ -216,17 +250,18 @@ struct ThinSegmentsTests {
         #expect(composed.outcome == .words(expected, language: "es"))
     }
 
-    /// Over the thin segment of 12.54 s with 10 first-pass words.
+    /// The thin segment of 12.54 s has 10 first-pass words, and its span lasts 13.75 s. With no VAD,
+    /// all of it is speech.
     @Test func aLoopADenseOrAThinRedecodeIsRefused() {
-        func accepts(_ words: [TimedWord]) -> Bool { ThinSegments.accepts(words, over: Self.dropSpan.thin) }
+        func accepts(_ words: [TimedWord]) -> Bool { ThinSegments.accepts(words, over: Self.dropSpan) }
         func repeated(_ text: String) -> [TimedWord] {
             Self.words(text.split(separator: " ").map { "\($0) 11600 11601" }.joined(separator: " "))
         }
         #expect(!accepts(Array(Self.redecoded[0..<23]) + repeated("mmhmm mmhmm mmhmm mmhmm mmhmm mmhmm")))
         #expect(accepts(Array(Self.redecoded[0..<26]) + repeated("sí sí sí")))
         #expect(accepts(Array(Self.redecoded[0..<21]) + repeated("ha salido de compras ha salido de compras")))
-        #expect(!accepts(Self.distinct(80)), "6.38 words per second")
-        #expect(accepts(Self.distinct(75)), "5.98 words per second")
+        #expect(!accepts(Self.distinct(83)), "6.04 words per second over the span")
+        #expect(accepts(Self.distinct(82)), "5.96 words per second over the span")
         #expect(!accepts(Self.distinct(11)), "1.14 s per word, still thin")
         #expect(accepts(Self.distinct(13)), "0.96 s per word")
     }
@@ -265,7 +300,8 @@ struct ThinSegmentsTests {
         #expect(ThinSegmentsTables.trialTracks.map(\.name).sorted() == expected.keys.sorted())
         for track in ThinSegmentsTables.trialTracks {
             let calls = ThinSegments.calls(
-                of: Self.segments(track.rows), pieceEnd: Self.ticks(samples: track.samples), language: "es")
+                of: Self.segments(track.rows), pieceEnd: Self.ticks(samples: track.samples), language: "es",
+                speech: nil)
             #expect(calls.flatMap(\.thin).count == expected[track.name]?.thin, "\(track.name)")
             #expect(calls.count == expected[track.name]?.calls, "\(track.name)")
             #expect(calls.count <= ThinSegments.callCap, "\(track.name)")
@@ -280,7 +316,9 @@ struct ThinSegmentsTests {
         for line in lines {
             let parts = line.split(separator: " ", maxSplits: 2)
             let again = Self.distinct(Int(parts[1])!)
-            #expect(!ThinSegments.accepts(again, over: Self.segments(String(parts[2]))), "\(line)")
+            let thin = Self.segments(String(parts[2]))
+            let span = ThinSpan(start: thin[0].start, end: thin[thin.count - 1].end, thin: thin, speech: nil)
+            #expect(!ThinSegments.accepts(again, over: span), "\(line)")
         }
     }
 

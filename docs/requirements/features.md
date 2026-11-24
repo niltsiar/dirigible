@@ -97,7 +97,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F83 | Zoom toggle and zoom history | Logic Pro | done, Release 2 run 2; Later: center the playhead after a zoom, as in Hindenburg Narrator | R1 |
 | F84 | Clip inspector with numeric gain and fades | Logic Pro | done, Release 2 run 11b-2 | R7 |
 | F85 | Width of the track headers; height of one track | Logic Pro | Later (the height of one track; View > Taller Tracks and Shorter Tracks change the height of all tracks; the header width is done, Release 2 run 1b) | R1 |
-| F86 | Help tags that show the key equivalent | Logic Pro | done, Release 2 run 1a (the toolbar items); Later: help tags of the track header controls | R1 |
+| F86 | Help tags that show the key equivalent | Logic Pro | Later (the toolbar items shipped in Release 2 run 1a; the help tags of the track header controls are later) | R1 |
 | F87 | Remove unused clip files | GarageBand, Logic Pro | done, Release 3 run 8 (v0.3.8) | R5 |
 | F88 | Session alternatives | Logic Pro | Later | R5 |
 | F89 | Render a range through an effect | Logic Pro | done, Release 4 run 19 (the clip render; a range cut at the range edges stays Later) | R8, R10 |
@@ -156,7 +156,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F142 | Edit > Insert Silence | Logic Pro | Later | R7 |
 | F143 | Keyboard ripple trims (Q and W) | Hindenburg PRO | Later | R7 |
 | F144 | Track > Arm Track (Shift-R), and Option-click to arm all tracks | Hindenburg PRO, Pro Tools | Later | R3 |
-| F145 | Agent setup for MCP clients other than Claude Code | user 2026-10-12 | done, Release 3 run 6 (Copy Setup Command: Claude Code, Codex, opencode, any MCP app); Later: other clients | R16 |
+| F145 | Agent setup for MCP clients other than Claude Code | user 2026-10-12 | Later (Copy Setup Command for Claude Code, Codex, opencode, and any MCP app shipped in Release 3 run 6; other clients are later) | R16 |
 | F146 | The take length during a take | Hindenburg PRO | Later | R1 |
 | F147 | Agent tools for peaks, capture place, take finalize, capture add, and file add | brief R16 (decision 0041 parity list) | Later | R16 |
 | F148 | A clip mark on a live peak at 0 dBFS during a take | Audacity | Later | R3 |

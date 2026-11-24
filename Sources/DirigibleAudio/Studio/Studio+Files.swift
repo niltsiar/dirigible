@@ -2,11 +2,12 @@ import DirigibleCore
 import Foundation
 
 extension Studio {
-    /// The URLs of the pool files in `files` that are on disk, sorted by path, under the package
-    /// path that the lock holds now (decision 0014), not a stored copy. It reads the disk off the
-    /// main actor and writes nothing. An ID that is not in the pool gives nothing.
+    /// The URLs of the pool files in `files` that are on disk, sorted by pool path, under the
+    /// package path that the lock holds now (decision 0014), not a stored copy: each at the name
+    /// that `poolFileName` gives, so the FLAC of an archived file. It reads the disk off the main
+    /// actor and writes nothing. An ID that is not in the pool gives nothing.
     public func clipURLs(_ files: Set<FileID>) async -> [URL] {
-        await existingClipURLs(files.compactMap { session.files[$0]?.path }, lock: lock)
+        await existingClipURLs(files.compactMap { session.files[$0] }, lock: lock)
     }
 
     /// The clip files that no clip uses (decision 0047), read off the main actor. The clips of
@@ -94,11 +95,11 @@ extension Studio {
     }
 }
 
-@concurrent nonisolated private func existingClipURLs(_ paths: [String], lock: PackageLock) async -> [URL] {
+@concurrent nonisolated private func existingClipURLs(_ files: [AudioFile], lock: PackageLock) async -> [URL] {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return [] }
-    let clips = package.appending(path: clipsFolderName)
-    return paths.sorted().map { clips.appending(path: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+    return files.sorted { $0.path < $1.path }.map { package.appending(path: poolFileName($0, in: package).name) }
+        .filter { FileManager.default.fileExists(atPath: $0.path) }
 }
 
 /// The scan of decision 0047 in the package that `lock` holds now.

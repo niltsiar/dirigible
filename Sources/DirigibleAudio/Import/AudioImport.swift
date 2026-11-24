@@ -163,8 +163,10 @@ func identicalPoolFile(
     var (mine, theirs) = ([UInt8](repeating: 0, count: blockBytes), [UInt8](repeating: 0, count: blockBytes))
     let total = Double(size) * Double(candidates.count)
     for (index, file) in candidates.enumerated() {
-        let other = open(
-            package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        // A FLAC is never byte-equal to a WAV, so the compare skips a candidate in that form.
+        let candidate = poolFileName(file, in: package)
+        guard candidate.form == .pool else { continue }
+        let other = open(package.appending(path: candidate.name).path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
         guard other >= 0 else { continue }
         defer { close(other) }
         guard fstat(other, &info) == 0, Int(info.st_size) == size else { continue }
@@ -219,6 +221,27 @@ func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: A
         close(descriptor)
         if let code { throw .unreadable(file: name, errno: code) }
         throw .notAudio(file: name)
+    }
+}
+
+/// `openAudio` of the pool file `file` of `package` at the name that `poolFileName` gives, with the
+/// URL that it opened. A package job of another process can convert the file after the resolve, so
+/// a name that gives ENOENT after a failed open opens the other name once (decision 0072).
+/// `resolved` runs after the resolve (tests only).
+func openPoolAudio(_ file: AudioFile, in package: URL, resolved: () -> Void = {}) throws(ImportError) -> (
+    descriptor: Int32, file: AVAudioFile, url: URL
+) {
+    let name = poolFileName(file, in: package)
+    resolved()
+    let url = package.appending(path: name.name)
+    do throws(ImportError) {
+        let opened = try openAudio(url)
+        return (opened.descriptor, opened.file, url)
+    } catch {
+        guard access(url.path, F_OK) != 0, errno == ENOENT, let other = name.other(of: file) else { throw error }
+        let url = package.appending(path: other.name)
+        let opened = try openAudio(url)
+        return (opened.descriptor, opened.file, url)
     }
 }
 

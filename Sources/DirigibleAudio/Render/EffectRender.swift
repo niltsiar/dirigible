@@ -163,9 +163,9 @@ func renderClips(
     func openSource(_ source: AudioFile, channels: Int, span: Range<AVAudioFramePosition>) throws(ClipRenderError)
         -> (descriptor: Int32, file: AVAudioFile)
     {
-        let opened: (descriptor: Int32, file: AVAudioFile)
+        let opened: (descriptor: Int32, file: AVAudioFile, url: URL)
         do throws(ImportError) {
-            opened = try openAudio(sourceURL(source, in: package))
+            opened = try openPoolAudio(source, in: package)
         } catch {
             throw ClipRenderError(error, source: source.path)
         }
@@ -175,7 +175,7 @@ func renderClips(
             close(opened.descriptor)
             throw .sourceUnreadable(file: source.path, errno: EIO)
         }
-        return opened
+        return (opened.descriptor, opened.file)
     }
     let spans = runs.map {
         AVAudioFramePosition($0.run.span.lowerBound.count)..<AVAudioFramePosition($0.run.span.upperBound.count)
@@ -312,9 +312,9 @@ private func readBack(_ url: URL, wav: String) throws(ClipRenderError) -> Int {
     }
 }
 
-/// The URL of the WAV of `file` in `Clips/` of `package`.
+/// The URL of `file` on disk in `package`: its WAV, or its FLAC in an archived package.
 private func sourceURL(_ file: AudioFile, in package: URL) -> URL {
-    package.appending(path: "\(clipsFolderName)/\(file.path)")
+    package.appending(path: poolFileName(file, in: package).name)
 }
 
 extension ClipRenderError {

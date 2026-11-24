@@ -35,6 +35,15 @@ package struct PoolFileName: Hashable, Sendable {
 
     package let name: String
     package let form: Form
+
+    /// The name that an opener of `file` tries once when this name gives ENOENT: the WAV after
+    /// the FLAC, or the FLAC after the WAV. Nil for a pool path that the archive does not convert.
+    package func other(of file: AudioFile) -> PoolFileName? {
+        switch form {
+        case .flac: PoolFileName(name: "\(clipsFolderName)/\(file.path)", form: .pool)
+        case .pool: archivedPath(of: file.path).map { PoolFileName(name: "\(clipsFolderName)/\($0)", form: .flac) }
+        }
+    }
 }
 
 /// The one way from a pool file to its name on disk (decision 0072): "Clips/<path>" when an item is

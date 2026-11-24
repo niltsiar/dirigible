@@ -361,7 +361,7 @@ Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the
 
 ### Keep clips in bins
 
-A bin keeps a copy of a part of the session, for example a jingle or a sound effect, so that you can paste it again. The bins are part of the session.
+A bin keeps a copy of a part of the session, for example a jingle or a sound effect. You can paste it again. The bins are part of the session.
 
 - Choose **View > Show Bins** (Option-Command-C) to show the pane at the bins. When the pane shows the index, the same command switches it to the bins. Choose **View > Hide Bins** (Option-Command-C) to hide the pane while it shows the bins.
 - To add a clip to a bin, select a range or clips in the lanes, then choose **Edit > Add to Bin** (**Añadir a bandeja**) and the name of a bin. Choose **New Bin** in the same submenu to make a bin and add to it. The item is a copy, as **Edit > Copy** makes: the lanes do not change. The pane shows the bins, and a name field opens with the first track name and the start time, for example "Host 0:01". Type a name and press Return, or press Esc to keep the name.

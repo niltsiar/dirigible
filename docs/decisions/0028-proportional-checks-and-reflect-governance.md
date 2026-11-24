@@ -96,7 +96,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 ## Consequences
 
-- A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
+- A commit runs only the hooks, no test. A branch that changes only docs that no Swift test reads gets `check-docs` at the push, in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
 - A commit can break a test that no loop ran. The push check finds it.
 - A guard with no pick in the pass can land with a weak red-first test. A defect that a mutant of a left-out guard kills brings back one mutant per guard.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.

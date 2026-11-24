@@ -166,7 +166,7 @@ struct LocalizationTests {
             .crossfadeAtSeamlessJoin("A"), .crossfadeAtEqualGains("A"),
             .fadeAtCrossfade("A"),
         ] {
-            #expect(L10n.message(for: .session(error)) == L10n.errorSessionOther.rawValue, "\(error)")
+            #expect(L10n.message(for: .session(error)) == L10n.errorSessionOther.text, "\(error)")
         }
     }
 

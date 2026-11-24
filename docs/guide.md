@@ -20,7 +20,7 @@ Dirigible shows its menus and windows in English, Spanish, German, French, Itali
 
 Português (Brasil) is Brazilian Portuguese, and Português (Portugal) is European Portuguese. No native speaker has checked the German, French, Italian, Dutch, and Portuguese (Brazil and Portugal) texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect. The README tells how to report a bug.
 
-### What Dirigible does not do yet
+### Limits
 
 - Safari, Safari Technology Preview, and FaceTime cannot be a track source, and the **Apps** list does not show them: they play their audio from system processes outside the app.
 
@@ -1315,7 +1315,7 @@ sudo mkdir -p /usr/local/bin
 ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applications/Dirigible.app/Contents/Helpers/dirigible /usr/local/bin/dirigible
 ```
 
-If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. Open the app once before you run the tool: until then, macOS shows a warning and the tool does not run.
+If you have no administrator rights, add this line to `~/.zprofile` in place of the link: `export PATH="/Applications/Dirigible.app/Contents/Helpers:$PATH"`. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. Open the app once before you run the tool: until then, macOS shows a warning and the tool does not run.
 
 From a clone of the repository, run it with `swift run`:
 

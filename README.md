@@ -14,16 +14,20 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 ## Features
 
 - Record several input devices at the same time, one mono or stereo track for each input.
-- Record the sound of another app, for example a call, on its own track (macOS 14.2 or later).
+- Record the sound of another app, for example a call, on its own track (macOS 14.2 or later). Safari, Safari Technology Preview, and FaceTime cannot be a source: see the [limit of app sound](docs/guide.md#limits).
+- Start a take at the playhead after a short play of the session with **Record > Record with Pre-roll** (P).
 - Hear a microphone in your headphones while you record: click the headphones button in the track header, or choose **Track > Monitor Track** (Control-Command-M).
 - Keep the recorded audio after a crash, an unplug, or a full disk. A banner warns when less than 3 hours of record time is left.
+- Save a zip of the logs and crash reports of Dirigible with **Help > Report a Problem…**. The zip has no audio, and Dirigible sends nothing.
 - Go back to an earlier state of the session with **File > Revert To**. Dirigible keeps backups of the session, and Undo reverses a revert.
-- Make a session smaller after many retakes with **File > Remove Unused Files**. It shows the list and the size first, and moves the files to the Trash.
-- Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder, also on an empty session. Dirigible copies each file into the session at its sample rate and levels it.
-- Merge the session of another Dirigible into the open session with **File > Import Session**, for example two recordings of one conversation. Each track of the other session comes as a new track, with its gain, mute, and clips, and Undo reverses it.
-- Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Each edit is one undo step.
-- Import a Whisper JSON, WebVTT, or SRT transcript with the dirigible tool or an AI agent, find a phrase, and cut its words from all tracks in one edit. A transcript of one take, made before any edit, lands on the edited audio. Export the transcript as SRT or WebVTT subtitles that match the edited episode. In the app, File > Export Transcript writes the same SRT or WebVTT file. Transport > Go to Take Time (Command-J) goes to a time of the recording. A banner shows when an agent edit breaks the sync of a take, with Undo.
-- Write the words of a track with Tools > Transcribe Track. It runs whisper.cpp on your Mac, so the audio stays there. The only network call is the one-time download of the model (148 MB, 190.1 MB, or 574 MB). You can also choose a whisper model file of your own, which Dirigible checks before it uses it. The words land in the transcript pane, and `dirigible transcribe` does the same job in Terminal.
+- Make a session smaller after many retakes with **File > Remove Unused Files…**. It shows the list and the size first, and moves the files to the Trash.
+- Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder, also on an empty session. Dirigible copies each file into the session at the session sample rate and levels it.
+- Merge the session of another Dirigible into the open session with **File > Import Session…**, for example two recordings of one conversation. Each track of the other session comes as a new track, with its gain, mute, and clips, and Undo reverses it.
+- Save a session as a template with **File > Save as Template…**, then start each new episode from it in the start window.
+- Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Clips snap to the edges of other clips, to the playhead, and to markers (**View > Snap**, N). **Edit > Drag Mode** sets what a drag does to the clips under it. **Edit > Close Gaps** moves selected clips together, and **Edit > Heal Clips** joins the parts of a split clip. Each edit is one undo step.
+- Keep a part of the session in a bin (**View > Show Bins**, Option-Command-C) and paste it again, for example a jingle. **Edit > Add to Favorites** keeps a sound for all sessions.
+- Import a Whisper JSON, WebVTT, or SRT transcript with **File > Import Transcript…**, the dirigible tool, or an AI agent, find a phrase, and cut its words from all tracks in one edit. A transcript of one take, made before any edit, lands on the edited audio. Export the transcript as SRT or WebVTT subtitles that match the edited episode. In the app, File > Export Transcript writes the same SRT or WebVTT file. Transport > Go to Take Time (Command-J) goes to a time of the recording. A banner shows when an agent edit breaks the sync of a take, with Undo.
+- Write the words of a track with Tools > Transcribe Track. It runs whisper.cpp on your Mac, so the audio stays there. The only network call is the one-time download of the model (148 MB, 190.1 MB, or 574 MB). You can also choose a whisper model file of your own, which Dirigible checks before it uses it. The words land in the Transcript tab of the inspector, and `dirigible transcribe` does the same job in Terminal.
 - Let an AI agent do common jobs in few calls: one `import` places a sound with its range, gain, and fades; `chapters_import` reads a chapters file and `chapters_export` writes a text chapter list; `clip_heal` joins the pieces of a split clip; `session_info` with `compact` reads a long session in fewer tokens.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take. Level Over Time evens out the level of speech inside a clip with a gain layer that Remove Level Over Time takes away.
 - Give each track a role (dialogue, music, or effects), then lower the music under the speech with Tools > Duck Music Under Speech, in one undo step.
@@ -41,10 +45,8 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Make quiet sound taller in the waveforms with View > Waveform Zoom In (Option-Command-Up Arrow), over a range of 24 to 145 dB. A dB scale beside each track shows the range.
 - Find a clip, a marker, or a chapter in the session index (View > Show Session Index, Shift-Command-2): it lists them in time order, filters them by kind, searches their names, and plays from a row with a double click.
 - Add markers and chapters in the time ruler, or during a take with Command-Return and Shift-Command-Return to mark a mistake. Give each chapter a link and an image in the inspector (Markers > Marker Info). The MP3 and M4A exports contain the chapters, and File > Export Chapters writes a chapters.json file for your podcast host.
-- Export WAV, AAC (.m4a), MP3, or FLAC, in mono or stereo, at 44.1 kHz or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP.
+- Export WAV, AAC (.m4a), MP3, or FLAC, in mono or stereo, at the session rate, 44.1 kHz, or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP. **File > Export Stems…** writes one file for each track or role, and **File > Export with Presets…** writes several formats in one run. An export can also write one file for each chapter or marker.
 - Add the episode details and the artwork in the inspector (File > Episode Info). The MP3 and M4A exports contain them.
-
-Delete leaves silence. See [What Dirigible does not do yet](docs/guide.md#what-dirigible-does-not-do-yet).
 
 ## Install
 
@@ -58,7 +60,6 @@ cd dirigible
 ```
 
 ```sh
-make setup   # once per clone: enables the git hooks
 make run
 ```
 
@@ -68,8 +69,8 @@ make run
 |---|---|
 | `make app` | Builds `build/Dirigible.app`, universal and ad-hoc signed. |
 | `make dmg` | Builds `build/Dirigible-<version>.dmg` and its `.sha256` file, ad-hoc signed and not notarized. |
-| `make test` | Runs the tests. |
-| `make check` | Runs the format check, the tests, and the checks on the built app. |
+| `DIRIGIBLE_FULL_SUITE=1 make test` | Runs the tests. A bare `make test` refuses to run. |
+| `DIRIGIBLE_FULL_SUITE=1 make check` | Runs the format check, the docs check, the warning check, the size check, the tests, the hook tests, and the checks on the built app. A bare `make check` refuses to run. |
 | `make format` | Formats the Swift code. |
 
 #### Keep the microphone permission across builds
@@ -94,9 +95,9 @@ Use a DMG that `make dmg` built, or a DMG that the maintainer of the project gav
 
 Each DMG has a new ad-hoc signature. So after each update, macOS asks again for access to System Audio Recording, and it can ask again for access to the microphone. After each update, before you record a show, open the call app, turn on **Input Levels** with its track armed, and click **Allow** when macOS asks. Then make a short test take with each microphone and the call app. The guide tells what to do when an app track records no sound ([Record a call or another app](docs/guide.md#record-a-call-or-another-app)).
 
-To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build. `dirigible --version` prints the same version. A release version has the form `0.<release>.<run>`, for example `0.3.4`. A build after the last release tag adds `-<commits>-g<commit>`, and a build with uncommitted changes adds `-dirty`. The rule is in [Versions](docs/requirements/releases.md#versions).
+If you got the DMG from the maintainer and find a bug, report it to the maintainer. Give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build. Attach the zip of **Help > Report a Problem…** (see [Report a problem](docs/guide.md#report-a-problem)). `dirigible --version` prints the same version as the About text. A release version is `0.<release>.<run>`, for example `0.3.4`. A fix after a run has a fourth number: `0.<release>.<run>.<fix>`, for example `0.3.4.1`. A build after the last release tag adds `-<commits>-g<commit>`, and a build with uncommitted changes adds `-dirty`. The rule is in [Versions](docs/requirements/releases.md#versions).
 
-No native speaker has checked the German, French, Italian, Dutch, and Portuguese (Brazil and Portugal) texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect.
+No native speaker has checked the German, French, Italian, Dutch, and Portuguese (Brazil and Portugal) texts yet. To report a wrong text to the maintainer, give the language, the window, the wrong text, and the text that you expect.
 
 `make dmg` also writes `Dirigible-<version>.dmg.sha256`. To check a DMG against this file, put both files in one folder and run `shasum -a 256 -c Dirigible-<version>.dmg.sha256` there. The result must be `OK`.
 
@@ -131,39 +132,25 @@ The [user guide](docs/guide.md) shows how to record, edit, and export an episode
 
 ## The dirigible tool
 
-`dirigible` is a command-line tool that makes, changes, and reads sessions. The app contains it at `/Applications/Dirigible.app/Contents/Helpers/dirigible`. To type `dirigible` in Terminal, link it into `/usr/local/bin` one time (macOS asks for your password):
+`dirigible` is a command-line tool that makes, changes, and reads sessions. The app contains it. [The dirigible tool](docs/guide.md#the-dirigible-tool) in the guide shows how to type `dirigible` in Terminal, with and without administrator rights. Open the app once before you run the tool: see [Open Dirigible for the first time](#open-dirigible-for-the-first-time).
 
-```sh
-sudo mkdir -p /usr/local/bin
-ls /Applications/Dirigible.app/Contents/Helpers/dirigible && sudo ln -sf /Applications/Dirigible.app/Contents/Helpers/dirigible /usr/local/bin/dirigible
-```
+An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a session through `dirigible mcp`. A take that an agent starts with its `record` tool starts only when you click Record in a sheet of the app, or while a window grant that you gave lasts. An agent with a shell can run `dirigible record`, which records at once with no sheet: see [Make your agent ask first](docs/guide.md#make-your-agent-ask-first). [Connect an AI agent](docs/guide.md#connect-an-ai-agent) shows the setup, and [What you can ask an agent](docs/guide.md#what-you-can-ask-an-agent) gives example requests, the recipes, and the agent skill.
 
-If you have no administrator rights, add this line to `~/.zprofile` in its place: `export PATH="/Applications/Dirigible.app/Contents/Helpers:$PATH"`. If Dirigible is not in the Applications folder, use its path in place of `/Applications/Dirigible.app`. The guide shows the commands in [The dirigible tool](docs/guide.md#the-dirigible-tool).
+## Documentation
 
-Open the app once before you run the tool. Until then, macOS shows a warning that Dirigible.app was not opened, and the tool does not run. Click **Done**, then do the steps in [Open Dirigible for the first time](#open-dirigible-for-the-first-time).
+- [User guide](docs/guide.md): how to record, edit, and export an episode, and the list of menu commands.
+- [Contributing](docs/CONTRIBUTING.md): who can open issues and pull requests, and how the project works.
+- [Security](docs/SECURITY.md): how to report a security problem.
+- [How Dirigible was made](docs/provenance.md): the statement of how the code was made, and the third-party parts.
 
-An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a session through `dirigible mcp`. Dirigible > Settings > Copy Setup Command copies the setup command of your agent. With Let Agents Edit Open Sessions on, an agent edits an open session in the app, and each edit is one Undo step. A take of an agent starts only when you click Record in its sheet, or while a window grant that you gave lasts. See [Connect an AI agent](docs/guide.md#connect-an-ai-agent). [What you can ask an agent](docs/guide.md#what-you-can-ask-an-agent) gives example requests, the recipes, and the agent skill.
+## Contributing
 
-## How the project works
-
-Agents and humans follow the same rules. `AGENTS.md` has the commands, the testing rules, and the git rules. `CODING_STANDARDS.md` has the design rules and the **Safety** rules that a review checks. Every feature goes through the `deliver` flow: analyze, plan, review, implement test-first, review, verify, land, and reflect. Decision records are in `docs/decisions/`. Only collaborators open issues and pull requests: see [Contributing](docs/CONTRIBUTING.md).
+The project takes issues and pull requests only from collaborators. [Contributing](docs/CONTRIBUTING.md) tells how the project works.
 
 ## How Dirigible was made
 
-We wrote the code of Dirigible for this project. The exceptions are the third-party parts in the table of docs/provenance.md, each with its license and notice.
-We learned how closed apps behave (for example Hindenburg PRO, Logic Pro, GarageBand, Final Cut Pro, Adobe Audition, Descript, Reaper, and Pro Tools) from their public documentation, from use and measurement of the apps, and from text in installed apps, such as menu and command names. That text comes from Final Cut Pro, Logic Pro, GarageBand, and the macOS system apps. We also read one option name in the text of one closed command-line tool. Each research note in docs/research names its sources.
-We did not decompile, disassemble, or copy the code of a closed app.
-We read Audacity code (GPL-3.0) to learn an approach. We did not copy, port, or translate it. Some features have the behavior or a default value of Audacity, for example the file names of an export for each chapter.
-We read soundcraft code (MIT or Apache-2.0) to learn an approach and default values. No soundcraft code is in the repo. A port of soundcraft code keeps its license notice.
-
-[How Dirigible was made](docs/provenance.md) holds the full statement and the table of third-party parts.
+We wrote the code of Dirigible for this project. The exceptions are the third-party parts in the table of docs/provenance.md, each with its license and notice. [How Dirigible was made](docs/provenance.md) holds the full statement.
 
 ## License
 
-Apache License 2.0. See `LICENSE` and `NOTICE`.
-
-The MP3 encoder is LAME 4.0 (`Sources/CLame`), under the GNU Library General Public License (LGPL), version 2 or later. The app holds its license text and notice in `Contents/Resources/LAME-COPYING.txt` and `LAME-NOTICE.txt`. `Sources/CLame/README.dirigible` lists the changed LAME files.
-
-The transcription engine is whisper.cpp v1.9.5 with ggml (`Sources/CWhisper`), under the MIT License. The app holds its license text in `Contents/Resources/whisper.cpp-LICENSE.txt`, and the license text of the YaRN code in ggml in `yarn-LICENSE.txt`.
-
-The voice activity model is Silero VAD v6.2.0 (`Contents/Resources/ggml-silero-v6.2.0.bin`), under the MIT License. The app holds its license text in `Contents/Resources/silero-vad-LICENSE.txt`.
+Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). The [table of third-party parts](docs/provenance.md#third-party-parts) names the license and the notice file of each part.

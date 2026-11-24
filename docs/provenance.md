@@ -10,13 +10,13 @@
 
 ## Third-party parts
 
-| Part | Folder or file | License | Notice file |
-|---|---|---|---|
-| LAME 4.0, the MP3 encoder | `Sources/CLame` | LGPL-2.0-or-later | `Support/Resources/LAME-COPYING.txt` and `Support/Resources/LAME-NOTICE.txt` |
-| whisper.cpp v1.9.5 and ggml, the transcription engine | `Sources/CWhisper` | MIT | `Support/Resources/whisper.cpp-LICENSE.txt` |
-| The YaRN code in ggml | `Sources/CWhisper/ggml/src/ggml-cpu/ops.cpp` | MIT | `Support/Resources/yarn-LICENSE.txt` |
-| The Silero VAD v6.2.0 model | `Support/Resources/ggml-silero-v6.2.0.bin` | MIT | `Support/Resources/silero-vad-LICENSE.txt` |
-| The agent skills | `.claude/skills` | MIT | [`.claude/skills/THIRD_PARTY.md`](../.claude/skills/THIRD_PARTY.md) |
-| The packages swift-argument-parser and swift-atomics | `Package.swift` | Apache-2.0 with the Runtime Library Exception | None |
+| Part | Folder or file | License | Notice file | Notice file in the app |
+|---|---|---|---|---|
+| LAME 4.0, the MP3 encoder | `Sources/CLame` | LGPL-2.0-or-later | `Support/Resources/LAME-COPYING.txt` and `Support/Resources/LAME-NOTICE.txt` | `Contents/Resources/LAME-COPYING.txt` and `Contents/Resources/LAME-NOTICE.txt` |
+| whisper.cpp v1.9.5 and ggml, the transcription engine | `Sources/CWhisper` | MIT | `Support/Resources/whisper.cpp-LICENSE.txt` | `Contents/Resources/whisper.cpp-LICENSE.txt` |
+| The YaRN code in ggml | `Sources/CWhisper/ggml/src/ggml-cpu/ops.cpp` | MIT | `Support/Resources/yarn-LICENSE.txt` | `Contents/Resources/yarn-LICENSE.txt` |
+| The Silero VAD v6.2.0 model | `Support/Resources/ggml-silero-v6.2.0.bin` | MIT | `Support/Resources/silero-vad-LICENSE.txt` | `Contents/Resources/silero-vad-LICENSE.txt` |
+| The agent skills and one hook | `.claude/skills` and `.claude/hooks/git-guardrails.sh` | MIT | [`.claude/skills/THIRD_PARTY.md`](../.claude/skills/THIRD_PARTY.md) | None |
+| The packages swift-argument-parser and swift-atomics | `Package.swift` | Apache-2.0 with the Runtime Library Exception | None | None |
 
 The rules for new code are in [`CODING_STANDARDS.md`](../CODING_STANDARDS.md), Open-source code.

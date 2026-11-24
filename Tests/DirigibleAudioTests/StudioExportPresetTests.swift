@@ -48,19 +48,26 @@ struct StudioExportPresetTests {
 
     /// E9: a take in another studio during file 2 of 3 ends the set; file 1 stays. Controls: a
     /// caller loop of `Studio.export` starts file 2 after the take; a stop that removes the finished
-    /// files leaves no file 1.
+    /// files leaves no file 1. The gate holds file 2 at its first cancel read (reads 1 to 3 are
+    /// file 1) until the take has set the cancel flag, so no main-actor hold lets the set run on.
     @Test func aTakeInAnotherWindowEndsThePresetSet() async throws {
         let a = try await ExportStudioFixture.make()
         let hal = TestHAL([a.mic])
         let studioA = try await a.open(hal)
         let b = try await ExportStudioFixture.make()
-        let studioB = try await b.open(seam: ChunkSeam(pause: longChunk))
+        let gate = Gate(limit: nil)
+        let studioB = try await b.open(seam: ChunkSeam(at: [4: { gate.waitOnce() }]))
+        defer { gate.open() }
         let targets = Self.targets(b)
         let export = Self.startSet(studioB, b, try Self.presets())
+        await gate.entered()
         await until(limit: .seconds(30), "file 2 did not start") { studioB.exportFile?.number == 2 }
         studioA.otherStudios = { [studioB] }
 
-        let host = try await StudioExportTests().start(.startTake, studioA, a)
+        let start = Task { try await studioA.startTake(armed: ["t1"], devices: [a.mic], hostTimeNanos: takeStart) }
+        await until(limit: .seconds(30), "the take did not end the set") { studioB.exportStop == .take }
+        gate.open()
+        _ = try await start.value
 
         let error = await #expect(throws: StudioError.self) { try await export.value }
         guard case .exportPresets(.stopped(let stop))? = error else {
@@ -75,7 +82,7 @@ struct StudioExportPresetTests {
         #expect(studioB.exportProgress == nil)
         #expect(try Self.setFiles(b) == ["Ep.wav"])
         #expect(try b.temporaryFiles() == [])
-        try await StudioExportTests().recordAndStop(studioA, hal, from: host)
+        try await StudioExportTests().recordAndStop(studioA, hal, from: takeStart)
     }
 
     /// E21: the job keeps the preset list of the set, so the preset of the file in hand is at

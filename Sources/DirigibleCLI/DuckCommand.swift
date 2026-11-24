@@ -61,7 +61,9 @@ struct DuckCommand: ParsableCommand {
 
     func run() throws {
         let work = try work()
-        let (lines, report) = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
+        let (lines, report) = try editPackage(
+            package, ripple: false, touchesClips: true, writeUnchanged: false, refused: failure
+        ) {
             session, _ throws(DuckFailure) in
             try work.run(&session, package: package.url)
         }

@@ -69,7 +69,9 @@ extension ClipCommand {
 func runClipRender(_ work: ClipRenderWork, in package: PackageArgument) throws {
     let interrupt = cancelOnInterrupt()
     defer { interrupt.source.cancel() }
-    let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: clipRenderFailure) {
+    let moved = try editPackage(
+        package, ripple: false, touchesClips: true, writeUnchanged: false, refused: clipRenderFailure
+    ) {
         session, lock throws(ClipRenderError) in
         try work.render(
             &session, in: package.url, lock: lock, progress: { _ in }, isCancelled: interrupt.isCancelled)

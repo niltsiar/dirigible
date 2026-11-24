@@ -39,7 +39,7 @@ struct BinCommand: ParsableCommand {
 
         func run() throws {
             print(
-                try editPackage(package, ripple: false) { session throws(SessionError) in
+                try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                     try session.addBin(named: name)
                 })
         }
@@ -52,7 +52,7 @@ struct BinCommand: ParsableCommand {
         @Argument(help: "The new name.") var name: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.renameBin(BinID(bin), to: name)
             }
         }
@@ -67,7 +67,7 @@ struct BinCommand: ParsableCommand {
         var index: Int
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.moveBin(BinID(bin), to: index)
             }
         }
@@ -79,7 +79,8 @@ struct BinCommand: ParsableCommand {
         @Argument(help: "The bin ID.") var bin: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in try session.removeBin(BinID(bin))
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
+                try session.removeBin(BinID(bin))
             }
         }
     }
@@ -113,7 +114,7 @@ struct BinCommand: ParsableCommand {
 
         func run() throws {
             let edit = BinWork.addItem(try selection(), named: name, to: bin)
-            for id in try editPackage(package, ripple: false, edit) { print(id) }
+            for id in try editPackage(package, ripple: false, touchesClips: false, edit) { print(id) }
         }
     }
 
@@ -124,7 +125,7 @@ struct BinCommand: ParsableCommand {
         @Argument(help: "The new name.") var name: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.renameItem(BinItemID(item), to: name)
             }
         }
@@ -136,7 +137,7 @@ struct BinCommand: ParsableCommand {
         @Argument(help: "The item ID.") var item: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.removeItem(BinItemID(item))
             }
         }
@@ -169,7 +170,8 @@ struct BinCommand: ParsableCommand {
                 return try SourceOption.run(work, package: package)
             }
             let pasted = try editPackage(
-                package, ripple: RippleNeed { _ in mode.ripples }, BinWork.paste(item, mode: mode, onto: onto))
+                package, ripple: RippleNeed { _ in mode.ripples }, touchesClips: false,
+                BinWork.paste(item, mode: mode, onto: onto))
             for id in pasted { print(id) }
         }
     }

@@ -11,7 +11,7 @@ import Testing
 struct EditFailureTextTests {
     struct Row: Sendable, CustomTestStringConvertible {
         let name: String
-        let pending, split, body, file: String
+        let pending, split, body, file, archive: String
         let bodyText: String
         var testDescription: String { name }
     }
@@ -21,7 +21,8 @@ struct EditFailureTextTests {
     ) -> Row {
         Row(
             name: name, pending: message(.pendingTake), split: message(.splitTake), body: message(.body(body)),
-            file: message(.file(.malformedXML)), bodyText: bodyText)
+            file: message(.file(.malformedXML)), archive: message(.archive(.space(need: 2_000, free: 1_000))),
+            bodyText: bodyText)
     }
 
     static let pending = "p.dirigible has a take that is not finalized; open it in Dirigible first."
@@ -29,6 +30,7 @@ struct EditFailureTextTests {
         "p.dirigible has a take with some segments on the timeline and some not. A ripple moves the timeline "
         + "under the other segments, so place them first (dirigible capture place)."
     static let file = "p.dirigible/session.xml is not a Dirigible session file."
+    static let archive = "the audio files of p.dirigible need 2000 bytes free to convert; 1000 bytes are free."
 
     static let rows: [Row] = [
         row("SessionError", SessionError.unknownTrack("t9"), text: "no track \"t9\".") {
@@ -83,6 +85,16 @@ struct EditFailureTextTests {
         #expect(row.split == Self.split)
         #expect(row.file == Self.file)
         #expect(row.body == row.bodyText)
+        #expect(row.archive == Self.archive)
+    }
+
+    /// The unarchive step of a write into an archived Favorites store (decision 0072): its fault
+    /// keeps its case through `StudioError.init(favorites:)` for both bodies.
+    @Test func aStoreStepFaultIsAnArchiveFault() {
+        let fault = ArchiveFault.space(need: 2_000, free: 1_000)
+        #expect(StudioError(favorites: EditFailure<PasteError>.archive(fault)) == .archive(fault))
+        #expect(StudioError(favorites: EditFailure<SessionError>.archive(fault)) == .archive(fault))
+        #expect(ArchiveFault.favoritesStore.message(package: "p.dirigible") == "The Favorites store is never archived.")
     }
 
     /// The tool call of the clip render and of the split on the files.

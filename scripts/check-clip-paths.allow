@@ -1,4 +1,5 @@
 # The lines that scripts/check-clip-paths.sh lets pass: <path><TAB><trimmed line text><TAB><reason>.
+Sources/DirigibleAudio/Archive/ArchiveStep.swift	let name = "\(clipsFolderName)/\(archivedPath(of: path) ?? path)"	the file name in an output line; it opens nothing
 Sources/DirigibleAudio/Archive/ClipArchive.swift	let (wav, flac) = (clips.appending(path: file.path), clips.appending(path: flacPath))	the archive of one clip: it reads and writes both names of one pool file
 Sources/DirigibleAudio/Archive/PackageArchive.swift	let stamp = stampOnDisk(clips.appending(path: path))	the archive job: the stamp of the WAV name before its conversion
 Sources/DirigibleAudio/Archive/PackageArchive.swift	case .mismatch: report.kept[path] = .damaged(frames: decodedFrames(of: clips.appending(path: path)))	the archive job: the frames of a damaged WAV that it keeps

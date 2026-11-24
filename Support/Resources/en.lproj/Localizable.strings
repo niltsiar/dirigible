@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "Remove “%@” from Favorites?";
 "alert.favorites.remove.body" = "Sessions that use it keep their own copy.";
 "alert.favorites.remove.confirm" = "Remove";
+"error.archive.space" = "Dirigible cannot convert the audio files back to WAV. The disk needs %@ free, and %@ is free. Free some disk space and try again.";
+"error.archive.clip" = "Dirigible cannot convert the audio file %@ (error %lld). Check the disk and try again.";
+"error.archive.clip.other" = "Dirigible cannot convert the audio file %@. Check the Clips folder of the session and try again.";
+"error.archive.store" = "The Favorites store is never archived.";

@@ -45,13 +45,16 @@ final class FaultJournal {
 }
 
 /// Runs `editPackageCore` and maps its failure: one error line on stderr and the exit code. A
-/// session refusal exits 1, a package fault or a pending take exits 2, and a split take on a
+/// session refusal exits 1, a package fault, a pending take, or a fault of the unarchive step exits
+/// 2, and a split take on a
 /// `ripple` edit exits 3 (decision 0037).
 func editPackage<Result>(
-    _ package: PackageArgument, ripple: RippleNeed, writeUnchanged: Bool = true,
+    _ package: PackageArgument, ripple: RippleNeed, touchesClips: Bool, writeUnchanged: Bool = true,
     _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
-    try editPackage(package, ripple: ripple, writeUnchanged: writeUnchanged, refused: refusedEdit) {
+    try editPackage(
+        package, ripple: ripple, touchesClips: touchesClips, writeUnchanged: writeUnchanged, refused: refusedEdit
+    ) {
         session, _ throws(SessionError) in
         try body(&session)
     }
@@ -63,14 +66,16 @@ private func refusedEdit(_ error: SessionError) -> ExitCode { fail(error.message
 /// `editPackage` for a body with its own error that also gets the lock: `refused` writes its line
 /// and gives its exit code.
 func editPackage<Result, Failure: Error>(
-    _ package: PackageArgument, ripple: RippleNeed, writeUnchanged: Bool = true, refused: (Failure) -> ExitCode,
+    _ package: PackageArgument, ripple: RippleNeed, touchesClips: Bool, writeUnchanged: Bool = true,
+    refused: (Failure) -> ExitCode,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     let journal = FaultJournal()
     defer { journal.quit() }
     do {
         return try editPackageCore(
-            package.url, ripple: ripple, writeUnchanged: writeUnchanged, log: journal.log, body)
+            package.url, ripple: ripple, touchesClips: touchesClips, writeUnchanged: writeUnchanged, log: journal.log,
+            body)
     } catch {
         throw editExit(error, package: package.path, refused: refused)
     }
@@ -83,6 +88,7 @@ func editExit<Failure>(_ error: EditFailure<Failure>, package: String, refused: 
     case .file(let error): fail(error.message(package: package), code: packageError)
     case .pendingTake: fail(pendingTakeMessage(package), code: packageError)
     case .splitTake: fail(splitTakeMessage(package), code: unplacedAudio)
+    case .archive(let fault): fail(fault.message(package: package), code: packageError)
     }
 }
 

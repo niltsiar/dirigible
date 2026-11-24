@@ -29,7 +29,8 @@ struct BackupCommand: ParsableCommand {
         @Option(help: "The backup file name, as backup list writes it.", transform: parseBackup) var name: Backup
 
         func run() throws {
-            try editPackage(package, ripple: false, refused: refused) { session, lock throws(RevertError) in
+            try editPackage(package, ripple: false, touchesClips: true, refused: refused) {
+                session, lock throws(RevertError) in
                 try revert(&session, to: name, under: lock)
             }
         }

@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "¿Eliminar «%@» de Favoritos?";
 "alert.favorites.remove.body" = "Las sesiones que lo usan conservan su propia copia.";
 "alert.favorites.remove.confirm" = "Eliminar";
+"error.archive.space" = "Dirigible no puede convertir los archivos de audio de nuevo a WAV. El disco necesita %@ libres y hay %@ libres. Libera espacio en el disco e inténtalo de nuevo.";
+"error.archive.clip" = "Dirigible no puede convertir el archivo de audio %@ (error %lld). Comprueba el disco e inténtalo de nuevo.";
+"error.archive.clip.other" = "Dirigible no puede convertir el archivo de audio %@. Comprueba la carpeta Clips de la sesión e inténtalo de nuevo.";
+"error.archive.store" = "El almacén de Favoritos nunca se archiva.";

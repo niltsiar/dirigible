@@ -51,7 +51,7 @@ struct ChaptersImport: ParsableCommand {
         } catch {
             throw fail(error.message, code: editRefused)
         }
-        let result = try editPackage(package, ripple: false) { session throws(SessionError) in
+        let result = try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
             try work.apply(&session)
         }
         print(result.ids.joined(separator: "\n"))

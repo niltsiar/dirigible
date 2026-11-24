@@ -65,7 +65,7 @@ struct ImportCommand: ParsableCommand {
     }
 
     func run() throws {
-        let clip = try editPackage(package, ripple: false, refused: failure) {
+        let clip = try editPackage(package, ripple: false, touchesClips: true, refused: failure) {
             session, lock throws(ImportError) -> ClipID in
             let imported = try importAudio(
                 URL(filePath: file), to: target, of: session, in: package.url, level: !noLevel,

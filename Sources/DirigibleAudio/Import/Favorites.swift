@@ -50,7 +50,9 @@ package enum Favorites {
         // One ID for both runs of `place`, so the returned ID is the stored one.
         let (id, newBin) = (BinItemID(), BinID())
         let empty = { Session(sampleRate: sampleRate) }
-        return try editPackageCore(store, ripple: false, backups: .store, log: log, whenMissing: empty) {
+        return try editPackageCore(
+            store, ripple: false, touchesClips: true, backups: .store, log: log, whenMissing: empty
+        ) {
             session, lock throws(PasteError) in
             let target: URL
             do throws(SessionFileError) {
@@ -91,7 +93,8 @@ package enum Favorites {
     package static func edit<Result>(
         store: URL, log: () -> DiagnosticLog, _ body: (inout Session) throws(SessionError) -> Result
     ) throws(EditFailure<SessionError>) -> Result {
-        try editPackageCore(store, ripple: false, writeUnchanged: false, backups: .store, log: log) {
+        try editPackageCore(store, ripple: false, touchesClips: false, writeUnchanged: false, backups: .store, log: log)
+        {
             session, _ throws(SessionError) in
             try body(&session)
         }

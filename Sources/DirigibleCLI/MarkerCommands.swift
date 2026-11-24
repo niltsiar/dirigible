@@ -38,7 +38,7 @@ struct MarkerCommand: ParsableCommand {
             } catch {
                 throw ValidationError(error.message)
             }
-            let id = try editPackage(package, ripple: false, refused: refusedMarker) {
+            let id = try editPackage(package, ripple: false, touchesClips: false, refused: refusedMarker) {
                 session, _ throws(MarkerEditError) in
                 try work.run(&session, package: package.url)
             }
@@ -52,7 +52,7 @@ struct MarkerCommand: ParsableCommand {
         @Argument var marker: String
 
         func run() throws {
-            try editPackage(package, ripple: false) { session throws(SessionError) in
+            try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                 try session.removeMarker(MarkerID(marker))
             }
         }

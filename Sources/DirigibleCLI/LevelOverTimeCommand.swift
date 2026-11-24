@@ -48,7 +48,9 @@ extension ClipCommand {
             let work = try work()
             let interrupt = cancelOnInterrupt()
             defer { interrupt.source.cancel() }
-            let lines = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
+            let lines = try editPackage(
+                package, ripple: false, touchesClips: true, writeUnchanged: false, refused: failure
+            ) {
                 session, _ throws(StudioError) in
                 try work.run(&session, package: package.url, isCancelled: interrupt.isCancelled)
             }

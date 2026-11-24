@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "Remover “%@” dos Favoritos?";
 "alert.favorites.remove.body" = "As sessões que o usam mantêm a sua própria cópia.";
 "alert.favorites.remove.confirm" = "Remover";
+"error.archive.space" = "O Dirigible não pode converter os arquivos de áudio de volta para WAV. O disco precisa de %@ livres, e há %@ livres. Libere espaço em disco e tente novamente.";
+"error.archive.clip" = "O Dirigible não pode converter o arquivo de áudio %@ (erro %lld). Verifique o disco e tente novamente.";
+"error.archive.clip.other" = "O Dirigible não pode converter o arquivo de áudio %@. Verifique a pasta Clips da sessão e tente novamente.";
+"error.archive.store" = "O repositório de Favoritos nunca é arquivado.";

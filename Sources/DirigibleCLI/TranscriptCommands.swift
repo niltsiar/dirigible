@@ -58,7 +58,7 @@ struct TranscriptCommand: ParsableCommand {
             let title = name ?? (file == "-" ? TranscriptWork.defaultName : URL(filePath: file).lastPathComponent)
             let lines: [String]
             if let take {
-                lines = try editPackage(package, ripple: false, refused: refusedTakeImport) {
+                lines = try editPackage(package, ripple: false, touchesClips: false, refused: refusedTakeImport) {
                     session, _ throws(TakeImportError) in
                     try TranscriptWork.inTake(
                         &session, take: take, read: TakeMap.of(session, anchors: TakeAnchors.result(package.url))
@@ -70,7 +70,7 @@ struct TranscriptCommand: ParsableCommand {
                     }
                 }
             } else {
-                lines = try editPackage(package, ripple: false) { session throws(SessionError) in
+                lines = try editPackage(package, ripple: false, touchesClips: false) { session throws(SessionError) in
                     TranscriptWork.importLines(
                         try session.importTranscript(transcript, name: title, track: TrackID(track), at: Frames(at)),
                         cues: transcript.cues)
@@ -128,7 +128,7 @@ struct TranscriptCommand: ParsableCommand {
 
         func run() throws {
             let words = try words()
-            let ranges = try editPackage(package, ripple: true) { session throws(SessionError) in
+            let ranges = try editPackage(package, ripple: true, touchesClips: false) { session throws(SessionError) in
                 try session.cutWords(words)
             }
             print(TranscriptWork.cutLines(ranges).joined(separator: "\n"))

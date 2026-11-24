@@ -26,7 +26,7 @@ extension ClipCommand {
         }
 
         func run() throws {
-            let parts = try editPackage(package, ripple: false, refused: failure) {
+            let parts = try editPackage(package, ripple: false, touchesClips: true, refused: failure) {
                 session, lock throws(SplitError) -> [SplitPart] in
                 let split = try splitStereo(
                     clips.map { ClipID($0) }, names: SplitWork.names, of: session, in: package.url,

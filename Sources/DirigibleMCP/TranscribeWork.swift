@@ -123,7 +123,9 @@ package struct TranscribeWork: Sendable {
     /// The job of a tool call on the files, under the package lock. No kept word writes nothing.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<TranscribeFailure>) {
-            let lines = try editPackageCore(package, ripple: false, writeUnchanged: false, log: control.log) {
+            let lines = try editPackageCore(
+                package, ripple: false, touchesClips: true, writeUnchanged: false, log: control.log
+            ) {
                 session, _ throws(TranscribeFailure) in
                 try run(
                     &session, package: package, progress: { control.report($0) },

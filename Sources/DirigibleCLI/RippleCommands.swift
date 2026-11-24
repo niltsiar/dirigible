@@ -25,7 +25,7 @@ extension ClipCommand {
 
         func run() throws {
             let ranges = try ranges()
-            try editPackage(package, ripple: true) { session throws(SessionError) in
+            try editPackage(package, ripple: true, touchesClips: false) { session throws(SessionError) in
                 try session.rippleDelete(
                     ranges, on: EditRules.tracks(track, of: session), naming: track.map { TrackID($0) })
             }
@@ -57,7 +57,7 @@ extension ClipCommand {
         }
 
         func run() throws {
-            try editPackage(package, ripple: true) { session throws(SessionError) in
+            try editPackage(package, ripple: true, touchesClips: false) { session throws(SessionError) in
                 try session.rippleInsert(
                     Frames(length), at: Frames(at), on: EditRules.tracks(track, of: session),
                     naming: track.map { TrackID($0) })
@@ -87,7 +87,7 @@ extension ClipCommand {
         var track: [String] = []
 
         func run() throws {
-            try editPackage(package, ripple: true) { session throws(SessionError) in
+            try editPackage(package, ripple: true, touchesClips: false) { session throws(SessionError) in
                 try session.rippleTrim(
                     ClipID(clip), edge: edge, by: Frames(by), on: EditRules.tracks(track, of: session),
                     naming: track.map { TrackID($0) })

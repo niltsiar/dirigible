@@ -1102,3 +1102,7 @@
 "alert.favorites.remove" = "Rimuovere “%@” da Preferiti?";
 "alert.favorites.remove.body" = "Le sessioni che lo usano mantengono la propria copia.";
 "alert.favorites.remove.confirm" = "Rimuovi";
+"error.archive.space" = "Dirigible non può riconvertire i file audio in WAV. Il disco richiede %@ liberi e ne sono liberi %@. Libera spazio su disco e riprova.";
+"error.archive.clip" = "Dirigible non può convertire il file audio %@ (errore %lld). Controlla il disco e riprova.";
+"error.archive.clip.other" = "Dirigible non può convertire il file audio %@. Controlla la cartella Clips della sessione e riprova.";
+"error.archive.store" = "L’archivio Preferiti non viene mai archiviato.";

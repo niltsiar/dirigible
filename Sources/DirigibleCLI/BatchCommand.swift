@@ -55,7 +55,7 @@ struct BatchCommand: ParsableCommand {
     /// ripple on a split take 3.
     private func exitCode(of error: EditFailure<BatchWork.Failure>) -> Int32 {
         switch error {
-        case .file, .pendingTake: packageError
+        case .file, .pendingTake, .archive: packageError
         case .splitTake: unplacedAudio
         case .body(let failure):
             switch failure.cause {

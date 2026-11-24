@@ -91,10 +91,7 @@ package struct StemsWork: Sendable {
 
     /// The job of a tool call on the files. The control gets the progress and gives the cancel.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
-        let session: Session
-        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
-            throw ToolError(error.message(package: path))
-        }
+        let session = try readForSamples(package, path: path)
         let source = try source(in: session)
         try checkFiles(session, package: package, source: source)
         let result: StemsResult

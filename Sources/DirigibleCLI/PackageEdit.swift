@@ -28,6 +28,16 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
     }
 }
 
+/// `readPackage` for a command that reads samples: an archived package unarchives first
+/// (`readUnarchived`, decision 0072), with its progress lines on stderr.
+func readForSamples(_ package: PackageArgument) throws(ExitCode) -> Session {
+    do throws(ArchiveFault) {
+        return try readUnarchived(package.url, log: standardErrorLine)
+    } catch {
+        throw fail(error.message(package: package.path), code: packageError)
+    }
+}
+
 /// The `.cli` journal of a command that writes a line only at a fault (decision 0059): `log()`
 /// starts it at the first call, so a run with no fault writes no file. `quit()` ends a started one.
 final class FaultJournal {

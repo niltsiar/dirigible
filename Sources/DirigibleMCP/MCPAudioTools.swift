@@ -365,11 +365,8 @@ let cancelledMessage = "The call was cancelled."
 
 /// `loudness` on the files: no lock, as `dirigible loudness`.
 func loudness(_ package: URL, path: String, ids: [String], control: CallControl) throws(ToolError) -> String {
-    let session: Session
+    let session = try readForSamples(package, path: path)
     let clips: [Clip]
-    do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
-        throw ToolError(error.message(package: path))
-    }
     do throws(SessionError) { clips = try loudnessClips(ids, in: session) } catch { throw ToolError(error.message) }
     do throws(POSIXError) {
         let measured = try clipsLoudness(

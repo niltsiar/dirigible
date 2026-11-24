@@ -178,7 +178,7 @@ package struct BatchWork: Sendable {
                 return ["OK"]
             }
         case .takeImport, .info, .create, .paste, .favorite, .backups, .bins, .revert, .episodeInfo, .words, .prune,
-            .record,
+            .archive, .record,
             .transport, .loudness, .export, .stems, .level, .duck, .ride, .sync, .matchVoice, .importFile, .splitStereo,
             .importSession, .clipRender,
             .chapters,

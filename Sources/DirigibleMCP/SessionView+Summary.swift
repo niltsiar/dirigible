@@ -2,14 +2,16 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// The text summary of `info`: one line for the session, then one line for each object, then the
-/// sync line of each take with audio, the line of each anchor fault (decision 0061), and the `raw`
-/// line of each segment that has its CAF (decision 0071).
+/// The text summary of `info`: one line for the session, the `archive:` line of an archived session
+/// (decision 0072), then one line for each object, then the sync line of each take with audio, the
+/// line of each anchor fault (decision 0061), and the `raw` line of each segment that has its CAF
+/// (decision 0071).
 package func summary(
     of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead,
-    raw: [SegmentName: RawVerdict]
+    raw: [SegmentName: RawVerdict], archive: ArchiveState?
 ) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
+    if let archive { lines.append(archive.text) }
     for track in session.tracks {
         var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"
         switch track.route {

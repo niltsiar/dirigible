@@ -137,6 +137,17 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         let text = (output.lines + output.failed).joined(separator: "\n")
         guard output.failed.isEmpty else { throw ToolError(text) }
         return text
+    case .archive(let direction):
+        let output: ArchiveOutput
+        do throws(ArchiveFault) {
+            output = try runArchiveJob(direction, on: package, log: standardErrorLine)
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
+        // A FLAC that stays as damaged makes the result an error, as exit 1 of the CLI.
+        let text = (output.lines + output.failed).joined(separator: "\n")
+        guard output.failed.isEmpty else { throw ToolError(text) }
+        return text
     case .batch(let work):
         do throws(EditFailure<BatchWork.Failure>) {
             return try work.runOnFiles(package, log: control.log).joined(separator: "\n")
@@ -223,18 +234,18 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     }
     let takeMap = TakeMap.of(session, anchors: TakeAnchors.result(package))
     return try infoText(
-        session, media: media, takeMap: takeMap, raw: rawCaptures(of: session, in: package), tracks: tracks,
-        range: range, compact: compact)
+        session, media: media, takeMap: takeMap, raw: rawCaptures(of: session, in: package),
+        archive: ArchiveState(session, in: package), tracks: tracks, range: range, compact: compact)
 }
 
-/// The `session_info` text of a session, its media faults, its take map, and its raw verdicts: the
-/// file path and the live path of an agent give the same JSON (decision 0046).
+/// The `session_info` text of a session, its media faults, its take map, its raw verdicts, and its
+/// archive state: the file path and the live path of an agent give the same JSON (decision 0046).
 func infoText(
     _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, raw: [SegmentName: RawVerdict],
-    tracks: [TrackID]?, range: Range<Frames>?, compact: Bool
+    archive: ArchiveState?, tracks: [TrackID]?, range: Range<Frames>?, compact: Bool
 ) throws(ToolError) -> String {
     try checkTracks(tracks, in: session)
-    let whole = SessionView(session, media: media, takeMap: takeMap, raw: raw)
+    let whole = SessionView(session, media: media, takeMap: takeMap, raw: raw, archive: archive)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
     do {

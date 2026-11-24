@@ -122,14 +122,14 @@ struct Export: ParsableCommand {
 
     func run() throws {
         if !preset.isEmpty {
-            try runPresets(try presetWork(), package: package.url, session: try readPackage(package))
+            try runPresets(try presetWork(), package: package.url, session: try readForSamples(package))
             return
         }
         let kind = try splitKind()
         let work = ExportWork(
             out: out, options: try options(), from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
             allowMissing: allowMissing, spelling: .cli, split: kind)
-        let session = try readPackage(package)
+        let session = try readForSamples(package)
         if let kind {
             try runSet(work, by: kind, package: package.url, session: session)
         } else {

@@ -54,7 +54,7 @@ struct ExportStemsCommand: ParsableCommand {
 
     func run() throws {
         let work = try work()
-        let session = try readPackage(package)
+        let session = try readForSamples(package)
         let source: ExportSource
         do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
         do { try work.checkFiles(session, package: package.url, source: source) } catch {

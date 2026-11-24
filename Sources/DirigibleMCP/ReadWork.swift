@@ -166,12 +166,9 @@ package struct ReadWork: Sendable {
         }
     }
 
-    /// The job of a tool call on the files, with no lock.
+    /// The job of a tool call on the files, with no lock after the unarchive of `readForSamples`.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
-        let session: Session
-        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
-            throw ToolError(error.message(package: path))
-        }
+        let session = try readForSamples(package, path: path)
         do throws(ReadFailure) {
             return try read(session, package: package, progress: control.report, isCancelled: control.isCancelled).text
         } catch {

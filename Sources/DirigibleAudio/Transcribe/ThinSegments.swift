@@ -17,6 +17,11 @@ struct ThinSpan: Hashable, Sendable {
     var thin: [DecodedSegment]
 
     var firstPassWordCount: Int { thin.reduce(0) { $0 + $1.words.count } }
+
+    /// The words of the span length at `ThinSegments.typicalWordsPerSecond`, less the first-pass words.
+    var missingWords: Double {
+        Double(end - start) / 100 * ThinSegments.typicalWordsPerSecond - Double(firstPassWordCount)
+    }
 }
 
 /// What one second call gives: its words in call time, a stop, or the return code of a failed call.
@@ -70,6 +75,8 @@ enum ThinSegments {
     static let shortestThinTicks = 500
     static let thinTicksPerWord = 100
     static let callCap = 4
+    /// The median rate of the 239 segments that are not thin in 10 trial tracks.
+    static let typicalWordsPerSecond = 2.8
     static let densestWordsPerSecond = 6
     /// A run of at most 4 second-pass words at an edge of a call goes when it repeats the first-pass
     /// words on that side within 1.0 s.
@@ -96,13 +103,13 @@ enum ThinSegments {
         ticks >= shortestThinTicks && ticks > thinTicksPerWord * words
     }
 
-    /// The second calls of a piece: at most `callCap` of `calls`, the calls with the most first-pass
+    /// The second calls of a piece: at most `callCap` of `calls`, the calls with the most missing
     /// words first, ties in time order. The result is in time order.
     static func spans(of segments: [DecodedSegment], pieceEnd: Int, language: String) -> [ThinSpan] {
         let all = calls(of: segments, pieceEnd: pieceEnd, language: language)
         let ranked = all.indices.sorted { a, b in
-            let (wordsA, wordsB) = (all[a].firstPassWordCount, all[b].firstPassWordCount)
-            return wordsA != wordsB ? wordsA > wordsB : a < b
+            let (missingA, missingB) = (all[a].missingWords, all[b].missingWords)
+            return missingA != missingB ? missingA > missingB : a < b
         }
         return ranked.prefix(callCap).sorted().map { all[$0] }
     }
@@ -197,14 +204,25 @@ enum ThinSegments {
     /// `language` the first-pass language code. `decode` runs one call on a sample range of the
     /// piece in that language and gives its words in call time. A stopped call ends the loop. Each
     /// call that ends writes one `transcript redecode` note to `log`; a stopped call writes none.
+    /// When the cap drops spans, one `transcript redecode cap` note names them.
     static func redecode(
         first: [(word: TimedWord, segment: Int)], bounds: [(start: Int, end: Int)], sampleCount: Int,
         language: String, log: DiagnosticLog, decode: (Range<Int>, String) -> RedecodeOutcome
     ) -> PieceOutcome {
         let decoded = segments(bounds, wordSegments: first.map(\.segment))
         let pieceEnd = (sampleCount + WordEnds.samplesPerTick - 1) / WordEnds.samplesPerTick
+        let chosen = spans(of: decoded, pieceEnd: pieceEnd, language: language)
+        let dropped = calls(of: decoded, pieceEnd: pieceEnd, language: language).filter { !chosen.contains($0) }
+        if !dropped.isEmpty {
+            log.note(
+                .app, "transcript redecode cap",
+                fields: [
+                    ("dropped", .number(Int64(dropped.count))),
+                    ("spans", .text(dropped.map { "\($0.start)-\($0.end)" }.joined(separator: ","))),
+                ])
+        }
         var redecodes: [Redecode] = []
-        for span in spans(of: decoded, pieceEnd: pieceEnd, language: language) {
+        for span in chosen {
             var outcome = decode(sampleRange(ticks: span.start..<span.end, count: sampleCount), language)
             if case .words(let words) = outcome { outcome = .words(shifted(words, byTicks: span.start)) }
             redecodes.append(Redecode(span: span, outcome: outcome))

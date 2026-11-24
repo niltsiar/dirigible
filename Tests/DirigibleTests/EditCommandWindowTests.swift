@@ -200,10 +200,10 @@ import Testing
     }
 
     /// Criterion 19, amended by decision 0042: one clipboard for the app, not on the general
-    /// pasteboard, so a paste in another window tries a copy of the file. Control: a clipboard on
-    /// the general pasteboard changes its count.
+    /// pasteboard, so a paste in another window tries a copy of the file. The check reads what the
+    /// general pasteboard holds, not its change count: another app or test can write it at any time.
+    /// Controls: a Copy that puts a type of the app, or the file name, on the general pasteboard fails.
     @Test func theClipboardIsOnePerAppAndLeavesThePasteboard() async throws {
-        let count = NSPasteboard.general.changeCount
         let (first, _, _, _) = try await open("a")
         let (second, other, _, _) = try await open("b")
         first.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
@@ -219,7 +219,10 @@ import Testing
         // This fixture has no WAV, so the copy refuses; SessionPasteWindowTests copies a real one.
         #expect(other.session == before)
         #expect(second.alert == .error(.paste(.sourceMissing(file: "f1.wav"), source: "timeline")))
-        #expect(NSPasteboard.general.changeCount == count)
+        let items = NSPasteboard.general.pasteboardItems ?? []
+        let types = items.flatMap(\.types).map(\.rawValue)
+        #expect(!types.contains { $0.localizedCaseInsensitiveContains("dirigible") }, "app types on it: \(types)")
+        #expect(!items.compactMap { $0.string(forType: .string) }.contains { $0.contains("f1.wav") }, "the file name")
         let url = first.url
         await first.close()
         #expect(app.windows[url] == nil)

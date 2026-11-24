@@ -109,6 +109,7 @@ expect_only() {
 }
 
 good; expect pass 'good tree'
+good; printf 'It waits for backlog item 1234.\n' >> "$tmp/docs/decisions/0002-x.md"; expect fail 'the drift script runs: a backlog number in a record' 'docs/decisions/0002-x.md:4: a backlog number'
 good; printf '# Topic\n\n## Sources\n' > "$tmp/docs/research/topic.md"; expect fail 'research file without a date' "docs/research/topic.md: no 'Date: YYYY-MM-DD' line"
 good; printf '# Topic\n\nDate: 2026-09-24\n' > "$tmp/docs/research/topic.md"; expect fail 'research file without sources' "docs/research/topic.md: no '## Sources' section"
 good; printf '| R10 | b |\n' > "$tmp/docs/requirements/releases.md"; expect fail 'R1 missing while R10 stays' 'releases.md: no release row for R1'

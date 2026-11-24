@@ -233,6 +233,9 @@ docs_script="scripts/check-docs"'.sh' docs_code_script="scripts/check-docs-code"
 expect 'the check-docs script alone' "$(out tooling static no)" <<<"$docs_script"
 expect 'the check-docs code-rules script alone' "$(out tooling static no)" <<<"$docs_code_script"
 expect 'the check-docs script and a script with a test' "$(out tooling "check-fast$(hw scripts/probe.sh)" no)" <<<"$docs_script"$'\nscripts/probe.sh'
+# The drift script has no such exemption: the check-docs target does not run its test.
+drift_script="scripts/check-docs-drift"'.py'
+expect 'the check-docs drift script alone' "$(out tooling 'check-fast HOOK_TESTS=scripts/check-docs-drift.test.sh' no)" <<<"$drift_script"
 
 # The HOOK_TESTS word. A local run with check-fast names the hook tests that the changed paths
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a

@@ -70,6 +70,8 @@ This file answers eight questions on how editors select and edit several regions
 
 ## Open questions
 
+State on 2026-11-24: decided and built in decision 0038 (clip selection, with its amendments for the marquee and the click rules). Decision 0038 holds the answers.
+
 - Plain click on a selected clip: keep or reduce.
 - Marquee: fully inside or touch (Logic, FCP, Hindenburg).
 - Multi-move past the last track, and mono to stereo.

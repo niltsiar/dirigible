@@ -273,7 +273,7 @@ Facts that two or more primary sources agree on:
 4. Ducking follows a role or a type of the track or clip: Premiere and Audition (Music and Ambience duck against Dialogue and others), Auphonic (Fore/Background), Descript (a track toggle). FCP has roles but no auto duck.
 5. FCP has three audio roles with a color: Dialogue, Music, Effects. The default for untagged audio is Dialogue.
 
-Inference: the most common Dirigible gesture is a range select followed by a drag of the gain, as in Hindenburg and FCP. For that gesture, the edge ramp length is unconfirmed in every app (open question 14). The plan must choose it.
+Inference: the most common Dirigible gesture is a range select followed by a drag of the gain, as in Hindenburg and FCP. For that gesture, the edge ramp length is unconfirmed in every app (open question 14). The plan must choose it. State on 2026-11-24: decision 0060 chose it. The default ramp of a range gain is 500 ms (`Sources/DirigibleCore/Session+Envelope.swift`).
 
 ## 9. Open questions
 
@@ -290,7 +290,7 @@ Inference: the most common Dirigible gesture is a range select followed by a dra
 11. Typical broadcast ducking numbers (for example -12 to -20 dB) from a broadcaster or standard. Only vendor defaults and creator guides were found.
 12. Premiere's Essential Sound page before 2026 may list a different set of duckable types. The 2026 page says Music and Ambience.
 13. The Audacity envelope-tool gestures were not read for this file. Only the Auto Duck page of Audacity was read.
-14. The edge ramp length of a range gain is unconfirmed in every app read. The plan must choose it. Hindenburg and FCP are the closest models, and neither gives a length. No running app was checked.
+14. The edge ramp length of a range gain is unconfirmed in every app read. The plan must choose it. Hindenburg and FCP are the closest models, and neither gives a length. No running app was checked. Decided: the default ramp of Dirigible is 500 ms (decision 0060).
 
 ## Sources
 

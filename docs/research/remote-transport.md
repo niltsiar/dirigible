@@ -71,7 +71,7 @@ The Avid guide "Artist Series and Pro Tools" (EuControl v2.6, 2011) lists the tr
 
 - Inference: Logic, Pro Tools, and REAPER show a remote command only as normal transport state. No source shows a remote banner. No source tests "an agent moves the playhead while the user edits".
 - Inference: play, stop, and locate need no undo step. Logic undo lists edits; REAPER undo points cover selections and edits.
-- Stop while recording ends the recording in Logic and REAPER. Play also ends it in REAPER. An agent Play during a recording needs our own rule (unconfirmed for Logic and Pro Tools).
+- Stop while recording ends the recording in Logic and REAPER. Play also ends it in REAPER. An agent Play during a recording needs our own rule (unconfirmed for Logic and Pro Tools). Decided on 2026-11-24: an agent call during a take throws `.busy` and never stops the take (decision 0016, amended by 0046).
 - "Play a range and stop" is not a standard remote command in Logic, EUCON, or REAPER. Hindenburg Shift-Space is the closest model, and its stop at the end is unconfirmed for PRO 2. Open question: probe the PRO 2 app, or set our own rule.
 
 ## Sources

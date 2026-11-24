@@ -70,7 +70,7 @@ Method: the Hindenburg Journalist 1.21 guide [HM] was read as text with PDFKit (
 2. Bins are named, renamed in place, added, deleted, and ordered; PRO 2 adds sub-groups [HM p. 55, p. 56] [HK2].
 3. Into a bin: drag of a region or a selection (copy and move variants), Option-Command-number, import of a file [HM p. 56, p. 57].
 4. Out of a bin: Paste (Command-Enter, Option-number), Insert (Shift-Enter), drag to a track, preview with Space [HM p. 56, p. 57, p. 98].
-5. Favorites are one list for the user, outside sessions, with their own audio copies in Application Support [HMIG]. Option-Command-0 adds; Option-0 (or Command-0, conflict) pastes [HM p. 59, p. 98].
+5. (Built: decision 0081.) Favorites are one list for the user, outside sessions, with their own audio copies in Application Support [HMIG]. Option-Command-0 adds; Option-0 (or Command-0, conflict) pastes [HM p. 59, p. 98].
 6. A project keeps its media after a library item goes (Descript [DML]); a pointer collection holds no media (FCP [FKC]).
 7. Unconfirmed: the copy-or-reference rule of a session clip, the paste of a favorite into a session folder, the row layout, the count limit, and a drop below the last track.
 

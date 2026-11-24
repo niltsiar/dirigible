@@ -35,7 +35,7 @@ Sources are the macOS 26 SDK headers on the development Mac (`xcrun --show-sdk-p
 ### Recommendation
 
 - First release: WAV, AAC in `.m4a`, and FLAC. All three use `AVAudioFile` with a different settings dictionary. There is no new dependency.
-- Next release: MP3 with LAME, static, as a SwiftPM C target built from source. Disable the decoder. Write a decision record that names the LGPL obligations. Put `COPYING` and a LAME notice in `Contents/Resources`. Change to dynamic linking only if a reviewer says that static linking does not meet LGPL section 6.
+- Next release: MP3 with LAME, static, as a SwiftPM C target built from source. Built: LAME 4.0 in `Sources/CLame/` (decision 0034), not LAME 3.100. Disable the decoder. Write a decision record that names the LGPL obligations. Put `COPYING` and a LAME notice in `Contents/Resources`. Change to dynamic linking only if a reviewer says that static linking does not meet LGPL section 6.
 
 ## 2. Default clip format (R6)
 
@@ -157,8 +157,9 @@ Update 2026-09-24: decision 0008 keeps this recommendation: -16 LUFS for stereo 
 
 ### Recommendation
 
+- State on 2026-11-24: the shipped design differs from this plan. Decision 0009 and its amendments (0054) render the unit offline once into a new WAV, with no stored dial, and hum removal is an `AVAudioUnitEQ` band-stop, not `vDSP.Biquad` notches. The plan of 2026-09-24 follows.
 - First method: AUSoundIsolation through offline `AVAudioEngine`, per clip, non-destructive. The one dial is `WetDryMixPercent`. Use `HighQualityVoice` on macOS 15 and later, and `Voice` on macOS 14.
-- Before the plan gate, run a spike on a macOS 14 machine. Confirm that the unit loads and renders at 44.1 and 48 kHz. Record the result as a manual check.
+- Before the plan gate, run a spike on a macOS 14 machine. Confirm that the unit loads and renders at 44.1 and 48 kHz. Record the result as a manual check. State on 2026-11-24: no result of this spike is recorded in the repo (decision 0009 keeps it as a manual check).
 - Tests use generated signals: white noise alone goes down by 20 dB or more. Voice quality is a manual check with a recording in `.scratchpads/`, never in git.
 - If the spike fails, use spectral gating with vDSP as the fallback. Its tests are exact: a sine plus noise keeps the sine level within ±0.5 dB and lowers the noise floor by 10 dB or more.
 - Later upgrade: hum and buzz notch filters (`vDSP.Biquad` at 50 or 60 Hz and harmonics) for the Hindenburg "buzz, hum, hiss" bands. Then RNNoise or DeepFilterNet only if users need more control than AUSoundIsolation gives. Each needs a decision record.
@@ -167,7 +168,7 @@ Update 2026-09-24: decision 0008 keeps this recommendation: -16 LUFS for stereo 
 
 | Code | Use | License | Compatible with Apache-2.0 app | Obligations |
 |---|---|---|---|---|
-| LAME 3.100 (`libmp3lame`) | MP3 export, next release | LGPL-2.0-or-later. mpglib decoder is GPL. | Yes, as a linked library (unconfirmed legal reading) | Disable the decoder. Ship the LGPL text and a LAME notice. Keep relinking possible (public source, or a dylib). Publish changes to LAME. |
+| LAME 3.100 (`libmp3lame`; built as LAME 4.0, decision 0034) | MP3 export, next release | LGPL-2.0-or-later. mpglib decoder is GPL. | Yes, as a linked library (unconfirmed legal reading) | Disable the decoder. Ship the LGPL text and a LAME notice. Keep relinking possible (public source, or a dylib). Publish changes to LAME. |
 | Shine | Not recommended | LGPL-2.0 | Same as LAME | Same as LAME |
 | libebur128 | Optional cross-check only | MIT | Yes | Keep the copyright notice |
 | RNNoise | Later option for R8 | BSD-3-Clause | Yes | Keep the copyright notice. No endorsement. |

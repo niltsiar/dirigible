@@ -161,7 +161,7 @@ The Hindenburg shortcuts page shows Windows keys only [HSC]. This file maps Ctrl
    - The Logic dialog for "Cut Section Between Locators (Selection)": its text, and if markers move with "yes".
    - The default key of Logic "Delete and Move" in the Key Commands window (Option-K).
 3. Hindenburg (not installed): Cut on one track and Cut on all tracks, with one marker inside the range and one after it. Record the marker frames after each edit. Also check if Q and W ripple only the selected track.
-4. No app in this file has a modifier for a ripple edge drag that a Hindenburg user knows. Hindenburg ripples a trim with Q and W. Inference: a Dirigible modifier for a ripple trim is our own choice, not a copy. The plan picks it.
+4. No app in this file has a modifier for a ripple edge drag that a Hindenburg user knows. Hindenburg ripples a trim with Q and W. Inference: a Dirigible modifier for a ripple trim is our own choice, not a copy. The plan picks it. Decided on 2026-11-24: Option on a trim zone (decision 0037).
 
 ## Sources
 

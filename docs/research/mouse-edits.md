@@ -11,7 +11,7 @@ This document records how Hindenburg edits regions and markers with the mouse: s
 - Trim: "Trim > Drag End Handles" [HM p. 25].
 - Selection: "The cursor-tool will become an 'i' bean when placed at the lower part of a region. When the cursor-tool becomes an 'i' beam, you can drag a selection" [HM p. 26].
 - Gain: "Adjust level > Drag Top Handle" [HM p. 29 to 30]. Fade: "Fade > Drag Corner Handles" [HM p. 30].
-- Inference: from top to bottom, a region has the gain handle, the move zone in the middle, and the selection zone in the lower part. The ends trim. The corners fade. Release 1 has no gain handle and no fades, so the top part can also move.
+- Inference: from top to bottom, a region has the gain handle, the move zone in the middle, and the selection zone in the lower part. The ends trim. The corners fade. Release 1 had no gain handle and no fades, so the top part could also move. State on 2026-11-24: F31 (clip gain) and F32 (fades) are done in Release 2, so the gain handle and the fade handles exist.
 - No source gives the width of the trim handle or the heights of the zones in pixels (unconfirmed).
 
 ## 2. Select a region
@@ -68,4 +68,4 @@ This document records how Hindenburg edits regions and markers with the mouse: s
 - [A-TRK] AppKit header `NSTrackingArea.h`, lines 21 to 27; https://developer.apple.com/documentation/appkit/nstrackingarea
 - [A-MENU] https://developer.apple.com/documentation/appkit/nsview/menu(for:)
 - [A-VIEW] https://developer.apple.com/documentation/appkit/nsview/autoscroll(with:)
-- [P-C1] Probe C1, `.scratchpads/runs/2026-09-26-mouse-edits/probe/c1/output.txt` (macOS 15.7.9, Swift 6.2.4, `swiftc -target x86_64-apple-macos14.0 -warnings-as-errors`).
+- [P-C1] Probe C1, in a local run folder, not in git (macOS 15.7.9, Swift 6.2.4, `swiftc -target x86_64-apple-macos14.0 -warnings-as-errors`).

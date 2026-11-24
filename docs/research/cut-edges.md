@@ -108,7 +108,7 @@ What the numbers say:
 
 Conclusion, for this sample and the `base` model only: a rule bounded by the Whisper word gap could not move most edges. A quiet-point rule then needs an audio read with its own reach. Its bar must compare the moved edge with the word edge, and the bar must be fixed before its data run.
 
-Not measured: a larger model, a second language, and a forced aligner. Any of them can give more pauses between words. A run on item 1257 must measure them before it takes this conclusion as settled.
+Not measured: a larger model, a second language, and a forced aligner. Any of them can give more pauses between words. A later run on the aligner must measure them before it takes this conclusion as settled.
 
 ## Defaults this suggests
 

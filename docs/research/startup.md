@@ -4,11 +4,13 @@ Date: 2026-09-29
 
 ## Scope
 
-A beta tester (2026-09-29) said: "It starts, but first it asks me for the folder and it does not open anything. It is not intuitive." The tester had to cancel the panel and find File > New. This document records what Dirigible does at launch today, how 11 reference apps start, and which macOS 14 and 15 APIs a start window can use.
+A beta tester (2026-09-29) said that the app asks for a folder at launch, opens nothing, and is not intuitive. The tester had to cancel the panel and find File > New. This document records what Dirigible does at launch today, how 11 reference apps start, and which macOS 14 and 15 APIs a start window can use.
 
 Marks: "(unconfirmed)" means that no primary source was found. "Inference:" is our reading. "[SDK]" is the Xcode 26.3 SDK (macOS 26.2 SDK) on this Mac: `SwiftUI.swiftmodule/arm64e-apple-macos.swiftinterface` and the AppKit headers, read on 2026-09-29.
 
-## 1. What happens today
+## 1. What happened on 2026-09-29
+
+State on 2026-11-24: the app shows the start window at launch, at a Dock click with no window, and after the last session window closes (`showStart()` in `Sources/DirigibleApp/AppDelegate.swift`, decision 0027). File > New Session opens the same start window. The table below records the state of 2026-09-29, before decision 0027.
 
 The app is not a `DocumentGroup` app. Decision 0014 gives an app with only a `Settings` scene and one AppKit window per package, with no `NSDocument` subclass. So the `NSDocumentController` untitled-document path, `applicationShouldOpenUntitledFile`, and the iCloud "app-centric" open panel do not apply. The panel that the tester saw is our own panel.
 
@@ -22,11 +24,11 @@ The app is not a `DocumentGroup` app. Decision 0014 gives an app with only a `Se
 | File > Open, Open Recent | `DirigibleApp.swift:18-23`, `AppDelegate.swift:13, 87-88` | Open Recent reads `NSDocumentController.shared.recentDocumentURLs`; each open calls `noteNewRecentDocumentURL`. |
 | Open from Finder | `AppDelegate.swift:203-209` | Open events come before `applicationDidFinishLaunching` (0014 P7), so no panel shows. |
 
-The guide documents this flow: `docs/guide.md:24-28` ("Choose File > New Session", then "Type a name ..., select a folder, and click Save").
+The guide of 2026-09-29 documented this flow in its first tutorial. The guide now describes the start window in "Make the session".
 
 Two facts constrain a new flow:
 
-- A session is a package on disk, and a take needs that package before it starts (AGENTS.md "No data loss"; 0004, 0012). `Studio.create` needs a URL. The app has no Save command: each change saves at once (0014). So an "untitled session in memory" has no later Save step that asks for a name.
+- A session is a package on disk, and a take needs that package before it starts (`CODING_STANDARDS.md` "No data loss"; 0004, 0012). `Studio.create` needs a URL. The app has no Save command: each change saves at once (0014). So an "untitled session in memory" has no later Save step that asks for a name.
 - 0014 rejects `DocumentGroup`: its save replaces the package folder and deletes `Capture/` (0014 P1). `docs/research/document-window.md` section 5.
 
 ## 2. How other apps start
@@ -83,6 +85,8 @@ Inference: on macOS 14, a SwiftUI `Window` scene placed before `Settings` presen
 
 ## 5. Probes that a run needs
 
+State on 2026-11-24: the run of decision 0027 ran or dropped these probes. Section 6 and decision 0027 hold the results.
+
 - S1. SwiftUI `Window` scene plus `Settings` on macOS 14: does the window present at a Finder open of a package, and at a Dock click with no window? Compare with macOS 15 and `.defaultLaunchBehavior(.suppressed)`. Only needed if the run picks a SwiftUI scene.
 - S2. `applicationShouldHandleReopen` when the only window is the start window, and when it is minimized.
 - S3. `recentDocumentURLs` after the package is moved, renamed, or on an unplugged disk: does AppKit drop the entry, and does `FileManager.fileExists` block on a hung volume (read it off the main actor, as `listedAtLaunch` does).
@@ -94,7 +98,7 @@ Inference: on macOS 14, a SwiftUI `Window` scene placed before `Settings` presen
 
 ## 6. Probes and checks of run 2026-09-30-start-window
 
-S6 ran on 2026-09-30 in a `swiftc` CLI process on macOS 15.7.9, not in the test runner and not in the app. A probe proves only the objects that it ran with. The run folder `.scratchpads/runs/2026-09-30-start-window/probe/s6/` has the source and the logs. The view has a `TextField` with `onSubmit`, a `List` with a selection and `contextMenu(forSelectionType:menu:primaryAction:)`, and `@FocusState`, in an `NSHostingController` of an `NSWindow`. The probe sends a Return key-down with `window.performKeyEquivalent`, then `window.sendEvent`.
+S6 ran on 2026-09-30 in a `swiftc` CLI process on macOS 15.7.9, not in the test runner and not in the app. A probe proves only the objects that it ran with. The local run folder (not in git) has the source and the logs. The view has a `TextField` with `onSubmit`, a `List` with a selection and `contextMenu(forSelectionType:menu:primaryAction:)`, and `@FocusState`, in an `NSHostingController` of an `NSWindow`. The probe sends a Return key-down with `window.performKeyEquivalent`, then `window.sendEvent`.
 
 | Probe | Result (macOS 15.7.9, CLI process) |
 |---|---|
@@ -142,5 +146,5 @@ S9 was researched, not probed. The question: does the first write in `~/Music/Di
 - [PR] Apple Developer, Protected resources: https://developer.apple.com/documentation/bundleresources/protected-resources
 - [SUI-ctx] `contextMenu(forSelectionType:menu:primaryAction:)`: https://developer.apple.com/documentation/swiftui/view/contextmenu(forselectiontype:menu:primaryaction:)
 - [SUI-kp] `onKeyPress(_:action:)`: https://developer.apple.com/documentation/swiftui/view/onkeypress(_:action:)
-- Probe S6: `.scratchpads/runs/2026-09-30-start-window/probe/s6/` (`main.swift` and the `run-*.log` files; macOS 15.7.9, Swift 6.2.4, a `swiftc` CLI process).
+- Probe S6: a local run folder, not in git (`main.swift` and the `run-*.log` files; macOS 15.7.9, Swift 6.2.4, a `swiftc` CLI process).
 - Repo: `Sources/DirigibleApp/AppDelegate.swift`, `Sources/DirigibleApp/DirigibleApp.swift`, `docs/decisions/0014-session-window.md`, `docs/research/document-window.md`, `docs/guide.md`.

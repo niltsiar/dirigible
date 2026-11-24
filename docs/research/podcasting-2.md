@@ -2,7 +2,7 @@
 
 Date: 2026-09-27
 
-This document records the Podcasting 2.0 JSON chapters format, the Podcasting 2.0 transcript formats, the Argo app, and the ways to put chapters into an MP3 or an M4A file. It says which apps and hosts make and read these files. It ends with a recommendation for Dirigible. It starts from the notes of a subagent of 2026-09-24 (`.scratchpads/runs/2026-09-24-session-core/podcasting20-research.md`). Each claim was checked again against its source on 2026-09-27. A claim that no primary source confirms has the mark "(unconfirmed)". A sentence that starts with "Inference:" is our reading of the sources.
+This document records the Podcasting 2.0 JSON chapters format, the Podcasting 2.0 transcript formats, the Argo app, and the ways to put chapters into an MP3 or an M4A file. It says which apps and hosts make and read these files. It ends with a recommendation for Dirigible. It starts from the notes of a subagent of 2026-09-24 (a local run folder, not in git). Each claim was checked again against its source on 2026-09-27. A claim that no primary source confirms has the mark "(unconfirmed)". A sentence that starts with "Inference:" is our reading of the sources.
 
 Related documents: `docs/research/podcast-features.md` (F19 markers, F27 transcripts, F55 metadata, F56 chapters), `docs/decisions/0018-edit-commands.md` (markers and chapters in Release 1), `docs/decisions/0011-command-line-front-end.md` (a `dirigible` command for each package or audio file feature), `docs/decisions/0019-export.md` (export range).
 
@@ -90,10 +90,12 @@ Who reads transcripts:
 
 - A `Marker` has an ID, a name, a position in frames at the session rate, and a kind: `marker` or `chapter` (`Sources/DirigibleCore/Model.swift`). Add Chapter (Shift-Cmd-Return) makes "Chapter N" (0018).
 - `dirigible marker set <package> --kind chapter` and `dirigible marker remove` already exist (0018).
-- A chapter has no image, no URL, and no `toc` flag. F56 adds them.
+- State on 2026-09-27: a chapter had no image, no URL, and no `toc` flag. State on 2026-11-24: a chapter has a link and an image (`Marker.url` and `Marker.image` in `Sources/DirigibleCore/Model.swift`; F56 is done). A marker has no `toc` flag. `dirigible chapters import` reads the JSON field `toc`: a chapter with `toc` false becomes a plain marker.
 - Export writes frames 0 to `session.end`, or the range of the Marks for Export Selection (0019).
 
 ## Recommendation
+
+State on 2026-11-24: recommendations 1 to 3 landed. `dirigible chapters export` and `dirigible chapters import` exist (`Sources/DirigibleCLI/ChaptersCommand.swift`), and F56 is done. `dirigible export` embeds the chapters of the range in every MP3 and M4A file, with the URL and the image of each chapter. The text below is the plan of 2026-09-27.
 
 **1. Export `chapters.json` from the chapter markers: yes, as a small Release 2 run.**
 
@@ -119,7 +121,7 @@ Who reads transcripts:
 **CLI (0011).**
 
 - Release 2: `dirigible chapters export <package> --out <file.json> [--from N] [--to N] [--replace]`. It writes the file and nothing to stdout. Exit 2 for a package fault or an existing `--out` without `--replace`. Exit 1 when the session has no chapter markers. Exit 64 for a bad range. `--json` is not needed: the extension of `--out` gives the format, as in `dirigible export`.
-- Release 3: `dirigible chapters import <package> <file.json> [--replace]`, which writes the new marker IDs, one on each line. The embed has no command of its own: `dirigible export` writes the chapters into an MP3 or M4A file, with `--no-chapters` to turn it off.
+- Release 3: `dirigible chapters import <package> <file.json> [--replace]`, which writes the new marker IDs, one on each line. The embed has no command of its own: `dirigible export` always writes the chapters of the range into an MP3 or M4A file.
 - Inference: the noun `chapters` (plural) names a file of chapters. The existing `marker` noun edits one marker.
 
 ## Sources

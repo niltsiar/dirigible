@@ -74,6 +74,8 @@ return pow ((6.0 * log (g) / log (2.0) + 192.0) / 198.0, 8.0);
 
 ## Open questions for the plan
 
+State on 2026-11-24: F94 is done (Release 3 run 2). Decision 0039 (amended 2026-10-11) holds the fader rules, and the guide section "Set the volume of a track" describes it. The questions below are the list of 2026-10-11.
+
 1. The Hindenburg PRO 2 minimum and maximum. Check the readout at both ends in a trial copy.
 2. A probe for SwiftUI on macOS 14 (run after the loop, in a probe folder). The question: does a drag still start, and when does `onEditingChanged` fire?
 

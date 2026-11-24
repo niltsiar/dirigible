@@ -38,7 +38,7 @@ The PRO 2 shortcut page [SH] did not show its content on 2026-09-24. The page sh
 | Add a cue point (locked to the audio) | Option-Cmd-Return | Not in the manual | [V-cue] |
 | Select the right side after a split | Shift-Cmd-B | Not in the manual | [R2544] |
 
-Note: macOS uses Cmd-Space for Spotlight by default (unconfirmed on the target Mac). The PRO 2 videos disagree on the Record key. Test Cmd-Space and Control-Space before a key is chosen.
+Note: macOS uses Cmd-Space for Spotlight by default (unconfirmed on the target Mac). The PRO 2 videos disagree on the Record key. Test Cmd-Space and Control-Space before a key is chosen. Settled on 2026-11-24: Record is Command-R (`MenuKeys.record`), and Play is Space (`MenuKeys.play`).
 
 ## 1. Transport
 

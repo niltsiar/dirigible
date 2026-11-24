@@ -89,7 +89,7 @@ The post itself has no more text. No reply by Karpathy is in the thread.
 Each item below matches a source. Each needs no change.
 
 - **Point to a reference with its trigger.** `deliver`, `tdd`, `verify-this`, and `interrogate` say "Read `references/X` when ...". This matches source 3, item 4.
-- **Return only the output that the agent needs.** Each script does the work and prints a short result: `cost.sh`, `check-changed.sh`, `evals-for.sh`, `seen.sh`, `pr-terms.sh`. This matches the level 3 script rule (item 1) and programmatic tool calling (item 7).
+- **Return only the output that the agent needs.** Each script does the work and prints a short result: `.claude/skills/reflect/scripts/cost.sh`, `check-changed.sh`, `evals-for.sh`, `.claude/skills/reflect/scripts/seen.sh`, `pr-terms.sh`. This matches the level 3 script rule (item 1) and programmatic tool calling (item 7).
 - **Errors are part of the API.** `land.sh` prints its usage and exits 2 on wrong arguments. Most scripts have a `# Usage:` header. `bundle.sh`, `dmg.sh`, and `test-dmg.sh` have none, and no script reads `--help`. The `check-docs.sh` errors name the file and the problem.
 - **Design the call site first.** The `architect` package writes "the caller's usage ... first" (`architect/SKILL.md`, line 86).
 - **Limit the public surface.** `docs/workflow/budgets.tsv` and the reflect rule "replace, not add" limit new public text. Karatzas post 2 says the same thing for API symbols.
@@ -98,6 +98,8 @@ Each item below matches a source. Each needs no change.
 ## Changes for this repo
 
 Each change is small. I rank them by expected value per cost.
+
+State on 2026-11-24: change 1 no longer applies, because `architect` now starts `general-purpose` subagents (`.claude/skills/architect/SKILL.md`), which load AGENTS.md. Change 2 landed: the Commands table of AGENTS.md has 10 rows. Change 3 did not land: `.claude/skills/technical-writing/` has no `references/diataxis.md`, and SKILL.md still holds the Diátaxis section.
 
 ### 1. Give the architect Plan agents the AGENTS.md rules
 

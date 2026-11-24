@@ -30,6 +30,8 @@ Questions: (1) What does a drop of audio files do on a session with no tracks (F
 
 ## 3. Probe P1 and open questions
 
+State on 2026-11-24: F108 (a drop on an empty session) and F109 (a click in an empty lane) are done in Release 4 run 22 (`Sources/DirigibleApp/EmptyDrop.swift`). Question B and Q3 have no recorded result.
+
 - **P1, question A: which host takes a Finder drag over the empty state?** `EmptyDropView`, an `NSView` that registers `.fileURL` and hosts the SwiftUI content in an `NSHostingView` subview, takes the drag over the Add Track button. A real Finder drag (`scripts/hid.swift drag --outside`) onto the button made track "a" at frame 0 on the verify copy. The probe was the real host: no throwaway patch was built, and the window candidate (`UndoRoutingWindow`) and SwiftUI `dropDestination` were not tried.
 - **P1, question B: in what order does the Finder give the URLs of a drag of several files?** Not measured. The agent could not sort or select files in Finder: `osascript` had no assistive access, and `scripts/hid.swift` clicks no Finder item. The code keeps the order of the drag pasteboard (`AppDelegate.audioFiles(on:)`). Check M1 (three files in a Finder list view sorted by Date Modified that shows c, a, b, with all three selected by Command-A) tells the pasteboard order from the name order.
 - **Q3 (open).** After a click in an empty lane in Hindenburg PRO, does the name bar of that track turn blue? A hardware check in Hindenburg; no source.

@@ -79,6 +79,8 @@ Grades: **P** is a primary vendor page, a vendor manual, vendor source code, or 
 
 ## Open questions for the plan
 
+State on 2026-11-24: questions 1 to 4 are built (F82, decision 0020, amended 2026-10-11): a move, a trim, and a range drag snap when View > Snap is on and Command is not held. Question 5 stays open.
+
 1. A clip edge that snaps to a clip edge on another track is the most common gesture. Only Ableton ("the edges of other clips") and Audition ("align clips with other clips") state it. Final Cut Pro says "Clip boundaries" with no track scope. Decide whether the targets include all tracks or only the dragged clip's track.
 2. The modifier conflicts with this repo. Shift-drag draws a marquee in Hindenburg (`mouse-edits.md` section 6). Shift-Cmd-drag is the Hindenburg shuffle trim (`mouse-edits.md` section 4). Command is the Logic Command-click tool (`ripple-edit.md`). Control and Control-Shift are Logic finer snap (`ripple-edit.md`, [LSN]). Check the modifiers that the timeline already uses before the plan picks one.
 3. The key: N (Final Cut Pro), S (Premiere), Command-G (GarageBand), or Option-Command-G (Logic and GarageBand guides). Check the keys that Dirigible already uses.

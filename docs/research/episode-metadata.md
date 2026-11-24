@@ -77,9 +77,10 @@ This document records the episode metadata that an MP3 file (ID3v2) and an M4A f
 
 ## 5. Room for chapters and other facts for the design
 
-- `CHAP` and `CTOC` frames go in the same ID3v2 tag as the fields above [podcasting-2.md](podcasting-2.md). LAME 4.0 does not write them [LAME]. Inference: one ID3v2.3 tag writer in Dirigible must hold all frames, with `lame_set_write_id3tag_automatic(gfp, 0)` so that LAME writes no tag.
+- `CHAP` and `CTOC` frames go in the same ID3v2 tag as the fields above [podcasting-2.md](podcasting-2.md). LAME 4.0 does not write them [LAME]. State on 2026-11-24: built. `ID3Tag.swift` writes the tag (decision 0045). Inference of 2026-10-10: one ID3v2.3 tag writer in Dirigible must hold all frames, with `lame_set_write_id3tag_automatic(gfp, 0)` so that LAME writes no tag.
 - The MP4 chapter list is a text track with a `chap` track reference. `AVAssetTrack.AssociationType.chapterList` exists. No source confirms a working write to an audio-only M4A ([podcasting-2.md](podcasting-2.md), section 6).
-- `MP3File.swift` writes the LAME tag frame at byte 0 (lines 76 to 78). An ID3v2 tag at the start of the file moves that frame by the tag size.
+- On 2026-10-10, `MP3File.swift` wrote the LAME tag frame at byte 0. An ID3v2 tag at the start of the file moves that frame by the tag size. State on 2026-11-24: `MP3File.swift` writes the LAME tag frame after the ID3 tag, at offset `tag.count` (decision 0034, amended 2026-10-10).
+- State on 2026-11-24: the M4A question below is answered. `M4ATags.swift` writes the tags (decision 0045).
 - M4A: `AVAssetWriter.metadata` writes top-level metadata [AVW]. Export writes M4A with `AVAudioFile` (decision 0007). Open question: can `AudioFileSetProperty` with `kAudioFilePropertyInfoDictionary` or `kAudioFilePropertyAlbumArtwork` set iTunes atoms in an M4A? Probe for a later run: write an M4A with `AVAudioFile`, then try both properties and `AVAssetWriter` with `iTunesMetadataSongName` and a raw `tves` item. Read the file back with `AVAsset` and `mp4dump`.
 
 ## Sources

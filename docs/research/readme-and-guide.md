@@ -2,7 +2,7 @@
 
 Date: 2026-09-27
 
-This note prepares the README and guide run (backlog, user request 2026-09-26). The run adds a banner and a few screenshots to `README.md`, and it adds `docs/guide.md`, a short user guide. After that run, each user-facing run updates the guide. This note gives the conventions, the specifications, and a check that is realistic.
+This note prepares the README and guide run (user request of 2026-09-26). The run adds a banner and a few screenshots to `README.md`, and it adds `docs/guide.md`, a short user guide. After that run, each user-facing run updates the guide. This note gives the conventions, the specifications, and a check that is realistic.
 
 ## Facts
 
@@ -16,8 +16,8 @@ This note prepares the README and guide run (backlog, user request 2026-09-26). 
 
    ```html
    <picture>
-     <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
-     <img alt="Dirigible" src="docs/images/banner-light.svg" width="800">
+     <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.png">
+     <img alt="Dirigible" src="docs/images/banner-light.png" width="800">
    </picture>
    ```
 
@@ -73,13 +73,13 @@ Patterns:
 
 20. `scripts/screenshot.sh` captures only the Dirigible window with `screencapture -x -o -l <window id>`. `-o` removes the window shadow, and `-x` stops the sound. [26] The script does not set or check the window size.
 21. On this Mac (built-in Retina display, 2560 x 1600), a capture has 144 dpi, which is 2 pixels for each point. (Probe: `sips -g dpiWidth` on a 2x PNG gave 144.) So a window of 1200 x 750 points gives a PNG of 2400 x 1500 pixels.
-22. `sips` changes the size and the format. It does not optimize a PNG. On the CotEditor PNG (709 KB, 1464 px wide), `sips --resampleWidth 1000` gave 528 KB, JPEG at quality 80 gave 228 KB, and HEIC gave 89 KB. (Probe in `.scratchpads/readme-probe/`.) JPEG blurs the edges of text. Browsers do not all show HEIC.
+22. `sips` changes the size and the format. It does not optimize a PNG. On the CotEditor PNG (709 KB, 1464 px wide), `sips --resampleWidth 1000` gave 528 KB, JPEG at quality 80 gave 228 KB, and HEIC gave 89 KB. (Probe in a local run folder, not in git.) JPEG blurs the edges of text. Browsers do not all show HEIC.
 23. `-AppleLanguages "(en)"` at launch forces the English UI (docs/research/localization.md, fact 12). This makes screenshots in English on a Mac with a Spanish language setting.
 24. `say -o host.wav --data-format=LEI16@48000 "..."` writes synthetic speech as a 48 kHz WAV file (probe: 1 channel, 48000 Hz, Int16). The `dirigible` command-line tool can make a session from such files (`create`, `track`, `file`, `clip`, `marker`). Synthetic speech gives a waveform that looks like a podcast and is not a real voice, so AGENTS.md permits it. (Unconfirmed: `dirigible file add` of a `say` WAV was not tried.)
 
 ### The UI names that a check can read
 
-25. `Support/Resources/en.lproj/Localizable.strings` has 53 keys that start with `menu.`, with 52 different English names after the ellipsis is removed (for example `"menu.file.export" = "Export…";`). The Spanish file has the same keys. `L10n.swift` lists each key, and `MenuKeys.swift` has the shortcut of each menu item.
+25. `Support/Resources/en.lproj/Localizable.strings` had 53 keys that start with `menu.` on 2026-09-27 (153 on 2026-11-24), with 52 different English names after the ellipsis is removed (for example `"menu.file.export" = "Export…";`). The Spanish file has the same keys. `L10n.swift` lists each key, and `MenuKeys.swift` has the shortcut of each menu item.
 
 ## Recommendations
 
@@ -88,7 +88,7 @@ Patterns:
 Keep the README short. It answers what the app does, how to get it, and where to read more. [1]
 
 1. **Banner.** A `<picture>` with the light and the dark banner (fact 5). The `alt` text is "Dirigible".
-2. **One paragraph and a short list**, as CotEditor does: what Dirigible does, then "Requirements: macOS 14 or later", "Languages: English, Spanish", "License: Apache 2.0". Replace the old "Status" paragraph with one line on what works today and a link to `docs/requirements/releases.md`.
+2. **One paragraph and a short list**, as CotEditor does: what Dirigible does, then "Requirements: macOS 14 or later", "Languages: English, Spanish" (the README now lists eight languages), "License: Apache 2.0". Replace the old "Status" paragraph with one line on what works today and a link to `docs/requirements/releases.md`.
 3. **Main screenshot**: the session window during an edit.
 4. **Features**: five to seven bullets, only features that work.
 5. **Second screenshot**: recording with the input meters. Put it next to the recording bullets or under the features.
@@ -105,14 +105,14 @@ Leave out: a badge row (there is no CI and no release count), sponsor buttons, a
 - Content: the app icon at the left, the name "Dirigible", and one short line ("Podcast recorder and editor for macOS"). No screenshot in the banner.
 - Size: an aspect ratio of 4:1, drawn at 1600 x 400 px, shown with `width="800"`.
 - Format: SVG, with the text converted to paths, so the result does not depend on the fonts of the reader. Keep it under 100 KB. If the SVG uses filters that GitHub does not show correctly, export PNG at 1600 x 400 px.
-- Light and dark: two files, `docs/images/banner-light.svg` and `docs/images/banner-dark.svg`, in a `<picture>` element (fact 5). The two files are different only in the text color and the background.
+- Light and dark: two files, `docs/images/banner-light.png` and `docs/images/banner-dark.png`, in a `<picture>` element (fact 5). State on 2026-11-24: the plan of 2026-09-27 named SVG files. The shipped banners are PNG files that `scripts/banner.swift` draws, and the guide section "Make the banner again" gives the steps. The two files are different only in the text color and the background.
 - Source: the vector source of the app icon (the icon run keeps it in the repository). The banner files are the source; no export step is necessary for SVG.
 
 ### Screenshot specification
 
 - Count: two in the README (edit, record). A third (the export sheet) is optional and goes only in the guide.
-- Names: `docs/images/screenshot-edit.png`, `docs/images/screenshot-record.png`, `docs/images/screenshot-export.png`. The guide uses the same files.
-- Window: 1200 x 750 points, which gives 2400 x 1500 px at 2x (fact 21). Show each image with `width="800"`, so it is sharp on a Retina display.
+- Names: `docs/images/screenshot-edit.png`, `docs/images/screenshot-record.png`, `docs/images/screenshot-export.png`. The guide uses the same files. State on 2026-11-24: `scripts/screenshots.sh` makes the screenshots, and `docs/images/` holds files such as `screenshot-edit.png` and `screenshot-export-stems.png`. No `screenshot-record.png` exists.
+- Window: 1200 x 750 points, which gives 2400 x 1500 px at 2x (fact 21). State on 2026-11-24: `scripts/screenshots.sh` refuses a window that is not 1180 x 772 pt. Show each image with `width="800"`, so it is sharp on a Retina display.
 - Format: PNG (text stays sharp, fact 22). Keep each file under 1 MB, and all README images under 3 MB. If a PNG is larger, make the window smaller. Do not add a PNG optimizer: that needs a decision record for a third-party tool.
 - Appearance: light only. A window capture without a shadow is clear on the light theme and on the dark theme of GitHub. Two variants of each screenshot double the work at each UI change. The banner has light and dark variants because it is small and changes almost never.
 - Language: English (`-AppleLanguages "(en)"`, fact 23).
@@ -122,7 +122,9 @@ Leave out: a badge row (there is no CI and no release count), sponsor buttons, a
 
 Add a short procedure to the guide run, as a script or as steps in `docs/guide.md` under a "For contributors" note:
 
-1. Make the demo session: `scripts/demo-session.sh <folder>` makes WAV files with `say`, then runs `dirigible create`, `track`, `file`, `clip`, and `marker`. The folder is under `.scratchpads/`.
+State on 2026-11-24: `scripts/screenshots.sh` replaces this procedure, and `scripts/demo-session.sh` does not exist. The steps below are the plan of 2026-09-27.
+
+1. Make the demo session: `scripts/demo-session.sh <folder>` makes WAV files with `say`, then runs `dirigible create`, `track`, `file`, `clip`, and `marker`. The folder is under `.scratchpads/` (not in git).
 2. Open the app in English: `open build/Dirigible.app --args -AppleLanguages "(en)"`, then open the demo session.
 3. Set the window to 1200 x 750 points. Extend `scripts/screenshot.sh` so that it reads `kCGWindowBounds` and refuses a window of another size. (A resize through Accessibility needs a permission prompt. A size check does not.)
 4. Run `scripts/screenshot.sh docs/images/screenshot-edit.png`, then put the app in the recording state and capture `screenshot-record.png`.
@@ -157,11 +159,13 @@ Write the guide in English only, with one exception: the reference table has a c
 
 ### Help menu
 
-Do not make an Apple Help book now (facts 17 and 18). It needs HTML pages, a `hiutil` index, a change to `scripts/bundle.sh`, and a Spanish version. Consider later: replace the "Dirigible Help" command with a command that opens `docs/guide.md` on GitHub (fact 19). That needs a new L10n key in English and Spanish.
+Do not make an Apple Help book now (facts 17 and 18). It needs HTML pages, a `hiutil` index, a change to `scripts/bundle.sh`, and a Spanish version. Consider later: replace the "Dirigible Help" command with a command that opens `docs/guide.md` on GitHub (fact 19). That needs a new L10n key in English and Spanish. State on 2026-11-24: built. Help > Dirigible Guide opens the guide (`Sources/DirigibleApp/DirigibleApp.swift`).
 
 ### A check that user-facing runs update the guide
 
 Realistic: a check that each menu command has an entry in the guide. Not realistic: a check that the text or the screenshots are current.
+
+State on 2026-11-24: built. `scripts/check-docs.sh` holds the rule ("Every menu name of the app, in English and Spanish, is in bold in the user guide"), and `scripts/check-docs.test.sh` holds its cases.
 
 Add this rule to `scripts/check-docs.sh`, and add a pass case and a fail case to `scripts/check-docs.test.sh`:
 

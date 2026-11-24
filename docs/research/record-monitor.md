@@ -6,13 +6,13 @@ Question: how do the reference apps let the user hear the input of a track in th
 
 ## 1. Hindenburg PRO
 
-- Control: "Right-click on the Arm Rec Button to choose monitor On / Off" [HB-RM]. The control is in a context menu of the arm button, not a separate button. Tester item B2.10 asks for a visible button because of this.
-- What it does: "With Record Monitor On you can listen to the incoming signal on a track BEFORE begin recording." [HB-RM]. The page does not say whether the monitor continues during a take (unconfirmed). Tester item B1.5 asks to hear the input "while you record".
+- Control: "Right-click on the Arm Rec Button to choose monitor On / Off" [HB-RM]. The control is in a context menu of the arm button, not a separate button. A tester asked for a visible button because of this.
+- What it does: "With Record Monitor On you can listen to the incoming signal on a track BEFORE begin recording." [HB-RM]. The page does not say whether the monitor continues during a take (unconfirmed). A tester asked to hear the input while recording.
 - Mode: manual, per track. No source shows an automatic mode.
 - Track header: the 1.21 guide lists name, volume, pan, record, monitor, mute, solo, and effects [HJ] p. 9.
 - Latency: the 1.21 guide warns about latency on a microphone signal [HJ] p. 19. This run did not read the PDF again (the text did not extract). The claim comes from `document-window.md` section 8.
 - Feedback guard: no Hindenburg source found (unconfirmed).
-- Calls: Hindenburg tells the user to set Record Monitor On for the guest track, because the call app sends its sound to the Hindenburg virtual device and not to the speakers (`process-taps.md` section 5, [HK]). Inference: Dirigible taps the call with `CATapUnmuted` (`AppTap.swift:253`), so the call app still plays to the output, and an app track needs no monitor.
+- Calls: Hindenburg tells the user to set Record Monitor On for the guest track, because the call app sends its sound to the Hindenburg virtual device and not to the speakers (`process-taps.md` section 5, [HK]). Inference: Dirigible taps the call with `CATapUnmuted` (`mixdown` in `Sources/DirigibleAudio/Capture/AppTap.swift`), so the call app still plays to the output, and an app track needs no monitor.
 
 ## 2. Logic Pro for Mac
 

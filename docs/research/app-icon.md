@@ -8,7 +8,7 @@ Probe host: macOS 15.7.9, Xcode 26.3 (build 17C529), `actool` 26.3, Icon Compose
 
 ## Recommendation in short
 
-Keep an Icon Composer file `Support/AppIcon.icon` in git, with SVG layers. `scripts/bundle.sh` compiles it with `xcrun actool` into `Assets.car` and `AppIcon.icns`. `Support/Info.plist` names both. One source gives the Liquid Glass icon on macOS 26 and later, and a flat icon on macOS 14 and 15. There is no new dependency.
+Keep an Icon Composer file `Support/AppIcon.icon` in git, with SVG layers. `scripts/icon.sh` compiles it with `xcrun actool` into `Assets.car` and `AppIcon.icns` (state on 2026-11-24; the plan of 2026-09-27 put the compile in `scripts/bundle.sh`, which copies the two files). `Support/Info.plist` names both. One source gives the Liquid Glass icon on macOS 26 and later, and a flat icon on macOS 14 and 15. There is no new dependency.
 
 ## 1. Icon shape and grid
 
@@ -115,6 +115,8 @@ Probe `ictool`: `Light`, `Dark`, `TintedLight`, and `ClearLight` gave 512 px ima
 
 ### Concept A: "Ribbon Zeppelin" (preferred)
 
+State on 2026-11-24: the shipped icon is W1 "waveform window" (decision 0026), not Concept A. The text below is the preference of 2026-09-27.
+
 The envelope of the airship is the chrome body of a 1930s ribbon microphone, seen from the side. The envelope is a silver pill with four or five vertical grille ribs, the classic look of a ribbon mic grille. Under it, a small gondola is shaped like the yoke of the mic mount. Four tail fins, in a darker metal, finish the airship. The airship rises at about 8 degrees to the right. The background is a dusk gradient from deep blue at the top to warm amber at the bottom. Layers: background fill; group 1, the envelope; group 2, the ribs; group 3, the gondola and the fins. At 16 px it reads as a silver pill on blue.
 
 ### Concept B: "Mooring mast"
@@ -149,14 +151,14 @@ The suite already has a helper that runs a tool and returns its output. Do not u
 | Item | Value |
 |---|---|
 | Source | `Support/AppIcon.icon/` (`icon.json`, `Assets/*.svg`), made in Icon Composer or written by hand |
-| Build step | In `scripts/bundle.sh`: `xcrun actool Support/AppIcon.icon --compile build/icon --app-icon AppIcon --platform macosx --target-device mac --minimum-deployment-target 14.0 --include-all-app-icons --output-partial-info-plist build/icon/partial.plist --errors --warnings`, then copy `Assets.car` and `AppIcon.icns` to `Contents/Resources/` before `codesign` |
+| Build step | Plan of 2026-09-27, in `scripts/bundle.sh`. Built in `scripts/icon.sh`, and `scripts/bundle.sh` copies the files (decision 0026): `xcrun actool Support/AppIcon.icon --compile build/icon --app-icon AppIcon --platform macosx --target-device mac --minimum-deployment-target 14.0 --include-all-app-icons --output-partial-info-plist build/icon/partial.plist --errors --warnings`, then copy `Assets.car` and `AppIcon.icns` to `Contents/Resources/` before `codesign` |
 | Outputs in the bundle | `Contents/Resources/Assets.car`, `Contents/Resources/AppIcon.icns` |
 | Info.plist keys | `CFBundleIconName = AppIcon`, `CFBundleIconFile = AppIcon` in `Support/Info.plist` |
 | Preview target | `make icon-preview`: compiles the icon, then writes the flat PNG files (`iconutil`) and the appearance PNG files (`ictool`) to `build/icon-preview/` |
 | Test | One new test in `AppBundleTests`, run by `make test-app` |
 | New dependency | None. `actool` and `ictool` come with Xcode 26, which the repo already needs |
 
-Add a row for `make icon-preview` to the Commands table of `AGENTS.md` in the same commit, because `check-docs` compares the table to the Makefile.
+The plan was to add a row for `make icon-preview` to the Commands table of `AGENTS.md`. State on 2026-11-24: the table has no such row. The Makefile holds the target (`make icon-preview`), and `AGENTS.md` sends the reader to the Makefile for the other targets.
 
 ### One-way decisions
 
@@ -185,7 +187,7 @@ Add a row for `make icon-preview` to the Commands table of `AGENTS.md` in the sa
 17. Hendrik Erz, "Supporting Liquid Glass Icons in Apps Without XCode". https://www.hendrik-erz.de/post/supporting-liquid-glass-icons-in-apps-without-xcode
 18. ethbak/icon-composer-mcp README (`ictool` path and renditions). https://github.com/ethbak/icon-composer-mcp
 19. Michael Tsai, "How to Export a Mac .icon File With the Proper Margins". https://mjtsai.com/blog/2025/10/02/how-to-export-a-mac-icon-file-with-the-proper-margins/
-20. Probes (all under `.scratchpads/runs/2026-09-27-release-2-plan/probe-icon/`):
+20. Probes (all in a local run folder, not in git):
     - `tools/`: `actool --version` (26.3), `iconutil`, `ictool`, Xcode 26.3, Icon Composer present.
     - `svg/`: Swift `NSImage` SVG render to 1024 and 16 px; `qlmanage` fails in the sandbox.
     - `compile/`: `.iconset` to `.icns` and back with `iconutil`; `actool` write failure inside the repo.

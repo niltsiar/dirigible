@@ -2,7 +2,7 @@
 
 Date: 2026-09-26
 
-This document records how Hindenburg recovers a session or a recording after a crash, a device unplug, a full disk, or a write error. It also records how a user brings audio files that are on disk, but not in the session, back into the session. It ends with short comparisons to REAPER, Logic Pro, and Adobe Audition. A claim that no primary source confirms has the mark "(unconfirmed)". A sentence that starts with "Inference:" is our reading of the sources. A sentence that starts with "The frames of [V-x] show" reports still frames of an official video. The videos have no captions. The frames are in `.scratchpads/runs/2026-09-26-recovery-tools/research-frames/`.
+This document records how Hindenburg recovers a session or a recording after a crash, a device unplug, a full disk, or a write error. It also records how a user brings audio files that are on disk, but not in the session, back into the session. It ends with short comparisons to REAPER, Logic Pro, and Adobe Audition. A claim that no primary source confirms has the mark "(unconfirmed)". A sentence that starts with "Inference:" is our reading of the sources. A sentence that starts with "The frames of [V-x] show" reports still frames of an official video. The videos have no captions. The frames are in a local run folder, not in git.
 
 ## 1. Crash or power loss during a recording
 

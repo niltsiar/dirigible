@@ -65,7 +65,7 @@ Grades: **P** primary, **S** secondary or forum. No probe ran.
 ## Implications for Dirigible
 
 - Inference: no reference app documents a paste that copies the file into the target. Logic and Hindenburg rely on Save As or Consolidate. A Dirigible package must stay self-contained (No data loss), so a paste must copy or clone the file into the target package.
-- Inference: use `copyfile` with `COPYFILE_CLONE`. It clones on one APFS volume and copies across volumes or on HFS+. Read `COPYFILE_STATE_WAS_CLONED` to log which one occurred.
+- Inference: use `copyfile` with `COPYFILE_CLONE`. It clones on one APFS volume and copies across volumes or on HFS+. Read `COPYFILE_STATE_WAS_CLONED` to log which one occurred. State on 2026-11-24: the code differs (`copyFile` in `Sources/DirigibleAudio/Import/PasteClipboard.swift`). It calls `clonefile(2)` when a clone is wanted, and else `copyfile(3)` with a copy of the data (`COPYFILE_DATA`).
 - Inference: a copy of the whole file is the simplest choice. Logic copies whole files and trims later with Optimize.
 - Inference: Logic plays a wrong pitch on a rate mismatch. Dirigible must convert or refuse, never play at the wrong speed.
 - Inference: a missing source file must stop the paste with an error and change nothing in the target.

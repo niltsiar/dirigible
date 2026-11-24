@@ -17,7 +17,7 @@ The user asks for:
 
 The backlog has a user report: "there is no visible horizontal scroll bar or other way to scroll horizontally".
 
-The window today (`SessionView.swift`, `TransportBar.swift`):
+The window on 2026-09-27 (`SessionView.swift`, `TransportBar.swift`). State on 2026-11-24: the window has a toolbar (`NSToolbar` in `Sources/DirigibleApp/SessionChrome.swift`), and no `TransportBar` type exists in `Sources/` (decisions 0014 and 0023). The list below is the state before the UI shell run.
 
 - One `NSWindow` per package with an `NSHostingController` of `SessionView` (0014). The window has no toolbar.
 - A SwiftUI column: the banners, then the transport bar (Record, Stop, and Play as text buttons, and the time `h:mm:ss.mmm`), then a Monitor Inputs check box, then the timeline pane.
@@ -137,7 +137,7 @@ Inference: every app keeps the transport and the time together in one strip. The
 
 ## 4. Probes
 
-Folder: `.scratchpads/runs/2026-09-27-release-2-plan/probe-ui/` (`probe.swift`, `ruler.swift`, `output.txt`). MacBook Pro 2018, Intel, macOS 15.7.9, Swift 6.2, target macOS 14, built with `swiftc -O`. A window showed for about 1 s.
+Folder: a local run folder, not in git (`probe.swift`, `ruler.swift`, `output.txt`). MacBook Pro 2018, Intel, macOS 15.7.9, Swift 6.2, target macOS 14, built with `swiftc -O`. A window showed for about 1 s.
 
 - **U1.** On this Mac, `NSScroller.preferredScrollerStyle` is overlay. So the timeline scroll bar shows only during a scroll. Inference: this is the cause of the user report "no visible horizontal scroll bar", and the scroll bar follows the setting as 0017 (amended) asks.
 - **U2.** A scroll view with a horizontal ruler and a vertical ruler keeps the overlay style when it is set, and the legacy style when it is set. The rulers do not force the legacy style.
@@ -174,7 +174,7 @@ Folder: `.scratchpads/runs/2026-09-27-release-2-plan/probe-ui/` (`probe.swift`, 
 - **Three groups** (HIG maximum): transport, edit, view.
 - **Record look.** macOS 14 and 15: the `record.circle` symbol in `systemRed` with a palette or a tint configuration; `record.circle.fill` during a take. macOS 26: `style = .prominent` with `backgroundTintColor = .systemRed`, behind `if #available(macOS 26, *)`. No continuous symbol animation during a take (section 8, rule P5).
 - **Customization.** `allowsUserCustomization = true`, `autosavesConfiguration = true`, a fixed toolbar identifier, and fixed item identifiers (for example `transport.record`). Each item has a `paletteLabel`.
-- **Menu parity.** Each toolbar item is also a menu item with its key. The menu items exist today (0015, 0018, 0019). Monitor Inputs has no key yet, so the UI shell run adds one.
+- **Menu parity.** Each toolbar item is also a menu item with its key. The menu items exist today (0015, 0018, 0019). Monitor Inputs had no key on 2026-09-27, so the UI shell run added one (state on 2026-11-24: `MenuKeys.monitor`, Shift-Command-M).
 
 SF Symbols for the items (year from `name_availability.plist`; all are macOS 14 or older):
 
@@ -195,7 +195,7 @@ SF Symbols for the items (year from `name_availability.plist`; all are macOS 14 
 
 ### Content, top to bottom
 
-1. **Banners.** The SwiftUI banners of today (take state, save error, unplaced segments). The transport bar row goes. Its warnings (playback stop, missing media, record-over) become banners of the same kind. HIG puts no critical information in a bottom bar [H-win], so no bottom bar.
+1. **Banners.** The SwiftUI banners of 2026-09-27 (take state, save error, unplaced segments). The transport bar row goes. Its warnings (playback stop, missing media, record-over) become banners of the same kind. HIG puts no critical information in a bottom bar [H-win], so no bottom bar.
 2. **Overview strip** (section 7). About 28 pt high, above the time ruler, as wide as the lanes. View > Show Overview, on by default.
 3. **Time ruler** (0017). No change.
 4. **Track headers and lanes.** The headers stay in the vertical ruler (0017). A drag handle at the trailing edge of the header panel changes its width (section 6).
@@ -242,9 +242,9 @@ Keep the scroll bars on the system setting (U1, U2, 0017 amended). With "Always"
 | Trackpad, two-finger horizontal swipe | Scroll the lanes | `NSScrollView` does it |
 | Mouse, Shift with the wheel | Scroll the lanes horizontally | Unconfirmed: check with a real mouse. If AppKit gives a vertical delta, `TimelineScrollView.scrollWheel` swaps the axes when Shift is down and `hasPreciseScrollingDeltas` is false |
 | Command with the wheel, pinch | Zoom at the pointer | Done (0017) |
-| Smart zoom (two-finger double tap) | Toggle between Zoom to Session and the zoom before, at the pointer | New: `smartMagnify(with:)` [A-smag] |
+| Smart zoom (two-finger double tap) | Toggle between Zoom to Session and the zoom before, at the pointer | New on 2026-09-27; built since: `smartMagnify(with:)` in `TimelineScrollView+Navigation.swift` [A-smag] |
 | Option with the wheel | Change the lane height | New (Ableton [AB]); Hindenburg uses Shift-Command-plus and minus |
-| Overview strip: click | Center the view at that time | New |
+| Overview strip: click | Center the view at that time | New on 2026-09-27; built since (`Sources/DirigibleTimeline/Overview.swift`, decision 0025) |
 | Overview strip: drag in the view frame | Scroll | New (Pro Tools, Ableton, Audition) |
 | Overview strip: drag a frame edge | Zoom (Audition [AU]) | New |
 | Overview strip: double-click | Zoom to Session (Ableton [AB]) | New |
@@ -270,7 +270,7 @@ The shell adds chrome around the lanes. The lane path of 0020 and 0022 does not 
 - **P4. The header drag stays in the budget.** A header width change changes the lane view width. 0022 says: "A window resize makes new surfaces and renders in full at each step." So each drag event of the handle can cost a new surface and a full lane draw (8.5 to 9.8 ms p95 on the Intel Mac, 0022). Two options: (a) keep one surface capacity for the whole drag (the widest lane view that the drag can reach), then render in full at each event; (b) show only a guide line during the drag and apply the width at the mouse-up. Take (a) when a new `MouseEventBenchmark` case "header drag event" is 16 ms p95 or less; else take (b).
 - **P5. No continuous animation in the toolbar.** No pulse or breathe effect on Record during a take. A state change (outline to fill, a color) is one redraw.
 - **P6. Toolbar work stays out of the event path.** Toolbar validation does not run for drag, wheel, or key-down events [A-val]. Set each item state from observed values or from `validate`; never from a drag or a tick.
-- **P7. The budget.** 16 ms p95 per drag event and per full lane draw at 2880 x 1200 px, optimized (0020, 0022). On a 120 Hz display a frame is 8.3 ms; the backlog item M8 decides the budget at the real refresh rate. The shell adds no work to a lane event, so the acceptance is the 0022 rule: no case of `MouseEventBenchmark`, `FollowScrollBenchmark`, or `LaneRenderBenchmark` is more than 10% or 1 ms (the larger) worse than main, in two alternate pairs (`make bench FILTER=...`). New bench cases: the overview render after an edit (budget 4 ms p95, a calibration value), a header drag event (P4), and a play tick with the time display, the meters, and the overview layers (budget 2 ms p95).
+- **P7. The budget.** 16 ms p95 per drag event and per full lane draw at 2880 x 1200 px, optimized (0020, 0022). On a 120 Hz display a frame is 8.3 ms; a later run decides the budget at the real refresh rate. The shell adds no work to a lane event, so the acceptance is the 0022 rule: no case of `MouseEventBenchmark`, `FollowScrollBenchmark`, or `LaneRenderBenchmark` is more than 10% or 1 ms (the larger) worse than main, in two alternate pairs (`make bench FILTER=...`). New bench cases: the overview render after an edit (budget 4 ms p95, a calibration value), a header drag event (P4), and a play tick with the time display, the meters, and the overview layers (budget 2 ms p95).
 - **P8. Check the look in each system state.** macOS 14 and macOS 26 (Liquid Glass), light and dark, Reduce Transparency, Increase Contrast, "Show scroll bars" set to Always and to When scrolling, a Retina and a non-Retina display, and a 120 Hz display. These are manual checks of the run ledger with `scripts/screenshot.sh`.
 
 ## 9. Accessibility and localization
@@ -287,7 +287,7 @@ The shell adds chrome around the lanes. The lane path of 0020 and 0022 does not 
 2. **Side panes: `NSSplitViewController` or SwiftUI `.inspector` / `NavigationSplitView` / `HSplitView`.** Recommendation: `NSSplitViewController`, created when the first side pane comes. It works with the AppKit toolbar (tracking separators, `toggleInspector:`), autosaves the widths, and gets the macOS 26 sidebar and inspector look.
 3. **Track header panel: the vertical ruler with a resizable thickness, or a split pane.** Recommendation: the ruler (U5). It keeps one scroll view and the 0017 row sync.
 4. **Overview strip: where and how it draws.** Recommendation: in the content above the time ruler (not a title bar accessory, which is inside a visual effect view [A-tavc]); an opaque AppKit view with a session image that renders on change, and two layers; pure geometry in `DirigibleTimeline`. Alternatives: SwiftUI `Canvas` (0017 D3: 30 fps for a full redraw) and the lane renderer at a small scale (its per-column waveform work is more than a clip-box strip needs).
-5. **The transport position.** Recommendation: the toolbar center, with the time display as the centered item. Alternatives: a transport row in the content (today), and a bottom bar (HIG: no critical controls there).
+5. **The transport position.** Recommendation: the toolbar center, with the time display as the centered item. Alternatives: a transport row in the content (the state on 2026-09-27), and a bottom bar (HIG: no critical controls there).
 6. **Meters.** Recommendation: per-track meters in the headers as layer bars from the display link; no toolbar meter. A loudness meter comes with R10 in its own pane.
 7. **The toolbar identifiers.** Customization writes them to user defaults, so a rename later loses the user layout. Fix the names in the decision record.
 
@@ -295,7 +295,7 @@ The UI shell decision record amends 0014 (the toolbar, the subtitle, `sceneBridg
 
 ## Sources
 
-Probe folders: `.scratchpads/runs/2026-09-27-release-2-plan/probe-ui/` (U1 to U5, `output.txt`), and `.scratchpads/runs/2026-09-27-release-2-plan/probe-icon/compile/` (the `actool` asset catalog build of the app-icon research). Symbol years: `/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources/name_availability.plist` on macOS 15.7.9.
+Probe folders: local run folders, not in git (U1 to U5, `output.txt`, and the `actool` asset catalog build of the app-icon research). Symbol years: `/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources/name_availability.plist` on macOS 15.7.9.
 
 Apple Human Interface Guidelines:
 

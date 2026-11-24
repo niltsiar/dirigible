@@ -113,7 +113,7 @@ A claim that no primary source confirms has the mark "(unconfirmed)". A sentence
 
 - "The usual AVAudioNode sample times (as observed by lastRenderTime) have an arbitrary zero point. AVAudioPlayerNode superimposes a second 'player timeline' on top of this, to reflect when the player was started, and intervals during which it was paused." `playerTime(forNodeTime:)` and `nodeTime(forPlayerTime:)` convert between the two. They return nil when the player does not play [A-H-PN] [A-PT].
 - No source says what the player timeline counts when a time effect pulls frames downstream (unconfirmed). Inference: the player renders the frames that the time-pitch unit pulls, about `rate` × the output frames, plus a look-ahead. Then the player sample time counts source frames, not output frames. See open question 1.
-- Dirigible today: `Player.frame(_:played:)` multiplies the played output frames by the shuttle rate. `heardFrames()` subtracts the output `presentationLatency` from `nodeFrames()`, which reads the player time (`Sources/DirigibleAudio/Render/Player.swift`). Inference: if the inference above is true, a time-pitch node between the player and the mixer makes this code count the rate two times, and the code must also subtract the latency of the time-pitch node.
+- Dirigible on 2026-10-13: `Player.frame(_:played:)` multiplies the played output frames by the shuttle rate. `heardFrames()` subtracts the output `presentationLatency` from `nodeFrames()`, which reads the player time (`Sources/DirigibleAudio/Render/Player.swift`). State on 2026-11-24: this code moved to `Player+Feed.swift` (`frame(_:played:)`) and `Player+Speed.swift` (`heardFrames()`), and decision 0052 changed the position and latency rules (probe S3: the player time counts source frames). Inference: if the inference above is true, a time-pitch node between the player and the mixer makes this code count the rate two times, and the code must also subtract the latency of the time-pitch node.
 
 ## Facts that change a design choice
 
@@ -128,6 +128,8 @@ Other facts with design value:
 - The time-domain unit 'ipto' is "suitable for voice" and has the range 0.5 to 2.0 [A-H-APS]. This range covers the Logic range.
 
 ## Open questions
+
+State on 2026-11-24: questions 1 and 2 are answered (decision 0052, probes S1 to S6; decision 0070, probes PA1 to PA4). Questions 3 and 4 have no recorded result.
 
 1. **Probe: player time, latency, and bypass with a time-pitch node.** Run it with `scripts/with-lock.sh scripts/probe.sh <folder> swift <file>` after the build loop. It renders offline, so it needs no device. Check: `playerFrames` against `outputFrames` × 2; `pitch.latency`; the output frame of the click against 24 000 (48 000 / 2). Run it again with `pitch.bypass = true`, and with the 'ipto' unit.
 

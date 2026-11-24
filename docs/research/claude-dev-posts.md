@@ -54,7 +54,9 @@ URL: https://claude.dev/blog/how-we-made-claude-ai-faster/ (Raymond Wang, Sam At
 
 ### (a) Eval of workflow docs and reflect
 
-| Post method | Repo today | Gap |
+State on 2026-11-24: the column "Repo on 2026-10-01" is the state before the workflow-speed run. The stall rule landed in `docs/workflow/evals.md` (recommendation 3), so the gap "No stop rule" is closed.
+
+| Post method | Repo on 2026-10-01 | Gap |
 |---|---|---|
 | Train/test split; test never seen | Holdouts H1-H13; plan says fix agents do not read the H key points | Matches. `evals.md` says a fix that reads them "burns the holdouts"; the rule is sound. |
 | Baseline judged blind, random order | Blind grader, neutral labels, frozen main baseline (plan DC4) | Matches. |
@@ -63,7 +65,7 @@ URL: https://claude.dev/blog/how-we-made-claude-ai-faster/ (Raymond Wang, Sam At
 | Stall rule: sort failures by cause, no edit | Fix cycles 1 and 2 kept editing; E10 stayed 0 of 3 after cycle 2 | No stop rule. Cycle 2 should have been a diagnosis round: the key point may be unreachable in the answer format, not a doc defect. |
 | Void tasks (all runs fail) are a tell | H1, H13 void | Matches. |
 | Adversarial sampling needs a human reason | E scenarios come from incidents (L-lines) | Matches. Add a "why hard" cell. |
-| Hidden state leaks | Answer agents read docs on disk in a detached worktree | Check: the worktree must not hold run folders or `.scratchpads`. |
+| Hidden state leaks | Answer agents read docs on disk in a detached worktree | Check: the worktree must not hold run folders or `.scratchpads` (a local folder, not in git). |
 | Reflect: fail-before, pass-after | Rule 8 runs old scenarios after a change; seen-once before a rule | Rule 8 only guards against regression. A rule change has no scenario that fails on the old docs and passes on the new ones (except policy scenarios). |
 
 ### (b) Run speed
@@ -80,6 +82,7 @@ URL: https://claude.dev/blog/how-we-made-claude-ai-faster/ (Raymond Wang, Sam At
 
 ## Recommendations (at most 6)
 
+State on 2026-11-24: recommendation 3 is built (the stall rule is in `docs/workflow/evals.md`).
 1. Ratchet test for the stamp (in this run). File: `scripts/check-plan.test.sh` or the S2 land test. Change: a test that runs `check-changed` then `land.sh` on the same tree and asserts that the full suite runs once (count of `swift test` calls in a fake `make`). Why: a "ratchet" in the posts is a CI guard that keeps a win. Without it the duplicate comes back silently. Risk: low; a fake `make` is enough.
 2. Time estimate per brief item (in this run). File: `plan.md` and `run.md` (a column `est min saved`), summed to a target. Check at Phase 7: `cost.sh` of this run against the live-take-view baseline (about 9 h). Why: "Claude estimated the impact of each project in milliseconds". Risk: the estimates are guesses; mark them so. One run cannot verify gain; say INCONCLUSIVE with n=1 rather than VERIFIED.
 3. Stall rule for the doc eval (in this run, one sentence). File: `docs/workflow/evals.md`, section "How the eval runs". Change: after two fix cycles with a scenario still below its rule, the next round makes no doc edit; it sorts each failing answer by cause (doc missing, doc not quoted, key point unreachable, scenario or grader flawed). Why: the post's stall rule; E10 is the live case. Risk: low; it replaces nothing, so check the budget row of `evals.md`.
@@ -97,4 +100,4 @@ URL: https://claude.dev/blog/how-we-made-claude-ai-faster/ (Raymond Wang, Sam At
 
 - https://claude.dev/blog/automating-eval-design-and-hillclimbing/
 - https://claude.dev/blog/how-we-made-claude-ai-faster/
-- Repo: `AGENTS.md`, `.claude/skills/reflect/SKILL.md`, `docs/workflow/evals.md`, `.scratchpads/runs/2026-10-01-workflow-speed/brief.md`, `plan.md`
+- Repo: `AGENTS.md`, `.claude/skills/reflect/SKILL.md`, `docs/workflow/evals.md`, and the brief and `plan.md` of a local run folder (not in git)

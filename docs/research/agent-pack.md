@@ -66,8 +66,8 @@ Method note. The Pro Tools Reference Guide 2025.10 and the REAPER User Guide 7.8
 
 ### Cross-check with the Dirigible model
 
-- A seamless join cannot hold a crossfade: the model refuses it (`.crossfadeAtSeamlessJoin`) [D36 "Seamless join"]. An edge at a butt join gets no fade from Command-F, and the fade handle skips it [D35]. So fades and crossfades at a heal join do not exist in the model. No vendor case is needed for that part.
-- A clip has one gain value. Inference: a heal of two pieces with different gains cannot keep both gains in one clip.
+- State on 2026-11-24: a crossfade at a seamless join is allowed when it changes a sample, that is when the gains of the two clips differ (session version 9, decision 0036). Before run `2026-10-17-agent-pack`, a seamless join could not hold a crossfade: the model refused it (`.crossfadeAtSeamlessJoin`) [D36 "Seamless join"]. An edge at a butt join gets no fade from Command-F, and the fade handle skips it [D35]. So fades and crossfades at a heal join do not exist in the model. No vendor case is needed for that part.
+- State on 2026-11-24: a clip has a gain envelope, not one gain value (decision 0060). The next sentence is the reading of 2026-10-17. Inference: a heal of two pieces with different gains cannot keep both gains in one clip.
 
 Default for Dirigible: Heal two clips only when they are on one track, touch on the timeline, and the second plays on from the next frame of the same file. Write no new file (Pro Tools [PT p. 892], Logic no-mixdown case [LJ], REAPER Heal [RG p. 124]). Take any number of pieces in one command (Logic [LJ], Audacity [AM], REAPER [RG]). No vendor text covers different gains in heal. Inference: refuse the heal, or heal only when the gains are equal. Open question: the gesture "heal after the user lowered one piece" is not checked against any app. Audacity keeps a gain step [AS].
 
@@ -107,7 +107,7 @@ Default for Dirigible: Heal two clips only when they are on one track, touch on 
 - No checked editor treats a clip gain change between two touching pieces as a gain ramp. Pro Tools shows two gain lines under the crossfade [PT p. 1227]. Audacity keeps a step at a join [AS].
 - Inference (math, no owner source): the output of a crossfade of two pieces of one signal x is (gA * a(t) + gB * b(t)) * x. With an equal-gain pair (a + b = 1) this is a linear ramp from gA to gB. With an equal-power pair, a + b reaches 1.414 at the middle, so a gain of 1 on both sides is 3 dB too loud there. Decision 0036 states the 3 dB case [D36].
 
-Default for Dirigible: Keep the refusal at a seamless join [D36]. If a later run adds a crossfade there, let the user pick the curve. Offer Equal Gain for pieces of one file, as Pro Tools documents it for "identical clips" [PT p. 910]. No editor picks the curve by itself for correlated audio. A gain ramp across the join is an Inference with no owner source. Open question: the most common gesture (Command-F over a heal join with the gain of one piece changed) was checked in no app.
+Default for Dirigible (the default of 2026-10-17; decision 0036 now allows a crossfade at a seamless join where it changes a sample): Keep the refusal at a seamless join [D36]. If a later run adds a crossfade there, let the user pick the curve. Offer Equal Gain for pieces of one file, as Pro Tools documents it for "identical clips" [PT p. 910]. No editor picks the curve by itself for correlated audio. A gain ramp across the join is an Inference with no owner source. Open question: the most common gesture (Command-F over a heal join with the gain of one piece changed) was checked in no app.
 
 ## 3. A plain-text chapter list for a podcast description
 

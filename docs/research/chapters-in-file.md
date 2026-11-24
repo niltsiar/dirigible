@@ -77,6 +77,8 @@ No Apple doc, sample, or WWDC session shows a chapter write. The constant is `AV
 
 ## Open questions for the plan
 
+State on 2026-11-24: F56 is done (Release 2 run 16 and Release 3 run 5), so the plan ran. The probes P2 to P5 below are the plan of that run. This note records no result for P3 and P5.
+
 - P1 (M4A): a Swift script with `AVAssetWriter` `.m4a` prints `availableMediaTypes`. It writes 3 `tx3g` chapters, one with `href`, and a JPEG video track. It reads back with `loadChapterMetadataGroups` and `commonKeyArtwork`, and prints the title, time range, `extraAttributes`, and the artwork byte count. Open it in Music and QuickTime Player.
 - P2: the same file through `AVMutableMovie`. Print `isCompatibleWithFileType(.m4a)`.
 - P3: write the text track enabled and disabled. Which one does Music show?

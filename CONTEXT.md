@@ -1,13 +1,13 @@
 # Dirigible
 
-Dirigible records and edits podcasts. A session holds tracks, clips of audio files, markers, and transcripts.
+Dirigible records and edits podcasts. A session holds tracks, clips of audio files, markers, transcripts, bins, and export presets.
 
 ## Language
 
 ### Transcripts
 
 **Transcript**:
-The words of an imported Whisper JSON or WebVTT file, with a number that the session gives and a name (decision 0055).
+The words of an imported Whisper JSON, WebVTT, or SRT file, or of a transcription in the app, with a number that the session gives and a name (decision 0055).
 _Avoid_: captions, subtitles
 
 **Transcript file**:
@@ -21,3 +21,11 @@ _Avoid_: token, segment
 **Occurrence**:
 One place of a word on the timeline: the word under one clip. A duplicated clip shows its words as two occurrences.
 _Avoid_: instance, hit
+
+**Subtitle file**:
+The SRT or WebVTT file that a transcript export writes.
+_Avoid_: captions file
+
+**Cue**:
+One timed text unit of an imported WebVTT or SRT file, with no word times of its own. A cut removes a cue with no word times whole.
+_Avoid_: caption

@@ -2,8 +2,9 @@ Dirigible
 Copyright 2026 Borja Quevedo
 
 This product includes agent skills adapted from https://github.com/cursor/plugins,
-https://github.com/mattpocock/skills, and https://github.com/webreactiva/yesyak, licensed under
-the MIT License. See .claude/skills/THIRD_PARTY.md.
+https://github.com/mattpocock/skills, https://github.com/webreactiva/yesyak, and
+https://github.com/AvdLee/Swift-Concurrency-Agent-Skill, licensed under the MIT License.
+See .claude/skills/THIRD_PARTY.md.
 
 This product includes LAME 4.0 (https://lame.sourceforge.io/), the libmp3lame encoder in
 Sources/CLame, licensed under the GNU Library General Public License, version 2 or later (LGPL).

@@ -4,8 +4,8 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 ## Plan
 
-- A release has one theme and about 8 feature runs.
-- User and tester requests come first. The other features follow the order of `releases.md`.
+- A release has one theme.
+- Requests of the users and the collaborators come first (the testers are invited collaborators). The other features follow the order of `releases.md`.
 - Take the next goal from `scripts/wiki.py list next --ready`, else the next open item of `releases.md`.
 - A guard failure on the real repo is a plan change. Never set a Dropped state to pass a guard.
 
@@ -19,7 +19,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 ## Steering runs
 
 - Run reflect after each run (`.claude/skills/reflect/SKILL.md`).
-- Run a workflow upkeep run when `scripts/wiki.py list next` shows 8 upkeep items (reflect rule 6).
+- Run a workflow upkeep run when `scripts/wiki.py list next` shows 8 or more upkeep items (reflect rule 6).
 - Run an architecture run after each 5 product runs, and one before the UI polish run of each release. A product run has a branch of type `feat`, `fix`, or `perf`, and no `hardening` in its slug. `new-run.sh` prints the reminder.
 - The architecture run audits `Sources/` and the tooling: `scripts/`, `.claude/hooks`, `.claude/skills/*/scripts`, `.githooks`, and the `Makefile`.
 - Audit the tooling for a script with no caller, a stale path or pointer, a comment that no longer matches the code, and a copied helper.
@@ -34,7 +34,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 ## Posts
 
 - After each tag, `scripts/tag-release.sh` prints one reminder: post the DMG to the testers, and after the last run of a release, post the release summary.
-- The post has no tool in the repo yet.
+- The post is by hand: no script in the repo posts it.
 
 ## Rules that continue from Release 2
 

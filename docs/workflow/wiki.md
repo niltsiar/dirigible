@@ -1,6 +1,6 @@
 # Wiki
 
-The backlog, the run log, and the lessons are in a local wiki: a git repo of Markdown pages in the shape of an LLM wiki (`raw/`, `wiki/`, a schema in its `CLAUDE.md`). The one tool is `scripts/wiki.py`. Its header lists each command.
+The backlog, the run log, and the lessons are in a local wiki: a git repo of Markdown pages in the shape of an LLM wiki (`raw/`, `wiki/`, a schema in its `CLAUDE.md`). The one tool is `scripts/wiki.py`. Its header lists each command. The wiki and `.scratchpads/` are local to the maintainers: a fresh clone has neither.
 
 ## Where
 

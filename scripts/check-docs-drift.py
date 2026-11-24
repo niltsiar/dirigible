@@ -11,8 +11,8 @@ menus      Each bold path `**A > B**` of README.md, docs/guide.md, docs/CONTRIBU
            CONTEXT.md is a menu path or a System Settings path. A path that starts with a menu
            title reads each later part against the `menu.*` strings of the English and Spanish
            tables only, so a button label cannot hide a lost ellipsis. AppKit adds `Undo`,
-           `Redo`, and `Undo <action>` to the Edit menu, so those forms pass under Edit only. Any other path reads each
-           part against any UI string or a name that macOS owns (the menu titles, System Settings
+           `Redo`, and `Undo <action>` to the Edit menu, so those forms pass under Edit only.
+           Any other path reads each part against any UI string or a name that macOS owns (the menu titles, System Settings
            and the names of its panes, and the standard items of the app menu). Decision 0010
            (Checks) holds the ellipsis forms that this rule reads. A key in parentheses after a
            path, and each Key cell of the menu tables of the guide, is a key of Sources/DirigibleApp.
@@ -105,12 +105,11 @@ def feature_states():
     return states if rows else None
 
 
-# macOS owns these names: the menu titles, System Settings and its panes, the app menu items.
-MACOS = {"Dirigible", "File", "Edit", "View", "Window", "Help", "Format", "Archivo", "Edición", "Ver", "Ventana",
-         "Ayuda", "Settings...", "Customize Toolbar...", "Show Toolbar", "Hide Toolbar",
-         "System Settings", "Privacy & Security", "Screen & System Audio Recording", "Screen Recording",
-         "Microphone", "Accessibility", "Keychain Access", "Certificate Assistant", "Create a Certificate"}
 MENU_TITLES = {"Dirigible", "File", "Edit", "View", "Window", "Help", "Archivo", "Edición", "Ver", "Ventana", "Ayuda"}
+# macOS owns these names: the menu titles, System Settings and its panes, the app menu items.
+MACOS = MENU_TITLES | {"Format", "Settings...", "Customize Toolbar...", "Show Toolbar", "Hide Toolbar",
+                       "System Settings", "Privacy & Security", "Screen & System Audio Recording", "Screen Recording",
+                       "Microphone", "Accessibility", "Keychain Access", "Certificate Assistant", "Create a Certificate"}
 USER_DOCS = ["README.md", "docs/guide.md", "docs/CONTRIBUTING.md", "CONTEXT.md"]
 KEY_NAMES = {"upArrow": "Up Arrow", "downArrow": "Down Arrow", "leftArrow": "Left Arrow", "rightArrow": "Right Arrow",
              "pageUp": "Page Up", "pageDown": "Page Down", "return": "Return", "space": "Space", "delete": "Delete",
@@ -174,7 +173,7 @@ def rule_menus():
     menu_string = matcher([v for d in (en, es) for k, v in d.items() if k.startswith("menu.")])
     titles = MENU_TITLES | {v for d in (en, es) for k, v in d.items() if re.fullmatch(r"menu\.[a-z]+", k)}
 
-    def known(part, menu_only, top=""):
+    def known(part, menu_only, top):
         part = norm(part)
         if re.fullmatch(r"(Undo|Redo)( .+)?", part):
             return top in ("Edit", "Edición")

@@ -53,27 +53,31 @@ public func needsUnarchive(_ session: Session) -> Bool { session.archive != nil 
 /// Favorites store of this process, then checks the disk need. It saves the session with
 /// `archive = .flac` through `save` before the first file, so an older build refuses the package
 /// before a WAV goes, and sets `session` to the saved value. A damaged source stays, and the job
-/// goes on. It never reads or writes `session.xml` itself. Call it off the main actor, under the
-/// package lock.
+/// goes on. After each file, it writes the peak cache file of the new file in `cache` from the
+/// file of the source (`PeakFile.rekey`); with no `cache`, the next pass computes the peaks again.
+/// It never reads or writes `session.xml` itself. Call it off the main actor, under the package
+/// lock.
 public func archivePackage(
-    _ session: inout Session, in package: URL, progress: (Double) -> Void = { _ in },
+    _ session: inout Session, in package: URL, cache: URL? = nil, progress: (Double) -> Void = { _ in },
     isStopped: () -> Bool = { false }, save: (Session) throws(SessionFileError) -> URL
 ) throws(ArchiveFault) -> ArchiveReport {
     try archivePackage(
-        &session, in: package, progress: progress, isStopped: isStopped, save: save, seams: ArchiveSeams())
+        &session, in: package, cache: cache, progress: progress, isStopped: isStopped, save: save,
+        seams: ArchiveSeams())
 }
 
 /// FLAC to WAV for each pool file of `session` and of `also` that has a FLAC, and for the FLAC of
 /// each WAV-backed segment (decision 0071), whatever the attribute says. A damaged FLAC stays,
 /// and the job goes on. After the last file, it saves the session with no attribute when the
-/// attribute is set, and sets `session` to the saved value. The thread and lock rules are those
-/// of `archivePackage`.
+/// attribute is set, and sets `session` to the saved value. The peak cache, thread, and lock
+/// rules are those of `archivePackage`.
 public func unarchivePackage(
-    _ session: inout Session, also: [AudioFile] = [], in package: URL, progress: (Double) -> Void = { _ in },
-    isStopped: () -> Bool = { false }, save: (Session) throws(SessionFileError) -> URL
+    _ session: inout Session, also: [AudioFile] = [], in package: URL, cache: URL? = nil,
+    progress: (Double) -> Void = { _ in }, isStopped: () -> Bool = { false },
+    save: (Session) throws(SessionFileError) -> URL
 ) throws(ArchiveFault) -> ArchiveReport {
     try unarchivePackage(
-        &session, also: also, in: package, progress: progress, isStopped: isStopped, save: save,
+        &session, also: also, in: package, cache: cache, progress: progress, isStopped: isStopped, save: save,
         seams: ArchiveSeams())
 }
 
@@ -108,7 +112,7 @@ struct ArchiveSeams {
 }
 
 func archivePackage(
-    _ session: inout Session, in package: URL, progress: (Double) -> Void, isStopped: () -> Bool,
+    _ session: inout Session, in package: URL, cache: URL? = nil, progress: (Double) -> Void, isStopped: () -> Bool,
     save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams
 ) throws(ArchiveFault) -> ArchiveReport {
     guard session.recording == nil else { throw .pendingTake }
@@ -144,6 +148,7 @@ func archivePackage(
     for (index, source) in sources.enumerated() {
         if isStopped() { throw .cancelled }
         let path = source.file.path
+        let stamp = stampOnDisk(clips.appending(path: path))
         let done: Bool
         do throws(ClipArchiveFault) {
             done = try seams.archive(source.file, package, session.sampleRate, isStopped)
@@ -159,13 +164,15 @@ func archivePackage(
         report.converted.append(path)
         report.bytesFreed += source.sizes.freed
         report.bytesWritten += try sizes(clips.appending(path: source.flac), source.flac, seams).bytes
+        rekeyPeaks(
+            of: source.file, from: stamp, to: clips.appending(path: source.flac), rate: session.sampleRate, in: cache)
         progress(Double(index + 1) / Double(sources.count))
     }
     return report
 }
 
 func unarchivePackage(
-    _ session: inout Session, also: [AudioFile], in package: URL, progress: (Double) -> Void,
+    _ session: inout Session, also: [AudioFile], in package: URL, cache: URL? = nil, progress: (Double) -> Void,
     isStopped: () -> Bool, save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams
 ) throws(ArchiveFault) -> ArchiveReport {
     let clips = package.appending(path: clipsFolderName)
@@ -208,6 +215,7 @@ func unarchivePackage(
     for (index, source) in sources.enumerated() {
         if isStopped() { throw .cancelled }
         let path = source.file.path
+        let stamp = stampOnDisk(clips.appending(path: source.flac))
         let done: Bool
         do throws(ClipArchiveFault) {
             done = try seams.unarchive(source.file, package, session.sampleRate, isStopped)
@@ -220,6 +228,7 @@ func unarchivePackage(
         report.converted.append(path)
         report.bytesFreed += source.sizes.freed
         report.bytesWritten += try sizes(clips.appending(path: path), path, seams).bytes
+        rekeyPeaks(of: source.file, from: stamp, to: clips.appending(path: path), rate: session.sampleRate, in: cache)
         progress(Double(index + 1) / Double(sources.count))
     }
     guard seams.after(.converted) else { throw .cancelled }
@@ -296,6 +305,20 @@ private func checkSpace(
     guard need > 0 else { return }
     let free = seams.freeBytes(package)
     guard free >= need else { throw .space(need: need, free: free) }
+}
+
+/// The peak cache stamp of the file at `url`: `stat`, as `openMedia` follows a link. Nil when
+/// `stat` fails.
+private func stampOnDisk(_ url: URL) -> FileStamp? {
+    var info = stat()
+    return stat(url.path, &info) == 0 ? FileStamp(info) : nil
+}
+
+/// Writes the peak cache file of `file` at the stamp of `target` from the file of the stamp of
+/// its source.
+private func rekeyPeaks(of file: AudioFile, from old: FileStamp?, to target: URL, rate: Int, in cache: URL?) {
+    guard let cache, let old, let new = stampOnDisk(target) else { return }
+    PeakFile.rekey(path: file.path, from: old, to: new, channels: file.layout.channelCount, rate: rate, in: cache)
 }
 
 private func saved(_ session: Session, _ save: (Session) throws(SessionFileError) -> URL) throws(ArchiveFault) {

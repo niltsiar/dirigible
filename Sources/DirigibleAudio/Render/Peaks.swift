@@ -24,6 +24,13 @@ struct FileStamp: Hashable, Sendable {
     var nanoseconds: Int
 }
 
+extension FileStamp {
+    /// The stamp of a `stat` or `fstat` result.
+    init(_ info: stat) {
+        self.init(size: Int64(info.st_size), seconds: info.st_mtimespec.tv_sec, nanoseconds: info.st_mtimespec.tv_nsec)
+    }
+}
+
 /// The peaks of one WAV (decision 0017). No public init: only the compute and the decode make one.
 public struct Peaks: Hashable, Sendable {
     /// The frames per bin of each level. The upper levels come from level 0.

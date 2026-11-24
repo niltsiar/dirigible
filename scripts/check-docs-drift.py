@@ -12,10 +12,12 @@ menus      Each bold path `**A > B**` of README.md, docs/guide.md, docs/CONTRIBU
            title reads each later part against the `menu.*` strings of the English and Spanish
            tables only, so a button label cannot hide a lost ellipsis. AppKit adds `Undo`,
            `Redo`, and `Undo <action>` to the Edit menu, so those forms pass under Edit only.
-           Any other path reads each part against any UI string or a name that macOS owns (the menu titles, System Settings
-           and the names of its panes, and the standard items of the app menu). Decision 0010
-           (Checks) holds the ellipsis forms that this rule reads. A key in parentheses after a
-           path, and each Key cell of the menu tables of the guide, is a key of Sources/DirigibleApp.
+           Any other path reads each part against any UI string or a name that macOS owns (the menu
+           titles, Format, Settings..., the toolbar items, System Settings and the names of its panes,
+           and Keychain Access with its certificate items). Decision 0010 (Checks) holds the
+           ellipsis forms that this rule reads. A key in parentheses after a path, and each Key cell
+           of the menu tables of the guide, is a key of Sources/DirigibleApp. The check is set
+           membership: a shortcut that moves between two menu items leaves a stale row that passes.
 menutables In the guide section `## Menu commands and keys`, no Key cell is `-`, and each `menu.*`
            string that has no parent key is bold in the section.
 decstatus  A record with `- Status: proposed` names in its head (before the first `##`) an F-ID

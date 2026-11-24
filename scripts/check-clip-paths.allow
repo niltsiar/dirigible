@@ -1,6 +1,4 @@
 # The lines that scripts/check-clip-paths.sh lets pass: <path><TAB><trimmed line text><TAB><reason>.
-# A reason that starts with "reader by hand:" marks a pool file reader that opens the WAV name, not
-# the name of poolFileName, so it misses an archived FLAC.
 Sources/DirigibleAudio/Archive/ClipArchive.swift	let (wav, flac) = (clips.appending(path: file.path), clips.appending(path: flacPath))	the archive of one clip: it reads and writes both names of one pool file
 Sources/DirigibleAudio/Archive/PackageArchive.swift	let stamp = stampOnDisk(clips.appending(path: path))	the archive job: the stamp of the WAV name before its conversion
 Sources/DirigibleAudio/Archive/PackageArchive.swift	case .mismatch: report.kept[path] = .damaged(frames: decodedFrames(of: clips.appending(path: path)))	the archive job: the frames of a damaged WAV that it keeps
@@ -33,21 +31,25 @@ Sources/DirigibleAudio/Import/AudioImport.swift	let descriptor = open(source.pat
 Sources/DirigibleAudio/Import/AudioImport.swift	return (descriptor, try AVAudioFile(forReading: source))	the helper openAudio opens the URL of its caller
 Sources/DirigibleAudio/Import/CheckedOpen.swift	func openChecked(_ path: String, in folder: Int32) throws(CheckedOpenFault) -> (	the helper itself; each caller has its own entry
 Sources/DirigibleAudio/Import/CheckedOpen.swift	let descriptor = openat(folder, path, O_RDONLY | O_NOFOLLOW_ANY | O_NONBLOCK | O_CLOEXEC)	the helper openChecked opens the path of its caller
-Sources/DirigibleAudio/Import/ExcerptCopy.swift	let url = source.appending(path: "\(clipsFolderName)/\(record.path)")	reader by hand: the source file of a paste or a favorite add (first pass)
-Sources/DirigibleAudio/Import/ExcerptCopy.swift	?? (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)	reader by hand: the source file of a paste or a favorite add (first pass)
-Sources/DirigibleAudio/Import/ExcerptCopy.swift	let from = source.appending(path: "\(clipsFolderName)/\(record.path)")	reader by hand: the source file of a paste or a favorite add (second pass)
-Sources/DirigibleAudio/Import/ExcerptCopy.swift	guard let read = try? AVAudioFile(forReading: temporary),	the read-back of the temporary WAV in the target
-Sources/DirigibleAudio/Import/ExcerptCopy.swift	let (descriptor, input) = try openAudio(source)	reader by hand: the source file of a conversion in a paste or a favorite add
+Sources/DirigibleAudio/Import/CheckedOpen.swift	func openChecked(_ name: PoolFileName, other: PoolFileName?, in folder: Int32) throws(CheckedOpenFault) -> (	the helper itself; each caller has its own entry
+Sources/DirigibleAudio/Import/CheckedOpen.swift	let opened = try openChecked(name.name, in: folder)	resolver name: name (the pool helper openChecked(_:other:in:) opens the name of its caller)
+Sources/DirigibleAudio/Import/CheckedOpen.swift	let opened = try openChecked(other.name, in: folder)	resolver name: other (the pool helper opens the other name once after ENOENT)
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	?? (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)	resolver name: name (url: the source of a paste or a favorite add in the first pass, or its other name after ENOENT)
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	guard hasWAVHeader(temporary), let read = try? AVAudioFile(forReading: temporary),	the read-back of the temporary WAV in the target
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	let (descriptor, input) = try openAudio(source)	resolver name: names[index] (the source of a conversion in a paste or a favorite add: the name that the first pass kept)
 Sources/DirigibleAudio/Import/ExcerptCopy.swift	wav: "\(clipsFolderName)/\(copy.path)", channels: record.layout.channelCount, rate: Double(rate),	a writer of a new clip: the WAV name of a copy in the target
 Sources/DirigibleAudio/Import/SessionImport.swift	package.appending(path: "\(clipsFolderName)/\($0)")	a writer of a new clip: the new files of the target
 Sources/DirigibleAudio/Import/SessionImport.swift	let folder = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the source package
-Sources/DirigibleAudio/Import/SessionImport.swift	let item = "\(clipsFolderName)/\(path)"	reader by hand: the source file of a session import
-Sources/DirigibleAudio/Import/SessionImport.swift	do { close(try openChecked(item, in: folder).descriptor) } catch {	reader by hand: the source file of a session import
+Sources/DirigibleAudio/Import/SessionImport.swift	do { close(try openChecked(name, other: name.other(of: file), in: folder).descriptor) } catch {	resolver name: name (the source file of a session import, or its other name after ENOENT)
 Sources/DirigibleAudio/Import/StereoSplit.swift	let wav = "\(clipsFolderName)/\(stem).wav"	a writer of a new clip: the WAV of one side of a stereo split
-Sources/DirigibleAudio/Import/TemplateCopy.swift	do { return try openChecked(path, in: folder) } catch {	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (check pass)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	let opened = try openChecked(path, in: folder)	a name of NewEpisode.filePaths outside Clips/ (an artwork file), not a pool file
+Sources/DirigibleAudio/Import/TemplateCopy.swift	let opened = try openChecked(name, other: name.other(path: pool), in: folder)	resolver name: name (a pool path of NewEpisode.filePaths in the check pass, or its other name after ENOENT)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	do throws(CheckedOpenFault) { opened = try openChecked(name, in: packageFD) } catch {	resolver name: name (the copy pass opens the name on disk that the check pass kept)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let file = try? AVAudioFile(forReading: url) else { throw .sourceChanged(path) }	resolver name: name (the FLAC that the check pass kept: the frames of its WAV for the space check)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let input = try? AVAudioFile(forReading: source) else { throw .sourceChanged(path) }	resolver name: name (the FLAC that the copy pass opened: its conversion to a WAV)
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let packageFD = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the template package
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let stagingFD = open(staging.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the staging folder
-Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let reopened = try? openChecked(path, in: packageFD) else { throw .sourceChanged(path) }	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (copy pass)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let reopened = try? openChecked(name, in: packageFD) else { throw .sourceChanged(path) }	resolver name: name (the identity check after the copy opens the name that the check pass kept)
 Sources/DirigibleAudio/Import/TemplateCopy.swift	let target = openat(folder, path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)	a new file in the staging folder (O_CREAT)
 Sources/DirigibleAudio/Render/EffectRender.swift	let wav = "\(clipsFolderName)/\(stems[index]).wav"	a writer of a new clip: the WAV of an effect render
 Sources/DirigibleAudio/Render/EffectRender.swift	let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)	the read-back of the new WAV of an effect render

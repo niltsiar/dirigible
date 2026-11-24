@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 
@@ -50,6 +51,8 @@ struct TemplateCopySeams {
     }
     var canClone: (URL, URL) -> Bool = { cloneWorks($0, into: $1) }
     var isDownloaded: (URL) -> Bool = { sourceIsDownloaded($0) }
+    /// Runs after the resolve of a path in the check pass, before its open.
+    var resolved: (String) -> Void = { _ in }
     /// Runs between the check of a path in the copy pass and its copy.
     var beforeCopy: (String) -> Void = { _ in }
     /// The `copied` callback of each data copy: the path and the bytes so far.
@@ -89,7 +92,8 @@ func createSession(
 /// The copy of `createSession` and of `Studio.saveTemplate`. It takes a `NewEpisode`, so no caller
 /// can skip the rule. The order: the name limit, the staging folder, the `lstat` of `package`,
 /// `checkPublish()`; a first pass that checks each file of `filePaths` on its own descriptor;
-/// one space check; a copy pass from the checked descriptor; the flush of the files, then of the
+/// one space check; a copy pass from the checked descriptor, which converts the FLAC of an archived
+/// pool WAV to a WAV at the pool path (decision 0072); the flush of the files, then of the
 /// folders deepest first, then of the staging folder; `session.xml`; the publish. A cancel counts
 /// before each file, before `session.xml`, and before the publish. A throw leaves nothing at
 /// `package` and no staging folder.
@@ -118,16 +122,42 @@ func copyNewEpisode(
     do { try staging.publish() } catch { throw .publish(error) }
 }
 
-/// `openChecked` with its fault as a `TemplateError`.
-private func openTemplateFile(_ path: String, in folder: Int32) throws(TemplateError) -> (
-    descriptor: Int32, file: CheckedFile
-) {
-    do { return try openChecked(path, in: folder) } catch {
-        switch error {
-        case .missing: throw .missing(path)
-        case .notRegularFile: throw .notRegularFile(path)
-        case .unreadable(let code): throw .read(.readFailed(errno: code))
+/// The `TemplateError` of an `openChecked` fault of `path`, whose name on disk is `name`.
+private func templateError(_ fault: CheckedOpenFault, path: String, name: String) -> TemplateError {
+    switch fault {
+    case .missing: .missing(path)
+    case .notRegularFile: .notRegularFile(name)
+    case .unreadable(let code): .read(.readFailed(errno: code))
+    }
+}
+
+/// The pool path of a path of `NewEpisode.filePaths` in `Clips/`, else nil.
+private func poolPath(of path: String) -> String? {
+    let parts = path.split(separator: "/", maxSplits: 1)
+    return parts.count == 2 && parts[0] == clipsFolderName ? String(parts[1]) : nil
+}
+
+/// The check pass of one path of `NewEpisode.filePaths`: `openChecked` of its name on disk, which
+/// is the name that `poolFileName` gives for a pool path, and of the other name once when it is
+/// missing (decision 0072). Returns the descriptor, the checked file, and the name that it opened.
+private func checkTemplateFile(_ path: String, in source: URL, folder: Int32, seams: TemplateCopySeams)
+    throws(TemplateError) -> (descriptor: Int32, file: CheckedFile, name: String)
+{
+    guard let pool = poolPath(of: path) else {
+        do {
+            let opened = try openChecked(path, in: folder)
+            return (opened.descriptor, opened.file, path)
+        } catch {
+            throw templateError(error, path: path, name: path)
         }
+    }
+    let name = poolFileName(path: pool, in: source)
+    seams.resolved(path)
+    do {
+        let opened = try openChecked(name, other: name.other(path: pool), in: folder)
+        return (opened.descriptor, opened.file, opened.name.name)
+    } catch {
+        throw templateError(error, path: path, name: name.name)
     }
 }
 
@@ -140,22 +170,36 @@ private func fill(
     let packageFD = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
     guard packageFD >= 0 else { throw .read(.readFailed(errno: errno)) }
     defer { close(packageFD) }
-    var (paths, checked): ([String], [CheckedFile]) = ([], [])
+    // A name on disk other than its path is the FLAC of an archived pool WAV: it converts to a WAV
+    // at the path, and its size is the size of that WAV.
+    var (paths, checked, names, sizes): ([String], [CheckedFile], [String], [Int64]) = ([], [], [], [])
     // On a source that ignores case, `A.wav` and `a.wav` open one file. It copies once only when the staging
     // folder also ignores case; a case-sensitive one needs a copy for each spelling.
     let mergesCase = pathconf(staging.path, _PC_CASE_SENSITIVE) == 0
     for path in episode.filePaths {
-        let (descriptor, file) = try openTemplateFile(path, in: packageFD)
+        let (descriptor, file, name) = try checkTemplateFile(path, in: source, folder: packageFD, seams: seams)
         close(descriptor)
-        guard seams.isDownloaded(source.appending(path: path)) else { throw .notDownloaded(path) }
+        guard seams.isDownloaded(source.appending(path: name)) else { throw .notDownloaded(path) }
         let lower = path.lowercased()
         if mergesCase, zip(paths, checked).contains(where: { $0.lowercased() == lower && $1 == file }) { continue }
         paths.append(path)
         checked.append(file)
+        names.append(name)
+        try sizes.append(name == path ? file.size : wavBytes(of: source.appending(path: name), path: path))
     }
-    let pairs = zip(paths, checked).map { (source: source.appending(path: $0), size: $1.size, target: staging) }
-    let (clones, bytes) = copyNeed(pairs, canClone: seams.canClone)
-    if let short = spaceShortfall(bytes: bytes, freeBytes: { seams.freeBytes(staging) }) {
+    var (pairs, whole, written): ([(source: URL, size: Int64, target: URL)], [Int], Int64) = ([], [], 0)
+    for index in paths.indices {
+        guard names[index] == paths[index] else {
+            written += sizes[index]
+            continue
+        }
+        pairs.append((source.appending(path: paths[index]), sizes[index], staging))
+        whole.append(index)
+    }
+    let (wholeClones, copied) = copyNeed(pairs, canClone: seams.canClone)
+    var clones = paths.map { _ in false }
+    for (index, clone) in zip(whole, wholeClones) { clones[index] = clone }
+    if let short = spaceShortfall(bytes: copied + written, freeBytes: { seams.freeBytes(staging) }) {
         throw .space(needed: short.needed, free: short.free)
     }
     var folders = [clipsFolderName]
@@ -173,28 +217,42 @@ private func fill(
     let stagingFD = open(staging.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
     guard stagingFD >= 0 else { throw .write(file: staging.lastPathComponent, errno: errno) }
     defer { close(stagingFD) }
-    let total = max(checked.reduce(0) { $0 + $1.size }, 1)
+    let total = max(sizes.reduce(0, +), 1)
     var done: Int64 = 0
     for (index, path) in paths.enumerated() {
         guard !isCancelled() else { throw .cancelled }
-        let (descriptor, file) = try openTemplateFile(path, in: packageFD)
+        let name = names[index]
+        let opened: (descriptor: Int32, file: CheckedFile)
+        do throws(CheckedOpenFault) { opened = try openChecked(name, in: packageFD) } catch {
+            // A package job of another process can convert a pool file between the passes.
+            let moved = poolPath(of: path).map { poolFileName(path: $0, in: source).name != name } ?? false
+            throw error == .missing && moved ? .sourceChanged(path) : templateError(error, path: path, name: name)
+        }
+        let descriptor = opened.descriptor
         defer { close(descriptor) }
-        guard file == checked[index] else { throw .sourceChanged(path) }
+        guard opened.file == checked[index] else { throw .sourceChanged(path) }
         seams.beforeCopy(path)
         let base = done
-        let context = CopyContext(isCancelled: isCancelled) { bytes in
-            seams.written(path, bytes)
-            progress(Double(base + bytes) / Double(total))
-        }
-        if let code = copy(descriptor, to: path, in: stagingFD, clone: clones[index], context: context) {
-            throw isCancelled() ? .cancelled : .write(file: path, errno: code)
+        if name == path {
+            let context = CopyContext(isCancelled: isCancelled) { bytes in
+                seams.written(path, bytes)
+                progress(Double(base + bytes) / Double(total))
+            }
+            if let code = copy(descriptor, to: path, in: stagingFD, clone: clones[index], context: context) {
+                throw isCancelled() ? .cancelled : .write(file: path, errno: code)
+            }
+        } else {
+            try convertFLAC(
+                source.appending(path: name), descriptor: descriptor, to: path, in: staging,
+                progress: { progress((Double(base) + $0 * Double(sizes[index])) / Double(total)) },
+                isCancelled: isCancelled)
         }
         if let code = seams.flush(staging.appending(path: path).path) { throw .write(file: path, errno: code) }
         // A template that changes while it copies makes nothing.
-        guard let reopened = try? openChecked(path, in: packageFD) else { throw .sourceChanged(path) }
+        guard let reopened = try? openChecked(name, in: packageFD) else { throw .sourceChanged(path) }
         close(reopened.descriptor)
         guard reopened.file == checked[index] else { throw .sourceChanged(path) }
-        done += file.size
+        done += sizes[index]
         progress(Double(done) / Double(total))
     }
     let depth = { (folder: String) in folder.split(separator: "/").count }
@@ -209,6 +267,37 @@ private func fill(
         throw .publish(error)
     }
     guard !isCancelled() else { throw .cancelled }
+}
+
+/// The bytes of the WAV that `convertFLAC` writes for the FLAC at `url`.
+private func wavBytes(of url: URL, path: String) throws(TemplateError) -> Int64 {
+    guard let file = try? AVAudioFile(forReading: url) else { throw .sourceChanged(path) }
+    return wavFileBytes(frames: file.length, channels: Int(file.fileFormat.channelCount))
+}
+
+/// The conversion of the FLAC at `source`, open at `descriptor`, to a clip WAV at `path` in
+/// `staging` at the rate of the FLAC, through the conversion of import (`convertToWAV`).
+private func convertFLAC(
+    _ source: URL, descriptor: Int32, to path: String, in staging: URL, progress: @escaping (Double) -> Void,
+    isCancelled: @escaping () -> Bool
+) throws(TemplateError) {
+    guard let input = try? AVAudioFile(forReading: source) else { throw .sourceChanged(path) }
+    let result: (length: Int, gain: Gain)?
+    do throws(ImportError) {
+        result = try convertToWAV(
+            input, descriptor: descriptor, source: source, package: staging, wav: path,
+            channels: Int(input.fileFormat.channelCount), rate: input.fileFormat.sampleRate,
+            into: staging.appending(path: path), progress: progress, isCancelled: isCancelled)
+    } catch {
+        switch error {
+        case .cancelled: throw .cancelled
+        case .notDownloaded: throw .notDownloaded(path)
+        case .unreadable(_, let code), .write(_, .readFailed(_, let code)): throw .read(.readFailed(errno: code))
+        case .write(_, .writeFailed(_, let code)): throw .write(file: path, errno: code)
+        default: throw .sourceChanged(path)
+        }
+    }
+    guard result != nil else { throw isCancelled() ? .cancelled : .sourceChanged(path) }
 }
 
 /// A clone (`fclonefileat`) or a data copy (`fcopyfile` with the 0042 callback, which quits at the

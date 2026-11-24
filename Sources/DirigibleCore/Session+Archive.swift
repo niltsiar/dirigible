@@ -38,10 +38,13 @@ package struct PoolFileName: Hashable, Sendable {
 
     /// The name that an opener of `file` tries once when this name gives ENOENT: the WAV after
     /// the FLAC, or the FLAC after the WAV. Nil for a pool path that the archive does not convert.
-    package func other(of file: AudioFile) -> PoolFileName? {
+    package func other(of file: AudioFile) -> PoolFileName? { other(path: file.path) }
+
+    /// `other(of:)` for the pool path `path`.
+    package func other(path: String) -> PoolFileName? {
         switch form {
-        case .flac: PoolFileName(name: "\(clipsFolderName)/\(file.path)", form: .pool)
-        case .pool: archivedPath(of: file.path).map { PoolFileName(name: "\(clipsFolderName)/\($0)", form: .flac) }
+        case .flac: PoolFileName(name: "\(clipsFolderName)/\(path)", form: .pool)
+        case .pool: archivedPath(of: path).map { PoolFileName(name: "\(clipsFolderName)/\($0)", form: .flac) }
         }
     }
 }

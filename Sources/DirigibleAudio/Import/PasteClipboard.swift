@@ -108,16 +108,17 @@ public func pasteClipboard(
 }
 
 /// `pasteClipboard` with the flush of each copied file and of `Clips/` given: the tests give a fault.
+/// `at` is the seam of `copyExcerptFiles`.
 func pasteClipboard(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
     mode: PasteMode, on target: PasteTarget, freeBytes: () -> Int64,
     canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool,
-    flush: @escaping (String) -> Int32?
+    flush: @escaping (String) -> Int32?, at: (ExcerptCopyPoint) -> Void = { _ in }
 ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
     let same = PackageID.same(clipboard.origin, identity)
     let pasted = try copyExcerptFiles(
         clipboard, from: source, into: session, in: package, identity: identity, freeBytes: freeBytes,
-        canClone: canClone, progress: progress, isCancelled: isCancelled, flush: flush
+        canClone: canClone, progress: progress, isCancelled: isCancelled, flush: flush, at: at
     ) { session, excerpt throws(SessionError) in
         let plan = try PastePlan(excerpt, same: same, into: session, mode: mode, on: target)
         session = plan.session

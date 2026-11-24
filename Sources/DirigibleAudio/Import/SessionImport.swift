@@ -151,23 +151,24 @@ func importSession(
         made: made)
 }
 
-/// For each file that `excerpt` names: the cancel flag, the download state, then `openChecked`. An
-/// open of a file that is not downloaded can block in the kernel, so it comes last.
+/// For each file that `excerpt` names: the cancel flag, the download state, then `openChecked` of
+/// the name that `poolFileName` gives, and of the other name once when it is missing. An open of a
+/// file that is not downloaded can block in the kernel, so it comes last.
 private func checkFiles(
     _ excerpt: Excerpt, in source: URL, isCancelled: () -> Bool, isDownloaded: (URL) -> Bool
 ) throws(SessionImportError) {
     let folder = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
     guard folder >= 0 else { throw .source(.readFailed(errno: errno)) }
     defer { close(folder) }
-    for path in excerpt.files.values.map(\.path).sorted() {
+    for file in excerpt.files.values.sorted(by: { $0.path < $1.path }) {
         guard !isCancelled() else { throw .paste(.cancelled) }
-        let item = "\(clipsFolderName)/\(path)"
-        guard isDownloaded(source.appending(path: item)) else { throw .paste(.notDownloaded(file: path)) }
-        do { close(try openChecked(item, in: folder).descriptor) } catch {
+        let name = poolFileName(file, in: source)
+        guard isDownloaded(source.appending(path: name.name)) else { throw .paste(.notDownloaded(file: file.path)) }
+        do { close(try openChecked(name, other: name.other(of: file), in: folder).descriptor) } catch {
             switch error {
-            case .missing: throw .paste(.sourceMissing(file: path))
-            case .notRegularFile: throw .unsafeFile(path)
-            case .unreadable(let code): throw .source(.unreadableItem(item, errno: code))
+            case .missing: throw .paste(.sourceMissing(file: file.path))
+            case .notRegularFile: throw .unsafeFile(file.path)
+            case .unreadable(let code): throw .source(.unreadableItem(name.name, errno: code))
             }
         }
     }

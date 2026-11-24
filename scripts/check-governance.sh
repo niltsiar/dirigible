@@ -68,6 +68,8 @@
 #   run folder has text, and the row time is at or after the author time (local, minute) of the last
 #   commit of the branch that changes one of these paths. A commit that changes only
 #   docs/requirements/features.md (the feature states of deliver Phase 7) does not make the row old.
+#   shortcut: an amended commit keeps its author time, and a change in the minute of the row passes;
+#   read the commit time or the tree of the pass when a run hits one of them.
 #   docs/CONTRIBUTING.md, "Keep the docs true", has the pass.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail

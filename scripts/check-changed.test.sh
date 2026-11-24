@@ -21,6 +21,8 @@
 # (a tooling or build path that no hook test names), and the target static, in place of check-fast,
 # when the paths need no hook test. Check the line `filter: <names>` of a local git run, its near
 # cases, and exit 3 for a FILTER that leaves out one of the names.
+# Check the READERS word of a doc or script that a Swift test reads (the suites, test, test-app, and
+# test-dmg), through make too, and that the check-docs scripts need no hook test.
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
 # the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
 # .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.
@@ -184,6 +186,53 @@ FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 't
 # FILTER before the push: exit nonzero with the reason, because the push runs the full targets.
 got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fail 'FILTER with --push exits 0'
 [[ "$got" == *"FILTER is for the tdd loop of a slice"* ]] || fail "FILTER with --push: no reason: $got"
+
+# The readers of a changed file: a Swift test that names it as a whole string-literal path adds its
+# suites in the word READERS=<a>,<b> of test-filter, unless test or check runs them. A reader file with
+# no suite adds test, one that holds AppBundleTests adds test-app (not beside check), and one that
+# holds DiskImageTests adds test-dmg, never a READERS name: test and test-filter skip both suites.
+# The suite is read from the file, so an extension of AppBundleTests counts as that suite.
+rd="$tmp/rd"
+mkdir -p "$rd/Tests/DirigibleCoreTests" "$rd/Tests/DirigibleTests"
+git init -q "$rd"
+echo "$today" > "$rd/.git/dirigible-slow-date"
+printf 'struct ATests {\n  @Test func a() {\n    _ = "../../docs/guide.md"\n  }\n}\n' > "$rd/Tests/DirigibleCoreTests/GuideATests.swift"
+printf 'struct BTests {\n  @Test func b() {\n    _ = "docs/guide.md"\n    _ = "scripts/part.sh.txt"\n  }\n}\n' > "$rd/Tests/DirigibleCoreTests/GuideBTests.swift"
+printf 'enum Fixtures {\n  static let p = "scripts/plain.sh"\n}\n' > "$rd/Tests/DirigibleCoreTests/Fixtures.swift"
+printf 'struct CTests {\n  /// reads "scripts/comment.sh"\n  @Test func c() { _ = "xscripts/part.sh" }\n}\n' > "$rd/Tests/DirigibleCoreTests/CommentTests.swift"
+printf 'struct AppBundleTests {\n  @Test func v() { _ = "scripts/version.sh"; _ = "docs/app.md" }\n}\n' > "$rd/Tests/DirigibleTests/AppBundleTests.swift"
+printf 'extension AppBundleTests {\n  @Test func l() { _ = "scripts/licenses.sh" }\n}\n' > "$rd/Tests/DirigibleTests/AppBundleTests+Licenses.swift"
+printf 'struct DiskImageTests {\n  @Test func d() { _ = "scripts/dmg-read.sh"; _ = "docs/dmg.md" }\n}\n' > "$rd/Tests/DirigibleTests/DiskImageTests.swift"
+# rexpect <name> <want> [--push]: as expect, in the repo with the readers.
+rexpect() {
+  local name="$1" want="$2" got
+  shift 2
+  got="$(cd "$rd" && "$script" --paths "$@" | norev)" || { fail "$name: exit $?"; return; }
+  [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
+}
+rexpect 'a doc that two suites read, before the push' "$(out docs 'check-docs test-filter READERS=ATests,BTests' no)" --push <<<'docs/guide.md'
+rexpect 'a doc that two suites read, local' "$(out docs 'check-docs test-filter READERS=ATests,BTests' no)" <<<'docs/guide.md'
+rexpect 'a doc that no test reads' "$(out docs check-docs no)" --push <<<'README.md'
+rexpect 'a path that a test names in part' "$(out tooling check-fast no)" --push <<<'scripts/part.sh'
+rexpect 'a path that a test names in a comment' "$(out tooling check-fast no)" --push <<<'scripts/comment.sh'
+rexpect 'a reader file with no suite' "$(out tooling 'check-fast test' no)" --push <<<'scripts/plain.sh'
+rexpect 'a script that AppBundleTests reads' "$(out tooling 'check-fast test-app' no)" --push <<<'scripts/version.sh'
+rexpect 'a script that an extension of AppBundleTests reads' "$(out tooling 'check-fast test-app' no)" --push <<<'scripts/licenses.sh'
+rexpect 'a script that DiskImageTests reads' "$(out tooling 'check-fast test-dmg' no)" --push <<<'scripts/dmg-read.sh'
+rexpect 'a doc that two suites read, with a Sources path' "$(out 'docs sources' 'check-docs test' no)" <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'
+rexpect 'a doc that AppBundleTests reads, with a Sources path' "$(out 'docs sources' 'check-docs test test-app' no)" <<<$'docs/app.md\nSources/DirigibleApp/AppDelegate.swift'
+rexpect 'a doc that AppBundleTests reads, beside check' "$(out 'docs sources' check no)" --push <<<$'docs/app.md\nSources/DirigibleApp/AppDelegate.swift'
+rexpect 'a doc that DiskImageTests reads, beside check' "$(out 'docs sources' 'check test-dmg' no)" --push <<<$'docs/dmg.md\nSources/DirigibleApp/AppDelegate.swift'
+FILTER=XTests rexpect 'a doc that two suites read, with FILTER' "$(out docs 'check-docs test-filter READERS=ATests,BTests' no)" <<<'docs/guide.md'
+FILTER=ATests rexpect 'a doc that two suites read and a Sources path, with FILTER' "$(out 'docs sources' 'check-docs test-filter READERS=ATests,BTests' no)" \
+  <<<$'docs/guide.md\nSources/DirigibleApp/AppDelegate.swift'
+
+# A change of only the check-docs script or its code-rules script needs no hook test: the check-docs
+# gate runs both and the test of the first. The paths are built from parts, so this file does not name them.
+docs_script="scripts/check-docs"'.sh' docs_code_script="scripts/check-docs-code"'.sh'
+expect 'the check-docs script alone' "$(out tooling static no)" <<<"$docs_script"
+expect 'the check-docs code-rules script alone' "$(out tooling static no)" <<<"$docs_code_script"
+expect 'the check-docs script and a script with a test' "$(out tooling "check-fast$(hw scripts/probe.sh)" no)" <<<"$docs_script"$'\nscripts/probe.sh'
 
 # The HOOK_TESTS word. A local run with check-fast names the hook tests that the changed paths
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
@@ -736,7 +785,7 @@ make_repo; make_case 'make check-changed with no changed path' ''
 make_repo
 mkdir -p "$tmp/bin" "$tmp/r/Tests/DirigibleCoreTests"
 # The fake prints a started line for each suite, so test-filter.sh makes no list call.
-printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "◇ Suite ATests started."\necho "◇ Suite BTests started."\necho "Test run with 2 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
+printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "◇ Suite ATests started."\necho "◇ Suite BTests started."\necho "◇ Suite CTests started."\necho "Test run with 2 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
 chmod +x "$tmp/bin/swift"
 printf 't\n' > "$tmp/r/Tests/DirigibleCoreTests/T.swift"
 : > "$tmp/swift.log"
@@ -1484,6 +1533,42 @@ review_base 'review: an untracked PNG' 'panel (binary)'
 # The bare mode prints no review line.
 review_repo 1 1
 [[ -z "$(cd "$tmp/r" && FILTER=X "$script" 2> /dev/null | sed -n 's/^review: //p')" ]] || fail 'review: the bare mode prints a review line'
+
+# The READERS word through the real recipe: the suites that read a changed doc reach the swift calls,
+# before the push (no FILTER) and with a FILTER of the user, whose names come first. The check-docs
+# scripts are stubs: only the reader suites are under test here. The fake swift is that of the FILTER cases above.
+printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "◇ Suite ATests started."\necho "◇ Suite BTests started."\necho "◇ Suite CTests started."\necho "Test run with 3 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
+readers_repo() {
+  make_repo
+  mkdir -p "$tmp/r/Tests/DirigibleCoreTests"
+  printf 'struct ATests {\n  @Test func a() { _ = "../../docs/guide.md" }\n}\n' > "$tmp/r/Tests/DirigibleCoreTests/GuideATests.swift"
+  printf 'struct BTests {\n  @Test func b() { _ = "docs/guide.md" }\n}\n' > "$tmp/r/Tests/DirigibleCoreTests/GuideBTests.swift"
+  printf '#!/bin/bash\nexit 0\n' > "$tmp/r/scripts/check-docs.sh"
+  cp "$tmp/r/scripts/check-docs.sh" "$tmp/r/scripts/check-docs.test.sh"
+  chmod +x "$tmp/r/scripts/check-docs.sh" "$tmp/r/scripts/check-docs.test.sh"
+  printf 'guide\n' > "$tmp/r/docs/guide.md"
+  g add -A
+  g commit -q -m readers
+  : > "$tmp/swift.log"
+  echo 1.00 > "$tmp/load"
+  : > "$tmp/procs"
+}
+readers_repo
+g switch -q -c feat/g
+printf 'guide 2\n' >> "$tmp/r/docs/guide.md"
+g commit -q -am guide
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with BASE on a doc that two suites read' '' BASE=main
+[[ "$output" == *"targets: check-docs test-filter READERS=ATests,BTests"* ]] || fail "make check-changed with BASE and readers: no READERS word: $output"
+[[ "$(cat "$tmp/swift.log")" == "swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests --filter ATests --filter BTests" ]] ||
+  fail "make check-changed with BASE and readers: swift calls: $(cat "$tmp/swift.log")"
+readers_repo
+printf 'guide 2\n' >> "$tmp/r/docs/guide.md"
+got="$(run_in)" || fail "a local run on a doc that two suites read: exit $?"
+[[ "$got" == "$(out docs 'check-docs test-filter READERS=ATests,BTests' no)" ]] || fail "a local run on a doc that two suites read: got [$got]"
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with a FILTER and a doc that two suites read' '' FILTER=CTests
+[[ "$output" == *"targets: check-docs test-filter READERS=ATests,BTests"* ]] || fail "make check-changed with FILTER and readers: no READERS word: $output"
+[[ "$(cat "$tmp/swift.log")" == "swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests --filter CTests --filter ATests --filter BTests" ]] ||
+  fail "make check-changed with FILTER and readers: swift calls: $(cat "$tmp/swift.log")"
 
 [[ $failures -eq 0 ]] && echo "check-changed tests: all passed"
 exit $((failures > 0))

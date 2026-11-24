@@ -16,9 +16,8 @@
 # it runs the checks. It reads the pass stamp of check-stamp.sh before the rebase, because the
 # rebase rewrites each commit. After the rebase, it runs no check when the tree of the stamp
 # commit is the tree of HEAD, else the targets of the files that differ between them, after the
-# load wait of check-changed.sh. A file outside Sources/ and Tests/ that a code line of Tests/
-# names as a whole string-literal path adds the target of that test file: `test-app` for
-# AppBundleTests, `test-dmg` for DiskImageTests (`make test` skips both), else `test`. With no
+# load wait of check-changed.sh. The targets are those of `check-changed.sh --paths --push` on
+# the files, which add the tests that read a changed file (its header). With no
 # stamp, it runs `make check-changed BASE=origin/main`, except when the reason is `base moved`
 # (the stamp has an older base, or the file has no line of this branch): then it runs no check,
 # prints `stamp: none (base moved)` and the line `push check: cd <worktree> && ... make
@@ -273,27 +272,6 @@ if [[ -n "$stamp_commit" ]]; then
         out="$("$here/check-changed.sh" --paths --push <<<"$delta")" || die "check-changed.sh failed on the delta after $commit; nothing is pushed"
         targets="$(sed -n 's/^targets: //p' <<<"$out")"
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
-        # A Swift test can read a file of another class (docs/guide.md). A delta path outside
-        # Sources/ and Tests/ that a code line of Tests/ names as a whole string-literal path
-        # ("..." or ".../" before it, a quote after it) adds the target that runs that test file:
-        # test-app for AppBundleTests, test-dmg for DiskImageTests (make test skips both), else
-        # test. check runs test and test-app too.
-        while IFS= read -r changed; do
-            case "$changed" in Sources/*|Tests/*) continue ;; esac
-            re="$(sed 's/[^A-Za-z0-9_/-]/\\&/g' <<<"$changed")"
-            hits="$(grep -rnE -e "[\"/]$re\"" Tests 2>/dev/null || true)"
-            [[ -n "$hits" ]] || continue
-            while IFS= read -r file; do
-                case "${file##*/}" in
-                    AppBundleTests.swift) want=test-app ;;
-                    DiskImageTests.swift) want=test-dmg ;;
-                    *) want=test ;;
-                esac
-                [[ " $targets " != *" $want "* ]] || continue
-                [[ $want == test-dmg || " $targets " != *" check "* ]] || continue
-                targets="$targets $want"
-            done < <(grep -vE '^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)' <<<"$hits" | cut -d: -f1)
-        done <<<"$delta"
         echo "stamp: delta $targets"
         BASE=origin/main CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
     fi

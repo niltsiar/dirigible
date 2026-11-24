@@ -10,8 +10,8 @@
 # `base moved` runs no check: the land prints the push check command and exits 4, and the second call
 # reuses the stamp of the rebased HEAD. No stamp, or a stamp that is not an ancestor, runs the full
 # push check; the governance and the ancestor checks still run. The land reads the stamp
-# before its rebase: the delta is the tree diff to the rebased HEAD, with the test target for a
-# file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
+# before its rebase: the delta is the tree diff to the rebased HEAD, with the test targets that
+# check-changed.sh adds for a file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
 # the stamp commit. The ratchet case runs the real make check-changed first, so the land runs no
 # check after it. A partial stamp is no pass. The tool-author guard of check-commits.sh: a tool
 # name in the author, the committer, or a Co-Authored-By trailer refuses the land and the push
@@ -654,8 +654,12 @@ reads_case 'rebase delta of a file that a test names in a comment' Tests/G.swift
 reads_case 'rebase delta of a file that a test names in part' Tests/G.swift $'let a = "xscripts/a.sh"\nlet b = "scripts/a.sh.txt"' scripts/a.sh check-fast
 reads_case 'rebase delta of a script that a test reads' Tests/G.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test'
 # make test skips AppBundleTests and DiskImageTests: a read in them adds the target that runs them.
-reads_case 'rebase delta of a script that AppBundleTests reads' Tests/DirigibleTests/AppBundleTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-app'
-reads_case 'rebase delta of a script that DiskImageTests reads' Tests/DirigibleTests/DiskImageTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-dmg'
+reads_case 'rebase delta of a script that AppBundleTests reads' Tests/DirigibleTests/AppBundleTests.swift $'struct AppBundleTests {\n  @Test func v() { _ = "scripts/a.sh" }\n}' scripts/a.sh 'check-fast test-app'
+reads_case 'rebase delta of a script that DiskImageTests reads' Tests/DirigibleTests/DiskImageTests.swift $'struct DiskImageTests {\n  @Test func d() { _ = "scripts/a.sh" }\n}' scripts/a.sh 'check-fast test-dmg'
+# The suite of the reader file decides, not its name: an extension of AppBundleTests runs in test-app.
+reads_case 'rebase delta of a script that an extension of AppBundleTests reads' Tests/DirigibleTests/AppBundleTests+Licenses.swift $'extension AppBundleTests {\n  @Test func l() { _ = "scripts/a.sh" }\n}' scripts/a.sh 'check-fast test-app'
+# land.sh has no scan of its own: the delta of a doc that two suites read gets the word of check-changed.sh.
+reads_case 'rebase delta of a doc that two suites read' Tests/DirigibleCoreTests/GuideTests.swift $'struct ATests {\n  @Test func a() { _ = "../../docs/guide.md" }\n}\nstruct BTests {\n  @Test func b() { _ = "docs/guide.md" }\n}' docs/guide.md 'check-docs test-filter READERS=ATests,BTests'
 # A land that stops after its rebase (here: a slice with no Check line) keeps the rebased branch.
 # The second land of the branch finds the stamp commit in the land stamp file of the common git dir.
 setup

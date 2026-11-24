@@ -105,6 +105,11 @@ private func openName(
     let stamp = FileStamp(info)
     after(.opened)
     guard let audio = try? AVAudioFile(forReading: url) else {
+        // `AVAudioFile` opens its own descriptor and hides its errno: with no free descriptor the
+        // file is not unreadable, and the caller must fail, not play silence.
+        let spare = dup(descriptor)
+        guard spare >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EMFILE) }
+        close(spare)
         var now = stat()
         guard stat(url.path, &now) == 0, now.st_dev == info.st_dev, now.st_ino == info.st_ino else { return nil }
         return (nil, .unreadable, stamp)

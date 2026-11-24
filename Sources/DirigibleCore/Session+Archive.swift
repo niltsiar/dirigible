@@ -51,8 +51,14 @@ package struct PoolFileName: Hashable, Sendable {
 /// "Clips/<path>". It opens nothing. Each opener keeps its own open call and link rule, and opens
 /// the other name once on ENOENT: a job of another process can convert the file in between.
 package func poolFileName(_ file: AudioFile, in package: URL) -> PoolFileName {
-    let name = "\(clipsFolderName)/\(file.path)"
-    guard let flac = archivedPath(of: file.path).map({ "\(clipsFolderName)/\($0)" }) else {
+    poolFileName(path: file.path, in: package)
+}
+
+/// `poolFileName(_:in:)` for the pool path `path`: a reader that has a path or a segment stem,
+/// and no pool entry.
+package func poolFileName(path: String, in package: URL) -> PoolFileName {
+    let name = "\(clipsFolderName)/\(path)"
+    guard let flac = archivedPath(of: path).map({ "\(clipsFolderName)/\($0)" }) else {
         return PoolFileName(name: name, form: .pool)
     }
     var info = stat()

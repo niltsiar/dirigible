@@ -7,7 +7,8 @@ import Testing
 @testable import DirigibleAudio
 
 /// The package jobs of decision 0072: what the archive converts and keeps, a damaged source, the
-/// repair of a mixed state, and the refusals (run criteria C6, C10, C13, C16, and C21 (c)).
+/// repair of a mixed state, the refusals, and the 0071 readers of an archived take (run criteria
+/// C6, C10, C13, C16, C21 (a), and C21 (c)).
 struct PackageArchiveTests {
     @Test func theArchiveKeepsOtherFiles() throws {
         let fixture = try ArchiveFixture()
@@ -220,6 +221,50 @@ struct PackageArchiveTests {
         #expect(try fixture.contents(of: ["Clips/x.flac"]) == top, "a FLAC with no pool entry and no record stays")
         #expect(unplacedSegments(wavBackedSegments(in: fixture.package), session: session).map(\.stem) == ["take1-1-1"])
         #expect(try fixture.stored().archive == nil)
+    }
+
+    /// C21 (a): the archive converts the clip of a placed take whose CAF is gone, and the 0071
+    /// predicates still find that FLAC as the only copy of the take audio.
+    @Test func aSoleCopyTakeStaysReachable() throws {
+        let (take, finalized) = try RawRemovalGateTests.twoClockTake(bows: (0, 0))
+        let (first, second) = (RawRemovalGateTests.first, RawRemovalGateTests.second)
+        try FileManager.default.removeItem(at: take.capture.appending(path: first.cafName))
+        func save(_ session: Session) throws(SessionFileError) -> URL {
+            try session.write(to: take.url)
+            return take.url
+        }
+        var session = finalized
+        _ = try save(session)
+        #expect(wavBackedSegments(in: take.url) == [first])
+
+        let report = try archivePackage(&session, in: take.url, save: save)
+
+        #expect(report.converted == ["take1-1-1.wav", "take1-2-1.wav"])
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: take.url.appending(path: "Clips").path).sorted()
+                == ["take1-1-1.flac", "take1-2-1.flac"])
+        #expect(wavBackedSegments(in: take.url) == [first])
+        #expect(soleCopyWAVs(in: take.url) == ["take1-1-1.wav"])
+        #expect(rawCaptures(of: session, in: take.url) == [second: .archived], "the CAF of the first is gone")
+    }
+
+    /// C10 raw part: a placed take whose clip is a FLAC that an unarchive kept as damaged (no
+    /// attribute) gets `.archived` and keeps its CAF. The other track of the take loses its CAF.
+    @Test func aTakeWhoseClipIsADamagedFLACKeepsItsCAF() throws {
+        let (take, session) = try RawRemovalGateTests.twoClockTake(bows: (0, 0))
+        let (first, second) = (RawRemovalGateTests.first, RawRemovalGateTests.second)
+        #expect(try archiveClip(#require(session.files["take1-1-1"]), in: take.url, rate: 48_000))
+        let flac = take.url.appending(path: "Clips/take1-1-1.flac")
+        let whole = try Data(contentsOf: flac)
+        try whole.prefix(whole.count / 2).write(to: flac)
+
+        #expect(rawCaptures(of: session, in: take.url) == [first: .archived, second: .removable])
+        #expect(removableCaptures(of: session, in: take.url).map { $0.name } == [second])
+        removeRecordedRawCaptures(of: session, in: take.url) { .disabled }
+
+        #expect(FileManager.default.fileExists(atPath: take.capture.appending(path: first.cafName).path))
+        #expect(!FileManager.default.fileExists(atPath: take.capture.appending(path: second.cafName).path))
+        #expect(try Data(contentsOf: flac) == whole.prefix(whole.count / 2), "the FLAC stays as it was")
     }
 }
 

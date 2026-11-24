@@ -24,6 +24,9 @@ public struct UnusedFiles: Hashable, Sendable {
         /// Relative to `Clips/` for `.pool` and `.stray`, and to the package for `.transcript`
         /// ("Transcripts/<name>.xml") and `.capture`.
         public let path: String
+        /// The name on disk relative to the package: for a pool item the name that `poolFileName`
+        /// gave at the scan, so the prune moves the FLAC of an archived file (decision 0072).
+        let name: String
         public let bytes: Int64
         /// The `lstat` identity at the scan, nil for a missing file. A file that another file
         /// replaced at the path is another item, so an intersection drops it.
@@ -83,26 +86,27 @@ public struct UnusedFiles: Hashable, Sendable {
                 }
             }
         }
-        let own = Holders(session.usedPaths, in: clips)
-        let others = Holders((held + keepers).flatMap(\.usedPaths) + keptFiles, in: clips)
+        let own = Holders(session.usedPaths, in: package)
+        let others = Holders((held + keepers).flatMap(\.usedPaths) + keptFiles, in: package)
         let poolNames = Set(session.files.values.map { normalized($0.path) })
         let used = session.filesInUse
         let realClips = package.resolvingSymlinksInPath().appending(path: clipsFolderName).path
         let sole = Set(soleCopies.map(normalized))
 
-        var candidates: [(Item.Kind, String)] = session.files.values
-            .filter { !used.contains($0.id) && Self.staysIn(realClips, clips.appending(path: $0.path)) }
-            .map { (.pool($0.id), $0.path) }
+        var candidates: [(kind: Item.Kind, path: String, name: String)] = session.files.values
+            .filter { !used.contains($0.id) }
+            .map { (.pool($0.id), $0.path, poolFileName($0, in: package).name) }
+            .filter { Self.staysIn(realClips, package.appending(path: $0.name)) }
         candidates += names.filter {
             Self.isStray($0, in: clips) && !poolNames.contains(normalized($0)) && !sole.contains(normalized($0))
         }
-        .map { (.stray, $0) }
+        .map { (.stray, $0, "\(clipsFolderName)/\($0)") }
 
         var items: [Item] = []
         var notFiles: [String] = []
         var kept = Kept(count: 0, bytes: 0)
-        for (kind, path) in candidates {
-            let url = clips.appending(path: path)
+        for (kind, path, name) in candidates {
+            let url = package.appending(path: name)
             var info = stat()
             let found = lstat(url.path, &info) == 0
             if found && info.st_mode & S_IFMT != S_IFREG {
@@ -117,7 +121,7 @@ public struct UnusedFiles: Hashable, Sendable {
                 kept = Kept(count: kept.count + 1, bytes: kept.bytes + bytes)
                 continue
             }
-            items.append(Item(kind: kind, path: path, bytes: bytes, identity: identity))
+            items.append(Item(kind: kind, path: path, name: name, bytes: bytes, identity: identity))
         }
         let ownNames = session.transcriptFiles
         let heldNames = Set((held + keepers).flatMap(\.transcriptFiles))
@@ -250,18 +254,13 @@ public struct UnusedFiles: Hashable, Sendable {
     /// files of a capture go in path order (the CAF, then its sidecar), each only after the earlier
     /// files of its capture left: a CAF with no sidecar can never place.
     private func moved(under package: URL, trash: (URL) throws -> URL) -> PruneReport {
-        let clips = package.appending(path: clipsFolderName)
         var moved: [PruneReport.Moved] = []
         var failed: [PruneReport.Failed] = []
         var dropped: [FileID] = []
         var movedPool: Set<FileID> = []
         /// False when the item is still at its path.
         @discardableResult func move(_ item: Item) -> Bool {
-            let url: URL =
-                switch item.kind {
-                case .transcript, .capture: package.appending(path: item.path)
-                case .pool, .stray: clips.appending(path: item.path)
-                }
+            let url = package.appending(path: item.name)
             let now = FileIdentity(lstat: url.path)
             guard now != nil || errno != ENOENT else {
                 if case .pool(let id) = item.kind { dropped.append(id) }

@@ -5,11 +5,14 @@ struct Holders {
     var names: Set<String> = []
     var identities: Set<FileIdentity> = []
 
-    /// Many entries name the same paths, so each path gets one `lstat` and one `stat`.
-    init(_ paths: [String], in clips: URL) {
+    /// Many entries name the same paths, so each path gets one `lstat` and one `stat`. The
+    /// identities are of the names that `poolFileName` gives, so a pool item that resolves to its
+    /// FLAC matches them.
+    init(_ paths: [String], in package: URL) {
         for path in Set(paths) {
             names.insert(normalized(path))
-            identities.formUnion(FileIdentity.both(clips.appending(path: path).path))
+            identities.formUnion(
+                FileIdentity.both(package.appending(path: poolFileName(path: path, in: package).name).path))
         }
     }
 

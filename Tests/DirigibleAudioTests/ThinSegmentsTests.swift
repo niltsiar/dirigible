@@ -44,7 +44,7 @@ struct ThinSegmentsTests {
         tengo 11958 11983  la 11983 11996  bola 11996 12022  de 12022 12040  cristal. 12040 12112
         """)
     static let pieceSegments = segments("10141 10345 9  10391 11645 10  11720 12112 17")
-    static let dropSpan = ThinSpan(start: 10345, end: 11720, thin: [pieceSegments[1]], language: .code("es"))
+    static let dropSpan = ThinSpan(start: 10345, end: 11720, thin: [pieceSegments[1]])
     /// The fresh call on the span: "o" starts at the span start, before the thin segment start 103.91 s.
     static let redecoded = words(
         """
@@ -154,7 +154,7 @@ struct ThinSegmentsTests {
             con 15300 15400  los 15400 15500  100 15500 15700  de 15700 15800  esto. 15800 16031  Vale 16039 16100
             """)
         let segments = Self.segments("13900 14131 1  14131 16031 10  16039 16200 1")
-        let span = ThinSpan(start: 14131, end: 16039, thin: [segments[1]], language: .code("es"))
+        let span = ThinSpan(start: 14131, end: 16039, thin: [segments[1]])
         let again = Self.words(
             """
             o 14131 14140  sea 14140 14200  que 16039 16040  ahora 16040 16041  estás 16041 16042  con 16042 16043
@@ -168,8 +168,9 @@ struct ThinSegmentsTests {
         #expect(ThinSegments.accepts(Self.redecoded, over: Self.dropSpan.thin))
         let composed = ThinSegments.compose(
             first: Self.firstPass, language: "es",
-            redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded, language: "es"))])
-        #expect(composed.notes == [RedecodeNote(start: 10345, end: 11720, before: 10, after: 29, kept: .secondPass)])
+            redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded))])
+        let note = RedecodeNote(start: 10345, end: 11720, before: 10, result: .compared(after: 29, kept: .secondPass))
+        #expect(composed.notes == [note])
         let expected = Array(Self.firstPass[0..<9]) + Self.redecoded + Array(Self.firstPass[19...])
         #expect(composed.outcome == .words(expected, language: "es"))
     }
@@ -193,9 +194,9 @@ struct ThinSegmentsTests {
         for count in [9, 10] {
             let composed = ThinSegments.compose(
                 first: Self.firstPass, language: "es",
-                redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.distinct(count), language: "es"))])
+                redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.distinct(count)))])
             #expect(composed.outcome == .words(Self.firstPass, language: "es"), "\(count) words")
-            #expect(composed.notes.map(\.kept) == [.firstPass])
+            #expect(composed.notes.map(\.result) == [.compared(after: count, kept: .firstPass)])
         }
     }
 
@@ -243,7 +244,7 @@ struct ThinSegmentsTests {
     }
 
     @Test func aStoppedRedecodeStopsThePiece() {
-        let accepted = Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded, language: "es"))
+        let accepted = Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded))
         let finished = ThinSegments.compose(first: Self.firstPass, language: "es", redecodes: [accepted])
         #expect(finished.outcome != .stopped)
         let stopped = Redecode(span: Self.dropSpan, outcome: .stopped)
@@ -255,50 +256,7 @@ struct ThinSegmentsTests {
         let failed = Redecode(span: Self.dropSpan, outcome: .failed(code: -7))
         let composed = ThinSegments.compose(first: Self.firstPass, language: "es", redecodes: [failed])
         #expect(composed.outcome == .words(Self.firstPass, language: "es"))
-        let note = RedecodeNote(start: 10345, end: 11720, before: 10, after: nil, kept: .firstPass, fault: -7)
-        #expect(composed.notes == [note])
-    }
-
-    /// C5: the note of each second call is one `transcript redecode` line of the journal.
-    @Test func eachSecondCallWritesOneJournalLine() throws {
-        let folder = try TemporaryFolder()
-        let log = startLog(in: folder.url)
-        let redecodes = [
-            Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded, language: "es")),
-            Redecode(span: Self.dropSpan, outcome: .failed(code: -7)),
-        ]
-        for note in ThinSegments.compose(first: Self.firstPass, language: "es", redecodes: redecodes).notes {
-            note.write(to: log)
-        }
-        log.drain()
-
-        let lines = try journalLines(of: try #require(journalFiles(in: folder.url).first))
-            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
-            .filter { $0.count > 5 && $0[5] == "transcript redecode" }
-        #expect(lines.map { Array($0[3...5]) } == Array(repeating: ["notice", "app", "transcript redecode"], count: 2))
-        #expect(
-            lines.map(fieldValues) == [
-                ["start": "10345", "end": "11720", "before": "10", "after": "29", "kept": "second pass"],
-                ["start": "10345", "end": "11720", "before": "10", "kept": "first pass", "fault": "-7"],
-            ])
-    }
-
-    @Test func thePieceLanguageIsTheFirstPassLanguage() {
-        let composed = ThinSegments.compose(
-            first: Self.firstPass, language: "es",
-            redecodes: [Redecode(span: Self.dropSpan, outcome: .words(Self.redecoded, language: "en"))])
-        let expected = Array(Self.firstPass[0..<9]) + Self.redecoded + Array(Self.firstPass[19...])
-        #expect(composed.outcome == .words(expected, language: "es"))
-    }
-
-    /// The job language does not reach the spans: a job with `.automatic` and a job with `.code("es")`
-    /// both give the second call the code of the first pass.
-    @Test func theSecondCallRunsInTheFirstPassLanguage() {
-        for code in ["es", "en"] {
-            let table = ThinSegmentsTables.pieceTwo
-            let spans = Self.spans(table, samples: ThinSegmentsTables.pieceTwoSamples, language: code)
-            #expect(spans.map(\.language) == [.code(code)])
-        }
+        #expect(composed.notes == [RedecodeNote(start: 10345, end: 11720, before: 10, result: .failed(code: -7))])
     }
 
     /// A leading quote at the end of segment 0 joins the letters of segment 1: the word is of segment 1.

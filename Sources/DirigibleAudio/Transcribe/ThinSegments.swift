@@ -9,22 +9,31 @@ struct DecodedSegment: Hashable, Sendable {
     var words: Range<Int>
 }
 
-/// One second `whisper_full` call of a piece: its span in piece ticks, the thin segments that it
-/// decodes again (one or more, in time order), and the language of the call.
+/// One second `whisper_full` call of a piece: its span in piece ticks and the thin segments that it
+/// decodes again (one or more, in time order).
 struct ThinSpan: Hashable, Sendable {
     var start: Int
     var end: Int
     var thin: [DecodedSegment]
-    var language: WhisperLanguage
 
     var firstPassWordCount: Int { thin.reduce(0) { $0 + $1.words.count } }
 }
 
-/// What one second call gives. A failed call keeps the return code of `whisper_full`.
+/// What one second call gives: its words in call time, a stop, or the return code of a failed call.
 enum RedecodeOutcome: Hashable, Sendable {
-    case words([TimedWord], language: String)
+    case words([TimedWord])
     case stopped
     case failed(code: Int32)
+
+    /// The outcome of a `whisper_full` call that returned `code` (`whisperOutcome`). `words` runs
+    /// only for a finished call.
+    init(code: Int32, stopFlagSet: Bool, words: () -> [TimedWord]) {
+        switch whisperOutcome(code: code, stopFlagSet: stopFlagSet) {
+        case .stopped: self = .stopped
+        case .failed: self = .failed(code: code)
+        case .finished: self = .words(words())
+        }
+    }
 }
 
 struct Redecode: Hashable, Sendable {
@@ -32,20 +41,25 @@ struct Redecode: Hashable, Sendable {
     var outcome: RedecodeOutcome
 }
 
-/// The journal note `transcript redecode` of one second call (decision 0065 D7b). `after` is the
-/// count of second-pass words that the merge keeps, and nil for a failed call.
+/// The journal note `transcript redecode` of one second call that ended (decision 0065 D7b).
 struct RedecodeNote: Hashable, Sendable {
     enum Kept: String, Sendable {
         case firstPass = "first pass"
         case secondPass = "second pass"
     }
 
+    enum Result: Hashable, Sendable {
+        /// `after` is the count of second-pass words that the edge rule keeps; `kept` is the pass
+        /// that the accept test chose.
+        case compared(after: Int, kept: Kept)
+        /// The first pass stays.
+        case failed(code: Int32)
+    }
+
     var start: Int
     var end: Int
     var before: Int
-    var after: Int?
-    var kept: Kept
-    var fault: Int32?
+    var result: Result
 }
 
 /// The repair of a whisper.cpp decode that skips speech inside one 30 s window (decision 0065 D7b):
@@ -105,7 +119,7 @@ enum ThinSegments {
                 found[last].end = max(found[last].end, end)
                 found[last].thin.append(segment)
             } else {
-                found.append(ThinSpan(start: start, end: end, thin: [segment], language: .code(language)))
+                found.append(ThinSpan(start: start, end: end, thin: [segment]))
             }
         }
         return found
@@ -164,6 +178,29 @@ enum ThinSegments {
         return merged
     }
 
+    /// The second calls of one piece after its first call (decision 0065 D7b). `first` holds the
+    /// first-pass words with the segment of each, `bounds` the segment bounds in ticks, and
+    /// `language` the first-pass language code. `decode` runs one call on a sample range of the
+    /// piece in that language and gives its words in call time. A stopped call ends the loop. Each
+    /// call that ends writes one `transcript redecode` note to `log`; a stopped call writes none.
+    static func redecode(
+        first: [(word: TimedWord, segment: Int)], bounds: [(start: Int, end: Int)], sampleCount: Int,
+        language: String, log: DiagnosticLog, decode: (Range<Int>, String) -> RedecodeOutcome
+    ) -> PieceOutcome {
+        let decoded = segments(bounds, wordSegments: first.map(\.segment))
+        let pieceEnd = (sampleCount + WordEnds.samplesPerTick - 1) / WordEnds.samplesPerTick
+        var redecodes: [Redecode] = []
+        for span in spans(of: decoded, pieceEnd: pieceEnd, language: language) {
+            var outcome = decode(sampleRange(ticks: span.start..<span.end, count: sampleCount), language)
+            if case .words(let words) = outcome { outcome = .words(shifted(words, byTicks: span.start)) }
+            redecodes.append(Redecode(span: span, outcome: outcome))
+            if outcome == .stopped { break }
+        }
+        let composed = compose(first: first.map(\.word), language: language, redecodes: redecodes)
+        for note in composed.notes { note.write(to: log) }
+        return composed.outcome
+    }
+
     /// The piece outcome from the first pass and the second calls in order: a stopped call stops the
     /// piece; a failed call keeps the first-pass words and notes its code; an accepted call replaces
     /// the words of its thin segments. The language of the piece is the first-pass language.
@@ -174,21 +211,20 @@ enum ThinSegments {
         var blocks: [(span: ThinSpan, words: [TimedWord])] = []
         for redecode in redecodes {
             let span = redecode.span
-            var note = RedecodeNote(start: span.start, end: span.end, before: span.firstPassWordCount, kept: .firstPass)
+            let result: RedecodeNote.Result
             switch redecode.outcome {
             case .stopped:
                 return (.stopped, notes)
             case .failed(let code):
-                note.fault = code
-            case .words(let again, _):
+                result = .failed(code: code)
+            case .words(let again):
                 let words = kept(again, first: first, span: span)
-                note.after = words.count
-                if accepts(words, over: span.thin) {
-                    blocks.append((span, words))
-                    note.kept = .secondPass
-                }
+                let accepted = accepts(words, over: span.thin)
+                if accepted { blocks.append((span, words)) }
+                result = .compared(after: words.count, kept: accepted ? .secondPass : .firstPass)
             }
-            notes.append(note)
+            notes.append(
+                RedecodeNote(start: span.start, end: span.end, before: span.firstPassWordCount, result: result))
         }
         return (.words(merge(first, blocks: blocks), language: language), notes)
     }
@@ -211,5 +247,22 @@ enum ThinSegments {
             }
         }
         return false
+    }
+}
+
+extension RedecodeNote {
+    /// Writes the journal line `transcript redecode`: the span in piece ticks, the word counts, the
+    /// kept pass, and the return code of a failed call.
+    func write(to log: DiagnosticLog) {
+        var fields: [(key: String, value: DiagnosticValue)] = [
+            ("start", .number(Int64(start))), ("end", .number(Int64(end))), ("before", .number(Int64(before))),
+        ]
+        switch result {
+        case .compared(let after, let kept):
+            fields += [("after", .number(Int64(after))), ("kept", .text(kept.rawValue))]
+        case .failed(let code):
+            fields += [("kept", .text(Kept.firstPass.rawValue)), ("fault", .number(Int64(code)))]
+        }
+        log.note(.app, "transcript redecode", fields: fields)
     }
 }

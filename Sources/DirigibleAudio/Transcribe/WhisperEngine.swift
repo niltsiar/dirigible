@@ -99,10 +99,8 @@ final class WhisperEngine {
     }
 
     /// One piece of 16 kHz mono samples. It does not read the flag before `whisper_full`, so a set
-    /// flag reaches the abort checks. Each NaN or infinite sample is 0. After the first call, each
-    /// span of `ThinSegments.spans` gets a second call in the first-pass language, and
-    /// `ThinSegments.compose` gives the words (decision 0065 D7b). Each second call writes one
-    /// `transcript redecode` note.
+    /// flag reaches the abort checks. Each NaN or infinite sample is 0. After the first call,
+    /// `ThinSegments.redecode` runs the second calls (decision 0065 D7b).
     func transcribe(piece: [Float], language: WhisperLanguage, stop: StopFlag, progress: PieceProgress? = nil)
         throws(TranscribeError) -> PieceOutcome
     {
@@ -114,28 +112,15 @@ final class WhisperEngine {
         case .failed(let error): throw error
         case .finished: break
         }
-        let first = WhisperWords.joinWithSegments(tokens())
-        let firstLanguage = detectedLanguage()
-        let segments = ThinSegments.segments(segmentBounds(), wordSegments: first.map(\.segment))
-        let pieceEnd = (samples.count + WordEnds.samplesPerTick - 1) / WordEnds.samplesPerTick
-        var redecodes: [Redecode] = []
-        for span in ThinSegments.spans(of: segments, pieceEnd: pieceEnd, language: firstLanguage) {
-            let range = ThinSegments.sampleRange(ticks: span.start..<span.end, count: samples.count)
-            let code = run(params, samples[range], language: span.language)
-            let outcome: RedecodeOutcome
-            switch whisperOutcome(code: code, stopFlagSet: stop.isSet) {
-            case .stopped: outcome = .stopped
-            case .failed: outcome = .failed(code: code)
-            case .finished:
-                let words = ThinSegments.shifted(WhisperWords.join(tokens()), byTicks: span.start)
-                outcome = .words(words, language: detectedLanguage())
+        let outcome = ThinSegments.redecode(
+            first: WhisperWords.joinWithSegments(tokens()), bounds: segmentBounds(), sampleCount: samples.count,
+            language: detectedLanguage(), log: log
+        ) { range, code in
+            RedecodeOutcome(code: run(params, samples[range], language: .code(code)), stopFlagSet: stop.isSet) {
+                WhisperWords.join(tokens())
             }
-            redecodes.append(Redecode(span: span, outcome: outcome))
-            if outcome == .stopped { break }
         }
-        let composed = ThinSegments.compose(first: first.map(\.word), language: firstLanguage, redecodes: redecodes)
-        for note in composed.notes { note.write(to: log) }
-        switch composed.outcome {
+        switch outcome {
         case .stopped: return .stopped
         case .words(let words, let language): return .words(WordEnds.place(words, samples: samples), language: language)
         }
@@ -235,20 +220,6 @@ final class WhisperLog: Sendable {
         let log = Unmanaged<WhisperLog>.fromOpaque(data).takeUnretainedValue().target.withLock { $0 }
         let line = String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)
         log.note(.app, "whisper log", level: .error, ["text": .text(line)])
-    }
-}
-
-extension RedecodeNote {
-    /// Writes the journal line `transcript redecode`: the span in piece ticks, the word counts, the
-    /// kept pass, and the return code of a failed call.
-    func write(to log: DiagnosticLog) {
-        var fields: [(key: String, value: DiagnosticValue)] = [
-            ("start", .number(Int64(start))), ("end", .number(Int64(end))), ("before", .number(Int64(before))),
-        ]
-        if let after { fields.append(("after", .number(Int64(after)))) }
-        fields.append(("kept", .text(kept.rawValue)))
-        if let fault { fields.append(("fault", .number(Int64(fault)))) }
-        log.note(.app, "transcript redecode", fields: fields)
     }
 }
 

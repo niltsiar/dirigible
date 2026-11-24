@@ -23,7 +23,7 @@ struct WhisperWordsTests {
         }
 
         var whisperTokens: [WhisperToken] {
-            tokens.map { WhisperToken(bytes: $0.bytes, start: $0.t0, end: $0.t1, isSpecial: $0.special) }
+            tokens.map { WhisperToken(bytes: $0.bytes, start: $0.t0, end: $0.t1, isSpecial: $0.special, segment: 0) }
         }
     }
 
@@ -41,9 +41,9 @@ struct WhisperWordsTests {
         let bytes = Array(" mañana".utf8)
         let cut = bytes.firstIndex(of: 0xC3)! + 1
         let tokens = [
-            WhisperToken(bytes: Array(bytes[..<cut]), start: 100, end: 120, isSpecial: false),
-            WhisperToken(bytes: Array(bytes[cut...]), start: 120, end: 150, isSpecial: false),
-            WhisperToken(bytes: Array(" sale".utf8), start: 160, end: 190, isSpecial: false),
+            WhisperToken(bytes: Array(bytes[..<cut]), start: 100, end: 120, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array(bytes[cut...]), start: 120, end: 150, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array(" sale".utf8), start: 160, end: 190, isSpecial: false, segment: 0),
         ]
         #expect(
             WhisperWords.join(tokens) == [
@@ -53,11 +53,11 @@ struct WhisperWordsTests {
 
     @Test func aWordStartsAtItsFirstLetterToken() {
         let tokens = [
-            WhisperToken(bytes: Array("[_BEG_]".utf8), start: 0, end: 0, isSpecial: true),
-            WhisperToken(bytes: Array(" \"".utf8), start: 10, end: 20, isSpecial: false),
-            WhisperToken(bytes: Array("Hola".utf8), start: 20, end: 40, isSpecial: false),
-            WhisperToken(bytes: Array(" -".utf8), start: 50, end: 60, isSpecial: false),
-            WhisperToken(bytes: Array("[_TT_50]".utf8), start: 60, end: 60, isSpecial: true),
+            WhisperToken(bytes: Array("[_BEG_]".utf8), start: 0, end: 0, isSpecial: true, segment: 0),
+            WhisperToken(bytes: Array(" \"".utf8), start: 10, end: 20, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array("Hola".utf8), start: 20, end: 40, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array(" -".utf8), start: 50, end: 60, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array("[_TT_50]".utf8), start: 60, end: 60, isSpecial: true, segment: 0),
         ]
         #expect(WhisperWords.join(tokens) == [TimedWord(text: "\"Hola", start: 20, end: 40)])
     }
@@ -66,10 +66,10 @@ struct WhisperWordsTests {
     /// passes the session text rule. A greedy run can repeat such a token in each run of a track.
     @Test func aControlCharacterInsideAWordBreaksTheWord() {
         let tokens = [
-            WhisperToken(bytes: Array(" Hola\nqué".utf8), start: 10, end: 30, isSpecial: false),
-            WhisperToken(bytes: Array("\t".utf8), start: 30, end: 35, isSpecial: false),
-            WhisperToken(bytes: Array("tal".utf8), start: 35, end: 50, isSpecial: false),
-            WhisperToken(bytes: Array(" sí\u{FFFF}no".utf8), start: 60, end: 80, isSpecial: false),
+            WhisperToken(bytes: Array(" Hola\nqué".utf8), start: 10, end: 30, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array("\t".utf8), start: 30, end: 35, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array("tal".utf8), start: 35, end: 50, isSpecial: false, segment: 0),
+            WhisperToken(bytes: Array(" sí\u{FFFF}no".utf8), start: 60, end: 80, isSpecial: false, segment: 0),
         ]
         let words = WhisperWords.join(tokens)
 

@@ -12,12 +12,16 @@ extension StudioPlaybackTests {
         await studio.play.player?.session.track(track)?.gain.dB
     }
 
-    /// Waits up to 10 s until the played gain of t1 is `dB`.
+    /// Waits up to 10 s until the played gain of t1 is `dB`. It reads the clock before the gain,
+    /// so a main-actor hold of another suite during a read does not fail the wait on the gain from
+    /// before the hold: the send that the hold kept back is ahead of the next read.
     func untilPlayed(_ studio: Studio, _ dB: Double, _ message: Comment) async {
         let clock = ContinuousClock()
         let end = clock.now + .seconds(10)
-        while await playedGain(studio) != dB {
-            guard clock.now < end else {
+        while true {
+            let expired = clock.now >= end
+            if await playedGain(studio) == dB { return }
+            guard !expired else {
                 Issue.record(message)
                 return
             }

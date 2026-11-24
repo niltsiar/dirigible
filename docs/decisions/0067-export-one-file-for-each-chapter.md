@@ -13,7 +13,7 @@ F95 (R11) asks for one audio file for each chapter or each marker of the mix. Au
 Facts that constrain the design (main e9e9274a):
 
 - `endExport` acts only on `exportJob` (`Studio+Export.swift:74`). Between two jobs of a caller loop, a take start finds no job, so the loop starts the next file during the take.
-- `exportMix` adds 46 bytes to the target name for its `.tag.tmp` file (`Export.swift:163`, `:178`). A name over 209 bytes fails on APFS (255 bytes). The limit depends on that private temporary-name code, so it lives beside it.
+- `exportMix` adds 46 bytes to the target name for its `.tag.tmp` file (`Export.swift`). A name over 209 bytes fails on APFS (255 bytes). The limit depends on that private temporary-name code, so it lives beside it.
 - `StudioError.exportYielded` has no payload, and the stop texts of the live tool say "No file was written." (`LiveJob.swift` `stopMessage`). A set that stops after part 1 has files on disk, so it needs its own error.
 - The callers read the session before awaits (the media check, the save panel, the replace sheet), and the job renders the Studio session of the job start (`Studio+Export.swift:50`).
 - `Session.chapterList(in:)` drops a chapter at the millisecond of the chapter before it. The MP3, the M4A, and chapters.json use it.

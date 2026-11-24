@@ -16,7 +16,7 @@
 
 Release 1 run 5 (`docs/requirements/releases.md`) exports the mix: WAV, AAC in `.m4a`, and FLAC (R11 part, 0007), mono or stereo (R15), with progress and Cancel, never during a take, and never over a file that the user did not confirm. 0003 asks for a missing-media question before an export and a report after it. 0011 asks for a `dirigible` command. 0016 says that playback, `dirigible render`, and export use one mix render (`MixReader`). Research: `docs/research/export.md`.
 
-Probes on 2026-09-25 (Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-25-export/probe/output.txt`):
+Probes on 2026-09-25 (Intel i5-8259U, macOS 15.7.9, Swift 6.2.4):
 
 - P1, P2. `ExtAudioFile` with a float32 client writes WAV 16 and 24, FLAC 16 and 24, and AAC in M4A. FLAC decodes bit for bit equal to the WAV of the same depth. The AAC read length equals the frames written.
 - P3. Float to integer clips and rounds half up. No dither by default.
@@ -85,4 +85,4 @@ Probes on 2026-09-25 (Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/r
 - **The chunk loop in a detached task at utility priority.** Rejected: an await of the task from the main actor raises its priority.
 - **Record refused during an export.** Rejected: a refused Record can lose a live moment; the export can run again.
 - **`dirigible render` as a mode of `export`.** Rejected: `render` has its own tests and callers; one private writer already keeps the two equal.
-- **TPDF dither for 16-bit.** Deferred to the Release 2 gain stage (backlog).
+- **TPDF dither for 16-bit.** Rejected for Release 1. Added in Release 2 (0032).

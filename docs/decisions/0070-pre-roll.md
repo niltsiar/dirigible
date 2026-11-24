@@ -1,7 +1,8 @@
 # 0070. Pre-roll: playback during a pre-roll take, an anchor at the heard punch point, a floor at the playhead
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-28
+- Accepted: 2026-11-03, when the Record with Pre-roll code landed (F08).
 - Amends: 0039 (playback during a take), 0044 (the playback line), 0004 (**Timing**: the take anchor and the floor), 0013 (**Start**: the Player start before the save in a pre-roll take), 0016 (Record, the Player during a take, the output latency), 0052 (the output latency line), 0021 (an aligned placement has the floor T; `.beforeTimeline` goes), 0047 (the prune moves the capture files of a pruned segment), 0048 (the `record` tool takes `pre_roll`), 0061 (the take time of a pre-roll take file), 0003 (the take anchor line and the pre-roll mark of `<recording>`), 0024 (the `session.xml` version of a pre-roll `<recording>` and anchor version 2).
 
 ## Context

@@ -14,8 +14,7 @@
 
 ## Context
 
-R16 and Release 3 run 6: when the user turns it on, an agent edits a session that the app has open, and each edit is one undo step in the app. 0041 refuses a package that the app has open, and says that Release 3 moves the MCP files into a library that the app imports. MCP clients such as Claude Code, Codex, and opencode start a local server over stdio; Claude Code has stdio and HTTP only [S26]. `Studio` is `@MainActor`. Claude Code sends `clientInfo` with `title` "Claude Code" on each modern request (run 2026-10-07-mcp-cli, probe u2). Research: `.scratchpads/research-2026-10-07/mcp-server.md` section 6.3 (not in git). Design: `.scratchpads/runs/2026-10-12-mcp-in-app/design.md`.
-
+R16 and Release 3 run 6: when the user turns it on, an agent edits a session that the app has open, and each edit is one undo step in the app. 0041 refuses a package that the app has open, and says that Release 3 moves the MCP files into a library that the app imports. MCP clients such as Claude Code, Codex, and opencode start a local server over stdio; Claude Code has stdio and HTTP only [S26]. `Studio` is `@MainActor`. Claude Code sends `clientInfo` with `title` "Claude Code" on each modern request (run 2026-10-07-mcp-cli, probe u2).
 ## Decision
 
 - **Library.** A library target `DirigibleMCP` (Foundation, Observation, os for the logger, `DirigibleCore`, `DirigibleAudio`) holds the protocol, the tool table, the file executor, the live executor, `AgentServer`, and the bridge client. `DirigibleCLI` keeps ArgumentParser and the stdin loop. `DirigibleApp` keeps only the wiring. The tool text stays English only (0011).

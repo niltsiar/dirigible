@@ -18,7 +18,7 @@
 
 R3 and R4 ask for several sources at the same time, each on its own track, without an aggregate device. `AGENTS.md` asks for no data loss after a crash, an unplug, or a full disk, and for the timing data to align devices with different clocks. The evidence is in `docs/research/capture.md` and in local tests:
 
-- A CAF writer killed with SIGKILL leaves every written second readable. A WAV writer leaves a header with 0 bytes (`.scratchpads/verify/caf-crash/`, 21.0 s of 21 s against 0 s).
+- A CAF writer killed with SIGKILL leaves every written second readable. A WAV writer leaves a header with 0 bytes (21.0 s of 21 s against 0 s).
 - `ExtAudioFileWriteAsync` lost 0.27 s on SIGKILL. Synchronous writes lost nothing.
 - `AudioDeviceCreateIOProcIDWithBlock` gives the device sample time and host time for each buffer. Process taps (0006) use the same path.
 
@@ -97,7 +97,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 - Before a take, compute the remaining record time from the free space and that rate; decision 0023 says when the window shows it. During a take, stop cleanly and tell the user when the free space is less than the WAV size of the take so far plus 1 GB.
 - Hold a `kIOPMAssertPreventUserIdleSystemSleep` assertion while recording. It does not stop sleep on lid close, from the Apple menu, or on low battery (IOPMLib.h). A segment break catches the sample-time jump after a wake.
 
-**Echo (R14).** Headphones are the only live measure. From Release 2, when a session has an app source (0006) and the output is the built-in speakers, show "Use headphones". Voice processing is not used: it needs AVAudioEngine, builds its own aggregate device, ducks the call, and changes the raw signal. Offline bleed removal is R14 work in Release 3.
+**Echo (R14).** Headphones are the only live measure. From Release 2, when a session has an app source (0006) and the output is the built-in speakers, show "Use headphones". Voice processing is not used: it needs AVAudioEngine, builds its own aggregate device, ducks the call, and changes the raw signal. Offline bleed removal (F42) is later work.
 
 ## Consequences
 

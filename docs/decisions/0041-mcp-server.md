@@ -29,10 +29,11 @@
 - Amended: 2026-11-20, run `2026-10-28-stem-export` (see 0078). `dirigible export-stems` gives the tool `export_stems`, by the name rule. On a closed package it reads the saved files with no lock, as `export`; on an open session it runs through `Studio.exportStems` in the export job of the window.
 - Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). The tool `session_create` takes `template`, the absolute path of a template package, in place of `sample_rate`.
 - Amended: 2026-11-22, run `2026-10-28-presets-templates` (see 0080). The tools `preset_set` and `preset_remove` change the export presets of a session. They are not batch steps (role `.alone`). The `export` tool takes `preset`, the option name of `dirigible export --preset`.
+- Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). The tool `silence_edit` edits silences: `from`, `to`, and `action` as arrays, `keep`, and `track`. It gives the text of `dirigible silence-edit`.
 
 ## Context
 
-R16: agents such as Claude Code read and edit Dirigible sessions through MCP (Model Context Protocol). The user chose two servers with one tool set: `dirigible mcp` on package files now, and a server in the running app in Release 3. The user chose our own JSON-RPC layer over the official Swift SDK. The SDK 0.12.1 is pre-1.0, supports only the legacy protocol (2025-11-25), and adds three packages, one of them third party. The current protocol is 2026-07-28. Claude Code 2.1.292 uses it on stdio and falls back to `initialize`. Research: `.scratchpads/research-2026-10-07/mcp-server.md` (not in git) and the specification pages in Sources.
+R16: agents such as Claude Code read and edit Dirigible sessions through MCP (Model Context Protocol). The user chose two servers with one tool set: `dirigible mcp` on package files now, and a server in the running app in Release 3. The user chose our own JSON-RPC layer over the official Swift SDK. The SDK 0.12.1 is pre-1.0, supports only the legacy protocol (2025-11-25), and adds three packages, one of them third party. The current protocol is 2026-07-28. Claude Code 2.1.292 uses it on stdio and falls back to `initialize`. The specification pages are in Sources.
 
 ## Decision
 

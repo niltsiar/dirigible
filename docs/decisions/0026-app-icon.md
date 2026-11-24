@@ -2,14 +2,14 @@
 
 - Status: accepted
 - Date: 2026-09-29
-- Accepted: 2026-09-28, the user approved the final W1 art (row 2026-09-28T22:29 of `.scratchpads/runs/2026-09-28-app-icon/decisions.tsv`). Plan gate 1 of the app-icon run closed the build design.
+- Accepted: 2026-09-28, the user approved the final W1 art. Plan gate 1 of the app-icon run closed the build design.
 - Amends: 0001 (Build).
 
 ## Context
 
 Release 2 run 3 (`docs/requirements/releases.md`) adds the app icon (R1 part). The user asked for an icon that contains a dirigible and an old-fashioned metal microphone. The app runs on macOS 14 and later (deployment target 14.0). On macOS 26, the system draws app icons with Liquid Glass layers and has light, dark, tinted, and clear looks. The build has no Xcode project (0001). Research: `docs/research/app-icon.md`.
 
-Probes on 2026-09-28 and 2026-09-29 (macOS 15.7.9, Xcode 26.3, `actool` 26.3; folders under `.scratchpads/runs/2026-09-28-app-icon/`, P1 to P7 in `probe-actool/`):
+Probes on 2026-09-28 and 2026-09-29 (macOS 15.7.9, Xcode 26.3, `actool` 26.3; probes P1 to P7 of the `actool` build):
 
 - P1. A `.icon` folder with SVG layers compiles with `xcrun actool` at `--minimum-deployment-target 14.0` into `Assets.car` (renditions 16 to 1024 px for `NSAppearanceNameAqua`, `NSAppearanceNameDarkAqua`, and `ISAppearanceTintable`) and `AppIcon.icns` (16 to 256 px).
 - P6. At target 26.0, `actool` writes the same renditions. `assetutil --info` shows `"PlatformVersion" : "26.0"` in place of `"14.0"`.

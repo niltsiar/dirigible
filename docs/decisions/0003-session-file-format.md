@@ -72,7 +72,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 ## Consequences
 
-- Version 3 adds fades (0035), version 4 adds crossfades (0036), and version 5 adds mute and solo (0039). Later versions add gain envelopes, effects (R8, R9), pan, chapter metadata, and loudness per file. Each raises the version.
+- Version 3 adds fades (0035), version 4 adds crossfades (0036), and version 5 adds mute and solo (0039). Each later version is in an Amended line above and in the table of 0024.
 - A user who wants the WAV files opens the package with "Show Package Contents". The Release 1 timeline run decides whether the app also offers "Reveal clips in Finder".
 - The UTI and the `LSTypeIsPackage` entry go in `Support/Info.plist` in the Release 1 session run, checked by `AppBundleTests`.
 

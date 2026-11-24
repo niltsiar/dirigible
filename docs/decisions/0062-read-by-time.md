@@ -13,7 +13,7 @@ An agent edits an episode over MCP. To place a cut, a marker, or a duck, it must
 Grounding (run analysis, probes P1 to P3):
 
 - `speechRuns` (`DSP/SpeechActivity.swift`) already scans a mix: `MixReader` on a copy of the session with mute and solo off, 1 s chunks, 50 ms windows, the mean of the L and R mean squares against `10^(dB/10)`, progress and cancel. It is the only window detector.
-- `LoudnessMeter` gives the 400 ms blocks (the momentary series at a 100 ms hop) and the BS.1770 gated value. It keeps only the last 30 steps, so it has no short-term series. `TruePeakMeter` gives the largest true peak. The record path feeds `LoudnessMeter` on the writer queue, not on the real-time thread (`TrackSegments.swift:11`).
+- `LoudnessMeter` gives the 400 ms blocks (the momentary series at a 100 ms hop) and the BS.1770 gated value. It keeps only the last 30 steps, so it has no short-term series. `TruePeakMeter` gives the largest true peak. The record path feeds `LoudnessMeter` on the writer queue, not on the real-time thread (`TrackSegments.swift`).
 - An agent read on an open session reads the window session, not the files: `Studio.measureLoudness` copies `session` and runs on a utility GCD thread in `lock.package()`.
 - On 66.5 min (probe P2, debug build): the mix render is 4.82 s; the meter work is the limiter (216 s debug for 2 x 66.5 min; 1.88 s per hour optimized for K-weighting).
 

@@ -108,5 +108,5 @@ try session.rippleDelete(5 * 48_000 ..< 7 * 48_000, on: session.tracks.map(\.id)
 
 ## Open questions and risks
 
-- When the session format spec of 0068 lands, it gets the `follow` attribute of 0003.
+- The `follow` attribute is in 0003, from session version 16 (0024).
 - Another run can take version 16 first. Then this record and its tests take the next number. `SessionVersionTests.eachSessionVersionIsDistinctAndTheNewestIsTheLargest` fails a merge that leaves two `*SessionVersion` constants on one number, because a reader that does not know `follow` skips it and the next save drops the flag.

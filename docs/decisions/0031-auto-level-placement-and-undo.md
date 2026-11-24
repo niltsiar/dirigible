@@ -15,7 +15,7 @@ R9 asks for an automatic level of each clip. 0008 gives the rule: `gain = clipTa
 - `Clip.gain` exists, and the mix plays it.
 - A take is safe only after its `session.xml` write. A fault of the meter must never lose or block a take.
 - Every finalize path (stop, retry, recovery at open, `dirigible take finalize`) goes through `completeTake`, and a placement goes through `completePlacement`.
-- No clip gain control exists until run 11. So Undo is the only way in the app to remove a bad gain, for example +20 dB on silence with one cough.
+- Undo and the clip gain control of 0035 both remove a bad gain, for example +20 dB on silence with one cough.
 
 ## Decision
 

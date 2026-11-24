@@ -17,7 +17,7 @@
 
 Release 1 run 3 (`docs/requirements/releases.md`) adds the first window. It opens a `.dirigible` package, edits tracks and routes, records and stops, and shows the take state. `Studio` (0004, 0012, 0013) already owns the package lock, the recovery at open, and the start and stop order. The user asked for a decision on macOS Versions and an undo history on disk before or with this run.
 
-Probes on 2026-09-24 (macOS 15.7.9, x86_64, APFS, Swift 6.2.4; `.scratchpads/runs/2026-09-24-record-ui/probe/output.txt`) and `docs/research/document-window.md`:
+Probes on 2026-09-24 (macOS 15.7.9, x86_64, APFS, Swift 6.2.4) and `docs/research/document-window.md`:
 
 - P1. An `NSDocument` save of a package (the save path under `DocumentGroup`) writes a new folder and swaps it in. With a new wrapper, it deletes `.lock`, `Capture/`, and the open CAF, and a second `flock` succeeds. With the wrapper read from disk, it hard-links each file, but a file that a writer makes after the read is lost (research section 1).
 - The private document class of `DocumentGroup` keeps `autosavesInPlace` and `preservesVersions` true, and its read configuration has no URL (research section 5).
@@ -75,4 +75,4 @@ Probes on 2026-09-24 (macOS 15.7.9, x86_64, APFS, Swift 6.2.4; `.scratchpads/run
 - **`WindowGroup(for: URL.self)` with `onOpenURL`.** Rejected: a duplicate window for each open (P5a to P5c).
 - **A session controller in the library that the views bind to.** Rejected: it copies `Studio.transport`, so two states must stay in sync.
 - **Meter atomics that a `TimelineView` polls.** Rejected: the atomic keeps the last record, not the maximum since the last read, and the dropped frames still need a poll.
-- **Versions now, with a revert of `session.xml` only.** Deferred to F62: autosave and backups are one Release 2 design.
+- **Versions now, with a revert of `session.xml` only.** Done in Release 2 (0043).

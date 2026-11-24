@@ -11,7 +11,7 @@
 
 ## Context
 
-Release 2 run 11 asks for crossfades (F33). Decision 0035 planned them: an equal-power crossfade at a butt join, centered on the join, with no overlap of clips, from the media handles, in `session.xml` version 4. It left two questions open: a handle that is too short, and a crossfade at a join that an edit breaks. Hindenburg makes a crossfade from a selection with Command-F and changes its length with a handle drag. Logic Pro pivots a crossfade on the region junction. Final Cut Pro offers an overlap (a ripple edit) when the handles are short. Probe X1 measured the Float ramp of `sineRamp`: |a^2 + b^2 - 1| <= 2.2e-7 for L = 1 to 96,001 frames. The run splits in two parts: 11c-1 (the model, the format, the CLI, and the render) and 11c-2 (Command-F at a join, the handle drag, the draw, and the benches).
+Release 2 run 11 asks for crossfades (F33). Decision 0035 planned them: an equal-power crossfade at a butt join, centered on the join, with no overlap of clips, from the media handles, in `session.xml` version 4. It left two questions open: a handle that is too short, and a crossfade at a join that an edit breaks. Hindenburg makes a crossfade from a selection with Command-F and changes its length with a handle drag. Logic Pro pivots a crossfade on the region junction. Final Cut Pro offers an overlap (a ripple edit) when the handles are short. Probe X1 measured the Float ramp of `gainFactors`: |a^2 + b^2 - 1| <= 2.2e-7 for L = 1 to 96,001 frames. The run splits in two parts: 11c-1 (the model, the format, the CLI, and the render) and 11c-2 (Command-F at a join, the handle drag, the draw, and the benches).
 
 ## Decision
 

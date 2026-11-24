@@ -55,7 +55,7 @@ The user asked for a command-line front end over the same libraries as the app (
 2. Give agents an end-to-end test and verify surface. The **verify-this** skill can make, change, and read real session packages through it.
 3. Let a user write scripts.
 
-Today only `DirigibleCore` exists (0002). Its public API is the edits of `Session`, `History`, and the session file read and write (0003). The capture and export runs add `record` and `export` later.
+The library targets are `DirigibleCore`, `DirigibleAudio`, `DirigibleTimeline`, and `DirigibleMCP` (0002). The public API of `DirigibleCore` is the edits of `Session`, `History`, and the session file read and write (0003). `DirigibleAudio` holds capture, `record`, and `export`.
 
 Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape the decision:
 
@@ -68,7 +68,7 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 
 **Grammar.** `dirigible <noun> <verb> <package> [arguments]`. The nouns follow the library: `track`, `file`, `capture`, `clip`, `marker`. `create` and `info` have no noun. Each edit command reads the package, applies one `Session` edit, and saves with `Session.write(to:)`. There is no undo across commands. A command that makes an object writes its ID and a newline to stdout. The other edit commands write nothing when they succeed. `info` writes a text summary, and `info --json` writes a JSON view of the session. Every numeric option (frames, gains, host time, rates, latency) parses with `.unconditional`, so a negative value reaches the value check or `Session` and does not become a usage error. A name, ID, or path that starts with `-` needs `--` before it, the plain swift-argument-parser rule.
 
-**Pending take.** An edit command refuses a package whose `session.xml` holds `<recording>` (0004): exit 2, `Error: <path> has a take that is not finalized; open it in Dirigible first.` `session.xml` does not change. `info` reads the package without this check, because it never writes. This keeps the 0004 rule that only Studio writes a package with `<recording>`. A lock file for the wider case, a package the app has open without a pending take, is out of scope; it goes to the capture-run backlog.
+**Pending take.** An edit command refuses a package whose `session.xml` holds `<recording>` (0004): exit 2, `Error: <path> has a take that is not finalized; open it in Dirigible first.` `session.xml` does not change. `info` reads the package without this check, because it never writes. This keeps the 0004 rule that only Studio writes a package with `<recording>`. An edit command also takes the package lock of 0012, so it exits 2 for a package that the app has open.
 
 **The executable stays thin.** `DirigibleCLI` parses arguments into domain types, calls the public API, and prints. When a command needs logic that the library does not have, the logic goes into a library in the same run. There is no command library between the CLI and `Session`: each command calls one `Session` edit, and a `Command` enum would repeat that API case by case.
 
@@ -102,8 +102,8 @@ Two facts from a prototype on 2026-09-24 (Swift 6.2.4, Intel Mac, APFS) shape th
 
 - `Package.swift` gets its first remote dependency. The first `swift build` needs the network or a filled `.build` cache (0005 accepted the same for swift-atomics). A clean debug build of the prototype took about 15 s, plus about 15 s for the first fetch.
 - Each new edit, import, render, or export makes the CLI larger. `ParityTests` lists the public mutating methods of `DirigibleCore` and fails when one has no command, or a command has no MCP tool, and no exemption entry. **CLI parity** states the rule.
-- Two `dirigible` commands that change one package at the same time can lose one of the two edits. The save is atomic, so the file stays readable. The CLI takes no lock.
-- The pending-take check comes before the write, with no lock. If Studio saves `<recording>` at take start after the CLI read the package, the CLI save removes `<recording>`, and a crash then leaves the take with no clips. Studio does not exist yet. The capture run adds a package lock that Studio and `editPackage` both take, before Studio writes `<recording>`.
+- Two `dirigible` commands that change one package at the same time cannot lose an edit: each edit command takes the package lock of 0012, and the second command exits 2. The save is atomic, so the file stays readable.
+- The pending-take check runs under the package lock. Studio and `editPackage` both take it before Studio writes `<recording>`, so a CLI save cannot remove `<recording>` (0012).
 - The JSON view is a contract with scripts and agents. A change that removes or renames a key is a breaking change and needs a note in the pull request.
 - The app target name in `0002` and `AGENTS.md` changes to `DirigibleApp`, and `0002` gets new rows for `DirigibleCLI` and `DirigibleCLITests`, with an amended line that links to this decision.
 

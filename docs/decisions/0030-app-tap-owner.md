@@ -15,7 +15,7 @@ R12 records an app through a process tap and one private aggregate (0006). 0013 
 - The writers started in no fixed order. A tap that starts before the microphone of a Bluetooth headset had no IO in 9 of 30 starts (`docs/research/process-taps.md`, [MT-ARCH]).
 - 0013 makes each identity change a loss with a gap.
 
-Probes of the run (`.scratchpads/runs/2026-10-02-app-sources/probe/results.md`):
+Probes of the run:
 
 - P10: a live set of the process list of a tap gives `!hog` in each state (no grant). So a helper that starts needs a new tap.
 - P11: with `kAudioAggregateDeviceTapAutoStartKey` false, the IO runs from the start, also for an empty tap, and `AudioDeviceStart` blocks 270 to 406 ms.

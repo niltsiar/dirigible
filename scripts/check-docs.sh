@@ -188,8 +188,9 @@ for doc in README.md docs/guide.md; do
     done
 done
 
-# The app bundle shows the guide as an HTML page. A guide change runs only check-docs, so check-docs
-# runs the converter that scripts/bundle.sh runs: it refuses what the page cannot show.
+# The app bundle shows the guide as an HTML page. A guide change runs check-docs and the tests that
+# read the guide, not the bundle tests, so check-docs runs the converter that scripts/bundle.sh runs:
+# it refuses what the page cannot show.
 # GUIDE_HTML is a compiled converter: check-docs.test.sh compiles it once for all its cases.
 if [[ -f "$root/docs/guide.md" ]]; then
     page="$(mktemp)"

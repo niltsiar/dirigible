@@ -11,7 +11,7 @@
 
 ## Context
 
-Decision 0004 fixes the capture pipeline and leaves four details open. The capture-finalize run (`.scratchpads/runs/2026-09-24-capture-finalize/design.md`) needs them before its first file on disk:
+Decision 0004 fixes the capture pipeline and leaves four details open. The capture-finalize run needs them before its first file on disk:
 
 - 0004 names the segment files `<trackID>-<take>-<segment>.caf`. A `TrackID` is free text. It can hold `/`, which makes a path outside the folder, and `-`, which makes the take number impossible to parse.
 - 0004 says what the sidecar holds, not how its bytes look or how a reader finds a torn record.
@@ -20,7 +20,7 @@ Decision 0004 fixes the capture pipeline and leaves four details open. The captu
 - 0004 keeps a take pending when finalize throws. A fault that recurs on every run (a corrupt CAF, an ID that the session refuses) would then block the take, and its armed tracks, forever.
 - A 24-bit WAV has 32-bit sizes. A stereo take at 48 kHz passes 4 GiB after about 4.1 h, a mono take after about 8.3 h.
 
-Local probes on 2026-09-24 (`.scratchpads/runs/2026-09-24-capture-finalize/probe/`, `output.txt`):
+Local probes on 2026-09-24:
 
 - `flock` refuses a second descriptor of one file in the same process. `AVAudioConverter` converts from a fractional input rate (48002.4 Hz) with the length and an impulse position within 1 frame.
 - The AudioFile WAVE writer refuses a write past 4 GiB (`kAudioFileDoesNotAllow64BitDataSizeError`). `AVAudioFile` with `AVAudioFileTypeKey = kAudioFileRF64Type` wrote 716,000,000 frames of 24-bit stereo (4,296,004,096 bytes) as RF64 and read all frames back. The same writer under 4 GiB wrote a plain RIFF WAV, byte for byte equal to the output without the key. Without the key, the large file was BW64.
@@ -76,7 +76,7 @@ Local probes on 2026-09-24 (`.scratchpads/runs/2026-09-24-capture-finalize/probe
 - 0004 changes: a fault of one segment no longer keeps the take pending. 0004 gets an amended line.
 - 0003 changes: a clip over 4 GiB is RF64, not RIFF. Readers that know only RIFF cannot open it; `AVAudioFile` can. 0003 gets an amended line.
 - 0011 gets exit code 3 for `take finalize`.
-- A segment that finalize cannot place stays in `Capture/`, and every open lists it until the user deals with it. A later command places one unplaced stem through the same per-segment finalize (for example `dirigible capture place <package> <stem>`); it is in the backlog.
+- A segment that finalize cannot place stays in `Capture/`, and every open lists it until the user deals with it. `dirigible capture place <package> <stem>` places one unplaced stem through the same per-segment finalize (see 0021).
 - Every package gets a `.lock` file at its first open.
 - A user clip ID equal to a stem leaves that segment unplaced. The `take<n>` prefix and the take number rule make this unlikely: only a clip added while the take is pending can collide.
 - A package on a volume without `flock` keeps the 0011 race.

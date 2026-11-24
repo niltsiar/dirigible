@@ -7,7 +7,7 @@
 
 ## Context
 
-R16 and 0048: an agent starts a take only after the user clicks Record in a consent sheet. A producer wants an agent to start a backup take or a scheduled take with no click (`.scratchpads/research/agent-record-consent/producer.md`). Five expert inputs (`synthesis.md` in that folder) agree: a take with an app track always shows the sheet, because the people in the call get no notice from Dirigible; the default stays "ask". The user accepted on 2026-10-13: no permanent "Record without asking" switch, only a grant that expires; no relief for app tracks. The sheet of 0048 has two gaps (security.md): the self-reported agent name is in the title, and a click that the user aimed at the window before the sheet showed can press Record.
+R16 and 0048: an agent starts a take only after the user clicks Record in a consent sheet. A producer wants an agent to start a backup take or a scheduled take with no click. Five expert inputs agree: a take with an app track always shows the sheet, because the people in the call get no notice from Dirigible; the default stays "ask". The user accepted on 2026-10-13: no permanent "Record without asking" switch, only a grant that expires; no relief for app tracks. The sheet of 0048 has two gaps (security.md): the self-reported agent name is in the title, and a click that the user aimed at the window before the sheet showed can press Record.
 
 ## Decision
 

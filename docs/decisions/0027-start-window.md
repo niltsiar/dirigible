@@ -10,7 +10,7 @@
 
 A beta tester said on 2026-09-29: "It starts, but first it asks me for the folder and it does not open anything. It is not intuitive." At launch with no session, the app showed a bare `NSOpenPanel` (0014, "Active recordings"). A first-time user has no session, so every item in it is dimmed. File > New Session showed an `NSSavePanel` that asked for a name and a folder first.
 
-Research: `docs/research/startup.md`. No reference app shows only a bare Open panel at launch by default. Xcode and IntelliJ show a start window with New, Open, and a list of recent projects. Logic and GarageBand show a Project Chooser for File > New too. GarageBand saves new projects in `~/Music/GarageBand`. An expert panel of the run (`.scratchpads/runs/2026-09-30-start-window/panel-startup.md`) compared a start window, a project chooser, a reopen of the last session, and an untitled session. It chose the start window.
+Research: `docs/research/startup.md`. No reference app shows only a bare Open panel at launch by default. Xcode and IntelliJ show a start window with New, Open, and a list of recent projects. Logic and GarageBand show a Project Chooser for File > New too. GarageBand saves new projects in `~/Music/GarageBand`. An expert panel of the run compared a start window, a project chooser, a reopen of the last session, and an untitled session. It chose the start window.
 
 Probes and research (`docs/research/startup.md` section 6):
 
@@ -66,7 +66,7 @@ Inference from the SDK: on macOS 14, a SwiftUI `Window` scene presents at every 
 - **A SwiftUI `Window` scene.** Rejected: on macOS 14 it presents at every launch, also at a Finder open (inference from the SDK; `.defaultLaunchBehavior` is macOS 15 only), and the launch rules would be split between the scene and the app delegate.
 - **A launcher object with a pure state table of the start window.** `AppDelegate` would forward each event (launch, reopen, last close, open, quit) to it. Rejected for now: `showStart` with two guards is one path for five triggers, and the extra type moves no rule out of `AppDelegate`, which still owns the registry that each rule reads.
 - **The key stores the folder of the last session that Create made.** Rejected: the folder then changes with no act of the user, and the key would get its value from two places. Change… is the one writer.
-- **A project chooser with templates (Logic, GarageBand).** Deferred: Dirigible has no templates yet (F06, F63). The start window can grow into it.
+- **A project chooser with templates (Logic, GarageBand).** Deferred until templates existed. 0079 added them (F63). The start window can grow into it.
 - **Reopen the last session at launch (Final Cut Pro, REAPER).** Deferred: it fails at the first launch and opens a session from an unplugged disk as an error. A later setting can add it.
 - **An untitled session in a temporary folder (Hindenburg, Audacity).** Rejected: Dirigible has no Save command (0014), so the session would need a move of a package that holds a lock and open capture files.
 - **Keep the save panel for Command-N.** Rejected: two forms for one action. The start window form has the name filled in and the folder shown.

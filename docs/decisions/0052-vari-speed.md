@@ -10,7 +10,7 @@
 
 F18 asks to play at a different speed with the pitch kept (Release 3 run 9). The Player renders its own mix into one `AVAudioPlayerNode` (0016). Its shuttle rates (0.5x, 2x, 4x) resample by linear interpolation, with tape pitch. 0016 E3: `AVAudioUnitVarispeed` changes the signal at 1x and adds 47 frames of delay when bypassed. Hindenburg: Period toggles vari-speed, Shift-Period and Shift-Comma change it [HM]. Logic Varispeed Speed Only keeps the pitch [LVS]. Apple has a spectral unit (`AVAudioUnitTimePitch`) and a time-domain unit for voice ('ipto', rate 0.5 to 2) [A-H-APS]. The sources are in `docs/research/preroll-varispeed.md`.
 
-Probes (2026-10-13; `.scratchpads/runs/2026-10-13-preroll-varispeed/probes/output-pitch.txt` and `output-gap.txt`):
+Probes (2026-10-13):
 
 - S1. `AVAudioUnitTimePitch` and the voice unit 'ipto' (`kAudioUnitSubType_AUiPodTimeOther` through `AVAudioUnitTimeEffect`) keep a 440 Hz sine at 440 Hz from 0.5x to 2x (3x for the spectral unit).
 - S2. CPU per s of output: the voice unit 1.2 to 2.4 ms, the spectral unit 4.4 to 6.2 ms, the direct path 0.1 ms.

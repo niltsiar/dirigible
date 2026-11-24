@@ -42,13 +42,13 @@ Probe p1 of the run replayed the aligned start formula on the session of the tes
 
 - No `session.xml` change and no new file format: a session keeps its version, and an older build opens it.
 - The map of an open window costs no file read per edit: Studio keeps the anchors of the package (read off the main actor by the open and by each take end or placement, and carried in their result to the main actor), and makes the map from the session of each revision once.
-- A derived file of a later run (split stereo, render) has no origin until that run stores one: that run needs a `session.xml` change for it.
+- A rendered file has an origin (0057, `session.xml` version 12). A file of a split pair has none.
 - A transcript of one take file, or of a call recording that started with the take, needs no `at`. A take file whose first frame is before the record start (a pre-roll take, 0004 **Timing**) has file frame 0 at a negative take frame, so a take-time import of a transcript of that file needs that negative `at`. A transcript of a timeline that was already edited before the transcript (the tester's head trim) needs `at`: the take frame of second 0, which `take map --timeline 0` gives before the edit.
 - A cue that an edit splits is clamped to the clip under its midpoint (0055), so the export can shorten it; the text is not split.
 
 ## Alternatives considered
 
-- **A stored origin, `origin` on `<file>` (version 12).** It also covers derived files, but it is a one-way format change, it needs the same anchor read to fill old sessions, and no derived-file edit is on main. Rejected for now; the first derived-file run takes it.
+- **A stored origin, `origin` on `<file>` (version 12).** It also covers derived files, but it is a one-way format change, it needs the same anchor read to fill old sessions, and it was rejected here. 0057 later stored an origin for a rendered file, as version 12.
 - **A log of the time edits in the session (the tester's first idea).** It sees only the ripple edits: a move, a nudge, an overwrite paste, or an import onto a take track changes the sync with no log entry. The clip placement is the truth that the audio plays.
 - **A reference snapshot that the user sets ("Set Sync Reference").** It covers a transcript made after an edit that already broke the sync. It needs a stored value (a format change) and a new command; `at` covers the constant-shift case that the replay showed. Later.
 - **A transcript-relative reference** (the timeline at the import). It needs the import-time clip layout, which the store does not keep.

@@ -18,7 +18,7 @@ Reference apps (`docs/research/waveform-sync.md`):
 
 Facts of the code on main eac15f749:
 
-- `RenderOrigin` (`Model.swift:213`) maps file frame i to source frame `offset + i`. Each consumer adds offsets: `Session.root(of:)` (`Session+Origin.swift:46-50`), `lower` (Restore Original and the D4 re-render, `:97-120`), `check` (`:125-130`), `TakeMap` (`TakeMap.swift:90-94`), the transcript reads (`Session+Transcript.swift:21`, `:203-215`), `copiedWords` (`Session+Origin.swift:56-73`), and `FileWords` (`Session+FileWords.swift:50`).
+- `RenderOrigin` (`Model.swift`) maps file frame i to source frame `offset + i`. Each consumer adds offsets: `Session.root(of:)`, `lower` (Restore Original and the D4 re-render), and `check` and `copiedWords` (all in `Session+Origin.swift`), `TakeMap` (`TakeMap.swift`), the transcript reads (`Session+Transcript.swift`), and `FileWords` (`Session+FileWords.swift`).
 - `ClipConversion.convert(_:file:from:to:into:)` (`Finalize/ClipConversion.swift:42`) takes the source rate as a `Double` and relabels each input block at that rate before one `AVAudioConverter` (quality max, algorithm Normal), with the A11 second pass for a peak over full scale and a `span` of input frames.
 - `renderRequest` (`Render/ClipRenderPlan.swift:187`) is the one body of a render for `Studio.renderClips` (a blocking run of kind `.clipRender`) and for the closed-package `ClipRenderWork`.
 

@@ -22,6 +22,7 @@
 - Amended: 2026-11-20, run `2026-10-28-stem-export` (see 0078). `export_stems` is in the tool list only: no recipe names it, because the core and the whole text have no room. The skill table names it with `dirigible export-stems`, and the skill role line names the role stems.
 - Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). `session_create` takes the argument `template`, with `sample_rate` optional: the tool description carries both arguments, and the core and the recipes do not change. The skill table names it with `dirigible create`, which takes `--template`.
 - Amended: 2026-11-22, run `2026-10-28-presets-templates` (see 0080). `preset_set` and `preset_remove` are in the tool list and the skill only: the core and the recipes do not change, because they have no room. The skill table names them with `dirigible preset set` and `dirigible preset remove`, and one skill line (`AgentManual.presetLine`) gives the `preset` argument of `export`, the form of `out`, and the rule that a session preset hides a built-in of its name. A test of `AgentManualTests` fails when the line drops.
+- Amended: 2026-10-22, run `2026-10-22-take-sync` (see 0061). The `cut-from-transcript` recipe takes a transcript of the original take: give `take`, and time 0 is its record start. It also takes an SRT file.
 
 ## Context
 

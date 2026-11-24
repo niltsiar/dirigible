@@ -17,7 +17,7 @@
 
 ## Context
 
-R16: the agent tools cover the `dirigible` commands. `export`, `render`, `level`, `loudness`, and `import` run for seconds to minutes, so 0041 left them out until a tool call has progress and cancel. MCP has `notifications/progress` for a request with `_meta.progressToken`, and `notifications/cancelled` with `requestId`. Claude Code, Codex, and opencode send a progress token on each call. Claude Code and opencode reset their call timeout on progress, and opencode stops a call with no progress for 60 s. Codex has a hard call limit and sends no cancel. Claude Code and opencode cancel with `requestId` ([the progress research](../research/mcp-progress.md)). Hindenburg PRO has no agent interface. Design: `.scratchpads/runs/2026-10-13-mcp-long-tools/design.md`.
+R16: the agent tools cover the `dirigible` commands. `export`, `render`, `level`, `loudness`, and `import` run for seconds to minutes, so 0041 left them out until a tool call has progress and cancel. MCP has `notifications/progress` for a request with `_meta.progressToken`, and `notifications/cancelled` with `requestId`. Claude Code, Codex, and opencode send a progress token on each call. Claude Code and opencode reset their call timeout on progress, and opencode stops a call with no progress for 60 s. Codex has a hard call limit and sends no cancel. Claude Code and opencode cancel with `requestId` ([the progress research](../research/mcp-progress.md)). Hindenburg PRO has no agent interface.
 
 ## Decision
 

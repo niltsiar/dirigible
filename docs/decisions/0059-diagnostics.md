@@ -1,7 +1,8 @@
 # 0059. Diagnostics: a journal for each launch and a hang watchdog
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-16
+- Accepted: 2026-10-17, when the journal and the hang watchdog code landed (F162).
 - Amended: 2026-10-22, run 2026-10-22-watchdog-hangs.
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. `scripts/verify-copy.sh start` sets `DIRIGIBLE_LOG_FOLDER` to `build/verify/logs`, so the journal of the verify copy is not in the folder of the real app; only `stop` deletes it. For `DIRIGIBLE_AUDIO_OUTPUT=none`, the app writes one `audio-output` notice line after `app launch`, and for an unknown value an error line. A CLI journal has no such line.
 - Amended: 2026-11-04, run `2026-11-03-caf-removal` (see 0071). `take finalize` and `capture place` open the studio with a CLI journal, so a fault of the raw sweep that they await has its `raw` line. A locked CLI or MCP edit opens its journal at the first fault only. Each `take finalize` and `capture place` run uses one journal of the retention above.

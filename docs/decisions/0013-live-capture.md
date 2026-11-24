@@ -13,7 +13,7 @@
 
 ## Context
 
-Decision 0004 fixes the capture pipeline, 0005 the ring dependency, and 0012 the files. The capture-finalize run built everything except the device side. The capture-live run (`.scratchpads/runs/2026-09-24-capture-live/`) adds the IOProcs, the rings, the device events, the disk rule, the sleep assertion, and the CLI commands. Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; `probe/output.txt` of the run) changed some 0004 details:
+Decision 0004 fixes the capture pipeline, 0005 the ring dependency, and 0012 the files. The capture-finalize run built everything except the device side. The capture-live run adds the IOProcs, the rings, the device events, the disk rule, the sleep assertion, and the CLI commands. Probes on 2026-09-24 (macOS 15.7.9, x86_64, Swift 6.2.4; the probes of the run) changed some 0004 details:
 
 - An IOProc block (`AudioDeviceCreateIOProcIDWithBlock`) written as a closure literal in `@MainActor` code runs on the HAL thread with no error: a silent data race. The same closure through the C API (`AudioDeviceCreateIOProcID`) stops the process with SIGILL on the first call (`dispatch_assert_queue_fail` from `swift_task_isCurrentExecutor`). This is the crash that **Callbacks** below describes.
 - A block listener (`AudioObjectAddPropertyListenerBlock`) removed from Swift returns noErr and keeps getting calls, also with a stored `@convention(block)` value. A C listener (`AudioObjectAddPropertyListener`) gets no call after its removal returns.

@@ -19,7 +19,7 @@ Decision 0012 leaves a segment unplaced when finalize cannot place it, and names
 
 Hindenburg research (`docs/research/recovery-tools.md`): Hindenburg documents crash recovery (PRO 2 build 2610), relink of missing files, and import by hand. It documents no tool that puts an unplaced recording back at its recorded time. REAPER and Logic show unused files only to delete them.
 
-The run design is in `.scratchpads/runs/2026-09-26-recovery-tools/design.md`. It compares three places for the anchor (below).
+The run compared three places for the anchor (below).
 
 ## Decision
 

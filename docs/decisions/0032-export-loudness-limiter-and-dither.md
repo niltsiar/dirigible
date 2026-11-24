@@ -16,7 +16,7 @@
 - AES TD1004 puts -1 dBTP at the input of a lossy codec.
 - A modal alert takes the Record key (`MenuKeys.swift`, `UndoRouting.swift`).
 
-Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 reads Tech 3341 cases 15 to 19 within tolerance at 44.1, 48, and 96 kHz with the 4x FIR of BS.1770-5 Annex 2. L1 and the candidate A probes hold a look-ahead limiter on that detector at most 0.0013 dB over its ceiling on 22 signals; the Swift limiter reads at most 0.000002 dB over its internal ceiling on 12 of them. D1 shows that TPDF dither of ±1 LSB keeps a 0.25 LSB level (mean 0.2513 LSB) where the rounding gives 0.
+Probes of the run: P1 reads Tech 3341 cases 15 to 19 within tolerance at 44.1, 48, and 96 kHz with the 4x FIR of BS.1770-5 Annex 2. L1 and the candidate A probes hold a look-ahead limiter on that detector at most 0.0013 dB over its ceiling on 22 signals; the Swift limiter reads at most 0.000002 dB over its internal ceiling on 12 of them. D1 shows that TPDF dither of ±1 LSB keeps a 0.25 LSB level (mean 0.2513 LSB) where the rounding gives 0.
 
 ## Decision
 

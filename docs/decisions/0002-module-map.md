@@ -45,6 +45,7 @@
 - Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0080). `DirigibleCore/ExportValues.swift` holds the stored export values `ExportFormat`, `BitDepth`, `BitRate`, `ExportRate`, and `LoudnessTarget`, because the session reader parses them in an export preset. `ExportRate.hertz(session:)`, `LoudnessTarget.integrated(for:)`, and `ExportOptions` stay in `Render/ExportTypes.swift`.
 - Amended: 2026-11-22, run `2026-10-28-import-session` (see 0075). `DirigibleAudio/Import/` also holds the session import (`SessionImport.swift`) and the regular-file open of a source file (`CheckedOpen.swift`), which the template copy and the session import share.
 - Amended: 2026-11-23, run `2026-10-28-favorites-bins` (see 0081). The locked read-edit-save step (`editPackageCore`, `EditFailure`, and `RippleNeed`) is in `DirigibleAudio/Import/PackageEditCore.swift`, because the Favorites store of `DirigibleAudio` edits its package through it. The CLI and the MCP tools keep their calls. `Import/ExcerptCopy.swift` holds the file copier of a paste and a favorite add, and `Import/Favorites.swift` the store.
+- Amended: 2026-10-26, run `2026-10-26-agent-batch` (see 0063). A batch is one entry of the snapshot undo.
 
 ## Context
 

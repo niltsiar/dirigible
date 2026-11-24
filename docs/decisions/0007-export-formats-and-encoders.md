@@ -7,7 +7,7 @@
 
 ## Context
 
-R11 asks for MP3, AAC in `.m4a`, WAV, and FLAC. R15 asks for a mono or stereo mix. The evidence is in `docs/research/export-and-dsp.md` section 1 and `.scratchpads/verify/flac-encode/`:
+R11 asks for MP3, AAC in `.m4a`, WAV, and FLAC. R15 asks for a mono or stereo mix. The evidence is in `docs/research/export-and-dsp.md` section 1 and a local FLAC encode check:
 
 - `AVAudioFile` writes WAV, AAC in `.m4a`, and FLAC on macOS 15.7.9 (tested). Apple lists `kAudioFormatFLAC` from macOS 10.13.
 - AudioToolbox has no MP3 encoder: `afconvert -d .mp3` fails with `fmt?`.

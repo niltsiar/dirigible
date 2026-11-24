@@ -21,8 +21,7 @@
 
 ## Context
 
-Release 1 run 4d (`docs/requirements/releases.md`) adds the mouse edits on the lanes and the ruler: a click that selects a clip, a drag that moves it (also to a lane of the same layout), an edge drag that trims it, Shift-drag, the drag of a marker flag and of the in and out triangles, the ruler menu, and the cursors (F13). It adds no Core edit and no `dirigible` command (0018). Hindenburg research: `docs/research/mouse-edits.md`. The run design: `.scratchpads/runs/2026-09-26-mouse-edits/design.md`.
-
+Release 1 run 4d (`docs/requirements/releases.md`) adds the mouse edits on the lanes and the ruler: a click that selects a clip, a drag that moves it (also to a lane of the same layout), an edge drag that trims it, Shift-drag, the drag of a marker flag and of the in and out triangles, the ruler menu, and the cursors (F13). It adds no Core edit and no `dirigible` command (0018). Hindenburg research: `docs/research/mouse-edits.md`.
 Constraints:
 
 - `TimelineScrollView.update(_:)` sets the lane inputs at each SwiftUI update (peaks, the media check, the Marks). A preview in those inputs is lost in the middle of a drag.
@@ -30,7 +29,7 @@ Constraints:
 - `Marks` and `TimelineScale` are pure, but they are in the executable target `DirigibleApp`. CODING_STANDARDS.md asks for a thin app target and logic in library targets.
 - At 2 h, 6 tracks, and 2,000 clips per track, a `move` on a copy takes 3.6 ms p95 and a lane draw of 2880 x 1200 px 4.6 ms p95 (optimized, 0018 probe P4, 0017).
 
-Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-26-mouse-edits/probe/`):
+Probes on 2026-09-26 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4):
 
 - C1. `NSCursor` arrow, iBeam, openHand, closedHand, pointingHand, and resizeLeftRight compile with `-warnings-as-errors` at the macOS 14 target. `columnResize` is macOS 15 and later.
 - L1. The clip labels at fit zoom (12,000 clips in 1440 pt) take 330 ms p95 per draw. With no label in a box under 30 pt, 0 ms. 216 labels take 5.7 ms p95.

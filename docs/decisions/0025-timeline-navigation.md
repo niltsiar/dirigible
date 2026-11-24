@@ -10,11 +10,11 @@
 
 ## Context
 
-Release 2 run 2 (`docs/requirements/releases.md`) adds an overview strip above the time ruler (click to center, drag the view frame, drag an edge to zoom, double-click to fit), smart zoom, page keys, the zoom toggle and zoom history (F83, "H and back"), track height keys, and autoscroll during a drag. The user refused scroll bars that show at all times and asks for a UI that is easy but powerful. Research: `docs/research/macos-ui-shell.md` sections 7 and 8, `docs/research/timeline-view.md`, `docs/research/logic-garageband-update.md`. Run design: `.scratchpads/runs/2026-09-28-timeline-navigation/design.md`. A UI expert panel (macOS HIG, pro audio, first use and accessibility with visual cost) reviewed the plan; the user delegated the UI choices (`ux-decisions.md` of the run).
+Release 2 run 2 (`docs/requirements/releases.md`) adds an overview strip above the time ruler (click to center, drag the view frame, drag an edge to zoom, double-click to fit), smart zoom, page keys, the zoom toggle and zoom history (F83, "H and back"), track height keys, and autoscroll during a drag. The user refused scroll bars that show at all times and asks for a UI that is easy but powerful. Research: `docs/research/macos-ui-shell.md` sections 7 and 8, `docs/research/timeline-view.md`, `docs/research/logic-garageband-update.md`. A UI expert panel (macOS HIG, pro audio, first use and accessibility with visual cost) reviewed the plan; the user delegated the UI choices (`ux-decisions.md` of the run).
 
 Today three owners hold the part of the timeline in view: the scale (window state, read by SwiftUI into the lane inputs), the origin (the clip view bounds, which AppKit also writes at a trackpad scroll, momentum, a scroller drag, and a tile), and the lane height (computed by the SwiftUI pane).
 
-Probes on 2026-09-28 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4; `.scratchpads/runs/2026-09-28-timeline-navigation/probe/output.txt`):
+Probes on 2026-09-28 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4):
 
 - K1. With in-process `NSMenu.performKeyEquivalent`: Shift-Cmd-"+" never fires. The US chord Shift-Cmd-= gives "+" and goes to Cmd-"+" (Zoom In). The Spanish Shift-Cmd-+ gives "*", and Shift-Cmd-minus gives "_" on both layouts; they match no item. The US Cmd-= matches no item.
 - K2. Cmd-"]" fires on US; on Spanish, "]" needs Option, and that chord matches no item. Option-Page Up fires its item.

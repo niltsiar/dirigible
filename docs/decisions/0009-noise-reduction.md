@@ -19,7 +19,7 @@ R8 asks for noise reduction filters. The evidence is in `docs/research/export-an
 - First method: `AUSoundIsolation`, run offline on each clip through `AVAudioEngine` manual rendering. It is non-destructive: the session stores the effect and its one dial, `WetDryMixPercent`, like the single noise reduction control in Hindenburg. Use `HighQualityVoice` on macOS 15 and later, and `Voice` on macOS 14.
 - Before the Release 4 noise reduction run builds it, a manual check on a macOS 14 machine confirms that the unit loads and renders at 44.1 and 48 kHz.
 - If that check fails, use spectral gating with vDSP. Its tests are exact: a sine plus noise keeps the sine level within ±0.5 dB, and the noise floor goes down by 10 dB or more.
-- Tests with generated signals: white noise alone goes down by 20 dB or more. Voice quality is a manual check with a recording in `.scratchpads/`, never in git.
+- Tests with generated signals: white noise alone goes down by 20 dB or more. Voice quality is a manual check with a recording in a local folder that git ignores, never in git.
 - Release 4 (see `docs/requirements/releases.md`).
 
 ## Consequences

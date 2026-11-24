@@ -14,9 +14,8 @@
 
 ## Context
 
-Decision 0017 draws the lanes in `draw(_:)` of the document view. On macOS 15.7.9, AppKit gives `draw(_:)` a display-list context: Core Animation draws the lane image later, and keeps one image per drawn region. The timeline-scroll run fixed a use-after-free of the reused buffer with an owned buffer per image, a buffer pool, scroll marks that free the images out of view, and a union of partial draws with a limit. That fix made the full draw of the lanes in view 13.5 to 15.4 ms p95, against 11.6 to 13.3 ms before (budget 16 ms, 0020). Its spike wrote the pixels into two IOSurfaces that are the contents of one layer: a full draw of 8.5 to 9.8 ms p95, with the same pixels. Run design: `.scratchpads/runs/2026-09-27-timeline-layer/design.md`.
-
-Probes on 2026-09-27 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4, target macOS 14; `.scratchpads/runs/2026-09-27-timeline-layer/probe/output.txt`):
+Decision 0017 draws the lanes in `draw(_:)` of the document view. On macOS 15.7.9, AppKit gives `draw(_:)` a display-list context: Core Animation draws the lane image later, and keeps one image per drawn region. The timeline-scroll run fixed a use-after-free of the reused buffer with an owned buffer per image, a buffer pool, scroll marks that free the images out of view, and a union of partial draws with a limit. That fix made the full draw of the lanes in view 13.5 to 15.4 ms p95, against 11.6 to 13.3 ms before (budget 16 ms, 0020). Its spike wrote the pixels into two IOSurfaces that are the contents of one layer: a full draw of 8.5 to 9.8 ms p95, with the same pixels.
+Probes on 2026-09-27 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.4, target macOS 14):
 
 - P1. The surface that is the layer contents is always `isInUse`. After a swap, the surface shown before stays in use for up to one display frame (p95 16.4 ms, none at 17 ms). A copy of a whole 2880 x 1200 px surface into another, shifted, with the swap and the flush, takes 2.4 ms p95. A swap and a flush with no pixel work take 0.26 ms p95. A lock does not wait.
 - P2. An untagged surface shows other colors (R 196 against 200). A surface tagged `kIOSurfaceColorSpace` sRGB shows the colors of the draw path. `cacheDisplay(in:to:)` shows the sublayer contents. Every API compiles at the macOS 14 target.

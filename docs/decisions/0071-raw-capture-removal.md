@@ -6,7 +6,7 @@
 
 ## Context
 
-0004 keeps every raw CAF until a hardware drift check confirms the fit, so each take uses 7 bytes per sample and channel for ever. A tester package has `Capture/` 3.0 GB beside `Clips/` 2.3 GB. The tester asked for less disk use.
+0004 keeps every raw CAF until a hardware drift check confirms the fit, so each take uses 7 bytes per sample and channel for ever. A tester package has `Capture/` 3.0 GB beside `Clips/` 2.3 GB. The tester asked for less disk use. How other apps treat raw recording files is in `docs/research/raw-recording-files.md`.
 
 The drift fit of 26 tester segments in three packages (run `2026-11-03-caf-removal`): the WAV error against the host clock is 0.861 ms or less at each checkpoint. The worst case is a 67 min take of a USB microphone. Its error is a smooth bow from a rate wander of about ±0.8 ppm, so a linear fit over a longer take can pass the 1 ms criterion of 0004. A call tap on a virtual device has an error of 0.000 ms.
 

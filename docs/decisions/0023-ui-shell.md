@@ -21,17 +21,16 @@
 
 ## Context
 
-Release 2 run 1 (`docs/requirements/releases.md`) adds a customizable toolbar (F93), a window subtitle, banners in place of the transport bar, and a resizable track header panel (F85 part). The user asked for toolbar icons, controls in the title bar, a good look, and no drop in performance, and gave the UI choices to an expert panel (HIG, pro audio, first use and accessibility, visual performance). The run splits in two: run 1a builds the window chrome, and run 1b builds the header panel and the dark lane palette. Research: `docs/research/macos-ui-shell.md`. Run design: `.scratchpads/runs/2026-09-27-ui-shell/design.md` and `ux-decisions.md`.
-
+Release 2 run 1 (`docs/requirements/releases.md`) adds a customizable toolbar (F93), a window subtitle, banners in place of the transport bar, and a resizable track header panel (F85 part). The user asked for toolbar icons, controls in the title bar, a good look, and no drop in performance, and gave the UI choices to an expert panel (HIG, pro audio, first use and accessibility, visual performance). The run splits in two: run 1a builds the window chrome, and run 1b builds the header panel and the dark lane palette. Research: `docs/research/macos-ui-shell.md`.
 Probes (MacBook Pro 2018, Intel, macOS 15.7.9, Swift 6.2.4, target macOS 14):
 
 - U3, U4 (research). An `NSHostingController` that is the content controller of a window has `sceneBridgingOptions` `.toolbars` and `.title`. A SwiftUI `.toolbar` then fills the window toolbar with UUID identifiers, and the documentation says that it overwrites an AppKit toolbar.
 - U5 (research). A change of the vertical ruler thickness with `tile()` takes 0.058 ms, and the clip view inset follows.
-- P1a (`.scratchpads/runs/2026-09-27-ui-shell/probe/output.txt`). The option is 0 before the window takes the controller. With the option `[]`, an AppKit toolbar stays.
+- P1a. The option is 0 before the window takes the controller. With the option `[]`, an AppKit toolbar stays.
 - P1b. `NSToolbar.visibleItems` leaves out the items in the overflow menu.
 - P1c. With 14 items, 640 pt shows Record, Play, and Stop only; 660 pt also shows the time display. The title length does not change it.
 - P2. The in-process accessibility tree of the hosting view has a SwiftUI banner text with its frame.
-- P5 (Phase 7, `.scratchpads/runs/2026-09-27-ui-shell/probe/p5-subtitle/`). With `sceneBridgingOptions = []` set after the window takes the controller, the title bar has no subtitle field, and `window.subtitle` keeps its value. Set before, the subtitle draws. A plain window and an `NSHostingView` with `[]` draw it too.
+- P5 (Phase 7). With `sceneBridgingOptions = []` set after the window takes the controller, the title bar has no subtitle field, and `window.subtitle` keeps its value. Set before, the subtitle draws. A plain window and an `NSHostingView` with `[]` draw it too.
 
 ## Decision
 

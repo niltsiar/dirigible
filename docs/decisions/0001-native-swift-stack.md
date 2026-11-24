@@ -16,7 +16,7 @@ Compositor (https://github.com/robbietilton/Compositor), a native macOS image ed
 - **Language and UI.** Swift 6 language mode with strict concurrency. SwiftUI for the app shell, menus, and inspectors. AppKit through `NSViewRepresentable` where SwiftUI is too slow or too limited, for example the waveform timeline.
 - **Audio.** Apple frameworks first: Core Audio (AUHAL, one input unit per device), AVFoundation (`AVAudioFile`, `AVAudioEngine` for playback), AudioToolbox (`ExtAudioFile`, format conversion), Accelerate (vDSP for DSP). Add a third-party library only when the platform cannot do the job, and record that as a decision.
 - **Build.** SwiftPM only. No Xcode project. `scripts/bundle.sh` makes `build/Dirigible.app` from the release binary and `Support/Info.plist`. The binary is universal (arm64 and x86_64), because the development Mac is Intel and most users have Apple silicon.
-- **Modules.** Layers are SwiftPM targets, not folders, so the compiler enforces the dependency direction. The rules are in `CODING_STANDARDS.md`. The first planning run names the modules.
+- **Modules.** Layers are SwiftPM targets, not folders, so the compiler enforces the dependency direction. The rules are in `CODING_STANDARDS.md`. 0002 names the modules.
 - **Signing.** Ad-hoc signature (`codesign --sign -`). No hardened runtime and no App Sandbox, so the app can open any audio device and any folder the user picks.
 - **Tests.** Swift Testing (`import Testing`), run with `swift test` through `make test`. Integration tests drive modules through their public API with real files and audio generated in code.
 - **Format and lint.** `swift format` from the Xcode toolchain, configured in `.swift-format`. No other lint tool.

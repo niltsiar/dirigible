@@ -55,4 +55,4 @@ A segment that fails a clause keeps its CAF. `dirigible info` writes one line fo
 - **A `raw="removed"` attribute in `session.xml`.** Rejected: 0003 raises the version for each new element, and an undo or a revert removes the capture with the attribute.
 - **Keep the CAF while a backup lacks the take.** Rejected: the backup before the take always lacks it.
 - **A gain chunk in each WAV.** Rejected: it changes the clip file that 0222 converts.
-- **A pairwise check of the tracks of a take.** Deferred: each tester take has one hardware clock. Backlog 1530 runs it first.
+- **A pairwise check of the tracks of a take.** Deferred: each tester take has one hardware clock. The backlog runs it first.

@@ -28,11 +28,11 @@ releases   A `## Release <n>:` section of releases.md with no `Status: closed` l
            each note in parentheses (scripts/check-governance.sh does the same). A `(done` mark in
            releases.md fails: features.md holds the state.
 deccites   A four-digit number 0001 up to the highest record number, outside a code span and not
-           after `item`, `items`, or `backlog`, names a decision record that exists. The sentence
+           after `item`, `items`, or `backlog` in any letter case, names a decision record that exists. The sentence
            "The numbers ... are not used" of docs/README.md lists the gaps and is skipped.
 private    README.md, docs/guide.md, docs/requirements/, docs/decisions/, and docs/research/ name
            no path into `.scratchpads/` (the bare folder name is fine). No file of docs/ names a
-           backlog item by number (`item 1234`, `backlog 1234`): the backlog is a local file.
+           backlog item by number (`item 1234`, `backlog 1234`, in any letter case): the backlog is a local file.
 """
 import pathlib
 import re
@@ -288,7 +288,7 @@ def rule_deccites():
                 continue
             plain = re.sub(r"`[^`]*`", "", line)
             for m in re.finditer(r"(?<![\w.:/-])(0\d{3})(?![\w:/-]|\.\d)", plain):
-                if re.search(r"(item|backlog|items) $", plain[:m.start()]) or m.group(1) > top:
+                if re.search(r"(item|backlog|items) $", plain[:m.start()], re.IGNORECASE) or m.group(1) > top:
                     continue
                 if m.group(1) not in nums:
                     miss(f"{rel}:{n}", f"{m.group(1)} names no decision record: {line.strip()[:90]}")
@@ -305,7 +305,7 @@ def rule_private():
                 for m in re.finditer(r"\.scratchpads/[A-Za-z0-9]", line):
                     miss(f"{rel}:{n}", f"a path into the local scratch folder: {m.group(0)}")
             if rel.startswith("docs/"):
-                for m in re.finditer(r"\b(?:items?|backlog) (?:item )?\d{3,4}\b", line):
+                for m in re.finditer(r"\b(?:items?|backlog) (?:item )?\d{3,4}\b", line, re.IGNORECASE):
                     miss(f"{rel}:{n}", f"a backlog number, which a reader cannot open: {m.group(0)}")
 
 

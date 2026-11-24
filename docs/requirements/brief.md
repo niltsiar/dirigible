@@ -27,7 +27,7 @@ R1-R10 come from the original request. R11-R15 come from later messages of the u
 | R11 | The app exports the final mix in the usual podcast formats: MP3 and AAC (in an `.m4a` MP4 container), plus WAV and FLAC. |
 | R12 | The app records audio from other apps, for example a Microsoft Teams, Slack, or Zoom call, so the user can record a remote guest. Each source goes to its own track, the same as a device (R3). |
 | R13 | The UI is in English, Spanish, German, French, Italian, Dutch, Brazilian Portuguese, and European Portuguese. English is the default. The app follows the language of macOS. A preference lets the user select one of these languages or the macOS language. |
-| R14 | The app removes the remote guest's audio that leaks into the local microphone track, by echo cancellation or offline bleed removal. It is not in the first release. |
+| R14 | The app removes the remote guest's audio that leaks into the local microphone track, by echo cancellation or offline bleed removal. Releases 1 to 7 do not have it (F42). |
 | R15 | The user sets each track to mono or stereo, and exports the mix in mono or stereo. |
 | R16 | Dirigible gives an MCP (Model Context Protocol) server to agents such as Claude Code. The `dirigible mcp` command is the one MCP command. It reads and edits session packages. The app also has an agent server, which is off by default. When the user turns it on in Settings, `dirigible mcp` passes a call on a package that the app has open to the app, so an agent can also control the running app: read the session and the selection, play, stop, locate, and edit, with each edit as one undo step. An agent can start a recording with the `record` tool only after the user clicks Record in a consent sheet of the app, or while a window grant that the user gave in that sheet lasts. The sheet guards only the `record` tool: an agent with a shell can run `dirigible record`, which records at once with no sheet (see [Make your agent ask first](../guide.md#make-your-agent-ask-first)). An agent never writes a package that the app has open, except through the app. |
 
@@ -36,7 +36,7 @@ R1-R10 come from the original request. R11-R15 come from later messages of the u
 | ID | Constraint |
 |---|---|
 | C1 | No Apple developer account. The app is not on the App Store and is not notarized. Local builds use an ad-hoc signature. |
-| C2 | No CI service for now. All checks run locally with `make check`. The code is on GitHub at https://github.com/niltsiar/dirigible. |
+| C2 | No CI service. All checks run locally. Before a push, `make check-changed BASE=origin/main` runs the targets that the changed paths need (0028). The code is on GitHub at https://github.com/niltsiar/dirigible. |
 | C3 | The app is native. |
 | C4 | Code, docs, and commits are English. The UI languages are in R13. |
 
@@ -56,6 +56,6 @@ The first planning run (2026-09-24) answered the open questions. Each answer lin
 - How does SwiftPM ship localized UI strings, and how does the preference override the macOS language? `.lproj` tables with `Bundle.main`, and `AppleLanguages`. See [0010](../decisions/0010-ui-strings.md).
 - Which loudness target does export use? -16 LUFS for stereo, -19 LUFS for mono, and -1 dBTP. See [0008](../decisions/0008-loudness-and-auto-level.md).
 - WAV or FLAC by default? 24-bit WAV, because FLAC seeks slowly. AudioToolbox encodes FLAC for export. See [0003](../decisions/0003-session-file-format.md) and [0007](../decisions/0007-export-formats-and-encoders.md).
-- Which noise reduction method? AUSoundIsolation offline, with vDSP spectral gating as the fallback. See [0009](../decisions/0009-noise-reduction.md).
+- Which noise reduction method? AUSoundIsolation, rendered offline into a new WAV. A spectral fallback is built only if the unit fails to load. See [0009](../decisions/0009-noise-reduction.md) and [0054](../decisions/0054-render-through-an-effect.md).
 - What loudness target does auto-leveling use? -16 LUFS for a stereo clip and -19 LUFS for a mono clip, as a static clip gain. See [0008](../decisions/0008-loudness-and-auto-level.md).
-- Which SwiftPM targets make up the app? Two libraries and a thin app. See [0002](../decisions/0002-module-map.md).
+- Which SwiftPM targets make up the app? Libraries and a thin app. See [0002](../decisions/0002-module-map.md).

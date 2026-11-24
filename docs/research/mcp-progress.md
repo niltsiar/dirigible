@@ -97,7 +97,7 @@ The pages moved from `basic/utilities/` to `basic/patterns/` [S1, S2].
 
 ## Open questions
 
-- P4 (not run; the caller limited probes to version checks): a stdio logger server that logs each line of stdin to a file, answers `tools/list` with one tool, and answers `tools/call` after 120 s with progress every 10 s. Run it with `claude -p` and with `opencode run`, then press Esc in an interactive session. It confirms the token type, the `_meta` keys, and the `reason` text of each cancel. Put it in a new folder under `.scratchpads/` and run it with `scripts/probe.sh`.
+- P4 (not run; the caller limited probes to version checks): a stdio logger server that logs each line of stdin to a file, answers `tools/list` with one tool, and answers `tools/call` after 120 s with progress every 10 s. Run it with `claude -p` and with `opencode run`, then press Esc in an interactive session. It confirms the token type, the `_meta` keys, and the `reason` text of each cancel. Put it in a new folder under `.scratchpads/` (not in git) and run it with `scripts/probe.sh`.
 - Does Claude Code send `notifications/cancelled` after its idle timeout? P4 with `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT=60000` and no progress answers it.
 - Which Codex default is true for users, 60 s or 300 s? Install Codex and run P4 with no progress.
 

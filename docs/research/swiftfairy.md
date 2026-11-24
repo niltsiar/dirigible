@@ -11,7 +11,7 @@ Method: WebSearch and WebFetch. WebFetch summarizes pages with a small model, so
 - Knowledge is split into "Scrolls": Proper SwiftUI, Performant Swift Charts, Modern Swift. Modern Swift covers idiomatic APIs, concurrency API choices, collection processing (examples: `count(where:)` over `filter().count`, labeled breaks). It does not state AppKit or macOS coverage.
 - Requirements: macOS 26.0 or later, Apple silicon. Version 2026.9.2. Free for one day, then lifetime, fixed-term, or subscription. Closed source.
 - Claim in the post: agents "regularly miss rules stated in their AGENTS.md instructions and skills", so deterministic checks give a stronger signal than another skill (search summary; wording not verified on the raw page).
-- Fit for this repo: out of scope as requested. Note only: it needs macOS 26 on Apple silicon, and the project memory says the dev machine is Intel on macOS 15. Closed and paid also conflicts with the third-party rule. Skip.
+- Fit for this repo: out of scope as requested. Note only: it needs macOS 26 on Apple silicon, and the dev machine of the project is Intel on macOS 15. Closed and paid also conflicts with the third-party rule. Skip.
 
 ## Who made it
 
@@ -49,7 +49,7 @@ All fetched through WebFetch summaries.
 1. **Add `.claude/skills/swift-6-reference/` adapted from pchelnikov Swift-6-Agent-Skill. Adapt.** Copy only the 6.0 to 6.2 references (concurrency, typed throws, Mutex, SwiftPM). Rewrite the description in STE and add a line that real-time audio callbacks never use Mutex or actors (AGENTS.md rule, decision 0013). Why: it ties advice to Swift Evolution proposals, so it catches stale agent habits cheaply. Risk: 6.3 and 6.4 advice breaks the Swift 6.2 ceiling, and the repo's THIRD_PARTY.md and decision record are needed for copied text. Check the license file first.
 2. **Read `markmals/mac-dev-skills` code-review and ui-testing skills; borrow checklist items into the existing review agents. Adapt, do not install.** Why: AppKit-specific review items are missing from `.claude/agents/code-quality-reviewer`. Risk: young repo, unverified quality, plugin tooling needs Xcode 26 or 27 APIs. Read the raw files before copying anything.
 3. **Read `Xopoko` macos-swiftpm-runner and macos-test-diagnoser; compare with `docs`/`verify-this` and `scripts/`. Adapt only a gap.** Why: same problem (SPM macOS app without Xcode project). Risk: probably duplicates our scripts; RocketSim dependency is third-party and needs a decision record. Likely outcome is skip if no gap.
-4. **Skip SwiftFairy.** Paid, closed, needs macOS 26 on Apple silicon, an MCP dependency. Its idea (deterministic findings over prose rules) is valid: it supports putting Swift rules into lint or tests, which AGENTS.md already prefers ("Prefer a check over a new sentence"). No file change.
+4. **Skip SwiftFairy.** Paid, closed, needs macOS 26 on Apple silicon, an MCP dependency. Its idea (deterministic findings over prose rules) is valid: it supports putting Swift rules into lint or tests, which `docs/principles.md` already prefers (`encode-lessons-in-structure`). No file change.
 5. **Skip SwiftAgents and macos-app-skills.** iOS-only bias and an Xcode project requirement. Hudson's Swift Testing and Concurrency skills from the earlier file stay the first picks.
 
 ## Not verified

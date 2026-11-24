@@ -41,7 +41,7 @@ Hindenburg [HM, Paste in Selection]:
 - Insert Silence and Delete Silence add or remove blank time, not room tone [HK2] [HN].
 - No source documents a crossfade at the edges, a loop, or an automatic fill after a cut.
 
-Note: repo row F21 says Hindenburg "fills small gaps with room tone". [HM] does not support this. It describes a manual Paste in Selection only.
+Note: an earlier repo row F21 said Hindenburg "fills small gaps with room tone". [HM] does not support this. State on 2026-11-24: the F21 row of `docs/requirements/features.md` holds no such wording. It describes a manual Paste in Selection only.
 
 Contrast: the Logic Pro, GarageBand, Final Cut Pro, Audition, and REAPER sources read here show no room-tone fill command (unconfirmed).
 

@@ -123,6 +123,8 @@ The probes are small Swift programs, built with `swiftc -O` on 2026-09-24. They 
 
 ## Findings that affect the design
 
+State on 2026-11-24: the shipped window is an AppKit `NSWindow` for each package with no `NSDocument` (decisions 0004 and 0014), not a `WindowGroup`. The sleep activity is `[.userInitiatedAllowingIdleSystemSleep, .latencyCritical]` (`Sources/DirigibleAudio/Studio/SleepAssertion.swift`). The findings below are the research of 2026-09-25.
+
 - Do not let NSDocument or DocumentGroup save the package while the recorder writes into it. The safe save replaces the folder. It deletes a file that the wrapper did not enumerate.
 - DocumentGroup has no switch for this. Its private NSDocument subclass autosaves in place and keeps versions. Prefer a WindowGroup window with our own atomic `session.xml` save.
 - If NSDocument is used, override `writeSafely` to write only `session.xml` in place. Return nil from `backupFileURL`, and set `preservesVersions` to false.

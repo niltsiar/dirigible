@@ -75,10 +75,10 @@ Support/Resources/
   es.lproj/InfoPlist.strings      (exists)
 ```
 
-- The key is the English text. `Text("Record")` shows the key if a table is missing, so English is always safe.
+- Plan of 2026-09-23: the key is the English text. `Text("Record")` shows the key if a table is missing, so English is always safe. State on 2026-11-24: the key is a dotted name (`menu.record.start`), and a typed `L10n` enum names each key. A test checks both tables against that enum (decision 0010, amended 2026-09-24).
 - Keep `en.lproj/Localizable.strings` with every key. The test compares the key sets.
 - Add `Localizable.stringsdict` in each `.lproj` for the first plural string. Move to option B if plurals become common.
-- `Support/Info.plist` already has `CFBundleDevelopmentRegion = en` and `CFBundleLocalizations = [en, es]`. Keep them.
+- `Support/Info.plist` already has `CFBundleDevelopmentRegion = en` and `CFBundleLocalizations = [en, es]`. Keep them. State on 2026-11-24: `CFBundleLocalizations` lists eight languages (de, en, es, fr, it, nl, pt, pt-PT).
 
 ### Package.swift and bundle.sh
 
@@ -94,7 +94,7 @@ Support/Resources/
 
 ### Language preference
 
-- A `Picker` in Settings has three values: macOS language, English, Spanish.
+- A `Picker` in Settings has three values: macOS language, English, Spanish. State on 2026-11-24: the picker has the macOS language and the eight languages of `AppLanguage` (`Sources/DirigibleApp/SettingsView.swift`).
 - Write the choice to the app domain:
   - macOS language: `UserDefaults.standard.removeObject(forKey: "AppleLanguages")`.
   - English: `UserDefaults.standard.set(["en"], forKey: "AppleLanguages")`.
@@ -111,7 +111,7 @@ Support/Resources/
    - Read `Support/Resources/en.lproj/Localizable.strings` and `es.lproj/Localizable.strings` from the repo with `PropertyListSerialization`. Find the repo root from `#filePath`.
    - Expect the same key set in both files.
    - Expect no empty value.
-   - Expect each English value to equal its key, or list the exceptions.
+   - Expect each English value to equal its key, or list the exceptions. (Plan of 2026-09-23; the dotted keys of decision 0010 replace this check.)
 2. `AppBundleTests` in `make test-app`:
    - Open `Bundle(url: app)`. Expect `localizations` to contain `en` and `es`.
    - Open `Contents/Resources/es.lproj` as a `Bundle`. Expect `localizedString(forKey: "Record", value: nil, table: nil) == "Grabar"` (use the first real key).

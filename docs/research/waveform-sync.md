@@ -215,7 +215,7 @@ All header facts come from the local SDK (Xcode with the macOS 26 SDK): `Acceler
 
 ### Finding 29. Resample for 44.1 to 48 kHz and for a drift ratio
 
-- The repo already uses `AVAudioConverter` with `sampleRateConverterQuality = AVAudioQuality.max.rawValue` and `sampleRateConverterAlgorithm = AVSampleRateConverterAlgorithm_Normal` in `Sources/DirigibleAudio/Finalize/ClipConversion.swift` (lines 125 and 126).
+- The repo already uses `AVAudioConverter` with `sampleRateConverterQuality = AVAudioQuality.max.rawValue` and `sampleRateConverterAlgorithm = AVSampleRateConverterAlgorithm_Normal` in `Sources/DirigibleAudio/Finalize/ClipConversion.swift`.
 - `AudioConverter.h`: complexity options Linear (`'line'`), Normal (`'norm'`, default), Mastering (`'bats'`), MinimumPhase (`'minp'`). Quality constants: Max 0x7F, High 0x60, Medium 0x40, Low 0x20, Min 0. MinimumPhase "High is several times faster than Mastering Low", with a noise floor of -160 dB at High [AUDIOCONVERTER-H]. Initial phase is a Float64 in [0, 1) [AUDIOCONVERTER-H].
 - Fractional source rate: `AVAudioFormat` takes `sampleRate` as `double` [AVAUDIOFORMAT-H], and `AudioStreamBasicDescription.mSampleRate` is a `Float64`. So `48000 * (1 + 50e-6) = 48002.4` can be written in a format. No header says that the converter honors a non-integer ratio exactly, or that `AVAudioFormat` accepts a non-standard rate. Unconfirmed (Open question 4).
 - Option: `AVAudioUnitVarispeed.rate` is a Float and "resamples the input signal" and "changes the pitch" [VARISPEED-H]. That is the right model for a clock error. A Float holds 1.00005 with 1e-7 resolution. Quality and offline use are unconfirmed.
@@ -223,6 +223,8 @@ All header facts come from the local SDK (Xcode with the macOS 26 SDK): `Acceler
 - Inference: for landing 2, set the source format rate to `nominal * (1 + epsilon)` and the destination to the project rate, if the probe in Open question 4 shows an exact ratio. Otherwise use the own interpolation. Not checked against: a 3 hour file, where a ratio error of 1e-9 moves the end by 0.5 ms.
 
 ## Recommended default
+
+State on 2026-11-24: this section is a design input of 2026-10-22. F74 is done in Release 6 runs 13 and 14. The shipped design differs: decision 0076 uses a 2 kHz envelope correlation with excerpts, and it does not choose GCC-PHAT. Decision 0077 holds the drift link.
 
 This section rests on the findings named in brackets.
 
@@ -247,6 +249,8 @@ This section rests on the findings named in brackets.
 **API list.** `AVAudioConverter` (rate change, quality max, Normal), `vDSP.DiscreteFourierTransform` or `vDSP_DFT_zrop_CreateSetup` with `vDSP_DFT_Execute` (real FFT, lengths `2^n`) [26], or `vDSP_fft_zrip` with `vDSP_create_fftsetup` [26], `vDSP_zvmul` with conjugate -1 [27], `vDSP_maxvi` or `vDSP.indexOfMaximum` [27], `vDSP.correlate` or `vDSP_conv` for short windows only [25], `vDSP_desamp` only for an integer factor [28]. Handle packed bin 0 apart [26].
 
 ## Open questions
+
+State on 2026-11-24: landings 1 and 2 are done (F74, decisions 0076 and 0077), and their probes ran. Questions 2 to 4 are answered: decision 0076 holds the FFT size cap and the FFT time, and decision 0077 probe P1 holds the 48002.4 Hz ratio. The other questions have no result recorded in this note.
 
 These need a Swift or C probe on the Intel Mac.
 

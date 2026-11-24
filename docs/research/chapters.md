@@ -60,6 +60,8 @@ This file fills the gaps in `docs/research/podcasting-2.md` (2026-09-27) for the
 
 ## Open questions for the plan
 
+State on 2026-11-24: the default name is decided. The chapters file is the session name plus `.chapters.json` (`docs/guide.md`, "Export the chapters"; `Sources/DirigibleApp/SessionWindow+Export.swift`). The Hindenburg question has no recorded answer.
+
 - Hindenburg: where is the JSON export in the menu, and what does it write? Only a run of Hindenburg PRO 2.02 or later can answer.
 - Default name: `chapters.json` (matches the web convention) or the session name with `.json` (no overwrite between episodes in one folder). This is a plan decision.
 

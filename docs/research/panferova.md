@@ -30,7 +30,7 @@ Not read, titles only: Inspectors in SwiftUI, Custom scenes, Menu bar utility, C
 
 Gaps: no article on Observation basics, localization, or accessibility among the 59 titles. Those are in her books and talks (an accessibility video exists: https://www.youtube.com/watch?v=CEZbwcv60MA, not watched). Our audio-specific and AppKit-timeline needs are not covered by her.
 
-Version caution: the July 2026 update mentions `@State` becoming a macro in Xcode 27. Our ceiling is Xcode 26.3 (project memory). Do not copy anything that needs Xcode 27 or macOS 26-only API into a macOS 14 rule.
+Version caution: the July 2026 update mentions `@State` becoming a macro in Xcode 27. Our ceiling is Xcode 26.3, the newest Xcode that the dev Mac of the project runs. Do not copy anything that needs Xcode 27 or macOS 26-only API into a macOS 14 rule.
 
 ### 3. Books, price, licensing
 - https://books.nilcoalescing.com/: SwiftUI Fundamentals $35, The SwiftUI Way $35 (patterns and anti-patterns for production apps, covers data flow, view updates, lists, accessibility, platform conventions; no sample seen), Swift Charts Beyond the Basics $35, Swift Gems $35, Integrating SwiftUI into UIKit Apps $40 (mostly UIKit; our need is AppKit, so low value). Bundles exist, price not read.
@@ -82,7 +82,7 @@ Fit to this repo: 1-9 and 11-12 match the SwiftUI shell, menus, and windows. 18-
 
 1. File: new `.claude/skills/swiftui-macos-rules/SKILL.md` (about 100 lines). Change: write rules 1-9, 11-14, 16, 18-20 in our words, one source link each, plus the line "check the macOS 14 availability of each API". Why: a short checklist the UI panel and code-quality lens can cite. Risk: summary-only sourcing; two or three rules may be wrong. Check each against Apple docs or a probe before merge. Also check for overlap with existing skills first.
 2. File: `.claude/agents/code-quality-reviewer.md`. Change: add one line that points to the skill for any diff that touches `Sources/*App*` or a SwiftUI view. Why: loads the rules only when needed. Risk: more load for every review if the pointer is not scoped.
-3. File: the backlog (a wiki item). Change: add "read Panferova posts Inspectors, Custom scenes, Hide and show sidebar, Focus-based navigation; verify rules 5, 10, 16 on raw pages". Why: closes the unverified part cheaply. Risk: none.
+3. File: the project backlog (a local list, not in git). Change: add "read Panferova posts Inspectors, Custom scenes, Hide and show sidebar, Focus-based navigation; verify rules 5, 10, 16 on raw pages". Why: closes the unverified part cheaply. Risk: none.
 4. Do not buy now. If a SwiftUI view-update or identity bug repeats in the ledger, then buy "The SwiftUI Way" ($35), read it as a human, and write own rules. Risk of not buying: agents miss deeper anti-patterns; the free posts cover only a slice.
 
 ## Not verified

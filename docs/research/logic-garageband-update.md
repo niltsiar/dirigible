@@ -17,11 +17,13 @@ These facts change or complete a row of the first catalog. They do not need a ne
 - **F54 loudness at export.** GarageBand has "Export projects at full volume": it exports "at the highest volume level (0 dBFS) at which no distortion occurs" [GAD]. This is a peak normalization. It confirms the "(unconfirmed)" GarageBand cell of F54.
 - **F61 import.** Logic has a project setting "Convert audio file sample rate when importing" [LSR]. The Save dialog chooses to copy assets into the project or to reference them [LSV]. Copy/Convert sets "the sample rate, bit depth, file format, stereo conversion, and dither type" [LCC]. Dirigible: always copy an imported file into `Clips/` and convert it to the session rate. A reference to a file outside the package can go missing.
 - **F62 autosave and backups.** Logic autosaves and asks at reopen if you want "the autosaved version" [LSV]. Each Cmd-S keeps a backup, "up to ten backups per alternative". File > Revert to lists the backups "from newest to oldest" [LA]. An "Auto Backup" setting sets the count. A "Save undo history with project" setting keeps the undo steps after a reopen [LPH]. Dirigible: show the backups in a "Revert to" submenu.
-- **F63 templates.** GarageBand 10.4.14 on this Mac has six project templates. One is "Voice". None is a podcast template [GBL]. The audio patches have a "04 Voice" group with "Narration Vocal" [GBL]. Dirigible: a two-person interview template with the call preset (F06) fills this gap.
+- **F63 templates.** GarageBand 10.4.14 on this Mac has six project templates. One is "Voice". None is a podcast template [GBL]. The audio patches have a "04 Voice" group with "Narration Vocal" [GBL]. Dirigible: a two-person interview template with the call preset (F06) fills this gap. State on 2026-11-24: built, F63 is done (Release 7 run 3).
 - **F64 shortcuts.** The Logic Key Commands window has presets, import, export, and filters that show "Conflicts" and "Unused" commands. Control with a menu command opens the window at that command [LKC] [LKS]. Dirigible: when F64 comes, a conflict filter is the most useful part.
-- **F07 punch-in.** In Logic, a record after a marquee selection turns on Autopunch at the selection. "All tracks within the marquee selection are record-activated" [LMQ]. Dirigible: use this for F07 in Release 3. A range on one track re-records only that range on that track.
+- **F07 punch-in.** In Logic, a record after a marquee selection turns on Autopunch at the selection. "All tracks within the marquee selection are record-activated" [LMQ]. Dirigible: use this for F07 in Release 3 (plan of 2026-09-27; state on 2026-11-24: F07 is Later, not built). A range on one track re-records only that range on that track.
 
 ## 2. New features
+
+The Release column is the plan of 2026-09-27. State on 2026-11-24: F80 and F81 are done in Release 6, and F89 is done in Release 4 (`docs/requirements/features.md`).
 
 | ID | Feature | Logic/GarageBand behavior | Dirigible use | Keep/Adapt/Skip | Why | Value | Effort | Release | Source |
 |---|---|---|---|---|---|---|---|---|---|

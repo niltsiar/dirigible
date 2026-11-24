@@ -10,8 +10,10 @@ Local versions: Claude Code 2.1.296, opencode 1.18.30. Codex is not installed. S
 
 ## State of Dirigible today
 
-- `Sources/DirigibleMCP/MCPServer.swift` sends no `instructions`. The `server/discover` result and the `initialize` result both omit the field.
-- The `capabilities` object has only `tools`. The server has no `prompts` and no `resources` capability. Each other method gets `-32601`.
+State on 2026-11-24 (decision 0051): `Sources/DirigibleMCP/MCPServer.swift` sends `instructions` in the `server/discover` result and in the `initialize` result. The text comes from `AgentManual`.
+
+- The `capabilities` object has `tools` and `prompts`. Each recipe is a prompt. The server has no `resources` capability. Each other method gets `-32601`.
+- On 2026-10-13, the server sent no `instructions` and no `prompts`. The rest of this note was written from that state.
 
 ## 1. Server `instructions`
 
@@ -126,7 +128,7 @@ Is a resource a fit for the manual?
 - Limit: the agent "will sometimes edit that file directly rather than using Showboat". Thus the record is not proof against an agent that cheats.
 - Rodney keeps one browser session across separate commands (`start`, `stop`).
 
-Ideas that fit a desktop-app MCP server (Inference for each):
+Ideas that fit a desktop-app MCP server (Inference for each). Built: decision 0051 holds the one entry point (`dirigible --instructions`, the `instructions` field, and the prompts).
 
 - Make one entry point that teaches everything: `dirigible --help` and `dirigible mcp --help` for the CLI, and the same text in the MCP `instructions` and in a help tool or resource.
 - Make each tool result show what happened (the state after the change), so the agent reports output, not a claim.
@@ -143,7 +145,7 @@ Ideas that fit a desktop-app MCP server (Inference for each):
 - Output modes: in a terminal, `hunk status` opens an interactive view. `--static` prints one text snapshot. `--json` prints one JSON object with `schemaVersion: 1`, with no color and no pager. A redirect selects static output by itself. Errors go to stderr with a nonzero exit, also with `--json` [S37].
 - The workflow asks for `review --json` first and the raw patch only with `--include-patch` [S34]. Thus the agent gets the structure before the large text.
 
-Ideas that fit Dirigible (Inference for each):
+Ideas that fit Dirigible (Inference for each). Built: `dirigible skill path` and `dirigible skill show` (`Sources/DirigibleCLI/SkillCommand.swift`, decision 0051). The bundle holds one skill text.
 
 - Ship `SKILL.md` in the app bundle, and add `dirigible skill path` and `dirigible skill show`. The user links or copies the folder that `skill path` prints.
 - Ship a pointer skill for the skill folders: a short `SKILL.md` that says "run `dirigible skill show`". The pointer never gets old, because the text comes from the installed binary. A link to the bundle also stays current, but it breaks when the app moves.
@@ -173,7 +175,7 @@ Yes, No, or Partial, with the source ID. "Skills folder" means that the client r
 
 ## Probes
 
-- P3: folder `.scratchpads/probe-mcp-instructions/`. `fake_server.py <mode> <codeword> <log>` is a fake stdio MCP server with one `noop` tool. In `modern` mode, it answers `server/discover` with `instructions`. In `legacy` mode, it answers `server/discover` with `-32601`, and `initialize` with `instructions`. `scripts/probe.sh .scratchpads/probe-mcp-instructions bash run.sh` runs `claude -p --strict-mcp-config --mcp-config mcp.json --model haiku` with the servers `probe-modern` (codeword `PELICAN-MODERN-7`) and `probe-legacy` (codeword `HERON-LEGACY-3`). It asks the model to quote the instructions of each server, or to write NONE.
+- P3: local run folder `probe-mcp-instructions`, not in git. `fake_server.py <mode> <codeword> <log>` is a fake stdio MCP server with one `noop` tool. In `modern` mode, it answers `server/discover` with `instructions`. In `legacy` mode, it answers `server/discover` with `-32601`, and `initialize` with `instructions`. `scripts/probe.sh <run folder> bash run.sh` runs `claude -p --strict-mcp-config --mcp-config mcp.json --model haiku` with the servers `probe-modern` (codeword `PELICAN-MODERN-7`) and `probe-legacy` (codeword `HERON-LEGACY-3`). It asks the model to quote the instructions of each server, or to write NONE.
 - P3 result (Claude Code 2.1.296, 2026-10-13): the answer quoted `Codeword for this server: PELICAN-MODERN-7.` and `Codeword for this server: HERON-LEGACY-3.`. `log-modern.jsonl` holds `server/discover`, then `tools/list` with modern `_meta`. `log-legacy.jsonl` holds `server/discover`, `initialize` (protocol `2025-11-25`), `notifications/initialized`, and `tools/list`.
 
 ## Sources

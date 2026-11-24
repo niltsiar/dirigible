@@ -136,7 +136,7 @@ These keys are the defaults in the Hindenburg Journalist 1.21 manual [HM]. Use t
 | Vari-speed on or off | Period |
 | Undo, redo | Not in the manual; use Cmd-Z, Shift-Cmd-Z (unconfirmed) |
 
-Note: macOS uses Control-Space by default to select the previous input source (unconfirmed on the target Mac). Test the Record key for this conflict before Release 1 ships.
+Note: macOS uses Control-Space by default to select the previous input source (unconfirmed on the target Mac). Test the Record key for this conflict before Release 1 ships. State on 2026-11-24: settled. Record is Command-R (decision 0014; `MenuKeys.record`).
 
 ## Ranking
 
@@ -239,7 +239,6 @@ Goal: match the Hindenburg tools that save time on each episode.
 [LA]: https://support.apple.com/guide/logicpro/use-project-alternatives-and-backups-lgcpa158ef77/mac
 [LU]: https://support.apple.com/guide/logicpro/undo-and-redo-edits-lgcp1dbd67ab/mac
 [AP]: https://podcasters.apple.com/support/893-audio-requirements
-[FV]: ../../.scratchpads/verify/flac-encode/
 
 - [HM] Hindenburg Journalist 1.21 user guide (Hindenburg Systems), hosted by willyurman.com: https://www.willyurman.com/teaching/handouts/Hindenburg_Journalist.pdf
 - [HF] Hindenburg PRO features: https://hindenburg.com/products/radio-podcast/features/
@@ -261,4 +260,4 @@ Goal: match the Hindenburg tools that save time on each episode.
 - [AG] Apple, aggregate devices: https://support.apple.com/en-us/102171
 - [LB], [L3], [LL], [LM], [LS], [LD], [LC], [LF], [LG], [LP], [LK], [LA], [LU] Logic Pro User Guide pages, as linked above.
 - [AP] Apple Podcasts audio requirements: https://podcasters.apple.com/support/893-audio-requirements
-- [FV] Local evidence: `.scratchpads/verify/flac-encode/s.flac`. `afinfo` reports "flac, 1 ch, 22050 Hz".
+- [FV] Local evidence (a test file, not in git): `afinfo` reports "flac, 1 ch, 22050 Hz".

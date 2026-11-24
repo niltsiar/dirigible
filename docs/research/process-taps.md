@@ -160,6 +160,8 @@ All facts are from commit `6f609e8` of 2025-08-07, the head of `main` on 2026-10
 
 ## 7. Open questions for a probe on this Mac (macOS 15.7.9, Intel x86_64)
 
+State on 2026-11-24: P3 and P4 are answered by probes P11 and P10 of decision 0030. P8 is decided in the design: decision 0006 sets `privateTap` and `.unmuted` for each tap. This note holds no result for the other probes.
+
 - **P1. Tap format.** For a mono and a stereo mixdown, print the `kAudioTapPropertyFormat` ASBD: rate, flags, channels, interleaving. Print the IOProc buffer list too. Does the rate follow the main sub-device when the user changes the default output rate?
 - **P2. Anchor device.** A process plays to device B. The default output is device A. Compare an aggregate anchored on A with one anchored on B. Use one output-only device and one device with input and output. This decides the main sub-device rule of 0006.
 - **P3. Auto start.** With `kAudioAggregateDeviceTapAutoStartKey` true and false: does `AudioDeviceStart` block? When does the first IOProc call come, if the app is silent at start? What are the host time and sample time of the first buffer?

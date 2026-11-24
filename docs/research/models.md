@@ -204,12 +204,12 @@ Graded on 2026-11-07, run `2026-11-03-whisper-model-trial`. This section holds m
 
 ### Setup
 
-- Seven models ran on 9 excerpts of tester audio (16 kHz mono, 14 tracks): base, small-q5_1, medium-q5_0, turbo-q5_0, turbo-q8_0, large-v3-q5_0, and latam-q5_0 (`JoaoZaokk/whisper-large-v3-turbo-latam-ggml`, q5_0). The app transcription path ran each one through `dirigible transcribe --model-file`. Each file matched its pinned SHA-256.
-- Set 1 is X1 to X4 (episode 353, 3377 reference words). Set 2 is W1 to W4 (premium episode 360, 2193 reference words). E1 has no reference text, so it gives only loop, misspelling, and LOFO data. Only Spanish audio ran, so the trial gives no evidence for other languages.
-- The reference is the tester SRT with the corrections files of its corpus applied. It is not a human transcript. The set 2 SRT comes from WhisperKit `openai_whisper-large-v3-v20240930`, which is large-v3-turbo: its `config.json` has `decoder_layers` 4 (large-v3 has 32) and a `_name_or_path` that ends in `tmp_whisper_turbo`. So the set 2 WER of turbo-q5_0 and turbo-q8_0 is close to self-agreement, and set 2 cannot rank turbo against other models. The model that made the set 1 SRT is not known.
+- Seven models ran on 9 excerpts of audio from a corpus not in this repo (16 kHz mono, 14 tracks): base, small-q5_1, medium-q5_0, turbo-q5_0, turbo-q8_0, large-v3-q5_0, and latam-q5_0 (`JoaoZaokk/whisper-large-v3-turbo-latam-ggml`, q5_0). The app transcription path ran each one through `dirigible transcribe --model-file`. Each file matched its pinned SHA-256.
+- Set 1 is X1 to X4 (3377 reference words). Set 2 is W1 to W4 (2193 reference words). E1 has no reference text, so it gives only loop, misspelling, and LOFO data. Only Spanish audio ran, so the trial gives no evidence for other languages.
+- The reference is the SRT of a corpus not in this repo, with the corrections files of that corpus applied. It is not a human transcript. The set 2 SRT comes from WhisperKit `openai_whisper-large-v3-v20240930`, which is large-v3-turbo: its `config.json` has `decoder_layers` 4 (large-v3 has 32) and a `_name_or_path` that ends in `tmp_whisper_turbo`. So the set 2 WER of turbo-q5_0 and turbo-q8_0 is close to self-agreement, and set 2 cannot rank turbo against other models. The model that made the set 1 SRT is not known.
 - The machine is an Intel Core i5-8259U (4 cores, 8 threads, 16 GiB), CPU only, no Metal. The speed pass ran S1 (2 tracks of 106.54 s) with the build lock held. The accuracy pass ran at nice 19.
 - Grading method (R10 and R6 to R8): the term score decides. A term group is G1 (22 tech names, 19 of them expected in the excerpts), G2 (12 loanwords), or G3 (2 Spanish words that the set 2 corrections fix). A model is better than the baseline turbo-q5_0 only when the exact two-sided binomial on the discordant G1 occurrences gives p below 0.05. LOFO is the mean word error rate against the other voter families (leave one family out). The five models with the large-v3 encoder count as one voter family.
-- The grader passed its self-test (25 of 25 asserts) before the final run. The numbers come from one run on the tester corpus. The grader and the corpus are not in this repo, so a reader cannot rerun them from the repo.
+- The grader passed its self-test (25 of 25 asserts) before the final run. The numbers come from one run on that corpus. The grader and the corpus are not in this repo, so a reader cannot rerun them from the repo.
 
 ### Grades
 
@@ -287,7 +287,7 @@ Found over expected, for each G1, G2, and G3 term. A "-" means the external syst
 | OpenClaw | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 | - | - |
 | Visual Studio Code | 0/2 | 2/2 | 0/2 | 1/2 | 0/2 | 2/2 | 2/2 | - | - |
 | IntelliJ | 0/3 | 3/3 | 0/3 | 3/3 | 3/3 | 0/3 | 3/3 | - | - |
-| webreactiva.com | 0/3 | 1/3 | 0/3 | 1/3 | 0/3 | 1/3 | 1/3 | 1/1 | 1/1 |
+| a site name | 0/3 | 1/3 | 0/3 | 1/3 | 0/3 | 1/3 | 1/3 | 1/1 | 1/1 |
 | tokens | 4/14 | 9/14 | 10/14 | 12/14 | 7/14 | 10/14 | 12/14 | 2/2 | 2/2 |
 | skills | 5/5 | 5/5 | 4/5 | 5/5 | 5/5 | 5/5 | 5/5 | - | - |
 | seniority | 0/1 | 1/1 | 0/1 | 1/1 | 0/1 | 0/1 | 0/1 | - | - |
@@ -334,7 +334,7 @@ Net RTF is the sum of the transcribe wall times, minus one check wall time for e
 
 The app sheet starts at small-q5_1 for Spanish and at base for each other language (`languageModel` in `Sources/DirigibleApp/TranscribeSheet.swift`).
 
-Candidate: turbo-q5_0 is the candidate Spanish default for the sheet. The change waits for the human-corrected calibration slice (backlog item 1519). Keep small-q5_1 in the catalog as the faster choice.
+Candidate: turbo-q5_0 is the candidate Spanish default for the sheet. The change waits for the human-corrected calibration slice (a backlog item). Keep small-q5_1 in the catalog as the faster choice.
 
 The recommendation rests on set 1 alone. The set 2 reference is large-v3-turbo (see **Setup**), so set 2 cannot rank turbo-q5_0 against small-q5_1.
 
@@ -352,7 +352,7 @@ The cost of turbo-q5_0 against small-q5_1 on this Intel Mac:
 - A download of 574 MB against 190 MB.
 - A peak of 1208 MB against 700 MB.
 
-What can overturn it: the human-corrected calibration slice (backlog item 1519). If the WER gap comes from the pseudo-reference and not from the models, keep small-q5_1.
+What can overturn it: the human-corrected calibration slice (a backlog item). If the WER gap comes from the pseudo-reference and not from the models, keep small-q5_1.
 
 If the calibration slice confirms the candidate, the change is a feature run with a `Sources/` change. It touches `TranscribeSheet.languageModel` and its doc comment, the tests that expect `.catalog(.smallQ51)` for `es` in `Tests/DirigibleTests/TranscribeSheetTests+ModelFile.swift`, the **Model** paragraph of `docs/guide.md`, and decision 0065. Check the UI strings of decision 0010 when a title or a size text changes.
 
@@ -383,7 +383,7 @@ latam-q5_0 took 643.87 s wall and 2519.62 s user CPU on S1 track 2. turbo-q5_0 t
 - The loop of large-v3-q5_0 is probably real speech. The six "Mm-hmm." words are separate, from 218.2 s to 245.6 s (27.4 s) on the listener track, and medium-q5_0 writes "Mm hmm" two times in the same span. The loop rule checks only that the n-grams are back to back, not the time between them. This does not change the ranking.
 - Speed comes from one machine (Intel Core i5-8259U, CPU only, no Metal) and one 106.54 s excerpt. Results on Apple silicon with Metal can differ (see `docs/research/metal.md`).
 - Only Spanish audio ran. The trial gives no evidence for other languages.
-- Out of scope, each a backlog item: `initial_prompt` variants (1518, needs a `Sources/` change), the human-corrected calibration slice (1519), Parakeet and Canary (1520), and Metal (1517).
+- Out of scope, each a backlog item: `initial_prompt` variants (needs a `Sources/` change), the human-corrected calibration slice, Parakeet and Canary, and Metal.
 
 ## Sources
 

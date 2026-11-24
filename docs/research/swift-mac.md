@@ -4,7 +4,9 @@ Date: 2026-10-01
 
 Scope: skills and rule sets that could help the Dirigible loop (Swift 6.2, Swift Testing, SwiftUI and AppKit, Core Audio, SwiftPM with no Xcode project, zero warnings). I read each page with WebFetch, which summarizes the page. I did not read raw SKILL.md files except where marked "read". Anything marked "unverified" came only from a search snippet.
 
-Repo today: skills are process skills only (deliver, tdd, architect, interrogate, deslop, verify-this, and so on) in `.claude/skills/`. No Swift-API skill exists. The Swift rules live in CODING_STANDARDS.md and in AGENTS.md "Safety rules" and "Testing rules".
+Repo on 2026-10-01: skills were process skills only (deliver, tdd, architect, interrogate, deslop, verify-this, and so on) in `.claude/skills/`. No Swift-API skill existed.
+
+State on 2026-11-24: the skill `swift-concurrency` is installed in `.claude/skills/` (recommendation 1 below landed; `.claude/skills/THIRD_PARTY.md` has its row). The Swift rules live in `CODING_STANDARDS.md` (Safety, Concurrency).
 
 ## The user's two references
 
@@ -51,21 +53,21 @@ Repo today: skills are process skills only (deliver, tdd, architect, interrogate
 ### 5. Apple: Xcode 26.3 agentic coding
 - Where: https://9to5mac.com/2026/02/26/apple-releases-xcode-26-3-with-support-for-agentic-coding/ (secondary press, not an Apple page).
 - Covers: Claude Agent and Codex inside Xcode, and an MCP server exposing about 20 Xcode tools (build, tests, previews, docs search).
-- Fit: none. We have no Xcode project, and the Intel Mac runs Xcode 26.3 as the newest usable (memory note). The MCP route adds a dependency without a gain. Apple's docs-search idea is useful but needs Xcode. Skip. I did not find an Apple page of AI-assistant guidance for Swift (unverified).
+- Fit: none. We have no Xcode project, and the Intel Mac of the project runs Xcode 26.3 as the newest usable. The MCP route adds a dependency without a gain. Apple's docs-search idea is useful but needs Xcode. Skip. I did not find an Apple page of AI-assistant guidance for Swift (unverified).
 
 ### 6. AppKit, Core Audio, real-time audio
-- Search found no published agent skill for AppKit or Core Audio. The twostraws directory also says it lists none ("No AppKit, macOS-specific, Core Audio ... skills"). Only blog posts and forum threads exist (for example the Apple forum thread on AVAudioEngine thread safety). Our AGENTS.md concurrency rule and decision 0013 are likely the best text that exists. This is a gap to fill ourselves, not to import.
+- Search found no published agent skill for AppKit or Core Audio. The twostraws directory also says it lists none ("No AppKit, macOS-specific, Core Audio ... skills"). Only blog posts and forum threads exist (for example the Apple forum thread on AVAudioEngine thread safety). Our `CODING_STANDARDS.md` concurrency rule and decision 0013 are likely the best text that exists. This is a gap to fill ourselves, not to import.
 
 ## Conflicts with repo rules
 - iOS bias: SwiftUI Pro and Dimillian UI skills assume iOS 26 and Liquid Glass. We target macOS 14 and later on an Intel Mac with Xcode 26.3. Strip iOS-only lines.
-- Dependencies: Point-Free needs libraries. Dimillian packaging adds Sparkle and Tuist, and we have no notarization (memory: no Apple developer account).
+- Dependencies: Point-Free needs libraries. Dimillian packaging adds Sparkle and Tuist, and we have no notarization (the project has no Apple developer account).
 - Zero warnings and Swift 6.2: Approachable Concurrency and default MainActor settings change compile behavior. Check against Package.swift before copying advice.
 - STE100 rule: all third-party skill text is not STE. Copied files need a rewrite to pass our writing rules, and "Keep this file true" limits budget. Licenses are MIT, so copying is legal if we keep the notice (`.claude/skills/THIRD_PARTY.md` already exists for this).
 - Install route: `npx skills add` fetches code from the network. Copy a pinned commit instead.
 
 ## Recommendations (at most 6)
 
-1. **`.claude/skills/swift-concurrency/` from AvdLee. Adapt.** Copy only SKILL.md and the references for actors, Sendable, testing. Add a short section from AGENTS.md: real-time callbacks `nonisolated` and `@Sendable`, no locks or allocation, decision 0013. Why: the loop's worst bugs (main-actor inheritance, `await` re-entrancy) are in this area. Risk: advice may clash with our isolation settings. Read Package.swift first. Pin the commit and add a THIRD_PARTY row.
+1. **`.claude/skills/swift-concurrency/` from AvdLee. Adapt.** Built (state on 2026-11-24): the skill is installed. Copy only SKILL.md and the references for actors, Sendable, testing. Add a short section from AGENTS.md: real-time callbacks `nonisolated` and `@Sendable`, no locks or allocation, decision 0013. Why: the loop's worst bugs (main-actor inheritance, `await` re-entrancy) are in this area. Risk: advice may clash with our isolation settings. Read Package.swift first. Pin the commit and add a THIRD_PARTY row.
 
 2. **`.claude/skills/swift-testing/` from Hudson or AvdLee. Adapt.** Pick one, not both. Cut XCTest and UI-test parts. Link it from `tdd`. Why: agents write XCTest by habit. Our AGENTS.md says "Swift Testing" only through the brief. Risk: size. Keep SKILL.md under about 150 lines and the rest in references.
 

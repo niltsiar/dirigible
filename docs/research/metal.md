@@ -1,4 +1,4 @@
-# Research: whisper.cpp v1.9.5 with the ggml Metal backend in the Dirigible SwiftPM target (backlog item 1517)
+# Research: whisper.cpp v1.9.5 with the ggml Metal backend in the Dirigible SwiftPM target
 
 Date: 2026-11-03
 
@@ -16,7 +16,7 @@ Method: source files of the tag `v1.9.5` of `ggml-org/whisper.cpp`, read as raw 
 | 4 | The abort callback does not stop a Metal graph. A stop lands between graphs. |
 | 5 | A Metal transcript can differ from the CPU transcript. No source measures the size of the difference. |
 | 6 | No same-chip, same-version pair exists. Inference (F16): Metal is about 8 to 11 times faster on the encoder on an M1 Ultra. |
-| 7 | Verify on a tester Mac with Apple silicon. A GitHub arm64 runner has a paravirtual GPU that fails the kernel gates. |
+| 7 | Verify on a Mac with Apple silicon. A GitHub arm64 runner has a paravirtual GPU that fails the kernel gates. |
 
 ## Q1. Smallest correct way to add the Metal backend
 
@@ -163,13 +163,13 @@ Source: `https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6`.
 
 - GitHub runners: the docs of the runner reference list a Tesla T4 for Ubuntu and Windows as the only GPU spec, and no macOS GPU SKU (`github/docs`, `content/actions/reference/runners/larger-runners.md`). The macOS limits list says nested virtualization is not supported (`data/reusables/actions/macos-runner-limitations.md`). Issue `actions/runner-images` 7085 ("Add GPU Passthrough (Metal) for GitHub-hosted macOS runners", closed 2024-11-29): a maintainer wrote "It is currently impossible due to runners' design". Measured device: "Apple Paravirtual device", `MTLGPUFamilyCommon3` (F9). Runner labels in the docs on 2026-11-03: `macos-15`, `macos-26`, `macos-latest` (macOS 26), `macos-15-intel`, `macos-26-intel`. The label `macos-14` is not in that list.
 - llama.cpp itself tests Metal on a self-hosted runner (`ci-self-hosted-metal.yml`: `runs-on: [self-hosted, macOS, ARM64]`) and keeps its `macos-latest` job with test exclusions.
-- Recommendation: use a tester Mac with Apple silicon. The gate is the journal, because the app routes the ggml log to it (decision 0065 consequence). Required lines: `GPU family: MTLGPUFamilyApple7` or higher, `has bfloat = true`, `using embedded metal library`, and `loaded in` or `compiled in` with the time. Add a GitHub arm64 job only as a compile check. Use EC2 if no tester Mac exists.
+- Recommendation: use a Mac with Apple silicon. The gate is the journal, because the app routes the ggml log to it (decision 0065 consequence). Required lines: `GPU family: MTLGPUFamilyApple7` or higher, `has bfloat = true`, `using embedded metal library`, and `loaded in` or `compiled in` with the time. Add a GitHub arm64 job only as a compile check. Use EC2 if no tester Mac exists.
 
 ## Open questions (probes not run)
 
 - P1. Does the ARC port (or the `unsafeFlags` exception) compile `ggml-metal-device.m` and `ggml-metal-context.m` with zero warnings in `swift build --arch arm64` and in the two-arch XCBuild build? Probe: copy the files into `Sources/CWhisper`, add the defines of F3, build both ways. Also count the new `-Wshorten-64-to-32` sites.
 - P2. Cold and warm time of `ggml_metal_library_init` in embed mode on a base M1 and on macOS 14. Probe: log lines `ggml_metal_library_init: compiled in` and `loaded in`, first and second launch, and after the app moves.
-- P3. Stop latency with Metal: run `WhisperEngineBenchmark` with the flag set at 30 % of a 600 s file with large-v3-turbo-q5_0 on the slowest Apple-silicon tester Mac, against the 2 s bound of C10.
+- P3. Stop latency with Metal: run `WhisperEngineBenchmark` with the flag set at 30 % of a 600 s file with large-v3-turbo-q5_0 on the slowest Apple-silicon Mac that is available, against the 2 s bound of C10.
 - P4. Do the 35 glued texts from the vendoring script compile through `newLibraryWithSource` on macOS 14 and 15 on Apple silicon, and does the `.s` with `.incbin` (or the array file) link under SwiftPM native and XCBuild?
 - P5. CPU against Metal transcripts on the C13, C14, C15, and C24 fixtures, for base, small-q5_1, and large-v3-turbo-q5_0, with the same flash-attention setting. Word error rate and the D7 word-end error on both.
 - P6. M5 with macOS 14 or 15: does the tensor-API probe of v1.9.5 turn the API off without a crash?

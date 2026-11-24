@@ -13,8 +13,10 @@ Probes ran on one Mac: macOS 15.8.1 (24H32), x86_64, the user is an admin. Each 
 Recommendation: write an app journal file of our own, and build a support file from it by hand.
 
 1. **A journal file for each launch** in `~/Library/Logs/Dirigible/`. One `DiagnosticLog` call writes the line to `Logger` (the live channel for Console and `log stream`) and to the journal. A serial queue writes each line with `write(2)`. The journal is the only channel that a standard user can read back after a force quit (see **What follows**).
-2. **A main-thread watchdog** on its own queue. It pings the main queue each 250 ms. It writes a journal line when a ping is 1 s late, and the take step that is in progress. At 2 s it runs `/usr/bin/sample` on the app once per hang.
-3. **Help > Collect Diagnostics...** and **`dirigible diagnostics collect <zip>`** build one zip from the same library function: the journals, the hang samples, the system reports that the user can read, the device list, and a summary. A redaction step removes the home path, the user name, the host name, package names, and device UIDs. The user sends the file by hand.
+2. **A main-thread watchdog** on its own queue. It pings the main queue each 250 ms. It writes a journal line when a ping is 1 s late, and the take step that is in progress. At that point it walks the main-thread stack in the process, once per hang. It never runs `/usr/bin/sample` (decision 0059).
+3. **Help > Report a Problem...** and **`dirigible diagnostics collect <zip>`** build one zip from the same library function: the journals, the hang samples, the system reports that the user can read, the device list, and a summary. A redaction step removes the home path, the user name, the host name, package names, and device UIDs. The user sends the file by hand.
+
+State on 2026-11-24: decision 0059 holds the built design. The sections below keep the plan and the probe record of 2026-10-16. The journal limits, the file names, and the hang lines of 0059 replace the values in **The journal** and **The watchdog**.
 
 Run `2026-10-16-diagnostics` changed two points of this design with probes: the journal is the one sink (no `Logger` line but a journal that cannot open), and the watchdog walks the main thread in the process in place of `sample` (see **Answers of run 2026-10-16-diagnostics**).
 
@@ -24,7 +26,7 @@ Main limits: a standard user cannot read the system log of a previous launch or 
 
 ### 1.1 os_log and Logger
 
-- `Logger(subsystem:category:)` is the Swift API on macOS 11 and later. Apple tells you to use reverse-DNS for the subsystem, and a category for each component [A1]. Dirigible already uses the subsystem `com.delineas.dirigible` with the categories `agent-log`, `timeline`, `active-recordings`, and `agents` (`rg -n 'Logger\(' Sources`).
+- `Logger(subsystem:category:)` is the Swift API on macOS 11 and later. Apple tells you to use reverse-DNS for the subsystem, and a category for each component [A1]. Dirigible already used the subsystem `com.delineas.dirigible` with the categories `agent-log`, `timeline`, `active-recordings`, and `agents` (`rg -n 'Logger\(' Sources`). The run added the category `diagnostics`.
 - Apple DTS advice: one subsystem with several categories, so a search on the subsystem shows all of the app. "One is fine, ten is OK, 100 is too much" for subsystem and category pairs [A2].
 - Levels and storage [A1]:
 
@@ -81,7 +83,7 @@ So the design needs a file that the app writes in the user domain. `man 2 fsync`
 - Sentry docs: system permission dialogs can give false hangs, so Sentry has `pauseAppHangTracking()` [A17]. Since 8.50.0, a force quit during a hang shows as a "fatal app hang" on the next start [A17]. Ableton Live has the same idea: a `Log.txt` with no `Exit: End` line before the next start marks a crash [A23].
 - Clock: `SuspendingClock` and `mach_absolute_time` stop while the system is asleep. `ContinuousClock` does not stop [A21]. With `SuspendingClock`, a system sleep does not look like a hang.
 - Cost: each timer wake costs energy. Apple asks for a tolerance of at least 10 percent of the interval [A22]. A 250 ms timer with 25 ms leeway is 4 wakes per second, and 4 main-queue blocks that each store one value. For comparison, each device writer already runs a 50 ms drain timer during a take, which is 20 wakes per second (decision 0013 **Owners**). Inference: the watchdog adds less than one writer. Measure in the run with `top -stats pid,idlew` before and after.
-- Stack capture: `sample` "suspends the process at specified intervals (by default, every 1 millisecond), records the call stacks of all threads" (`man sample` [A24]). Probe P2: `sample <pid> 1` ran with no `sudo` on an ad-hoc signed, not hardened process, and took 3 s of wall time. Its output names the main thread (`DispatchQueue_1: com.apple.main-thread`) and writes the path as `/Users/USER/*`. A hardened runtime would block it (Inference, not checked). Risk: the suspend also stops the audio IO thread of a take in progress. The run must probe this (open question Q4).
+- Stack capture: `sample` "suspends the process at specified intervals (by default, every 1 millisecond), records the call stacks of all threads" (`man sample` [A24]). Probe P2: `sample <pid> 1` ran with no `sudo` on an ad-hoc signed, not hardened process, and took 3 s of wall time. Its output names the main thread (`DispatchQueue_1: com.apple.main-thread`) and writes the path as `/Users/USER/*`. A hardened runtime would block it (Inference, not checked). Risk: the suspend also stops the audio IO thread of a take in progress. The run must probe this (open question Q4). The probe answered yes, so the watchdog walks the main thread in the process and never runs `sample` (decision 0059).
 - Real-time rule (`CODING_STANDARDS.md` **Safety**, 0013 **Callbacks**): the watchdog never runs on the IO thread and never reads from it. It reads only values that the main queue, the writer queues, and `Studio` write.
 
 ## 3. What other audio apps do
@@ -100,13 +102,13 @@ What the evidence says to redact:
 
 - **The home path and the user name.** Apple's own `sample` output and `.diag` reports write `/Users/USER/*` (probes P2 and P3).
 - **The host name.** It is in each system report file name (`Dirigible_2026-10-15-002412_<host>.diag`), and a host name often holds the owner's name.
-- **Package names and paths.** A package name is often an episode or a guest name (the tester's package was `interview-jm-oct`, `video-findings.md`). Imported file names are user names too.
+- **Package names and paths.** A package name is often an episode or a guest name (the package of a tester held the initials of a person). Imported file names are user names too.
 - **Device UIDs.** A USB UID can hold a serial number. Replace each UID with a token (`uid-1`) that is the same in every file of one bundle, so a reader can still match a device across lines.
 - **Keep device names, transport types, rates, and channel counts.** They are the diagnosis ("USB PnP Sound Device", "GroundControl Room", a Zoom virtual device). A device name with the user's name ("<name>'s AirPods") gets the user-name rule.
 
 What the bundle never holds: audio, peaks, `session.xml`, transcripts, episode metadata, `agent-log.tsv` (it holds agent names), the list of running apps, and the system-wide log archive.
 
-`Logger` privacy (the live channel): device names, UIDs, step names, status codes, and numbers as `.public`. Paths and package names as `.private(mask: .hash)`, following Apple's rule to redact dynamic user data [A1]. The journal keeps the raw values, because it stays on the user's Mac. The redaction runs when the bundle copies a file. Note: `ActiveRecordings.swift:37` logs a path as `.public` today.
+`Logger` privacy (the live channel): device names, UIDs, step names, status codes, and numbers as `.public`. Paths and package names as `.private(mask: .hash)`, following Apple's rule to redact dynamic user data [A1]. The journal keeps the raw values, because it stays on the user's Mac. The redaction runs when the bundle copies a file. Note: `ActiveRecordings.swift` logs a path as `.public` (state on 2026-11-24).
 
 ## 5. Events to log
 
@@ -135,7 +137,7 @@ Inference: with these lines, the tester's hang shows which step was open when th
 | Target | New code |
 |---|---|
 | `DirigibleAudio`, new folder `Diagnostics/` | `DiagnosticLog` (one call, two sinks: `Logger` and the journal), the journal writer, `HangWatchdog`, the take step value that the watchdog reads, the bundle builder, and the redaction. |
-| `DirigibleApp` | Help > **Collect Diagnostics...**, the sheet, the save panel, the `.lproj` strings (decision 0010), and the watchdog start at launch. |
+| `DirigibleApp` | Help > **Report a Problem...**, the sheet, the save panel, the `.lproj` strings (decision 0010), and the watchdog start at launch. |
 | `DirigibleCLI` | `dirigible diagnostics collect`. |
 | `DirigibleMCP` | Calls `DiagnosticLog` for its `agents` lines. No new tool. |
 
@@ -147,19 +149,21 @@ Why `DirigibleAudio`: the events come from `Studio` and `Capture/`, the code nee
 
 - Path: `~/Library/Logs/Dirigible/<yyyy-MM-dd-HHmmss>-<app|cli>-<pid>.tsv`. The first line is the version, the second line is the header (the `AgentLog` shape).
 - One serial queue owns an `O_APPEND` file descriptor and calls `write(2)` once per line. No `fsync` on each line. A `fault` line and a `hang` line call `fsync`.
-- Limits: 5 MB per launch, then one `truncated` line. Keep the last 20 launch files or 50 MB. Each limit is a constant in one place.
+- Limits of the plan: 5 MB per launch, then one `truncated` line. Keep the last 20 launch files or 50 MB. Built: decision 0059 sets the limits (a part of 4 MiB, at most 8 MiB per launch).
 - The watchdog writes through the same queue, never through the main actor or `Studio`. Otherwise its line is lost exactly while the main thread hangs.
 - At launch, the app reads the last line of the previous file. If it is not a `quit` line, the new journal gets one `app` line that says so. No prompt in the first run.
 
 ### The watchdog
 
 - A `DispatchSourceTimer` on its own serial queue, utility QoS, interval 250 ms, leeway 25 ms [A22]. Time from `SuspendingClock` [A21].
-- Each tick: if no ping waits, post one block to `DispatchQueue.main` that stores its arrival time in an atomic. If the waiting ping is 1 s old [A15], write one `hang` error line with the take step. If it is 2 s old [A17], start `/usr/bin/sample <pid> 1 10 -file ~/Library/Logs/Dirigible/hang-<time>.txt` once per hang, at most 3 times per launch. When the ping arrives, write the total blocked ms.
+- Each tick: if no ping waits, post one block to `DispatchQueue.main` that stores its arrival time in an atomic. If the waiting ping is 1 s old [A15], write one `hang` error line with the take step. If it is 2 s old [A17], the plan was to start `/usr/bin/sample <pid> 1 10 -file ~/Library/Logs/Dirigible/hang-<time>.txt` once per hang, at most 3 times per launch. Superseded: the watchdog walks the main thread in the process and runs no `sample` (decision 0059). When the ping arrives, write the total blocked ms.
 - Ignore a tick that comes more than one interval past its deadline (the Sentry guard [A20]).
 - The take step is an atomic integer that `Studio` and the writer queues set at each step of **Events to log**. The watchdog reads it with no main-actor hop.
 - The CLI runs no watchdog: it has no UI main thread.
 
-### Help > Collect Diagnostics...
+### Help > Report a Problem...
+
+State on 2026-11-24: the menu item is Help > Report a Problem... (decision 0059). The plan below named it Collect Diagnostics.
 
 1. A sheet lists the groups, all on: launch journals (last 7 days), hang samples, crash and hang reports, the device list, the summary. The user can turn a group off (the Audacity model [A28]).
 2. A save panel asks where to put `Dirigible Diagnostics <date>.zip`. The default folder is the Desktop.
@@ -200,7 +204,7 @@ Contents:
 |---|---|---|
 | Q1 | Can a standard user run `log show` for our subsystem, and `OSLogStore(scope: .system)`? | Probe in a standard test account. The design does not depend on the answer. |
 | Q2 | Does MetricKit deliver an `MXDiagnosticPayload` (hang or crash) to an ad-hoc signed app on macOS 14 and 15? Does it need the share-with-developers setting? Does a hang that ends in a force quit give a payload? | Probe on an ad-hoc DMG build with a forced 3 s main-thread block, then read `pastDiagnosticPayloads` at the next launch. |
-| Q3 | What is the file name and extension of the spindump report after a force quit on macOS 14 and 15 (`.spin`, `.hang`, or `.ips`)? | Force quit a blocked verify copy, then list `/Library/Logs/DiagnosticReports`. The bundle globs `Dirigible*` with any extension until then. |
+| Q3 | What is the file name and extension of the spindump report after a force quit on macOS 14 and 15 (`.spin`, `.hang`, or `.ips`)? | Force quit a blocked verify copy, then list `/Library/Logs/DiagnosticReports`. The bundle globs `Dirigible*` with any extension until then. Resolved by that glob: decision 0059 collects `.ips`, `.hang`, and `.spin`. |
 | Q4 | Does `sample <pid> 1 10` during a take cause dropped frames or an IO overload? | Answered: yes (see **Answers of run 2026-10-16-diagnostics**). |
 | Q5 | Does a power loss lose the last journal lines with no `fsync`? | Inference only. No probe planned: the hang case is a force quit, and the page cache survives it. |
 

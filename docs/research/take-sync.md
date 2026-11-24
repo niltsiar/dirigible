@@ -114,7 +114,7 @@ The current (11 or 12) page "Add or remove gaps" did not give its body text to m
 - [HF] https://hindenburg.uservoice.com/knowledgebase/articles/2004043-transcription-faqs ; https://hindenburg.com/academy/features/features-hindenburg-pro/
 - [HRN] https://hindenburg.com/support/release-notes/hindenburg-series/ ; https://hindenburg.com/release-notes-hindenburg-pro_version-2/pro-v2_02-build-2614/
 - [RE] docs/research/ripple-edit.md (Hindenburg manual pages 28 and 30, tagged primary there)
-- [TR1] .scratchpads/research/transcript-1/findings.md line 16
+- [TR1] A local research file, not in git (line 16)
 - [PN] https://podnews.net/article/hindenburg-pro-v2-review
 - [DD] https://help.descript.com/script-editing/delete-vs-ignore.md
 - [DS] https://help.descript.com/export-and-share/subtitles.md

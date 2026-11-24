@@ -62,7 +62,7 @@ This is the key question. No Hindenburg page states it.
 2. Keys: Hindenburg Shift-M, Shift-S [HK]. Logic and GarageBand: M and S (Logic: M; GarageBand: iPad only).
 3. Solo: several solos add up. An exclusive solo is a modifier-click (Logic Option, Audition Command). Hindenburg Option-click is "all tracks" [HU1].
 4. Export: the mix follows mute and solo in all four apps (grade S and U only).
-5. Open: solo saved, undo, recording, meter, auto level, fade on change.
+5. Open: solo saved, undo, recording, meter, auto level, fade on change. (Decided on 2026-11-24: decision 0039 holds the saved flags, the undo entry, the refusal during a take, the mix and meter rule, and the crossfade on a change.)
 
 ## Sources
 

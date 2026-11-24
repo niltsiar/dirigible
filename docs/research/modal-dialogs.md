@@ -85,7 +85,7 @@ A note on tool use: the page text for the Apple, Adobe, and MCP sources came thr
 
 These points restate the facts above. They are not new claims.
 
-- Three interfaces refuse at once and say that the app is busy: COM `RETRYLATER`, InDesign, and Dirigible today. None of the three names the dialog in the code. Only COM documents a retry rule (silent retry, then ask the user after about 30 seconds).
+- Three interfaces refuse at once and say that the app is busy: COM `RETRYLATER`, InDesign, and Dirigible on 2026-10-13. None of the three named the dialog in the code. State on 2026-11-24: Dirigible now names the dialog. The busy text says an alert, a sheet, or a panel is open and asks the user to finish or close it (`AgentBusy.message(package:)`, decision 0049). Only COM documents a retry rule (silent retry, then ask the user after about 30 seconds).
 - Two interfaces solve the naming problem. Playwright MCP lists each open dialog and the tool that clears it in every response. The Photoshop 25.10 error names the plugin that holds the lock.
 - Two interfaces wait. Photoshop 25.10 queues the call for `timeOut` (default 1 second). AppleScript waits 2 minutes by default (F1), then times out, and the operation can still run later (F2).
 - Apple documents one way to answer an Apple event after a sheet: suspend, then resume (F11).

@@ -13,6 +13,8 @@ How to read this file:
 
 ## Findings
 
+State on 2026-11-24: the saved copies that this note names as `research/...` (`hf-tree.json`, `hf-model-readme.md`, `bench89.jsonl`, `papers/`, `apple/`, `spm/`, `clang/`, and `llvm/`) are not kept in the repo. Each finding names its source URL.
+
 ### Q1. Release, license, language standard, files, defines
 
 **F1. Release and license.**
@@ -364,6 +366,8 @@ Intel rows (encoder ms per 30 s window, 4 threads):
 - Files from the web need the `com.apple.quarantine` question: a file the app downloads with `URLSession` is not quarantined by default. Inference, not checked.
 
 ## Open questions (probe at Phase 4)
+
+State on 2026-11-24: F112 is done, and the probes P1 to P15 are answered or ran in the run of decision 0065 (`docs/decisions/0065-whisper-transcription.md`).
 
 - P1. Does ggml Metal run correctly on the dev Mac Intel iGPU? Probe: transcribe `samples/jfk.wav` with `base` twice, once with `use_gpu = true` and once with `false`, on the i5-8259U; compare the text and the encoder time; read the `ggml_metal_device_init` log lines (GPU family, simdgroup, unified memory).
 - P2. Speed of the real vendored build on the dev Mac. Probe: a 10-minute Spanish file, `base` and `small`, 4 threads, 1 file x 3 runs, SwiftPM release build with the planned flags; record encoder and decoder time per window with `whisper_print_timings`, and `whisper_print_system_info()` (it shows `SSE3`, `AVX`, `AVX2`, `FMA`, `F16C`, `BLAS`). Compare with F20 and F21. Also measure the Accelerate gain (BLAS on and off). Plan gate 1 (W2): `swift test` builds C and C++ at -O0, so S0 also times the slow tests in a debug test build (plan S0 step 9).

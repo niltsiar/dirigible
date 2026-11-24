@@ -92,6 +92,8 @@ Sibilance band (Apple Logic Pro support, "Reduce sibilance in Logic Pro"): femal
 
 ## Recommended defaults for the plan
 
+State on 2026-11-24: built as decision 0064, D3 to D5. The defaults below are the recommendation of this note. The built values differ: Reduce Rumble is a 12 dB per octave high-pass at 20 to 300 Hz (standard 80 Hz, no slope choice), and Repair Clipped Peaks takes a whole percent of 90 to 100 (standard 99).
+
 | Effect | Control | Default | Range | Source |
 |---|---|---|---|---|
 | F98 | Cutoff | 80 Hz | 20 to 300 Hz (Inference) | Adobe Essential Sound; SoundCraft |
@@ -112,7 +114,7 @@ SoundCraft is MIT OR Apache-2.0 (see `LICENSE-MIT`, `LICENSE-APACHE`, `NOTICE`).
 2. Inference: a Hz cutoff plus a slope is a better F98 control than a 0 to 10 slider. The Audition slider map is unknown. Case not checked: a user who wants only "less rumble" with no numbers.
 3. Inference: a run of 3 samples is the minimum clip. Audition's Min. Clip Size default is unknown. Check with a clip that has isolated single-sample peaks.
 4. Inference: 95 percent of the clip peak copies Audacity. Audition's Tolerance works on the maximum amplitude, and one tutorial says it misses clips below 0 dBFS. Audacity uses the selection peak, so it can catch a clip that was normalized down. Check with a normalized clipped file.
-5. Does Dirigible write float WAV? If yes, the -9 dB "reduce level" is optional, because float samples can go over full scale. If it writes 16 or 24 bit PCM, the render must lower the level or limit the peaks (iZotope uses a post-limiter).
+5. (Answered on 2026-11-24: a clip file is a 24-bit WAV, decision 0064 D4.) Does Dirigible write float WAV? If yes, the -9 dB "reduce level" is optional, because float samples can go over full scale. If it writes 16 or 24 bit PCM, the render must lower the level or limit the peaks (iZotope uses a post-limiter).
 6. Inference: SoundCraft's absolute -30 dB threshold on the high-passed peak depends on the clip level. Apple and iZotope offer a relative mode. Check with a quiet clip and a loud clip of the same voice.
 7. Not confirmed: Logic Channel EQ slope list; Hindenburg current EQ controls (the staff reply is from 2015); whether Hindenburg has a de-esser (one unopened review says yes); the Frontline "Clipping Event" page (redirect, search extract only).
 8. Hindenburg manual pages for EQ and effects did not load. The `Hindenburg_Journalist.pdf` handout (willyurman.com) is an image-based PDF and gave no text.

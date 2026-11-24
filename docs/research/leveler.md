@@ -128,6 +128,8 @@ Source: `AudioUnitParameters.h`, Xcode 26 macOS SDK [AUH] (P).
 
 ## Open questions for the plan
 
+State on 2026-11-24: the plan ran and built Tools > Level Over Time (F38 is done; decision 0060 holds the ride layer and decision 0008 names the run `2026-10-14-leveler`). The questions below are the list of 2026-10-14. The questions about other apps have no recorded answer.
+
 - Hindenburg Magic Levels controls and output. No text source lists them.
 - Descript: static or dynamic? The help page and the blog disagree.
 - Waves Target range: check the official PDF by eye.

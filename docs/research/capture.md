@@ -4,7 +4,7 @@ Date: 2026-09-23
 
 ## Scope
 
-This document answers the capture questions in `docs/requirements/brief.md`: device capture without an aggregate device (R3, R4), clock alignment, the real-time handoff to the file writer, crash-safe capture files, app audio capture (R12), and the remote guest in the local microphone. The limits come from `AGENTS.md` (concurrency, no data loss, one clock per device) and `docs/decisions/0001-native-swift-stack.md`.
+This document answers the capture questions in `docs/requirements/brief.md`: device capture without an aggregate device (R3, R4), clock alignment, the real-time handoff to the file writer, crash-safe capture files, app audio capture (R12), and the remote guest in the local microphone. The limits come from `CODING_STANDARDS.md` (Safety, Concurrency: no data loss, no real-time lock, one clock per device) and `docs/decisions/0001-native-swift-stack.md`.
 
 Sources are the macOS 26 SDK headers on the development Mac (`xcrun --show-sdk-path`), Apple documentation, and open source. Claims that this research did not confirm in a primary source have the mark "(unconfirmed)". The mark "(tested)" means a local test on macOS 15.7 on 2026-09-23. The scripts are in the session scratchpad and are not in git.
 
@@ -28,7 +28,7 @@ Sources are the macOS 26 SDK headers on the development Mac (`xcrun --show-sdk-p
 
 ### Recommendation
 
-Use one IOProc block per device (`AudioDeviceCreateIOProcIDWithBlock`, `NULL` queue). It gives the device sample time and host time for each buffer. It is the same code path as the process tap (question 5). It needs no audio unit. Turn off the output streams with `kAudioDevicePropertyIOProcStreamUsage`. Create the block in a `nonisolated` function and mark it `@Sendable` (AGENTS.md). Do not capture a Swift class in the block. Capture an unsafe pointer to preallocated state.
+Use one IOProc block per device (`AudioDeviceCreateIOProcIDWithBlock`, `NULL` queue). It gives the device sample time and host time for each buffer. It is the same code path as the process tap (question 5). It needs no audio unit. Turn off the output streams with `kAudioDevicePropertyIOProcStreamUsage`. Create the block in a `nonisolated` function and mark it `@Sendable` (`CODING_STANDARDS.md` Concurrency; decision 0013 Callbacks). Do not capture a Swift class in the block. Capture an unsafe pointer to preallocated state.
 
 This changes the text "AUHAL, one input unit per device" in decision 0001. Record the change in the first capture decision. Keep the AUHAL as the fallback if a device needs format conversion or a channel map.
 
@@ -142,7 +142,7 @@ Update 2026-11-04: decision 0071 runs step 6. The sweep deletes the CAF of a pla
 - `CATapDescription.bundleIDs` and `processRestoreEnabled` are `macos(26.0)`. They are not on macOS 14.
 - **Permission.** Add `NSAudioCaptureUsageDescription` to Info.plist (Apple sample: "you need to include the `NSAudioCaptureUsageDescription` key in your Info.plist file"). The system asks "the first time you start recording from an aggregate device that contains a tap". The TCC service is `kTCCServiceAudioCapture` (AudioCap). No public API checks or requests this permission. AudioCap uses private TCC functions. A denied tap gives silence and no error (parley issue 221; unconfirmed in Apple docs).
 - **Timestamps.** The tap IOProc gets the same `AudioTimeStamp` as a device. The clock is the aggregate clock, which is the main sub-device (the output device).
-- **Helper processes.** Corrected by `docs/research/process-taps.md` section 1: the Teams silence is solved, the Teams helper is `ModuleHost`, and AudioCap does not group a helper with its app. The process that plays the audio is often not the main app. Chrome plays audio from a separate audio service process "since v76" (issue in SamWongML/macos-audio-recording). Browser meetings use renderer and helper processes (Recall.ai). One report says a tap on Microsoft Teams gave only zero buffers, while ScreenCaptureKit captured Teams (pasrom/meeting-transcriber issue 79, not solved). For Teams the audio process is probably "Microsoft Teams WebView Helper" or a similar helper, and for Zoom it is probably `zoom.us` itself (both unconfirmed). Safari plays through `com.apple.WebKit.GPU`, which is outside `Safari.app` (unconfirmed).
+- **Helper processes.** Corrected by `docs/research/process-taps.md` section 1: the Teams silence is solved, the Teams helper is `ModuleHost`, and AudioCap does not group a helper with its app. The sentences below are the claims of 2026-09-26 before that correction. The process that plays the audio is often not the main app. Chrome plays audio from a separate audio service process "since v76" (issue in SamWongML/macos-audio-recording). Browser meetings use renderer and helper processes (Recall.ai). One report says a tap on Microsoft Teams gave only zero buffers, while ScreenCaptureKit captured Teams (pasrom/meeting-transcriber issue 79, not solved). For Teams the audio process is probably "Microsoft Teams WebView Helper" or a similar helper, and for Zoom it is probably `zoom.us` itself (both unconfirmed). Safari plays through `com.apple.WebKit.GPU`, which is outside `Safari.app` (unconfirmed).
 - AudioCap finds the app of a helper from its executable path (`proc_pidpath`, then the parent `.app` bundle).
 
 ### Facts: ScreenCaptureKit audio

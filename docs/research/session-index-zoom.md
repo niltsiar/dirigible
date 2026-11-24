@@ -81,6 +81,8 @@ Tags: P = primary source (vendor guide, vendor page, vendor video). S = secondar
 
 ## Design facts for Dirigible
 
+State on 2026-11-24: decided and built. F76 and F78 are in the app. The index search key is Shift-Command-F (Edit > Find in Session Index), not Command-F. The waveform zoom steps a range in dB (View > Waveform Zoom In and Out, Option-Command-Up Arrow and Down Arrow), not the steps x1 to x8 of Logic. The guide section "Find a clip, a marker, or a chapter" and decision 0023 hold the present rules.
+
 1. Placement: FCP puts the index in a pane left of the timeline [IX]; the HIG puts a sidebar on the leading side and the inspector on the trailing side. A leading pane that holds the index agrees with both (repo `macos-ui-shell.md` line 228 also picks leading).
 2. Order and click: FCP lists clips and tags in timeline order, and a click selects the item and moves the playhead to its start [IX]. Logic does the same on a marker name [LML]. Use one click to seek. Hindenburg PRO 2 uses a double-click [HKS], which is the slower way.
 3. Scope: references split by type. FCP has Clips and Tags tabs with type filter buttons [IX]. Hindenburg has separate Markers and Chapters views [HJ]. Logic has one Marker List. Nobody merges clips, markers, and chapters in one flat list, so F76 needs a type filter (All, Clips, Markers, Chapters) as FCP has.

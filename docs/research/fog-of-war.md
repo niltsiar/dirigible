@@ -50,7 +50,9 @@ Not verified: his posts and videos (not fetched), and the text of `to-tickets` a
 
 ## Comparison: the repo attacks a finished plan but does not walk the branches
 
-| Matt idea | Repo today | Verdict |
+State on 2026-11-24: the column "Repo before the run" is the state of 2026-10-01. The run that followed this note replaced the flat Open questions list with the `## Unknowns` table (`.claude/skills/deliver/SKILL.md`).
+
+| Matt idea | Repo before the run | Verdict |
 |---|---|---|
 | Design tree and frontier (ask the questions that have no open prerequisite) | Phase 1 "Open questions, each answered with a logged default". A flat list with no dependency order. | Add the dependency order. The cost is low. |
 | Facts are the job of the agent, decisions are the job of the user | Autonomy rules: choose a default, log it, and ask only for an irreversible or outward action. Phase 1: probe a limit before a default. | Duplicate. The repo is stricter about when to ask. |

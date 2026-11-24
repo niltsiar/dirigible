@@ -104,7 +104,7 @@ JSON form, the same result (P2 output):
 
 ## 4. A generic MCP app
 
-Most apps read the same `mcpServers` JSON object. Give this snippet to the guide as the "any MCP app" form:
+Most apps read the same `mcpServers` JSON object. Give this snippet to the guide as the "any MCP app" form (done: `docs/guide.md` holds this entry):
 
 ```json
 {
@@ -165,7 +165,7 @@ The path is one JSON string, so spaces need no escape. Use an absolute path [S11
 
 ## Probes
 
-The probe folder is `.scratchpads/probe-mcp-clientinfo/`. `dir with space/logger.sh <label>` reads one line from stdin, appends it to `init-<label>.jsonl`, and exits.
+The probe folder is a local run folder, not in git. `dir with space/logger.sh <label>` reads one line from stdin, appends it to `init-<label>.jsonl`, and exits.
 
 - P1: `scripts/probe.sh . bash run-claude.sh` runs `claude -p --strict-mcp-config --mcp-config claude-mcp.json --model haiku "Reply with the word ok."`. The server path has a space. Output: `dir with space/init-claude-code.jsonl` (a `server/discover` line, then an `initialize` line).
 - P2: `scripts/probe.sh . bash run-opencode.sh` runs `opencode mcp list` with a project `opencode.json`, with `HOME` and the XDG folders in the probe folder. Output: `dir with space/init-opencode.jsonl`. `run-opencode-add.sh` runs `opencode mcp add dirigible -- "/Applications/Dirigible Copy.app/Contents/Helpers/dirigible" mcp` and prints the file that it writes.

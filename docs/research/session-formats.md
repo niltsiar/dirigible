@@ -62,9 +62,9 @@ Claims that this research did not confirm in a primary source have the mark "(un
 
 ```xml
 <Session Version="Hindenburg PRO 2.05.2718" Samplerate="48000" Time="01:51.157">
-  <AudioPool Path="h-test Files" Location="/Users/dst/Downloads">
+  <AudioPool Path="h-test Files" Location="/Users/USER/Downloads">
     <File Id="1" Name="A1_level_m20.wav" Duration="05.000" Leq="-">
-      <MetaData OriginalPath="/Users/dst/Downloads/test_signals/file_a_laws/A1_level_m20.wav"/>
+      <MetaData OriginalPath="/Users/USER/Downloads/test_signals/file_a_laws/A1_level_m20.wav"/>
     </File>
   </AudioPool>
   <Tracks>
@@ -175,7 +175,7 @@ Update 2026-09-23: decision 0003 makes the session a document package, `<Name>.d
 
 ### Versioning
 
-- `version` is an integer. Release 1 writes `version="1"`.
+- `version` is an integer. Release 1 wrote `version="1"`. State on 2026-11-24: the writer writes version 21 (`binSessionVersion` in `Sources/DirigibleCore/SessionWriter.swift`; decisions 0003 and 0024 hold the versions).
 - The reader opens every version that it knows. It refuses a higher version with a clear error. It does not open the file read-write.
 - Increase the version for each new element or attribute that carries user data. Reason: an old app that skips an unknown element and then saves the file deletes that data. This is data loss.
 - The version must allow these additions later:
@@ -196,6 +196,7 @@ Update 2026-09-23: decision 0002 keeps the XML code in `DirigibleCore`, next to 
 
 ### Open formats as targets
 
+- State on 2026-11-24: this order never landed. AES31-3 export is deferred (F67 is Later in `docs/requirements/features.md`).
 - **Export first: AES31-3 ADL.** It is the audio-first, sample-accurate DAW standard with fades and gain, and a writer is small plain text with no dependency.
 - Export later: FCPXML for video podcasts in Final Cut Pro, then OTIO if a user needs an NLE pipeline.
 - Import later: Hindenburg `.nhsx`, best effort, for users who move from Hindenburg.

@@ -412,19 +412,30 @@ no_side_effects 'governance'
 # log row alone is not the pass, and a pass row older than the last Sources/ commit of the branch
 # (its author minute) does not cover the tree that lands. Else the land stops before the checks
 # and the push.
+# A branch that changes Sources/ also needs a docs pass row and log (check-governance.sh), so a case
+# that lands one calls docs_pass_row after its last Sources/ commit.
+docs_pass_row() {
+  mkdir -p "$c/logs"
+  echo 'no hit' > "$c/logs/docs-pass.log"
+  printf '%s\t7\tdocs pass: no hit\tw\tlogs/docs-pass.log\tdone\n' "$(date +%FT%R)" >> "$c/decisions.tsv"
+}
+# risk_setup [<path>]: a branch that changes the path (a file of the risk floor, by default under Sources/).
 risk_setup() {
+  local path="${1:-Sources/DirigibleAudio/A.swift}"
   setup
-  mkdir -p "$c/work/Sources/DirigibleAudio"
-  echo a > "$c/work/Sources/DirigibleAudio/A.swift"
+  mkdir -p "$(dirname "$c/work/$path")"
+  echo a > "$c/work/$path"
   git -C "$c/work" add -A && git -C "$c/work" commit -q -m audio
   printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T01:00\t4\tslice 1\tw\tlogs/s1.log\tdone\n' > "$c/decisions.tsv"
+  docs_pass_row
 }
 risk_refused() {
   [[ $code -ne 0 ]] || fail "$1: exit 0"
   grep -q "$2" "$c/out" || fail "$1: no '$2' in: $(cat "$c/out")"
   no_side_effects "$1"
 }
-risk_setup
+# The path is a shared guard, a risk: yes path outside the docs pass paths, so the land reaches the risk gate.
+risk_setup scripts/with-lock.sh
 rm "$c/decisions.tsv"
 land_in "Add x" "$c/pr.md"
 code=$?
@@ -524,6 +535,8 @@ grep -qx 'make: base origin/main' "$c/log" || fail "docs delta: run-checks.sh di
 stamp_setup
 stamp origin/main
 commit_file Sources/DirigibleApp/X.swift
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' > "$c/decisions.tsv"
+docs_pass_row
 stamp_case 'sources delta' 'stamp: delta check' 'make -k check'
 # The delta runs Swift tests, so the load wait reads the load before make.
 [[ "$(grep -E '^(sysctl -n vm.loadavg|make -k check)$' "$c/log")" == $'sysctl -n vm.loadavg\nmake -k check' ]] ||
@@ -543,6 +556,7 @@ stamp_case 'renamed bundle path' 'stamp: delta check test-dmg' 'make -k check te
 stamp_setup
 commit_file Sources/DirigibleAudio/A.swift
 printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n%s\t7\tmutation pass: k1 killed\tw\tcontrols/k1.log\tkilled\n' "$(date +%FT%R)" > "$c/decisions.tsv"
+docs_pass_row
 stamp origin/main
 commit_file docs/a.md
 stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'

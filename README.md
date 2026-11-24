@@ -73,6 +73,8 @@ make run
 | `DIRIGIBLE_FULL_SUITE=1 make check` | Runs the format check, the docs check, the warning check, the size check, the tests, the hook tests, and the checks on the built app. A bare `make check` refuses to run. |
 | `make format` | Formats the Swift code. |
 
+To change the code, run `make setup` once per clone. [Contributing](docs/CONTRIBUTING.md) says why, and [AGENTS.md](AGENTS.md) has the rules of the build lock.
+
 #### Keep the microphone permission across builds
 
 macOS links the microphone permission to the code signature of the app. The default ad-hoc signature changes on every build, so macOS can ask for the permission again after a rebuild. To stop this, sign with a local certificate:

@@ -1,6 +1,6 @@
 # Dependency check
 
-The procedure of the periodic check of the dependencies and the Whisper models. `.claude/skills/deliver/scripts/new-run.sh` prints `dependency check due` when the `Last check:` date below is 30 or more days old, or when the line is not valid. The dependency inventory item of the wiki holds the inventory and the history of the checks (`scripts/wiki.py list <status>` shows its id).
+The procedure of the periodic check of the dependencies and the Whisper models. `.claude/skills/deliver/scripts/new-run.sh` prints `dependency check due` when the `Last check:` date below is 30 or more days old, or when the line is not valid. The wiki item "DEPENDENCY UPDATES" holds the inventory and the history of the checks. `scripts/wiki.py list later | rg 'DEPENDENCY UPDATES'` prints its line, which starts with its id.
 
 Last check: 2026-11-02
 
@@ -39,6 +39,6 @@ Put each finding in one class:
 
 ## Writes
 
-1. Add one dated History line to the dependency inventory item: `scripts/wiki.py show <id>`, then `scripts/wiki.py edit <id> --from <file> --expect <hash>`. The line gives each finding with its class, or says that the check found none.
+1. Add one dated History line to the item "DEPENDENCY UPDATES" (its id: see the top of this file): `scripts/wiki.py show <id>`, then `scripts/wiki.py edit <id> --from <file> --expect <hash>`. The line gives each finding with its class, or says that the check found none.
 2. For each security finding, add an item with status next (`scripts/wiki.py add next --from <file>`). It goes before the next product item. For each bug or improvement that the app can use, add an item with status later.
 3. Change the `Last check:` line above to the date of the check, and commit it on the branch of the run that takes the item.

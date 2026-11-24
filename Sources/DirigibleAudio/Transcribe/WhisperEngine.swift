@@ -117,14 +117,23 @@ final class WhisperEngine {
             speech: vadPath == nil ? nil : vadSpeech(), sampleCount: samples.count, language: detectedLanguage(),
             log: log
         ) { range, code in
-            RedecodeOutcome(code: run(params, samples[range], language: .code(code)), stopFlagSet: stop.isSet) {
-                WhisperWords.join(tokens())
-            }
+            Self.secondCall(
+                range, code: code, params: params, stop: stop, call: { run($0, samples[$1], language: $2) },
+                words: { WhisperWords.join(tokens()) })
         }
         switch outcome {
         case .stopped: return .stopped
         case .words(let words, let language): return .words(WordEnds.place(words, samples: samples), language: language)
         }
+    }
+
+    /// One second call of a piece (decision 0065 D7b): `call` runs `whisper_full` on the sample range
+    /// with the params of the first call and the first-pass language code.
+    static func secondCall(
+        _ range: Range<Int>, code: String, params: whisper_full_params, stop: StopFlag,
+        call: (whisper_full_params, Range<Int>, WhisperLanguage) -> Int32, words: () -> [TimedWord]
+    ) -> RedecodeOutcome {
+        RedecodeOutcome(code: call(params, range, .code(code)), stopFlagSet: stop.isSet, words: words)
     }
 
     /// The params of each `whisper_full` call of a piece, so each call stops at the flag of the job.

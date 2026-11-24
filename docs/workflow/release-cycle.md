@@ -34,7 +34,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 ## Posts
 
-- After each tag, `scripts/tag-release.sh` prints one reminder: post the DMG to the testers, and after the last run of a release, run the docs coherence pass, post the release summary, and close the release.
+- After each tag, `scripts/tag-release.sh` prints a reminder of the steps in "End of a release".
 - The post is by hand: no script in the repo posts it.
 
 ## Rules that continue from Release 2

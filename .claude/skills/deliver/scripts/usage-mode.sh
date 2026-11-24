@@ -3,8 +3,7 @@
 # Usage: usage-mode.sh
 # It reads the five_hour row of ~/.claude/usage/limits.json (USAGE_LIMITS_FILE sets another file;
 # USAGE_MODE_NOW sets the clock, in epoch seconds). The file is optional. Claude Code does not write
-# it: a Claude Code mod of the user setup (a turn hook) writes it after each main-agent turn, so an
-# in-process subagent does not update it. With no file, the mode is normal. The first rule that fits wins:
+# it, and its writer is outside this repo. With no file, the mode is normal. The first rule that fits wins:
 # - no file, no five_hour row, a resetsAt in the past (a new window), or a percentUsed that is not
 #   a number or a resetsAt that is not an ISO date: normal.
 # - percentUsed 80 or more: stop, also when the file is stale.

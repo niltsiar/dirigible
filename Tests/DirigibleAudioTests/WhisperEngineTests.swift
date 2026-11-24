@@ -104,6 +104,33 @@ struct WhisperEngineTests {
         #expect(params.token_timestamps)
     }
 
+    @Test func aSecondCallStopsAtTheFlagOfTheJob() {
+        let stop = StopFlag()
+        stop.set()
+        var stopsAtTheFlag: [Bool] = []
+        _ = WhisperEngine.secondCall(
+            0..<160, code: "es", params: WhisperEngine.callParams(stop: stop, progress: nil), stop: stop,
+            call: { params, _, _ in
+                stopsAtTheFlag.append(params.abort_callback?(params.abort_callback_user_data) ?? false)
+                return 0
+            }, words: { [] })
+        #expect(stopsAtTheFlag == [true], "the second call has the abort callback of the job")
+    }
+
+    @Test func aSecondCallRunsOnItsRangeInTheFirstPassLanguage() {
+        let stop = StopFlag()
+        var calls: [(range: Range<Int>, language: WhisperLanguage)] = []
+        _ = WhisperEngine.secondCall(
+            1_655_200..<1_875_200, code: "es", params: WhisperEngine.callParams(stop: stop, progress: nil),
+            stop: stop,
+            call: { _, range, language in
+                calls.append((range, language))
+                return 0
+            }, words: { [] })
+        #expect(calls.map { $0.language } == [.code("es")], "the first-pass language, not a new detection")
+        #expect(calls.map { $0.range } == [1_655_200..<1_875_200])
+    }
+
     @Test func aStopFlagReadsWhatASetWrote() {
         let flag = StopFlag()
         #expect(!flag.isSet && !cwhisper_stop_abort(flag.userData))

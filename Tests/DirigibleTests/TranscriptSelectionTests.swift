@@ -65,7 +65,10 @@ import Testing
     ) {
         let (model, studio, window, view) = try await base.open(try await package(guest: guest, follow: follow))
         model.showTranscript()
-        return (model, studio, window, view, try await base.waitForPane(window))
+        let pane = try await base.waitForPane(window)
+        // A Cut or Copy in the pane writes its words: to a board of this test, not the general one.
+        pane.pasteboard = NSPasteboard.withUniqueName()
+        return (model, studio, window, view, pane)
     }
 
     /// The storage range from the start of the unit `first` to the end of the unit `last`.

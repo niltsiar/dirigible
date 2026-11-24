@@ -147,7 +147,7 @@ public struct PackageID: Hashable, Sendable {
 /// The free bytes of a volume for a normal process: `fstatfs` on `descriptor` when it is 0 or
 /// more, else `statfs` on `path`, saturated at `Int64.max`. Nil for an errno, so each caller
 /// names its own error value.
-func volumeFreeBytes(descriptor: Int32, path: String) -> Int64? {
+package func volumeFreeBytes(descriptor: Int32, path: String) -> Int64? {
     var info = statfs()
     let status = descriptor >= 0 ? fstatfs(descriptor, &info) : statfs(path, &info)
     guard status == 0 else { return nil }

@@ -19,7 +19,7 @@ enum ClipArchiveStep: CaseIterable, Hashable, Sendable {
 }
 
 /// Why one clip conversion stopped. The source stays. Each path is relative to `Clips/`.
-enum ClipArchiveFault: Error, Hashable, Sendable {
+public enum ClipArchiveFault: Error, Hashable, Sendable {
     /// The path does not end in ".wav", or the WAV is not packed 24-bit integer PCM with the rate of
     /// the session and the channels of its pool entry.
     case notArchivable(path: String)
@@ -167,7 +167,7 @@ func unarchiveClip(
 }
 
 /// The frames of each read and write block.
-private let blockFrames: UInt32 = 65_536
+let blockFrames: UInt32 = 65_536
 
 /// Packed 24-bit signed little-endian interleaved integers: the bytes of the WAV `data` chunk, and
 /// the form of the STREAMINFO MD5 (RFC 9639 section 8.2).
@@ -180,7 +180,8 @@ private func packed24(rate: Int, channels: Int) -> AudioStreamBasicDescription {
         mReserved: 0)
 }
 
-private func exists(_ url: URL) -> Bool {
+/// True when an item is at `url`; a link counts.
+func exists(_ url: URL) -> Bool {
     var info = stat()
     return lstat(url.path, &info) == 0
 }

@@ -154,13 +154,19 @@ func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<S
 /// The segments whose CAF is gone and whose WAV is in `Clips/`, with a finalize record in the
 /// sidecar (decision 0071): the WAV is the only copy of the audio. In name order. A stem WAV with
 /// no CAF and no record is not one.
-func wavBackedSegments(in package: URL) -> [SegmentName] {
+func wavBackedSegments(in package: URL) -> [SegmentName] { soleCopySegments(in: package, clipExtension: "wav") }
+
+/// The segments whose CAF is gone and whose `Clips/<stem>.<clipExtension>` is there, with a
+/// finalize record in the sidecar. In name order. The unarchive finds the FLAC of a WAV-backed
+/// segment with "flac" (decision 0072).
+func soleCopySegments(in package: URL, clipExtension: String) -> [SegmentName] {
     let folder = package.appending(path: captureFolderName)
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return [] }
     let files = Set(names)
     return names.filter { $0.hasSuffix(".sidecar") }.compactMap(SegmentName.init(fileName:)).filter { name in
         guard !files.contains(name.cafName),
-            FileManager.default.fileExists(atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).wav").path)
+            FileManager.default.fileExists(
+                atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).\(clipExtension)").path)
         else { return false }
         return (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package))
             .flatMap { try? Sidecar.decode($0) }?.finalized != nil

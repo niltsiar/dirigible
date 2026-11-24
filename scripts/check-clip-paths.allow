@@ -73,6 +73,7 @@ Sources/DirigibleAudio/Transcribe/OpenModelFile.swift	let descriptor = open(url.
 Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	try? AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)	resolver name: url (the clip file of a transcription: the name of poolFileName, or its other name after ENOENT)
 Sources/DirigibleAudio/Transcribe/WhisperModelFile.swift	let descriptor = open(url.path, O_RDONLY)	a model file, not a pool file
 Sources/DirigibleAudio/Transcribe/WhisperModelStore.swift	let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)	the temporary file of a model download (O_CREAT)
+Sources/DirigibleCore/FileIdentity.swift	identities.formUnion(FileIdentity.both(clips.appending(path: path).path))	reader by hand: the identity of a kept pool file
 Sources/DirigibleCore/PackageItems.swift	"\(clipsFolderName)/\($0.path)"	checkPoolPaths reads the link kind of a named path, and a missing path passes; it opens nothing
 Sources/DirigibleCore/SessionTemplate.swift	let clips = Set(pool).sorted().map { "\(clipsFolderName)/\($0)" }	the pool paths of a template copy, which TemplateCopy opens; it opens nothing
 Sources/DirigibleCore/SessionWriter.swift	unlink(clips.appending(path: name).path)	a temporary file name from the listing of Clips/
@@ -80,6 +81,5 @@ Sources/DirigibleCore/UnusedFiles.swift	.filter { !used.contains($0.id) && Self.
 Sources/DirigibleCore/UnusedFiles.swift	let url = clips.appending(path: path)	reader by hand: the lstat of a pool candidate of the prune scan
 Sources/DirigibleCore/UnusedFiles.swift	case .pool, .stray: clips.appending(path: item.path)	reader by hand: the move of a scanned pool item
 Sources/DirigibleCore/UnusedFiles.swift	&& lstat(clips.appending(path: name).path, &info) == 0 && info.st_mode & S_IFMT == S_IFREG	a name from the listing of Clips/
-Sources/DirigibleCore/UnusedFiles.swift	identities.formUnion(FileIdentity.both(clips.appending(path: path).path))	reader by hand: the identity of a kept pool file
 Sources/DirigibleMCP/ErrorText.swift	"cannot read \(package)/\(clipsFolderName): \(String(cString: strerror(code)))."	the folder name in an error; it opens nothing
 Sources/DirigibleMCP/PruneWork.swift	lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }	the file name in an output line; it opens nothing

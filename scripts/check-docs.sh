@@ -238,7 +238,7 @@ while IFS= read -r f; do
 done < <("$words_sh" start-files --root "$root")
 
 # docs/workflow/budgets.tsv holds the header and one TOTAL row with a decision. This check caps no
-# words: new-run.sh warns when the docs pass TOTAL x 1.03 (decision 0028, Word budgets).
+# words: new-run.sh warns when the workflow doc words pass TOTAL x 1.03 (decision 0028, Word budgets).
 budgets="$root/docs/workflow/budgets.tsv"
 if [[ -f "$budgets" ]]; then
     while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(awk -F'\t' '

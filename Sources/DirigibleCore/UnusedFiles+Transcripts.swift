@@ -25,8 +25,9 @@ extension UnusedFiles {
             guard name.hasSuffix(".xml"), let file = TranscriptFileName(String(name.dropLast(4))),
                 staysIn(real, url), lstat(url.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG
             else { return nil }
+            let path = "\(transcriptsFolderName)/\(name)"
             return Item(
-                kind: .transcript(file), path: "\(transcriptsFolderName)/\(name)", bytes: Int64(info.st_size),
+                kind: .transcript(file), path: path, name: path, bytes: Int64(info.st_size),
                 identity: FileIdentity(info))
         }
     }

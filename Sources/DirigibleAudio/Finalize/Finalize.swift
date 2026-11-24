@@ -152,29 +152,31 @@ func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<S
 }
 
 /// The segments whose CAF is gone and whose WAV is in `Clips/`, with a finalize record in the
-/// sidecar (decision 0071): the WAV is the only copy of the audio. In name order. A stem WAV with
-/// no CAF and no record is not one.
-func wavBackedSegments(in package: URL) -> [SegmentName] { soleCopySegments(in: package, clipExtension: "wav") }
+/// sidecar (decision 0071): the WAV is the only copy of the audio. The WAV is the name that
+/// `poolFileName` gives for `<stem>.wav`, so the FLAC of an archived take counts (decision 0072).
+/// In name order. A stem WAV with no CAF and no record is not one.
+func wavBackedSegments(in package: URL) -> [SegmentName] {
+    soleCopySegments(in: package) { poolFileName(path: "\($0.stem).wav", in: package).name }
+}
 
-/// The segments whose CAF is gone and whose `Clips/<stem>.<clipExtension>` is there, with a
-/// finalize record in the sidecar. In name order. The unarchive finds the FLAC of a WAV-backed
-/// segment with "flac" (decision 0072).
-func soleCopySegments(in package: URL, clipExtension: String) -> [SegmentName] {
+/// The segments whose CAF is gone and whose clip file `clip(segment)` (relative to the package)
+/// is there, with a finalize record in the sidecar. In name order. The unarchive finds the FLAC of
+/// a WAV-backed segment with its FLAC name (decision 0072).
+func soleCopySegments(in package: URL, clip: (SegmentName) -> String) -> [SegmentName] {
     let folder = package.appending(path: captureFolderName)
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return [] }
     let files = Set(names)
     return names.filter { $0.hasSuffix(".sidecar") }.compactMap(SegmentName.init(fileName:)).filter { name in
         guard !files.contains(name.cafName),
-            FileManager.default.fileExists(
-                atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).\(clipExtension)").path)
+            FileManager.default.fileExists(atPath: package.appending(path: clip(name)).path)
         else { return false }
         return (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package))
             .flatMap { try? Sidecar.decode($0) }?.finalized != nil
     }.sorted()
 }
 
-/// The `Clips/` paths of the WAVs of `wavBackedSegments`, also when a pool file names one: the
-/// prune keeps each of them (decision 0071).
+/// The `Clips/` paths of the WAVs of `wavBackedSegments`, also when a pool file names one or the
+/// file is its FLAC: the prune keeps each of them (decision 0071).
 package func soleCopyWAVs(in package: URL) -> Set<String> {
     Set(wavBackedSegments(in: package).map { "\($0.stem).wav" })
 }

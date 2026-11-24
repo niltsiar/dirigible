@@ -24,6 +24,9 @@ public enum RawVerdict: Hashable, Sendable {
     /// Every clause holds, but the WAV of a build before the clip gain saturated where the CAF
     /// is over full scale, so only the CAF holds those samples (a saturated record in the sidecar).
     case saturated
+    /// The clip file is the FLAC of an archived pool WAV (decision 0072). The gate reads no FLAC,
+    /// so the CAF stays until an unarchive writes a WAV that it can check.
+    case archived
 }
 
 /// Why a removal step kept a CAF that the gate passes. Only the journal gets it.
@@ -173,7 +176,7 @@ func removeRawCapture(
     }
     if read.appends {
         // A build before 0071 can have left the WAV and its name in Clips/ in the cache only.
-        for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {
+        for file in [poolFileName(path: "\(name.stem).wav", in: package).name, clipsFolderName] {
             if let code = flush(package.appending(path: file).path) {
                 throw .writeFailed(file: file, status: code)
             }
@@ -227,7 +230,7 @@ extension DiagnosticLog {
 /// The CAF, the WAV, and the sidecar of `name`, in that order.
 private func rawFiles(of name: SegmentName, in package: URL) -> [FileIdentity?] {
     [
-        "\(captureFolderName)/\(name.cafName)", "\(clipsFolderName)/\(name.stem).wav",
+        "\(captureFolderName)/\(name.cafName)", poolFileName(path: "\(name.stem).wav", in: package).name,
         "\(captureFolderName)/\(name.sidecarName)",
     ]
     .map { FileIdentity(path: package.appending(path: $0).path) }
@@ -250,14 +253,18 @@ private func finalizeRecord(of name: SegmentName, in package: URL) -> FinalizeRe
     }?.finalized
 }
 
+/// `.archived` while `poolFileName` gives the FLAC, also after a WAV open that fails because a job
+/// of another process archived the file in between. It opens no FLAC.
 private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session, in package: URL) -> RawVerdict {
+    let clip = poolFileName(file, in: package)
+    guard clip.form == .pool else { return .archived }
     guard let capture = session.captures[CaptureID(name.stem)],
         let data = try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package),
         let sidecar = try? Sidecar.decode(data)
     else { return .rateChoice }
     guard let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.cafName)")),
-        let wav = try? AVAudioFile(forReading: package.appending(path: "\(clipsFolderName)/\(file.path)"))
-    else { return .frames }
+        let wav = try? AVAudioFile(forReading: package.appending(path: clip.name))
+    else { return poolFileName(file, in: package).form == .flac ? .archived : .frames }
     let verdict = rawVerdict(
         sidecar: sidecar, cafFrames: Int(caf.length), wavFrames: Int(wav.length), file: file, capture: capture,
         sessionRate: session.sampleRate)
@@ -277,7 +284,7 @@ func rawGain(
     of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
     beforeBlock: (Int) -> Void = { _ in }, readFault: ReadFault? = nil
 ) throws(RawRemovalError) -> (gain: Gain, saturated: Bool)? {
-    let wav = "\(clipsFolderName)/\(segment.stem).wav"
+    let wav = poolFileName(path: "\(segment.stem).wav", in: package).name
     guard let wavPeak = try peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
     if wavPeak.code <= 8_388_604 { return (.zero, false) }

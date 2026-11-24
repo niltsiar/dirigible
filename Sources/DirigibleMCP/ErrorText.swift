@@ -35,6 +35,7 @@ extension RawVerdict {
         case .rateChoice: "rate choice"
         case .alignment(let error): String(format: "alignment %.2f ms", error * 1000)
         case .saturated: "saturated WAV"
+        case .archived: "archived as FLAC"
         }
     }
 }

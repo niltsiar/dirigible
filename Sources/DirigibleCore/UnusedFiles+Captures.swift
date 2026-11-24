@@ -20,7 +20,9 @@ extension UnusedFiles {
                     continue
                 }
                 added.append(
-                    Item(kind: .capture(capture), path: path, bytes: Int64(info.st_size), identity: FileIdentity(info)))
+                    Item(
+                        kind: .capture(capture), path: path, name: path, bytes: Int64(info.st_size),
+                        identity: FileIdentity(info)))
             }
         }
         return keeping((items + added).sorted { $0.path < $1.path }, owners: owners)

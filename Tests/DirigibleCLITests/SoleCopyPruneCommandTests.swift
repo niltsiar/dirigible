@@ -136,4 +136,34 @@ struct SoleCopyPruneCommandTests {
         #expect(pruned.stdout.contains("take1-1-1.wav\t"), "\(pruned)")
         #expect((try? inode("take1-1-1.wav")) == nil, "the WAV moves after the backup goes")
     }
+
+    /// C21 (f) (decision 0072): an unarchive kept the FLAC of the deleted clip as damaged, so the
+    /// package has no `archive` attribute. The dry run lists the entry by its pool path with the
+    /// bytes of the FLAC, and the prune moves the FLAC, then the sidecar, to the Trash.
+    @Test func aPruneMovesTheKeptFLACOfADeletedTakeClip() async throws {
+        try #require(
+            try await package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status
+                == 0)
+        try deleteBackups(but: [])
+        let file = try #require(try package.read().files["take1-1-1"])
+        try #require(try archiveClip(file, in: package.url, rate: 48_000))
+        let flac = clips.appending(path: "take1-1-1.flac")
+        let whole = try Data(contentsOf: flac)
+        try whole.prefix(whole.count / 2).write(to: flac)
+        let damaged = try Data(contentsOf: flac)
+
+        let listed = try await package.run("file", "prune", "PKG", "--dry-run")
+        #expect(listed.stdout.contains("take1-1-1.wav\t\(damaged.count) bytes\n"), "\(listed)")
+        #expect(try Data(contentsOf: flac) == damaged, "the dry run changes no file")
+
+        let result = try await package.run("file", "prune", "PKG")
+
+        #expect(result.status == 0 && result.stderr == "", "\(result)")
+        let moved = result.stdout.split(separator: "\n").compactMap { $0.split(separator: "\t").first }
+        #expect(moved.contains("take1-1-1.wav") && moved.contains("Capture/take1-1-1.sidecar"), "\(result)")
+        #expect((try? inode("take1-1-1.flac")) == nil, "the FLAC is in the Trash")
+        #expect(!FileManager.default.fileExists(atPath: capture.appending(path: "take1-1-1.sidecar").path))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted() == ["take1-2-1.wav"])
+        #expect(try package.read().files["take1-1-1"] == nil, "the pool entry is gone")
+    }
 }

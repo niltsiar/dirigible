@@ -192,7 +192,7 @@ func unarchivePackage(
             report.kept[file.path] = .missing
         }
     }
-    for segment in soleCopySegments(in: package, clipExtension: "flac")
+    for segment in soleCopySegments(in: package, clip: { "\(clipsFolderName)/\($0.stem).flac" })
     where paths.insert("\(segment.stem).wav").inserted {
         let (path, flacPath) = ("\(segment.stem).wav", "\(segment.stem).flac")
         let flac = clips.appending(path: flacPath)

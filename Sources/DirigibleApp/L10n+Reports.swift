@@ -19,15 +19,32 @@ extension L10n {
         report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
     }
 
+    /// The text of `many` filled with `value`, or the text of `one` for a count of 1 (decision 0010,
+    /// **Voice**: a count with a noun has one key for each form). `text` gives the value of a key.
+    static func counted(_ value: Int, one: L10n, many: L10n, text: (L10n) -> String = { $0.text }) -> String {
+        value == 1 ? text(one) : String(format: text(many), locale: .current, value)
+    }
+
     /// The banner text of an Auto Level: the head, the track volume sentence when no clip changed,
-    /// then the count of clips at the limit and of clips with no level. `text` gives the value of
-    /// a key, so a test can read the English table.
+    /// then the clips at the limit and the clips with no level. `text` gives the value of a key,
+    /// so a test can read the English table.
     static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
-        func count(_ key: L10n, _ value: Int) -> String { String(format: text(key), locale: .current, value) }
-        var parts = [report.isEmpty ? text(.bannerLevelNone) : count(.bannerLevelChanged, report.changed)]
+        var parts: [String]
+        if report.isEmpty {
+            parts = [text(.bannerLevelNone)]
+        } else if report.changed == 0 {
+            parts = [text(.bannerLevelChangedNone)]
+        } else {
+            parts = [counted(report.changed, one: .bannerLevelChangedOne, many: .bannerLevelChanged, text: text)]
+        }
         if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
-        if report.atLimit > 0 { parts.append(count(.bannerLevelLimit, report.atLimit)) }
-        if report.unmeasured > 0 { parts.append(count(.bannerLevelUnmeasured, report.unmeasured)) }
+        if report.atLimit > 0 {
+            parts.append(counted(report.atLimit, one: .bannerLevelLimitOne, many: .bannerLevelLimit, text: text))
+        }
+        if report.unmeasured > 0 {
+            parts.append(
+                counted(report.unmeasured, one: .bannerLevelUnmeasuredOne, many: .bannerLevelUnmeasured, text: text))
+        }
         return parts.joined(separator: " ")
     }
 
@@ -93,22 +110,23 @@ extension L10n {
         return parts.joined(separator: " ")
     }
 
-    /// The counts banner of Import Transcript: each count that is not zero as "Label: N", then the
-    /// names of the dropped transcripts. Nil when there is nothing to say. `text` gives the value
-    /// of a key, so a test can read a table.
+    /// The banner of Import Transcript: one sentence for each count that is not zero ("3 words have
+    /// no clip."), then the names of the dropped transcripts. Nil when there is nothing to say.
+    /// `text` gives the value of a key, so a test can read a table.
     static func transcriptImportResult(
         skipped: Int, untimed: Int, repeated: Int, dropped: [String], text: (L10n) -> String = { $0.text }
     ) -> String? {
-        func count(_ key: L10n, _ value: Int) -> String? {
-            value > 0 ? String(format: text(key), locale: .current, value) : nil
+        func count(_ value: Int, one: L10n, many: L10n) -> String? {
+            value > 0 ? counted(value, one: one, many: many, text: text) : nil
         }
         var parts = [
-            count(.bannerTranscriptSkipped, skipped), count(.bannerTranscriptUntimed, untimed),
-            count(.bannerTranscriptRepeated, repeated),
+            count(skipped, one: .bannerTranscriptSkippedOne, many: .bannerTranscriptSkipped),
+            count(untimed, one: .bannerTranscriptUntimedOne, many: .bannerTranscriptUntimed),
+            count(repeated, one: .bannerTranscriptRepeatedOne, many: .bannerTranscriptRepeated),
         ].compactMap { $0 }
         if !dropped.isEmpty {
             parts.append(String(format: text(.bannerTranscriptDropped), dropped.joined(separator: ", ")))
         }
-        return parts.isEmpty ? nil : parts.joined(separator: ". ") + "."
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 }

@@ -104,7 +104,7 @@ import Testing
         #expect(report.moved.map(\.item.path) == [stray] && !strayExists(studio))
         let banner = WindowBanner.unusedFilesMoved(count: 1, bytes: 64)
         await until("the banner shows") { model.shown.banners.contains(banner) }
-        #expect(banner.kind == .info && banner.text == L10n.bannerUnusedMoved.format(1, L10n.bytes(64)))
+        #expect(banner.kind == .info && banner.text == L10n.bannerUnusedMovedOne.format(L10n.bytes(64)))
         await model.close()
     }
 

@@ -89,12 +89,11 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
     return end <= origin || first >= origin + visibleFrames ? range.lowerBound : nil
 }
 
-/// What a sync did, for its result banner (decision 0076): the lag with its direction, the match score,
-/// the spread of the excerpt lags or why the drift was not measured, the head that the move cut, and
-/// the names of the other clips that it cut.
+/// What a sync did, for its result banner (decision 0076): the lag with its direction, the spread of
+/// the excerpt lags or why the drift was not measured, the head that the move cut, and the names of
+/// the other clips that it cut.
 struct SyncMoved: Equatable {
     let lag: Frames
-    let peak: Double
     let drift: SyncDrift
     let headCut: Frames
     let replaced: [String]
@@ -103,7 +102,7 @@ struct SyncMoved: Equatable {
     var outcome: DriftOutcome?
 
     /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
-    /// already in sync." for lag 0, the match score, the lag change or the not-measured sentence with its
+    /// already in sync." for lag 0, the lag change or the not-measured sentence, the drift fix or its
     /// cause, the head cut, and the other clips that the move cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
@@ -119,16 +118,9 @@ struct SyncMoved: Equatable {
                 ? format(.bannerSyncAlready)
                 : format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))
         ]
-        sentences.append(format(.bannerSyncMatch, peak))
         func milliseconds(_ frames: Double) -> Double { frames * 1000 / Double(rate) }
         if case .corrected(let fix) = outcome {
-            let (ppm, across) = (fix.slope * 1e6, Int(milliseconds(abs(fix.across)).rounded()))
-            // One resample for each piece, as the CLI counts them; 2 or more needs no plural form (0010).
-            sentences.append(
-                fix.clips.count == 1
-                    ? format(.bannerDriftCorrected, ppm, across, milliseconds(fix.worstResidual))
-                    : format(.bannerDriftCorrectedPieces, ppm, across, fix.clips.count, milliseconds(fix.worstResidual))
-            )
+            sentences.append(format(.bannerDriftCorrected, Int(milliseconds(abs(fix.across)).rounded())))
             for split in fix.splits {
                 sentences.append(
                     format(.bannerDriftSplit, duration(split.clipFrame), duration(Frames(Int(split.pause.rounded())))))
@@ -143,7 +135,8 @@ struct SyncMoved: Equatable {
             }
         }
         if case .notCorrected(let cause) = outcome {
-            sentences.append(format(.bannerDriftNotCorrected, text(cause.reasonKey)))
+            sentences.append(format(.bannerDriftNotCorrected))
+            sentences.append(format(cause.reasonKey))
         }
         if headCut > .zero { sentences.append(format(.bannerSyncHeadCut, duration(headCut))) }
         if !replaced.isEmpty {
@@ -159,8 +152,7 @@ extension SyncMoved {
     init(_ result: SyncResult, cut: SyncCut, before: Session) {
         let names = cut.replaced.map { id in before.clip(id).map { before.name(of: $0.clip) } ?? id.rawValue }
         self.init(
-            lag: result.lag, peak: Double(result.score.peak), drift: result.drift, headCut: cut.head, replaced: names,
-            rate: before.sampleRate)
+            lag: result.lag, drift: result.drift, headCut: cut.head, replaced: names, rate: before.sampleRate)
     }
 
     /// The banner of a sync with the drift option (decision 0077 D12): the 0076 read and cut of the
@@ -172,7 +164,7 @@ extension SyncMoved {
 }
 
 extension DriftCause {
-    /// The key of the reason that the banner gives after "The drift was not corrected".
+    /// The key of the sentence that the banner gives after "The drift wasn't corrected."
     var reasonKey: L10n {
         switch self {
         case .clipTooShort: .bannerDriftCauseTooShort
@@ -198,7 +190,7 @@ func syncSpanText(within: Frames, rate: Int, locale: Locale, text: (L10n) -> Str
     return String(format: text(.sheetSyncSpan), locale: locale, span.formatted(style))
 }
 
-/// "No match: <clip> was not found on <track>.", with the lane label of the clip.
+/// "Couldn't find a match for <clip> on <track>.", with the lane label of the clip.
 func syncNoMatchText(clip: String, track: String, text: (L10n) -> String = { $0.text }) -> String {
     String(format: text(.bannerSyncNoMatch), clip, track)
 }

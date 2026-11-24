@@ -123,7 +123,7 @@ extension TranscriptPaneTests {
         await finishImport(model)
         let banners = ChromeState.reportBanners(model, studio).map(\.text)
         #expect(banners == [L10n.transcriptImportResult(skipped: 1, untimed: 0, repeated: 0, dropped: [])])
-        for (language, expected) in [("en", "Words with no clip: 1."), ("es", "Palabras sin clip: 1.")] {
+        for (language, expected) in [("en", "1 word has no clip."), ("es", "1 palabra no tiene clip.")] {
             let table = try stringsTable(language)
             let text = L10n.transcriptImportResult(
                 skipped: 1, untimed: 0, repeated: 0, dropped: [], text: { table[$0.rawValue] ?? "" })
@@ -134,7 +134,7 @@ extension TranscriptPaneTests {
             text: { (try? stringsTable("en"))?[$0.rawValue] ?? "" })
         #expect(
             all
-                == "Words with no clip: 1. Words with no time: 2. Words over repeated audio: 3. Transcripts dropped: a, b."
+                == "1 word has no clip. 2 words have no time. 3 words are over repeated audio. Dropped a, b, which didn't load."
         )
         #expect(L10n.transcriptImportResult(skipped: 0, untimed: 0, repeated: 0, dropped: []) == nil)
         await model.close()

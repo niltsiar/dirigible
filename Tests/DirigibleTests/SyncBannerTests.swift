@@ -25,10 +25,9 @@ import Testing
     }
 
     func moved(
-        lag: Int, peak: Double = 0.98, drift: SyncDrift = .spread(0), headCut: Int = 0, replaced: [String] = []
+        lag: Int, drift: SyncDrift = .spread(0), headCut: Int = 0, replaced: [String] = []
     ) -> SyncMoved {
-        SyncMoved(
-            lag: Frames(lag), peak: peak, drift: drift, headCut: Frames(headCut), replaced: replaced, rate: 48_000)
+        SyncMoved(lag: Frames(lag), drift: drift, headCut: Frames(headCut), replaced: replaced, rate: 48_000)
     }
 
     func text(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
@@ -36,46 +35,44 @@ import Testing
     /// C20: the first sentence says "earlier" or "later" with a duration and no sign.
     @Test func theFirstSentenceSaysEarlierOrLater() {
         #expect(
-            text(moved(lag: 5_904_000)).hasPrefix("Moved the clip 2 min 3.0 s later. "),
+            text(moved(lag: 5_904_000)).hasPrefix("Moved the clip 2 min 3.0 s later."),
             "\(text(moved(lag: 5_904_000)))")
-        #expect(text(moved(lag: -163_200)).hasPrefix("Moved the clip 3.4 s earlier. "), "\(text(moved(lag: -163_200)))")
+        #expect(text(moved(lag: -163_200)).hasPrefix("Moved the clip 3.4 s earlier."), "\(text(moved(lag: -163_200)))")
         for lag in [5_904_000, -163_200, 1_439_000] {
             let first = text(moved(lag: lag)).components(separatedBy: ". ")[0]
             #expect(!first.contains("+") && !first.contains("-"), "a sign in \(first)")
         }
         #expect(
-            text(moved(lag: 2_878_000)).hasPrefix("Moved the clip 1 min 0.0 s later. "),
+            text(moved(lag: 2_878_000)).hasPrefix("Moved the clip 1 min 0.0 s later."),
             "59.96 s rounds up to the minute")
     }
 
-    /// C20: the match sentence follows, then the lag change line over 20 ms, or the not-measured line
-    /// with its cause, then the head cut line.
-    @Test func theMatchTheSpreadAndTheHeadCutFollow() {
-        #expect(text(moved(lag: -163_200)) == "Moved the clip 3.4 s earlier. Match score: 0.98.")
+    /// C20: the lag change line over 20 ms, or the not-measured line, then the head cut line, then
+    /// the clips that the move replaced. The banner has no match score.
+    @Test func theSpreadTheHeadCutAndTheReplacedClipsFollow() {
+        #expect(text(moved(lag: -163_200)) == "Moved the clip 3.4 s earlier.")
         #expect(
             text(moved(lag: -163_200, drift: .spread(2_880)))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. The lag changes by 60 ms across the clip.")
+                == "Moved the clip 3.4 s earlier. The lag changes by 60 ms across the clip.")
         #expect(
-            text(moved(lag: -163_200, drift: .spread(960)))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98.", "a spread of 20 ms or less has no line")
+            text(moved(lag: -163_200, drift: .spread(960))) == "Moved the clip 3.4 s earlier.",
+            "a spread of 20 ms or less has no line")
         #expect(
             text(moved(lag: -163_200, drift: .onePartMatched))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. The drift was not measured: only one part of the clip matched."
+                == "Moved the clip 3.4 s earlier. Only one part of the clip matched, which isn't enough to measure the drift."
         )
         #expect(
             text(moved(lag: -163_200, drift: .clipTooShort))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. The drift was not measured: the clip is shorter than 60 s."
-        )
+                == "Moved the clip 3.4 s earlier. The clip is shorter than the 60 s that drift measuring needs.")
         #expect(
             text(moved(lag: -163_200, headCut: 288_000))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. Cut 6.0 s from the start of the clip, because it moved before the start of the session."
-        )
+                == "Moved the clip 3.4 s earlier. Cut 6.0 s from the start of the clip to keep it inside the session.")
         #expect(
             text(moved(lag: -163_200, replaced: ["Part 2"]))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. The move replaced audio of Part 2.")
+                == "Moved the clip 3.4 s earlier. The move replaced audio of Part 2.")
         #expect(
             text(moved(lag: -163_200, replaced: ["Part 2", "Music"]))
-                == "Moved the clip 3.4 s earlier. Match score: 0.98. The move replaced audio of Part 2 and Music.")
+                == "Moved the clip 3.4 s earlier. The move replaced audio of Part 2 and Music.")
     }
 
     /// C20: the banner names the clip that the move cuts, with its name from before the move. Clip `N`
@@ -160,7 +157,7 @@ import Testing
         }
         let undo: Int? = shown
         #expect(result.lag == .zero && undo == nil, "the banner offers Undo: \(banner)")
-        #expect(text(result).hasPrefix("The clip is already in sync. Match score: "), "\(text(result))")
+        #expect(text(result).hasPrefix("The clip is already in sync."), "\(text(result))")
         #expect(banner.kind == .info && model.alert == nil)
         #expect(ChromeState.reportBanners(model, studio) == [banner])
         #expect(studio.session == synced && studio.sessionRevision == revision, "the second sync changed the session")
@@ -186,7 +183,7 @@ import Testing
             "\(banner)")
         #expect(banner.kind == .warning && model.alert == nil)
         #expect(
-            syncNoMatchText(clip: "c", track: "Guest", text: englishText) == "No match: c was not found on Guest.")
+            syncNoMatchText(clip: "c", track: "Guest", text: englishText) == "Couldn't find a match for c on Guest.")
         #expect(studio.session == before && studio.sessionRevision == revision && !studio.canUndo)
         #expect(ChromeState.reportBanners(model, studio) == [banner])
         await model.close()

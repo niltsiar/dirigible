@@ -139,21 +139,21 @@ struct LevelReportBannerTests {
     @Test func theNoChangeTextHasTheTrackVolumeSentence() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 0))
-                == "Auto Level is done. No change: the clips are at the target level. The track volume does not change the clip gain."
+                == "The clips are already at the target level. The track volume doesn't change the clip gain."
         )
     }
 
     @Test func aSilentClipKeepsTheTrackVolumeSentence() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 1))
-                == "Auto Level is done. Clips changed: 0. The track volume does not change the clip gain. Clips with no level to measure: 1. They keep their gain."
+                == "No clips changed. The track volume doesn't change the clip gain. 1 clip has no level to measure and keeps its gain."
         )
     }
 
     @Test func silentClipsAreNotAtTheTarget() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 2))
-                == "Auto Level is done. Clips changed: 0. The track volume does not change the clip gain. Clips with no level to measure: 2. They keep their gain."
+                == "No clips changed. The track volume doesn't change the clip gain. 2 clips have no level to measure and keep their gain."
         )
     }
 
@@ -163,7 +163,7 @@ struct LevelReportBannerTests {
         let report = LevelReport(changed: 0, atLimit: 1, unmeasured: 0)
         #expect(
             try english(report)
-                == "Auto Level is done. Clips changed: 0. The track volume does not change the clip gain. Clips at the 20 dB limit: 1. Check that they have speech."
+                == "No clips changed. The track volume doesn't change the clip gain. Check that the clip at the 20 dB limit has speech."
         )
         #expect(WindowBanner.levelReport(report, press: 2).kind == .warning)
     }
@@ -172,7 +172,7 @@ struct LevelReportBannerTests {
         let report = LevelReport(changed: 3, atLimit: 1, unmeasured: 0)
         #expect(
             try english(report)
-                == "Auto Level is done. Clips changed: 3. Clips at the 20 dB limit: 1. Check that they have speech.")
+                == "Changed 3 clips. Check that the clip at the 20 dB limit has speech.")
         #expect(WindowBanner.levelReport(report, press: 1).kind == .warning)
         #expect(WindowBanner.levelReport(LevelReport(changed: 3, atLimit: 0, unmeasured: 0), press: 1).kind == .info)
     }

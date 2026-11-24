@@ -2,9 +2,10 @@ import Foundation
 
 /// Snapshot undo (decision 0002): each entry is a whole `Session` value.
 ///
-/// Undo and redo keep the current `recording` through `Session.reverted(to:)`, as a revert to a
-/// backup does (decision 0043). The `<recording>` element records a take on the disk, not an
-/// edit, so an undo must not bring back a take that finalize already placed.
+/// Undo and redo keep the current `recording` and `archive` through `Session.reverted(to:)`, as a
+/// revert to a backup does (decisions 0043 and 0072). The `<recording>` element records a take on
+/// the disk and `archive` the form of the clip files, not an edit, so an undo must not bring back
+/// a take that finalize already placed or a form that the files no longer have.
 public struct History: Hashable, Sendable {
     /// The change of an entry that the Undo and Redo titles name. Nil is a plain edit.
     public enum Name: Hashable, Sendable {
@@ -70,7 +71,7 @@ public struct History: Hashable, Sendable {
     }
 
     /// Runs `body` on a copy of the session. A throw discards the copy. An edit that changes
-    /// only `recording` records no entry, because undo could not change it back. `agent` names the
+    /// only `recording` or `archive` records no entry, because undo could not change it back. `agent` names the
     /// agent of an MCP edit (decision 0046), and `name` the change for the Undo and Redo titles.
     @discardableResult
     public mutating func edit<Result, Failure: Error>(
@@ -80,6 +81,7 @@ public struct History: Hashable, Sendable {
         let result = try body(&copy)
         var withOldRecording = copy
         withOldRecording.recording = session.recording
+        withOldRecording.archive = session.archive
         if withOldRecording != session {
             undoStack.append(Entry(session: session, agent: agent, name: name))
             redoStack.removeAll()
@@ -96,15 +98,17 @@ public struct History: Hashable, Sendable {
         guard let before = undoStack.last?.session else { return try edit(body) }
         var copy = session
         try body(&copy)
-        // As in `edit`, a change of only the recording is no change of the entry.
+        // As in `edit`, a change of only the recording or the archive state is no change of the entry.
         var withCurrentRecording = copy
         withCurrentRecording.recording = session.recording
+        withCurrentRecording.archive = session.archive
         guard withCurrentRecording != session else {
             session = copy
             return
         }
         var withOldRecording = copy
         withOldRecording.recording = before.recording
+        withOldRecording.archive = before.archive
         if withOldRecording == before { undoStack.removeLast() }
         redoStack.removeAll()
         session = copy
@@ -133,7 +137,8 @@ public struct History: Hashable, Sendable {
 }
 
 extension Session {
-    /// `entry` with the `recording` of this session. Undo, redo, and a revert to a backup use it.
+    /// `entry` with the `recording` and the `archive` of this session. Undo, redo, and a revert to a
+    /// backup use it.
     /// Throws `.trackInRecording` if `entry` removes a track that the current recording arms, or
     /// changes its route or layout (decision 0012).
     public func reverted(to entry: Session) throws(SessionError) -> Session {
@@ -145,6 +150,7 @@ extension Session {
         if let changed { throw .trackInRecording(changed) }
         var restored = entry
         restored.recording = recording
+        restored.archive = archive
         return restored
     }
 }

@@ -56,6 +56,7 @@ import Testing
         try session.setExportPreset(ExportPresetTests.preset("Archive", ExportPresetTests.wav))
         let bin = try session.addBin("bin1", named: #"Beds & "Stings""#)
         try session.addItem(try session.excerpt(of: ["c3", "B"]), named: "Bed <1>", to: bin, id: "item1")
+        session.archive = .flac
         #expect(session.fileVersion == sessionVersion, "the corpus has each versioned feature")
         return session
     }

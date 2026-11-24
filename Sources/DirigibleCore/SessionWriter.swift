@@ -51,7 +51,7 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = binSessionVersion
+package let sessionVersion = archiveSessionVersion
 /// The `session.xml` version of a pre-roll `<recording>` (decision 0070 **Format**): the next free
 /// number on main at the land.
 package let preRollSessionVersion = 15
@@ -71,6 +71,9 @@ package let driftSessionVersion = 19
 package let presetSessionVersion = 20
 /// The `session.xml` version of `<bins>` (F22): the next free number on main at the land.
 package let binSessionVersion = 21
+/// The `session.xml` version of `archive="flac"` on `<session>` (decision 0072): the next free number on
+/// main at the slice start.
+package let archiveSessionVersion = 22
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -157,7 +160,8 @@ extension Session {
 
     /// Deletes the leftover temporary files of a crash: the `.session.xml.<UUID>.tmp` files of a
     /// save, of a backup, and of a transcript file, each `Clips/.<stem>.wav.tmp` of an import or a
-    /// finalize that no file of the pool names, and each `Artwork/.<name>.tmp` of an artwork
+    /// finalize and each `Clips/.<name>.archive-<UUID>.tmp` of an archive job (decision 0072) that no
+    /// file of the pool names, and each `Artwork/.<name>.tmp` of an artwork
     /// import. Call it only under the package lock: without the lock it can delete the file of a
     /// save, an import, or a finalize in progress.
     public func removeTemporaryFiles(in package: URL) {
@@ -171,7 +175,7 @@ extension Session {
             files.values.map { $0.path.split(separator: "/").filter { $0 != "." }.joined(separator: "/").lowercased() })
         let clips = package.appending(path: clipsFolderName)
         for name in names(clips)
-        where isTemporaryWAV(name) && !pool.contains(name.lowercased()) {
+        where (isTemporaryWAV(name) || isArchiveTemporary(name)) && !pool.contains(name.lowercased()) {
             unlink(clips.appending(path: name).path)
         }
         let artwork = package.appending(path: artworkFolderName)

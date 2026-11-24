@@ -120,9 +120,9 @@ Leave out: a badge row (there is no CI and no release count), sponsor buttons, a
 
 ### How to regenerate the screenshots
 
-Add a short procedure to the guide run, as a script or as steps in `docs/guide.md` under a "For contributors" note:
+Add a short procedure to the guide run, as a script or as steps in `docs/guide.md` under a note for contributors:
 
-State on 2026-11-24: `scripts/screenshots.sh` replaces this procedure, and `scripts/demo-session.sh` does not exist. The steps are in `docs/CONTRIBUTING.md`, "Make the screenshots again", and the guide has no "For contributors" section. The steps below are the plan of 2026-09-27.
+State on 2026-11-24: `scripts/screenshots.sh` replaces this procedure, and `scripts/demo-session.sh` does not exist. The steps are in `docs/CONTRIBUTING.md`, "Make the screenshots again", and the guide has no section for contributors. The steps below are the plan of 2026-09-27.
 
 1. Make the demo session: `scripts/demo-session.sh <folder>` makes WAV files with `say`, then runs `dirigible create`, `track`, `file`, `clip`, and `marker`. The folder is under `.scratchpads/` (not in git).
 2. Open the app in English: `open build/Dirigible.app --args -AppleLanguages "(en)"`, then open the demo session.
@@ -188,7 +188,7 @@ fi
 - It does not see a toolbar button, a mouse action, a changed behavior, or an old screenshot. When the UI shell run adds toolbar keys (for example `toolbar.`), extend the `sed` pattern to those keys.
 - Limit: `**Cut**` matches in any sentence, so the check proves a mention, not a correct description.
 
-Add one rule to the deliver skill for the part that a script cannot see. In Phase 7 (verify): "If the run changes what a user sees or does, update `docs/guide.md`. If the window looks different, make the screenshots again (`docs/guide.md`, For contributors)." The code gate reviewers then check the guide diff with the code diff. State on 2026-11-24: the rule points to `docs/CONTRIBUTING.md`, "Make the screenshots again".
+Add one rule to the deliver skill for the part that a script cannot see. In Phase 7 (verify): "If the run changes what a user sees or does, update `docs/guide.md`. If the window looks different, make the screenshots again (`docs/CONTRIBUTING.md`, "Make the screenshots again")." The code gate reviewers then check the guide diff with the code diff.
 
 Do not add a check that compares the dates of `Sources/DirigibleApp/` and `docs/images/`. Each small UI fix would then fail `make check`, and the fix would be a new screenshot with no real change.
 

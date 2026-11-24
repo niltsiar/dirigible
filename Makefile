@@ -24,9 +24,10 @@ test:
 	scripts/test-shards.sh
 
 # Only the tests of FILTER (test or suite names with spaces between them), in two processes:
-# the CLI tests in the second. It fails when a name matches no test.
+# the CLI tests in the second. It fails when a name matches no test. READERS=<a>,<b> adds the
+# suites of the tests that read a changed doc (scripts/check-changed.sh gives the word).
 test-filter:
-	scripts/test-filter.sh $(FILTER)
+	scripts/test-filter.sh $(FILTER) $(subst $(comma), ,$(READERS))
 
 # The tests of FILTER, slow tests too, under Address Sanitizer, in a debug build of its own
 # (.build/asan, about 1.3 GB). `swift test --sanitize` does not run on this Mac: read the header
@@ -195,7 +196,8 @@ check-fast: $(STATIC_GATES) test-hooks
 # Before Swift tests, scripts/run-checks.sh waits for a normal load (check-changed.sh --wait-load).
 # scripts/run-checks.sh runs the targets with -k and reruns only the failed Swift tests of a red
 # test or test-slow-push target, 1 time at most with risk: yes. A pass on a rerun writes the stamp.
-# A PUSH_RUN=<names> word of the targets line goes to make as a variable of test-slow-push.
+# A PUSH_RUN=<names> word of the targets line goes to make as a variable of test-slow-push. A
+# READERS=<names> word goes to make as a variable of test-filter; this recipe appends only FILTER.
 # The recipe keeps the status of run-checks.sh: its 75 (a lock wait over its limit) gives the make
 # line "Error 75", which scripts/with-lock.sh turns into its own exit 75.
 BASE ?=

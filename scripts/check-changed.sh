@@ -52,6 +52,14 @@
 # name exits 3 with the full FILTER in the reason, so with-lock.sh exits before the build lock.
 # With no changed path, FILTER gives the target test-filter and one stderr note. The mode --paths
 # keeps the targets (a probe of the table).
+# A docs path gets check-docs. A doc that a Swift test reads also gets test-filter with READERS=<suites>.
+# A changed path outside Sources/ and Tests/ that a code line of Tests/ names as a whole
+# string-literal path (reader_scan) adds the suites of that test file in the word
+# READERS=<a>,<b>, joined with commas as PUSH_RUN is; the test-filter recipe of the Makefile splits it
+# and appends it to FILTER. The word comes after the FILTER rewrite, so a FILTER run keeps the reader
+# suites, and a target test or check, which runs each suite, gets no word. A reader file with no suite
+# adds test. test and test-filter skip AppBundleTests and DiskImageTests (skip_suites), so a reader
+# suite AppBundleTests adds test-app (not beside check), and DiskImageTests adds test-dmg.
 # A local run with check-fast (the form of check with FILTER too) adds the word HOOK_TESTS=<tests>:
 # the tests of the changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one
 # word and scripts/test-hooks.sh splits it. A path of class tooling, bundle, or build needs a test:
@@ -61,8 +69,10 @@
 # build path with no test gives the word DIRIGIBLE_HOOKS_ALL=1 in place of HOOK_TESTS:
 # scripts/test-hooks.sh runs the whole list only with that word (or the switches of the push check
 # and of a person). So do tests that are every entry of the list. A bundle path with no test, and a
-# path of any other class (comments too), needs none. When no path needs a hook test, check-fast
-# becomes static: the gates of STATIC_GATES in the Makefile, with no hook test.
+# path of any other class (comments too), needs none. So do scripts/check-docs.sh and
+# scripts/check-docs-code.sh: the check-docs gate runs both and the test of check-docs.sh. When no
+# path needs a hook test, check-fast becomes static: the gates of STATIC_GATES in the Makefile,
+# with no hook test.
 # The push never adds either word. SINCE is local, so it adds them.
 set -euo pipefail
 source "$(dirname "$0")/swift-suites.sh"
@@ -241,6 +251,8 @@ hook_tests() {
     nested="$(nested_runs "$root" "$list")"
     while IFS= read -r p; do
         [[ -n "$p" ]] || continue
+        # The check-docs target runs check-docs.sh and its test, so a change of either needs no hook test.
+        case "$p" in scripts/check-docs.sh | scripts/check-docs-code.sh) continue ;; esac
         if comment_only "$p"; then c=comments; else c="$(class_of "$p")"; fi
         [[ $c == tooling || $c == bundle || $c == build ]] || continue
         hits=" "
@@ -574,19 +586,80 @@ fi
 # The delta: after a partial stamp P, only the paths changed since P (the working tree too) pick
 # the targets, with the content against P; with CHECK_PARTIAL=ignore, or with no P, the paths
 # changed since the pass stamp S.
+scan_paths="$paths"
 if [[ -n $partial && "${CHECK_PARTIAL:-}" != ignore ]]; then
     from="$partial"
     echo "stamp: partial $from"
-    classify "$since"
+    scan_paths="$since"
+    classify "$scan_paths"
 elif [[ -n $pass ]]; then
     from="$pass"
     echo "stamp: delta $from"
-    classify "$(git diff --name-only --no-renames "$from")"$'\n'"$untracked"
+    scan_paths="$(git diff --name-only --no-renames "$from")"$'\n'"$untracked"
+    classify "$scan_paths"
 fi
 wanted=" "
 for c in $found; do
     for t in $(targets_of "$c"); do wanted+="$t "; done
 done
+
+# reader_scan <paths>: the Swift tests that read a changed file of another class (docs/guide.md,
+# scripts/version.sh). One pass over Tests/ (grep for the lines with a string that can hold a path,
+# then awk) finds each file with a code line that holds a changed path outside Sources/ and
+# Tests/ as a whole string-literal path: the path after a quote or a /, and a quote after it. A
+# line that starts with //, /*, or * does not count. The suites of such a file come from
+# swift-suites.sh (the types with a @Test in it, slow-gated tests left out), so a file that
+# extends AppBundleTests is a reader of that suite whatever its name is.
+# It sets reader_names (the suites, joined with commas) and reader_test, reader_app, reader_dmg
+# (yes or no): a file with no suite needs test, AppBundleTests needs test-app, and DiskImageTests
+# needs test-dmg, because test-filter and test skip both (skip_suites).
+reader_scan() {
+    local list bare strings p files f s d
+    reader_names="" reader_test=no reader_app=no reader_dmg=no
+    [[ -d Tests ]] || return 0
+    list="$(grep -vE '^(Sources/|Tests/|$)' <<<"$1" || true)"
+    [[ -n $list ]] || return 0
+    # A path with no / and no . (Makefile) is a string of its own, so the grep names it.
+    strings='"[^"]*[/.][^"]*"'
+    bare="$({ grep -vE '[/.]' <<<"$list" || true; } | sed 's/[^A-Za-z0-9_-]/\\&/g' | paste -sd'|' -)"
+    [[ -z $bare ]] || strings+="|\"($bare)\""
+    files="$({ grep -rE -e "$strings" Tests || true; } | LIST="$list" awk '
+        BEGIN { n = split(ENVIRON["LIST"], a, "\n"); for (i = 1; i <= n; i++) want[a[i]] = 1 }
+        {
+            i = index($0, ":")
+            c = substr($0, i + 1)
+            if (c ~ /^[ \t]*(\/\/|\/\*|\*)/) next
+            n = split(c, f, "\"")
+            for (k = 1; k < n; k++) {
+                s = f[k]
+                if (k > 1 && (s in want)) hit[substr($0, 1, i - 1)] = 1
+                while ((j = index(s, "/")) > 0) { s = substr(s, j + 1); if (s in want) hit[substr($0, 1, i - 1)] = 1 }
+            }
+        }
+        END { for (h in hit) print h }' | sort -u)"
+    while IFS= read -r f; do
+        [[ -n $f ]] || continue
+        s="$(awk -v slow=skip "$decl_awk $suite_awk" "$f" | sort -u)"
+        if [[ -z $s ]]; then reader_test=yes; continue; fi
+        while IFS= read -r p; do
+            d=""
+            for d in $skip_suites; do
+                [[ "$p" != *"$d"* ]] || break
+                d=""
+            done
+            case "$d" in
+                AppBundleTests) reader_app=yes ;;
+                DiskImageTests) reader_dmg=yes ;;
+                *) reader_names+=",$p" ;;
+            esac
+        done <<<"$s"
+    done <<<"$files"
+    reader_names="$(tr ',' '\n' <<<"${reader_names#,}" | sort -u | paste -sd, -)"
+}
+reader_scan "$scan_paths"
+[[ $reader_test == no ]] || wanted+="test "
+[[ $reader_dmg == no ]] || wanted+="test-dmg "
+[[ $reader_app == no ]] || wanted+="test-app "
 
 # Before the push, test-slow-push runs for risk, a changed slow test (a file with the gate of the
 # Makefile), or a Makefile change (it owns the recipe). A push with Swift tests (check) also runs
@@ -613,9 +686,9 @@ fi
 
 # check runs check-docs, check-fast, and test; check-fast runs check-docs. Drop what another target runs.
 targets=""
-for t in check-docs check-fast test check test-slow-push test-dmg; do
+for t in check-docs check-fast test check test-slow-push test-dmg test-app; do
     [[ "$wanted" == *" $t "* ]] || continue
-    case "$t" in check-docs | check-fast | test) [[ "$wanted" == *" check "* ]] && continue ;; esac
+    case "$t" in check-docs | check-fast | test | test-app) [[ "$wanted" == *" check "* ]] && continue ;; esac
     [[ $t == check-docs && "$wanted" == *" check-fast "* ]] && continue
     targets+=" $t"
 done
@@ -643,6 +716,12 @@ needs_suite=no
 [[ " $targets " == *" test "* || " $targets " == *" check "* ]] && needs_suite=yes
 if [[ -n "${FILTER:-}" ]]; then
     targets="$(sed -E 's/(^| )check( |$)/\1check-fast test-filter test-app\2/; s/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
+fi
+# The reader suites run in test-filter, unless test or check already runs them. The decision comes
+# after the FILTER rewrite, so a local FILTER run keeps the reader suites.
+if [[ -n $reader_names && " $targets " != *" test "* && " $targets " != *" check "* ]]; then
+    [[ " $targets " == *" test-filter "* ]] || targets+=" test-filter"
+    targets+=" READERS=$reader_names"
 fi
 # A local check-fast runs only the hook tests that the changed paths need. The FILTER rewrite makes
 # check-fast of check, so this comes after it. The whole list runs only with a switch, which

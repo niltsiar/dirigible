@@ -172,9 +172,7 @@ struct ParityTests {
     /// The guide line of the commands with no tool names no command that has a tool, so the guide
     /// does not send a user to the terminal for a tool that exists (run 7b, C15).
     @Test func theGuideNamesNoToolAsACommandWithNoTool() throws {
-        let guide = try String(
-            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
-            encoding: .utf8)
+        let guide = try Self.guideText()
         let line = guide.split(separator: "\n").first { $0.hasPrefix("- These commands have no tool.") } ?? ""
         let commands = leafCommands(of: Dirigible.self)
         let named = line.matches(of: /`([^`]+)`/).map { String($0.1) }.filter(commands.contains)
@@ -249,12 +247,45 @@ struct ParityTests {
         #expect(Self.manualExemptions.values.allSatisfy { !$0.isEmpty })
     }
 
-    /// The section of docs/guide.md with this heading text, at any level (see `section(titled:in:)`).
-    static func guideSection(_ title: String) throws -> String {
-        let guide = try String(
+    static func guideText() throws -> String {
+        try String(
             contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
             encoding: .utf8)
-        return section(titled: title, in: guide)
+    }
+
+    /// The section of docs/guide.md with this heading text, at any level (see `section(titled:in:)`).
+    static func guideSection(_ title: String) throws -> String {
+        try section(titled: title, in: guideText())
+    }
+
+    /// The leaf commands that the code spans of a guide text do not name, sorted. A span names a
+    /// leaf as `dirigible <leaf>` or `swift run dirigible <leaf>`, or starts with `<leaf>` (the
+    /// guide writes `bin add` after `dirigible bin list`).
+    static func leavesNotNamed(in guide: String, among leaves: Set<String>) -> [String] {
+        let spans = guide.matches(of: /`([^`\n]+)`/).map {
+            String($0.1.trimmingPrefix("swift run ").trimmingPrefix("dirigible "))
+        }
+        return leaves.filter { leaf in !spans.contains { $0 == leaf || $0.hasPrefix(leaf + " ") } }.sorted()
+    }
+
+    @Test func theLeafScanFindsACommandThatTheTextDoesNotName() {
+        let leaves: Set = ["clip trim", "clip split", "peaks"]
+        let lacking = "Run `dirigible clip split Demo.dirigible` then `peaks`. The words clip trim are no span."
+        #expect(Self.leavesNotNamed(in: lacking, among: leaves) == ["clip trim"])
+        let naming = "`swift run dirigible clip split Demo.dirigible`, `clip trim Demo.dirigible`, `dirigible peaks`."
+        #expect(Self.leavesNotNamed(in: naming, among: leaves).isEmpty)
+        let near = "`clip trim-all Demo.dirigible`, `clip split`, `dirigible peaks`."
+        #expect(Self.leavesNotNamed(in: near, among: leaves) == ["clip trim"])
+    }
+
+    /// The guide names each leaf command of the CLI tree, so a command that a change adds or
+    /// renames cannot leave the guide stale.
+    @Test func theGuideNamesEachLeafCommand() throws {
+        let commands = leafCommands(of: Dirigible.self)
+        #expect(commands.count >= 40 && commands.contains("clip ripple-trim"), "the tree scan found \(commands)")
+        for command in Self.leavesNotNamed(in: try Self.guideText(), among: commands) {
+            Issue.record("docs/guide.md does not name dirigible \(command)")
+        }
     }
 
     /// The lines after the heading with this text, at any level, up to the next heading of the same

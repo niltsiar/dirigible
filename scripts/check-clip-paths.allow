@@ -1,0 +1,93 @@
+# The lines that scripts/check-clip-paths.sh lets pass: <path><TAB><trimmed line text><TAB><reason>.
+# A reason that starts with "reader by hand:" marks a pool file reader that opens the WAV name, not
+# the name of poolFileName, so it misses an archived FLAC.
+Sources/DirigibleAudio/Archive/ClipArchive.swift	let (wav, flac) = (clips.appending(path: file.path), clips.appending(path: flacPath))	the archive of one clip: it reads and writes both names of one pool file
+Sources/DirigibleAudio/Archive/PackageArchive.swift	let stamp = stampOnDisk(clips.appending(path: path))	the archive job: the stamp of the WAV name before its conversion
+Sources/DirigibleAudio/Archive/PackageArchive.swift	case .mismatch: report.kept[path] = .damaged(frames: decodedFrames(of: clips.appending(path: path)))	the archive job: the frames of a damaged WAV that it keeps
+Sources/DirigibleAudio/Archive/PackageArchive.swift	report.bytesWritten += try sizes(clips.appending(path: source.flac), source.flac, seams).bytes	the archive job: the size of the FLAC that it wrote
+Sources/DirigibleAudio/Archive/PackageArchive.swift	of: source.file, from: stamp, to: clips.appending(path: source.flac), rate: session.sampleRate, in: cache)	the archive job: the peak re-key of the FLAC that it wrote
+Sources/DirigibleAudio/Archive/PackageArchive.swift	let flac = clips.appending(path: flacPath)	the archive and unarchive jobs: the FLAC name of a pool file
+Sources/DirigibleAudio/Archive/PackageArchive.swift	} else if !exists(clips.appending(path: file.path)) {	the unarchive job: the WAV name of a pool file
+Sources/DirigibleAudio/Archive/PackageArchive.swift	let stamp = stampOnDisk(clips.appending(path: source.flac))	the unarchive job: the stamp of the FLAC name before its conversion
+Sources/DirigibleAudio/Archive/PackageArchive.swift	report.kept[path] = .damaged(frames: decodedFrames(of: clips.appending(path: source.flac)))	the unarchive job: the frames of a damaged FLAC that it keeps
+Sources/DirigibleAudio/Archive/PackageArchive.swift	report.bytesWritten += try sizes(clips.appending(path: path), path, seams).bytes	the unarchive job: the size of the WAV that it wrote
+Sources/DirigibleAudio/Archive/PackageArchive.swift	rekeyPeaks(of: source.file, from: stamp, to: clips.appending(path: path), rate: session.sampleRate, in: cache)	the unarchive job: the peak re-key of the WAV that it wrote
+Sources/DirigibleAudio/DSP/DriftRequest.swift	let url = package.appending(path: "\(clipsFolderName)/\(source.path)")	reader by hand: the source of a drift correction
+Sources/DirigibleAudio/DSP/DriftRequest.swift	let wav = "\(clipsFolderName)/\(temporary.stem).wav"	a writer of a new clip: the corrected WAV
+Sources/DirigibleAudio/Finalize/Finalize.swift	atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).\(clipExtension)").path)	reader by hand: the clip file of a WAV-backed segment (wavBackedSegments)
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	let temporary = clips.appending(path: temporaryWAV(of: stem))	a writer of a new clip: the temporary WAV
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	let target = clips.appending(path: "\(stem).wav")	a writer of a new clip: the WAV name of a new clip
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	try moveNew(clips.appending(path: temporaryWAV(of: stem)), to: target)	a writer of a new clip: the move of the temporary WAV
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	for stem in order.dropFirst(made.count) { unlink(clips.appending(path: temporaryWAV(of: stem)).path) }	a writer of a new clip: the unlink of a temporary WAV after a fault
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	self = .write(file: file, .writeFailed(file: "\(clipsFolderName)/\(name)", status: code))	the file name in an error; it opens nothing
+Sources/DirigibleAudio/Finalize/NewClipFiles.swift	self = .write(file: file, .writeFailed(file: "\(clipsFolderName)/\(stem).wav", status: EEXIST))	the file name in an error; it opens nothing
+Sources/DirigibleAudio/Finalize/RawRemoval.swift	for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {	reader by hand: the flush of the clip file after the record append
+Sources/DirigibleAudio/Finalize/RawRemoval.swift	"\(captureFolderName)/\(name.cafName)", "\(clipsFolderName)/\(name.stem).wav",	reader by hand: the identity of the clip file of a raw capture (rawFiles)
+Sources/DirigibleAudio/Finalize/RawRemoval.swift	let wav = try? AVAudioFile(forReading: package.appending(path: "\(clipsFolderName)/\(file.path)"))	reader by hand: the clip file of a raw verdict (rawVerdict)
+Sources/DirigibleAudio/Finalize/RawRemoval.swift	let wav = "\(clipsFolderName)/\(segment.stem).wav"	reader by hand: the clip file of a raw gain (rawGain)
+Sources/DirigibleAudio/Finalize/SegmentFinalize.swift	var wav: String { "\(clipsFolderName)/\(wavName)" }	a writer of a new clip: the WAV name of a finalized segment
+Sources/DirigibleAudio/Finalize/SegmentFinalize.swift	let temporary = package.appending(path: "\(clipsFolderName)/\(temporaryWAVName)")	a writer of a new clip: the temporary WAV of a finalized segment
+Sources/DirigibleAudio/Import/Artwork.swift	let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	a new artwork file (O_CREAT), not a pool file
+Sources/DirigibleAudio/Import/AudioImport.swift	let (descriptor, input) = try openAudio(source)	an import source that the user picked
+Sources/DirigibleAudio/Import/AudioImport.swift	let wav = "\(clipsFolderName)/\(stem).wav"	a writer of a new clip: the WAV of an import
+Sources/DirigibleAudio/Import/AudioImport.swift	let made = open(temporary.path, O_RDONLY | O_CLOEXEC)	the temporary WAV that the import wrote
+Sources/DirigibleAudio/Import/AudioImport.swift	let other = open(	reader by hand: a pool file that an import compares with its new WAV
+Sources/DirigibleAudio/Import/AudioImport.swift	package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	reader by hand: a pool file that an import compares with its new WAV
+Sources/DirigibleAudio/Import/AudioImport.swift	func openAudio(_ source: URL) throws(ImportError) -> (descriptor: Int32, file: AVAudioFile) {	the helper itself; each caller has its own entry
+Sources/DirigibleAudio/Import/AudioImport.swift	let descriptor = open(source.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	the helper openAudio opens the URL of its caller
+Sources/DirigibleAudio/Import/AudioImport.swift	return (descriptor, try AVAudioFile(forReading: source))	the helper openAudio opens the URL of its caller
+Sources/DirigibleAudio/Import/CheckedOpen.swift	func openChecked(_ path: String, in folder: Int32) throws(CheckedOpenFault) -> (	the helper itself; each caller has its own entry
+Sources/DirigibleAudio/Import/CheckedOpen.swift	let descriptor = openat(folder, path, O_RDONLY | O_NOFOLLOW_ANY | O_NONBLOCK | O_CLOEXEC)	the helper openChecked opens the path of its caller
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	let url = source.appending(path: "\(clipsFolderName)/\(record.path)")	reader by hand: the source file of a paste or a favorite add (first pass)
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	?? (try? AVAudioFile(forReading: url).length).map { Int64($0) } ?? Int64(record.length.count)	reader by hand: the source file of a paste or a favorite add (first pass)
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	let from = source.appending(path: "\(clipsFolderName)/\(record.path)")	reader by hand: the source file of a paste or a favorite add (second pass)
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	guard let read = try? AVAudioFile(forReading: temporary),	the read-back of the temporary WAV in the target
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	let (descriptor, input) = try openAudio(source)	reader by hand: the source file of a conversion in a paste or a favorite add
+Sources/DirigibleAudio/Import/ExcerptCopy.swift	wav: "\(clipsFolderName)/\(copy.path)", channels: record.layout.channelCount, rate: Double(rate),	a writer of a new clip: the WAV name of a copy in the target
+Sources/DirigibleAudio/Import/SessionImport.swift	package.appending(path: "\(clipsFolderName)/\($0)")	a writer of a new clip: the new files of the target
+Sources/DirigibleAudio/Import/SessionImport.swift	let folder = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the source package
+Sources/DirigibleAudio/Import/SessionImport.swift	let item = "\(clipsFolderName)/\(path)"	reader by hand: the source file of a session import
+Sources/DirigibleAudio/Import/SessionImport.swift	do { close(try openChecked(item, in: folder).descriptor) } catch {	reader by hand: the source file of a session import
+Sources/DirigibleAudio/Import/StereoSplit.swift	do throws(ImportError) { opened = try openAudio(url) } catch { throw SplitError(error, source: source.path) }	reader by hand: the source file of a stereo split
+Sources/DirigibleAudio/Import/StereoSplit.swift	let wav = "\(clipsFolderName)/\(stem).wav"	a writer of a new clip: the WAV of one side of a stereo split
+Sources/DirigibleAudio/Import/StereoSplit.swift	package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the source file of a stereo split
+Sources/DirigibleAudio/Import/TemplateCopy.swift	do { return try openChecked(path, in: folder) } catch {	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (check pass)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	let packageFD = open(source.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the template package
+Sources/DirigibleAudio/Import/TemplateCopy.swift	let stagingFD = open(staging.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)	the folder descriptor of the staging folder
+Sources/DirigibleAudio/Import/TemplateCopy.swift	guard let reopened = try? openChecked(path, in: packageFD) else { throw .sourceChanged(path) }	reader by hand: each name of NewEpisode.filePaths, also the pool paths in Clips/ (copy pass)
+Sources/DirigibleAudio/Import/TemplateCopy.swift	let target = openat(folder, path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)	a new file in the staging folder (O_CREAT)
+Sources/DirigibleAudio/Render/EffectPreview.swift	opened = try openAudio(package.appending(path: "\(clipsFolderName)/\(file.path)"))	reader by hand: the source file of an effect preview
+Sources/DirigibleAudio/Render/EffectRender.swift	opened = try openAudio(sourceURL(source, in: package))	reader by hand: the source file of an effect render
+Sources/DirigibleAudio/Render/EffectRender.swift	let wav = "\(clipsFolderName)/\(stems[index]).wav"	a writer of a new clip: the WAV of an effect render
+Sources/DirigibleAudio/Render/EffectRender.swift	let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)	the read-back of the new WAV of an effect render
+Sources/DirigibleAudio/Render/EffectRender.swift	return Int(try AVAudioFile(forReading: url).length)	the read-back of the new WAV of an effect render
+Sources/DirigibleAudio/Render/EffectRender.swift	package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the source file of an effect render
+Sources/DirigibleAudio/Render/Export.swift	var held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_EXLOCK | O_CLOEXEC, 0o644)	the temporary file of an export (O_CREAT)
+Sources/DirigibleAudio/Render/Export.swift	held = open(temporary.path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	the temporary file of an export (O_CREAT)
+Sources/DirigibleAudio/Render/Export.swift	let dead = open(path, O_RDONLY | O_EXLOCK | O_NONBLOCK | O_CLOEXEC)	the lock test of a temporary export file from the listing of the export folder
+Sources/DirigibleAudio/Render/ExportLoudness.swift	do { file = try AVAudioFile(forReading: url) } catch { throw .writeFailed(status(of: error)) }	the read-back of an export file
+Sources/DirigibleAudio/Render/FileMove.swift	let claim = open(target.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	the claim of a move target (O_CREAT)
+Sources/DirigibleAudio/Render/MP3File.swift	let descriptor = open(url.path, O_WRONLY | O_TRUNC | O_CLOEXEC)	the MP3 file of an export, open to write
+Sources/DirigibleAudio/Render/Media.swift	faults[file.id] = try open(file, clips, session.sampleRate).fault	the media check calls its open parameter, openMedia by default
+Sources/DirigibleAudio/Render/Media.swift	guard let other, let opened = try openName(clips.appending(path: other), of: file, rate: rate, after: after)	openMedia: the other name of poolFileName after ENOENT
+Sources/DirigibleAudio/Render/Media.swift	let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	resolver name: url (openMedia: the name of poolFileName, or its other name after ENOENT)
+Sources/DirigibleAudio/Render/Media.swift	guard let audio = try? AVAudioFile(forReading: url) else {	resolver name: url (openMedia: the name of poolFileName, or its other name after ENOENT)
+Sources/DirigibleAudio/Render/MixReader.swift	guard let file = open(id) else { return nil }	the file cache of the mix reader, which opens through openMedia
+Sources/DirigibleAudio/Render/MixReader.swift	private func open(_ id: FileID) -> AVAudioFile? {	the file cache of the mix reader, which opens through openMedia
+Sources/DirigibleAudio/Render/PeakFile.swift	let descriptor = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)	the temporary file of a peak cache entry (O_CREAT)
+Sources/DirigibleAudio/Studio/Studio+Files.swift	return paths.sorted().map { clips.appending(path: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }	reader by hand: the clip files of Show Clips in Finder (existingClipURLs)
+Sources/DirigibleAudio/Transcribe/OpenModelFile.swift	let descriptor = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)	a model file, not a pool file
+Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	let url = package.appending(path: "\(clipsFolderName)/\(file.path)")	reader by hand: the clip file of a transcription
+Sources/DirigibleAudio/Transcribe/TranscribeJob.swift	audio = try AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)	reader by hand: the clip file of a transcription
+Sources/DirigibleAudio/Transcribe/WhisperModelFile.swift	let descriptor = open(url.path, O_RDONLY)	a model file, not a pool file
+Sources/DirigibleAudio/Transcribe/WhisperModelStore.swift	let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)	the temporary file of a model download (O_CREAT)
+Sources/DirigibleCore/PackageItems.swift	"\(clipsFolderName)/\($0.path)"	checkPoolPaths reads the link kind of a named path, and a missing path passes; it opens nothing
+Sources/DirigibleCore/SessionTemplate.swift	let clips = Set(pool).sorted().map { "\(clipsFolderName)/\($0)" }	the pool paths of a template copy, which TemplateCopy opens; it opens nothing
+Sources/DirigibleCore/SessionWriter.swift	unlink(clips.appending(path: name).path)	a temporary file name from the listing of Clips/
+Sources/DirigibleCore/UnusedFiles.swift	.filter { !used.contains($0.id) && Self.staysIn(realClips, clips.appending(path: $0.path)) }	reader by hand: the folder check of a pool candidate of the prune scan
+Sources/DirigibleCore/UnusedFiles.swift	let url = clips.appending(path: path)	reader by hand: the lstat of a pool candidate of the prune scan
+Sources/DirigibleCore/UnusedFiles.swift	case .pool, .stray: clips.appending(path: item.path)	reader by hand: the move of a scanned pool item
+Sources/DirigibleCore/UnusedFiles.swift	&& lstat(clips.appending(path: name).path, &info) == 0 && info.st_mode & S_IFMT == S_IFREG	a name from the listing of Clips/
+Sources/DirigibleCore/UnusedFiles.swift	identities.formUnion(FileIdentity.both(clips.appending(path: path).path))	reader by hand: the identity of a kept pool file
+Sources/DirigibleMCP/ErrorText.swift	"cannot read \(package)/\(clipsFolderName): \(String(cString: strerror(code)))."	the folder name in an error; it opens nothing
+Sources/DirigibleMCP/PruneWork.swift	lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }	the file name in an output line; it opens nothing

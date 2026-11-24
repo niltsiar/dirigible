@@ -259,19 +259,23 @@ struct ParityTests {
     }
 
     /// The leaf commands that the code spans of a guide text do not name, sorted. A span names a
-    /// leaf as `dirigible <leaf>` or `swift run dirigible <leaf>`, or starts with `<leaf>` (the
-    /// guide writes `bin add` after `dirigible bin list`).
+    /// leaf as `dirigible <leaf>` or `swift run dirigible <leaf>`. A leaf with a space also has a
+    /// span that starts with `<leaf>` (the guide writes `bin add` after `dirigible bin list`). A
+    /// one-word leaf has no bare span: a code span of one common word is no command name.
     static func leavesNotNamed(in guide: String, among leaves: Set<String>) -> [String] {
-        let spans = guide.matches(of: /`([^`\n]+)`/).map {
-            String($0.1.trimmingPrefix("swift run ").trimmingPrefix("dirigible "))
+        let spans = guide.matches(of: /`([^`\n]+)`/).map { String($0.1.trimmingPrefix("swift run ")) }
+        func names(_ span: String, _ leaf: String) -> Bool {
+            let command = span.trimmingPrefix("dirigible ")
+            let prefixed = command.count < span.count
+            return (prefixed || leaf.contains(" ")) && (command == leaf || command.hasPrefix(leaf + " "))
         }
-        return leaves.filter { leaf in !spans.contains { $0 == leaf || $0.hasPrefix(leaf + " ") } }.sorted()
+        return leaves.filter { leaf in !spans.contains { names($0, leaf) } }.sorted()
     }
 
     @Test func theLeafScanFindsACommandThatTheTextDoesNotName() {
         let leaves: Set = ["clip trim", "clip split", "peaks"]
         let lacking = "Run `dirigible clip split Demo.dirigible` then `peaks`. The words clip trim are no span."
-        #expect(Self.leavesNotNamed(in: lacking, among: leaves) == ["clip trim"])
+        #expect(Self.leavesNotNamed(in: lacking, among: leaves) == ["clip trim", "peaks"])
         let naming = "`swift run dirigible clip split Demo.dirigible`, `clip trim Demo.dirigible`, `dirigible peaks`."
         #expect(Self.leavesNotNamed(in: naming, among: leaves).isEmpty)
         let near = "`clip trim-all Demo.dirigible`, `clip split`, `dirigible peaks`."

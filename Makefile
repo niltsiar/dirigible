@@ -78,9 +78,12 @@ bench:
 # Each slow-test gate has its func on the next line, so SLOW_TESTS finds every slow test.
 # make check runs this grep, because make check does not run the slow tests. Each PUSH_SKIP name
 # is a bench file under Tests/: its name has Benchmark. No test waits with a raw .wait(timeout:
-# outside the files of scripts/check-waits.allow: a hold of product work goes through Gate.
+# outside the files of scripts/check-waits.allow: a hold of product work goes through Gate. No clip
+# path or open sink in Sources/ passes outside scripts/check-clip-paths.allow: a clip reader opens
+# the name of poolFileName.
 check-slow-gates:
 	scripts/check-waits.sh
+	scripts/check-clip-paths.sh
 	@for n in $(PUSH_SKIP); do test -n "$$(find Tests -name "$$n.swift" 2>/dev/null)" \
 		|| { echo "check-slow-gates: PUSH_SKIP names $$n, which has no file under Tests/"; exit 1; }; \
 		case $$n in *Benchmark*) ;; *) echo "check-slow-gates: PUSH_SKIP names $$n, which is not a Benchmark file"; exit 1;; esac; done
@@ -130,6 +133,7 @@ HOOK_TESTS = \
 	scripts/run-checks.test.sh \
 	scripts/check-plan.test.sh \
 	scripts/check-waits.test.sh \
+	scripts/check-clip-paths.test.sh \
 	.claude/skills/deliver/scripts/mutation-pass.test.sh \
 	.claude/skills/reflect/scripts/cost.test.sh \
 	.claude/skills/interrogate/scripts/free-lens-reads.test.sh \

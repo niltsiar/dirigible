@@ -268,7 +268,7 @@ def rule_releases():
     for sec in re.split(r"(?m)^(?=## )", rel):
         m = re.match(r"## Release (\d+):", sec)
         if m and not re.search(r"(?m)^(- )?Status: closed\b", sec) and any(d > int(m.group(1)) for d in done):
-            miss("docs/requirements/releases.md", f"Release {m.group(1)} has no `Status: closed` line, and a feature of a later release is done")
+            miss("docs/requirements/releases.md", f"Release {m.group(1)} has no `Status: closed` line, and a feature of a later release is done: run the docs coherence pass of docs/workflow/release-cycle.md, End of a release, then add Status: closed")
     for n, line in enumerate(rel.splitlines(), 1):
         if re.search(r"\(done\b", line):
             miss(f"docs/requirements/releases.md:{n}", "a `(done ...)` mark: features.md holds the state")

@@ -96,7 +96,7 @@ good; sed -i '' 's/Feature F04\./Feature F04 and F02./' "$tmp/docs/decisions/000
 
 # releases
 good; sed -i '' 's/| F03 | Three | user | Release 8 |/| F03 | Three | user | done, Release 9 run 1 |/' "$tmp/docs/requirements/features.md"
-bad 'an open Release 8 while a feature of Release 9 is done' 'Release 8 has no `Status: closed` line'
+bad 'an open Release 8 while a feature of Release 9 is done' 'Release 8 has no `Status: closed` line.*run the docs coherence pass of docs/workflow/release-cycle.md, End of a release'
 good; sed -i '' 's/| F03 | Three | user | Release 8 |/| F03 | Three | user | done, Release 9 run 1 |/' "$tmp/docs/requirements/features.md"
 printf '\nStatus: closed\n' >> "$tmp/docs/requirements/releases.md"; ok 'a closed Release 8 while a feature of Release 9 is done'
 good; sed -i '' 's/| F03 | Three | user | Release 8 |/| F03 | Three | user | done, Release 8 run 2 |/' "$tmp/docs/requirements/features.md"; ok 'each feature of the open Release 8 done'

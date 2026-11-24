@@ -1,3 +1,4 @@
+import DirigibleCore
 import Foundation
 
 /// Why `openChecked` opened no file.
@@ -45,4 +46,20 @@ func openChecked(_ path: String, in folder: Int32) throws(CheckedOpenFault) -> (
         throw .notRegularFile
     }
     return (descriptor, CheckedFile(info))
+}
+
+/// `openChecked` of the pool file at `name`, and of `other` once when `name` is missing: a package
+/// job of another process can convert the file after the resolve (decision 0072). Returns the name
+/// that it opened.
+func openChecked(_ name: PoolFileName, other: PoolFileName?, in folder: Int32) throws(CheckedOpenFault) -> (
+    descriptor: Int32, file: CheckedFile, name: PoolFileName
+) {
+    do throws(CheckedOpenFault) {
+        let opened = try openChecked(name.name, in: folder)
+        return (opened.descriptor, opened.file, name)
+    } catch .missing {
+        guard let other else { throw .missing }
+        let opened = try openChecked(other.name, in: folder)
+        return (opened.descriptor, opened.file, other)
+    }
 }

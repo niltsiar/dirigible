@@ -56,12 +56,13 @@ struct ExcerptCopyPlan<Value> {
 /// `session.xml`. A throw before the first rename leaves no new name in `Clips/`; after it, nothing
 /// deletes a renamed WAV (0040). The track paste (`pasteClipboard`) and the favorite add
 /// (`Favorites.add`) call it. `spans` gives, by record ID, the source frames that a record copies
-/// (`Excerpt.cropped`); a record with no span copies its whole file.
+/// (`Excerpt.cropped`); a record with no span copies its whole file. `at` runs at each point of
+/// `ExcerptCopyPoint` (tests only).
 func copyExcerptFiles<Value>(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
     spans: [FileID: Range<Frames>] = [:], freeBytes: () -> Int64, canClone: (URL, URL) -> Bool,
     progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool, flush: @escaping (String) -> Int32?,
-    place: (inout Session, Excerpt) throws(SessionError) -> Value
+    at: (ExcerptCopyPoint) -> Void = { _ in }, place: (inout Session, Excerpt) throws(SessionError) -> Value
 ) throws(PasteError) -> (session: Session, value: Value) {
     let excerpt = clipboard.excerpt
     let same = PackageID.same(clipboard.origin, identity)
@@ -86,7 +87,7 @@ func copyExcerptFiles<Value>(
     var final = plan
     try copyFiles(
         plan.copies, from: source, to: package, rates: (rate, excerpt.sampleRate), spans: spans, freeBytes: freeBytes,
-        canClone: canClone, progress: progress, isCancelled: isCancelled, flush: flush
+        canClone: canClone, progress: progress, isCancelled: isCancelled, flush: flush, at: at
     ) { (converted: [FileID: (length: Frames, gain: Gain)]) throws(PasteError) in
         guard !converted.isEmpty else { return }
         // The real lengths differ from the prediction (the converter floors, and a record can be
@@ -104,33 +105,54 @@ func copyExcerptFiles<Value>(
     return (final.session, final.value)
 }
 
+/// A point of `copyExcerptFiles` where a test runs a package job of another process.
+enum ExcerptCopyPoint: Hashable {
+    /// The first pass resolved the source file with this pool path, and opened nothing yet.
+    case resolved(String)
+    /// The space check passed, and the second pass opened nothing yet.
+    case checked
+}
+
 /// The file half of `copyExcerptFiles`: the checks, the copies, the conversions (when the rates
-/// differ), and the cuts (a record with a span), the read-back, `beforeRenames` with the frames and the
-/// gain of each converted or cut file, and the renames, with `NewClipFiles` (decision 0056).
+/// differ or the source is a FLAC), and the cuts (a record with a span), the read-back,
+/// `beforeRenames` with the frames and the gain of each converted or cut file, and the renames, with
+/// `NewClipFiles` (decision 0056). The first pass resolves each source once and keeps its name on
+/// disk (decision 0072); the second pass opens that name, and a source that resolves to another
+/// name then throws `.sourceChanged`.
 private func copyFiles(
     _ copies: [(record: AudioFile, copy: AudioFile)], from source: URL, to package: URL,
     rates: (target: Int, source: Int), spans: [FileID: Range<Frames>],
     freeBytes: () -> Int64, canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void,
-    isCancelled: @escaping () -> Bool, flush: @escaping (String) -> Int32?,
+    isCancelled: @escaping () -> Bool, flush: @escaping (String) -> Int32?, at: (ExcerptCopyPoint) -> Void,
     beforeRenames: ([FileID: (length: Frames, gain: Gain)]) throws(PasteError) -> Void
 ) throws(PasteError) {
     let converts = rates.target != rates.source
     var sizes: [Int64] = []
+    var names: [PoolFileName] = []
     var pairs: [(source: URL, size: Int64, target: URL)] = []
     var whole: [Int] = []
     var writtenBytes: Int64 = 0
     for (index, (record, copy)) in copies.enumerated() {
-        // A link in Clips/ of the source copies as its target: clonefile and copyfile follow it.
-        let url = source.appending(path: "\(clipsFolderName)/\(record.path)")
-        guard sourceIsDownloaded(url) else { throw .notDownloaded(file: record.path) }
+        var name = poolFileName(record, in: source)
+        at(.resolved(record.path))
         var info = stat()
-        guard stat(url.path, &info) == 0 else {
-            throw errno == ENOENT ? .sourceMissing(file: record.path) : .write(file: record.path, errno: errno)
+        var code = stat(source.appending(path: name.name).path, &info) == 0 ? 0 : errno
+        if code == ENOENT, let other = name.other(of: record) {
+            name = other
+            code = stat(source.appending(path: name.name).path, &info) == 0 ? 0 : errno
+        }
+        // A link in Clips/ of the source copies as its target: clonefile and copyfile follow it.
+        let url = source.appending(path: name.name)
+        guard sourceIsDownloaded(url) else { throw .notDownloaded(file: record.path) }
+        guard code == 0 else {
+            throw code == ENOENT ? .sourceMissing(file: record.path) : .write(file: record.path, errno: code)
         }
         // A FIFO would hold the AVAudioFile read below until a writer came.
         guard info.st_mode & S_IFMT == S_IFREG else { throw .sourceChanged(file: record.path) }
+        names.append(name)
         let span = spans[record.id]
-        guard converts || span != nil else {
+        // A FLAC never clones or copies: the target gets a WAV.
+        guard converts || span != nil || name.form == .flac else {
             sizes.append(Int64(info.st_size))
             pairs.append((url, Int64(info.st_size), package))
             whole.append(index)
@@ -158,13 +180,16 @@ private func copyFiles(
         throw PasteError(error)
     }
     defer { files.discard() }
+    at(.checked)
     let total = max(sizes.reduce(0, +), 1)
     var done: Int64 = 0
     var converted: [FileID: (length: Frames, gain: Gain)] = [:]
     for (index, (record, copy)) in copies.enumerated() {
         let size = sizes[index]
         guard !isCancelled() else { throw .cancelled }
-        let from = source.appending(path: "\(clipsFolderName)/\(record.path)")
+        // A package job of another process can convert the source between the passes.
+        guard poolFileName(record, in: source) == names[index] else { throw .sourceChanged(file: record.path) }
+        let from = source.appending(path: names[index].name)
         let temporary: URL
         do throws(NewClipFault) {
             temporary = try files.add(stem: (copy.path as NSString).deletingPathExtension)
@@ -172,7 +197,7 @@ private func copyFiles(
             throw PasteError(error)
         }
         let base = done
-        if converts || spans[record.id] != nil {
+        if converts || spans[record.id] != nil || names[index].form == .flac {
             let share = { (fraction: Double) in progress((Double(base) + fraction * Double(size)) / Double(total)) }
             converted[record.id] = try convert(
                 from, record: record, copy: copy, rate: rates.target, span: spans[record.id], into: temporary,
@@ -185,7 +210,8 @@ private func copyFiles(
             }
             // Its data is on disk before the rename; a conversion flushes in `ClipConversion`.
             if let code = flush(temporary.path) { throw .write(file: copy.path, errno: code) }
-            guard let read = try? AVAudioFile(forReading: temporary),
+            // AVAudioFile reads a FLAC under any name, so the header check comes first.
+            guard hasWAVHeader(temporary), let read = try? AVAudioFile(forReading: temporary),
                 // At least the record length, as `openMedia` reads it: a record can be shorter.
                 read.length >= AVAudioFramePosition(copy.length.count),
                 Int(read.fileFormat.channelCount) == copy.layout.channelCount
@@ -199,7 +225,18 @@ private func copyFiles(
     do throws(NewClipFault) { try files.commit() } catch { throw PasteError(error) }
 }
 
-/// One conversion of a pool WAV, or of its `span`, into `temporary` at `rate`, through the
+/// True when the file at `url` starts with a `RIFF` or `RF64` header of the form `WAVE`.
+private func hasWAVHeader(_ url: URL) -> Bool {
+    guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+    defer { try? handle.close() }
+    guard let head = try? handle.read(upToCount: 12), head.count == 12 else { return false }
+    let (chunk, form) = (
+        String(decoding: head.prefix(4), as: UTF8.self), String(decoding: head.suffix(4), as: UTF8.self)
+    )
+    return (chunk == "RIFF" || chunk == "RF64") && form == "WAVE"
+}
+
+/// One conversion of a pool file, or of its `span`, into `temporary` at `rate`, through the
 /// conversion of import (`convertToWAV`, 0040). At the rate of the file it keeps each sample.
 /// `ClipConversion` flushes the WAV and reads its length back.
 private func convert(

@@ -26,11 +26,13 @@ public struct NewEpisode: Hashable, Sendable {
 extension Session {
     /// The session of a new episode from this session: the same tracks, clips, markers, and show
     /// fields. It removes the transcripts, the episode fields of one episode, each file outside
-    /// `filesInUse`, and each capture that no kept file names. A pending take throws `.pendingTake`.
+    /// `filesInUse`, each capture that no kept file names, and the archive state: the copy gets
+    /// WAVs (decision 0072). A pending take throws `.pendingTake`.
     public func newEpisode() throws(SessionError) -> NewEpisode {
         guard recording == nil else { throw .pendingTake }
         var copy = self
         copy.transcripts = [:]
+        copy.archive = nil
         var episode = self.episode
         episode.title = nil
         episode.number = nil

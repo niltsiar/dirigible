@@ -109,11 +109,13 @@ good; sed -i '' 's/^1\. \*\*x (F01)\.\*\*/1. **x (F01).** (done in a run)/' "$tm
 good; printf 'See 0001 for the format.\n' >> "$tmp/AGENTS.md"; bad 'a cite of a number with no record' '0001 names no decision record'
 good; printf 'See 0099 and `0001` and item 0001.\n' >> "$tmp/AGENTS.md"; ok 'a number above the last record, a code span, and an item number'
 good; printf 'See 0004.\n' >> "$tmp/AGENTS.md"; bad 'a cite of a gap number outside the gap sentence' '0004 names no decision record'
+good; printf 'Backlog 0001 and Item 0001 come first.\n' >> "$tmp/AGENTS.md"; ok 'a capital Backlog or Item before a number'
 
 # private
 good; printf 'See .scratchpads/runs/x for it.\n' >> "$tmp/README.md"; bad 'a path into the scratch folder in the README' 'README.md:[0-9]+: a path into the local scratch folder'
 good; printf 'See the .scratchpads folder.\n' >> "$tmp/README.md"; printf 'Use .scratchpads/runs/x.\n' >> "$tmp/AGENTS.md"; ok 'the bare folder name, and a path in AGENTS.md'
 good; printf 'It waits for backlog item 1234.\n' >> "$tmp/docs/decisions/0002-x.md"; bad 'a backlog number in a decision record' 'docs/decisions/0002-x.md:[0-9]+: a backlog number'
+good; printf 'Deferred: each take has one clock. Backlog 1530 runs it first.\n' >> "$tmp/docs/decisions/0002-x.md"; bad 'a capital Backlog number in a decision record' 'docs/decisions/0002-x.md:[0-9]+: a backlog number, which a reader cannot open: Backlog 1530'
 good; printf 'VER-1\tx\tkeep\tx\t(backlog 4321): why\n' >> "$tmp/docs/workflow/rules.tsv"; bad 'a backlog number in a table of docs' 'docs/workflow/rules.tsv:[0-9]+: a backlog number'
 good; printf 'See item 1234 and item 12.\n' >> "$tmp/AGENTS.md"; ok 'an item number outside docs'
 

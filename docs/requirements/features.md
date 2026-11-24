@@ -11,10 +11,10 @@ This file lists each feature that we found, one row for each ID. It is the one p
 
 ## Rules
 
-- Land: the landing run of an ID sets `done, Release <n> run <m>` in its own pull request. The `- Lands:` line of `run.md` names the IDs of the land, or says `none`. `check-governance.sh` refuses the land when an ID of the line keeps its state. A part that stays open goes after `; Later: `.
+- Land: the landing run of an ID sets `done, Release <n> run <m>` in its own pull request. The `- Lands:` line of `run.md`, the run file that stays local to the lead (`docs/workflow/release-cycle.md`), names the IDs of the land, or says `none`. `check-governance.sh` refuses the land when an ID of the line keeps its state. A part that stays open goes after `; Later: `.
 - Run number: a run that lands an ID takes the lowest open release and the next run number of that release. A feature of a later release that lands early moves to that release, with `(moved from Release <k>)` in its state. `check-governance.sh` refuses a new run number that is not 1 + the highest run number of that release at the base. The order in `releases.md` fixes no version.
 - IDs: a new request gets the next free ID. An ID is never used again. The `Feature` and `Req` cells of a row stay as they are. A `Release <n> run <m>` part of a done state stays.
-- From: the cell names a reference app, a brief ID such as `brief R12`, or a role with a date such as `user 2026-10-14` or `tester 2026-10-04`. It names no scratch label and no run.
+- From: the cell names a reference app, spelled as `docs/provenance.md` spells it, a brief ID such as `brief R12`, or a role with a date such as `user 2026-10-14` or `tester 2026-10-04`. It names no scratch label and no run.
 - Role: a source names a role, never a person. It has no name, no handle, and no pronoun for a tester.
 - Req: the cell holds the requirement IDs of `brief.md`. A catalog ID keeps the Req of the catalog, also `-`.
 
@@ -30,7 +30,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F08 | Pre-roll, record at the playhead | Hindenburg PRO | done, Release 6 runs 2 and 3 | R7 |
 | F09 | Retroactive capture of a take | Logic Pro | Later | - |
 | F10 | Transport: play, stop, go to start or end | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4a; Later: Stop when stopped goes to the start, as in Logic | R7 |
-| F11 | Select, cut, copy, paste, delete clip | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4c; Later: progress and cancel for a paste across sessions | R7 |
+| F11 | Select, cut, copy, paste, delete clip | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4c; Later: progress and cancel for an agent paste with `source` | R7 |
 | F12 | Split clip at the playhead or at the selection edges | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4c | R7 |
 | F13 | Move and trim clip | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 runs 4c and 4d | R7 |
 | F14 | Undo and redo | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 1 | R7 |
@@ -79,89 +79,89 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F65 | UI text in English and Spanish, follows macOS | GarageBand, Logic Pro | done, Release 1 run 3 | R13 |
 | F66 | Language preference in the app | brief R13 | done, Release 2 run 15 | R13 |
 | F67 | Session interchange (AES31, AAF, FCPXML, Pro Tools) | Hindenburg PRO | Later | R5 |
-| F68 | Ripple trim: an edge drag with a modifier ripples the tracks | FCP | done, Release 2 run 12 | R7 |
-| F69 | Roll and slip trims | FCP | done, Release 6 run 6 | R7 |
-| F70 | Follow track: in a ripple, its clips move whole and never split | FCP | done, Release 6 run 7 | R7 |
-| F71 | Connected clips: a clip anchored to a clip on another track | FCP | Later | R7 |
-| F72 | Track role (dialogue, music, effects) with a color | FCP | done, Release 4 run 9 (moved from Release 7) | R10 |
-| F73 | Stem export: one file per track or per role, all from the same start | FCP | done, Release 7 runs 1 and 2 (the command line, the MCP tool, and File > Export Stems... in the app) | R11 |
-| F74 | Sync a clip to another track by its audio waveform | FCP | done, Release 6 run 13 and Release 6 run 14 | R7 |
-| F75 | Gain envelope per clip; a range gain makes ramps | FCP | done, Release 4 runs 7, 8 and 26 (moved from Release 7) | R7 |
-| F76 | Session index: a list of clips, markers, and chapters with search | FCP | done, Release 6 run 9 and Release 6 run 10 | R7 |
-| F77 | Hum removal at 50 or 60 Hz | FCP | done, Release 4 run 25 | R8 |
-| F78 | Waveform vertical zoom | FCP | done, Release 6 run 11 and Release 6 run 12 | R7 |
+| F68 | Ripple trim: an edge drag with a modifier ripples the tracks | Final Cut Pro | done, Release 2 run 12 | R7 |
+| F69 | Roll and slip trims | Final Cut Pro | done, Release 6 run 6 | R7 |
+| F70 | Follow track: in a ripple, its clips move whole and never split | Final Cut Pro | done, Release 6 run 7 | R7 |
+| F71 | Connected clips: a clip anchored to a clip on another track | Final Cut Pro | Later | R7 |
+| F72 | Track role (dialogue, music, effects) with a color | Final Cut Pro | done, Release 4 run 9 (moved from Release 7) | R10 |
+| F73 | Stem export: one file per track or per role, all from the same start | Final Cut Pro | done, Release 7 runs 1 and 2 (the command line, the MCP tool, and File > Export Stems... in the app) | R11 |
+| F74 | Sync a clip to another track by its audio waveform | Final Cut Pro | done, Release 6 run 13 and Release 6 run 14 | R7 |
+| F75 | Gain envelope per clip; a range gain makes ramps | Final Cut Pro | done, Release 4 runs 7, 8 and 26 (moved from Release 7) | R7 |
+| F76 | Session index: a list of clips, markers, and chapters with search | Final Cut Pro | done, Release 6 run 9 and Release 6 run 10 | R7 |
+| F77 | Hum removal at 50 or 60 Hz | Final Cut Pro | done, Release 4 run 25 | R8 |
+| F78 | Waveform vertical zoom | Final Cut Pro | done, Release 6 run 11 and Release 6 run 12 | R7 |
 | F79 | No feature: the catalog skipped this ID | - | Dropped (ID not used) | - |
-| F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | Logic | done, Release 6 run 8 | R7 |
-| F81 | Close gaps between the selected clips | Logic | done, Release 6 run 5 | R7 |
-| F82 | Snap to clip edges with an alignment guide | GarageBand, Logic | done, Release 3 run 3 (v0.3.4) | R7 |
-| F83 | Zoom toggle and zoom history | Logic | done, Release 2 run 2; Later: center the playhead after a zoom, as in Hindenburg Narrator | R1 |
-| F84 | Clip inspector with numeric gain and fades | Logic | done, Release 2 run 11b-2 | R7 |
-| F85 | Width of the track headers; height of one track | Logic | Later (the height of one track; View > Taller Tracks and Shorter Tracks change the height of all tracks; the header width is done, Release 2 run 1b) | R1 |
-| F86 | Help tags that show the key equivalent | Logic | Later | R1 |
-| F87 | Remove unused clip files | GarageBand, Logic | done, Release 3 run 8 (v0.3.8) | R5 |
-| F88 | Session alternatives | Logic | Later | R5 |
-| F89 | Render a range through an effect | Logic | done, Release 4 run 19 (the clip render; a range cut at the range edges stays Later) | R8, R10 |
+| F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | Logic Pro | done, Release 6 run 8 | R7 |
+| F81 | Close gaps between the selected clips | Logic Pro | done, Release 6 run 5 | R7 |
+| F82 | Snap to clip edges with an alignment guide | GarageBand, Logic Pro | done, Release 3 run 3 (v0.3.4) | R7 |
+| F83 | Zoom toggle and zoom history | Logic Pro | done, Release 2 run 2; Later: center the playhead after a zoom, as in Hindenburg Narrator | R1 |
+| F84 | Clip inspector with numeric gain and fades | Logic Pro | done, Release 2 run 11b-2 | R7 |
+| F85 | Width of the track headers; height of one track | Logic Pro | Later (the height of one track; View > Taller Tracks and Shorter Tracks change the height of all tracks; the header width is done, Release 2 run 1b) | R1 |
+| F86 | Help tags that show the key equivalent | Logic Pro | done, Release 2 run 1a (the toolbar items); Later: help tags of the track header controls | R1 |
+| F87 | Remove unused clip files | GarageBand, Logic Pro | done, Release 3 run 8 (v0.3.8) | R5 |
+| F88 | Session alternatives | Logic Pro | Later | R5 |
+| F89 | Render a range through an effect | Logic Pro | done, Release 4 run 19 (the clip render; a range cut at the range edges stays Later) | R8, R10 |
 | F90 | Lock a track | GarageBand | Later | R7 |
-| F91 | Take folders and comps for punch-in | Logic | Later | R7 |
-| F92 | Time display format and a large time window | Logic | Later (also: the selection length in the time display, as in Hindenburg, and a click on the time to type a time) | R7 |
-| F93 | Customizable toolbar | Logic | done, Release 2 run 1a | R1 |
+| F91 | Take folders and comps for punch-in | Logic Pro | Later | R7 |
+| F92 | Time display format and a large time window | Logic Pro | Later (also: the selection length in the time display, as in Hindenburg, and a click on the time to type a time) | R7 |
+| F93 | Customizable toolbar | Logic Pro | done, Release 2 run 1a | R1 |
 | F94 | A track volume fader in the track header | Hindenburg PRO | done, Release 3 run 2 (v0.3.4) | R7 |
-| F95 | Export one file for each chapter or marker | Audition, Audacity; user 2026-10-14 | done, Release 5 run 6 (the Files pop-up of File > Export and Export Selection, `dirigible export --split`, and the `split` argument of the agent tool `export`) | R11 |
-| F96 | Silence tool with a review list: shorten, mute, or mark each long pause | Audition, Audacity; user 2026-10-14 | done, Release 5 run 4 (the Silences tab with Shorten, Mute, Mark, and Skip for each row, in one undo step) | R10 |
-| F97 | Clip audio type (voice, music, call) that sets the defaults | Audition; user 2026-10-14 | Later | R10 |
-| F98 | Reduce rumble (a high-pass filter) | Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
-| F99 | Repair clipped peaks (de-clip) | Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
-| F100 | Soften harsh "s" sounds (de-ess) | SoundCraft; user 2026-10-14 | done, Release 4 run 29 | R8 |
-| F101 | Fit a music bed to a duration | Audition; user 2026-10-14 | Later | R7 |
-| F102 | Agent tools on files outside the session folder (MCP roots) | SoundCraft; user 2026-10-14 | Later | R16 |
-| F103 | Match the loudness of files outside a session | Audition | Later | R9 |
-| F104 | Noise gate or expander | Logic, Audacity, SoundCraft | Later | R8 |
-| F105 | Click repair | Audition, Audacity | Later | R8 |
-| F106 | Health check of a session and its files | SoundCraft | Later | R5 |
-| F107 | Markers during a take | Hindenburg; user 2026-10-14 | done, Release 4 run 21 | R7 |
-| F108 | A drop of files on an empty session makes one track for each file | Logic; user 2026-10-14 | done, Release 4 run 22 | R7 |
+| F95 | Export one file for each chapter or marker | Adobe Audition, Audacity; user 2026-10-14 | done, Release 5 run 6 (the Files pop-up of File > Export and Export Selection, `dirigible export --split`, and the `split` argument of the agent tool `export`) | R11 |
+| F96 | Silence tool with a review list: shorten, mute, or mark each long pause | Adobe Audition, Audacity; user 2026-10-14 | done, Release 5 run 4 (the Silences tab with Shorten, Mute, Mark, and Skip for each row, in one undo step) | R10 |
+| F97 | Clip audio type (voice, music, call) that sets the defaults | Adobe Audition; user 2026-10-14 | Later | R10 |
+| F98 | Reduce rumble (a high-pass filter) | Adobe Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
+| F99 | Repair clipped peaks (de-clip) | Adobe Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
+| F100 | Soften harsh "s" sounds (de-ess) | soundcraft; user 2026-10-14 | done, Release 4 run 29 | R8 |
+| F101 | Fit a music bed to a duration | Adobe Audition; user 2026-10-14 | Later | R7 |
+| F102 | Agent tools on files outside the session folder (MCP roots) | soundcraft; user 2026-10-14 | Later | R16 |
+| F103 | Match the loudness of files outside a session | Adobe Audition | Later | R9 |
+| F104 | Noise gate or expander | Logic Pro, Audacity, soundcraft | Later | R8 |
+| F105 | Click repair | Adobe Audition, Audacity | Later | R8 |
+| F106 | Health check of a session and its files | soundcraft | Later | R5 |
+| F107 | Markers during a take | Hindenburg PRO; user 2026-10-14 | done, Release 4 run 21 | R7 |
+| F108 | A drop of files on an empty session makes one track for each file | Logic Pro; user 2026-10-14 | done, Release 4 run 22 | R7 |
 | F109 | A click in an empty lane selects its track | user 2026-10-14 | done, Release 4 run 22 | R7 |
 | F110 | Render link: change the amount of a rendered effect later, or restore the original | user 2026-10-14 | done, Release 4 run 23 (Reduce Noise; voice match adds its kind) | R8 |
-| F111 | Transcript cut edges at the word edges | Descript, Hindenburg; user 2026-10-14 | done, Release 3 run 10 and Release 5 run 3 (a cut by words lands at the exact word times, as the user chose for now, with the quietest point after tester feedback; the measurement is in docs/research/cut-edges.md); Later: the quietest point near the word edge, after tester feedback | R7 |
-| F112 | Transcription in the app (whisper.cpp) | Hindenburg; user 2026-10-15 | done, Release 5 runs 2 and 5 (Tools > Transcribe Track..., `dirigible transcribe`, and the agent tool `transcribe`: whisper.cpp on the CPU, with three models that download on first use; run 5: a model file of the user, checked in a helper process, and a hint when a firewall holds the download) | R7 |
+| F111 | Transcript cut edges at the word edges | Descript, Hindenburg PRO; user 2026-10-14 | done, Release 3 run 10 and Release 5 run 3 (a cut by words lands at the exact word times, as the user chose for now, with the quietest point after tester feedback; the measurement is in docs/research/cut-edges.md); Later: the quietest point near the word edge, after tester feedback | R7 |
+| F112 | Transcription in the app (whisper.cpp) | Hindenburg PRO; user 2026-10-15 | done, Release 5 runs 2 and 5 (Tools > Transcribe Track..., `dirigible transcribe`, and the agent tool `transcribe`: whisper.cpp on the CPU, with three models that download on first use; run 5: a model file of the user, checked in a helper process, and a hint when a firewall holds the download) | R7 |
 | F113 | More UI languages: Portuguese, German, French, Italian, Dutch | user 2026-10-14 | done, Release 4 run 2 | R13 |
 | F114 | An armed app track before a take: a level meter and the permission state | brief R12 | done, Release 4 run 24 | R12 |
-| F115 | A taller automatic track height | Hindenburg; tester 2026-10-04 | Dropped (covered by View > Taller Tracks) | R1 |
+| F115 | A taller automatic track height | Hindenburg PRO; tester 2026-10-04 | Dropped (covered by View > Taller Tracks) | R1 |
 | F116 | Record (input) gain for each device track | user 2026-10-14 | Later | R3 |
 | F117 | The agent log of a session in the app | user 2026-10-14 | Later | R16 |
 | F118 | Transcript import of SRT and Podcasting 2.0 JSON | Podcasting 2.0 | done, Release 4 run 11; Later: Podcasting 2.0 JSON, VTT word time tags | R7 |
 | F119 | Transcript speakers: names, and a speaker-to-track map | Descript | Later | R7 |
-| F120 | Transcript text corrections, shown cut words, and find | Hindenburg, Descript | Later | R7 |
+| F120 | Transcript text corrections, shown cut words, and find | Hindenburg PRO, Descript | Later | R7 |
 | F121 | Transcript export: VTT, SRT, and JSON | Podcasting 2.0, Apple Podcasts, Spotify | done, Release 4 run 11; Later: JSON | R10 |
 | F122 | Chapters import from chapters.json | Podcasting 2.0 | done, Release 4 run 4 | R10 |
-| F123 | Cue point import from recorder files, and the marker number keys | Hindenburg | Later | R7 |
-| F124 | A second copy of each take on a second disk | REAPER; tester 2026-10-11 | Later | R6 |
-| F125 | Episode metadata in WAV and FLAC, a three-state explicit flag, keywords, and category | Hindenburg | Later | R10 |
-| F126 | Fade curves: linear, S-curve, and -3 dB | Final Cut Pro, Logic | Later | R7 |
-| F127 | Marquee selection of clips | Logic, Final Cut Pro | done, Release 4 run 27 (moved from Later) | R7 |
-| F128 | A short automatic fade at each cut | Hindenburg | Later | R7 |
+| F123 | Cue point import from recorder files, and the marker number keys | Hindenburg PRO | Later | R7 |
+| F124 | A second copy of each take on a second disk | Reaper; tester 2026-10-11 | Later | R6 |
+| F125 | Episode metadata in WAV and FLAC, a three-state explicit flag, keywords, and category | Hindenburg PRO | Later | R10 |
+| F126 | Fade curves: linear, S-curve, and -3 dB | Final Cut Pro, Logic Pro | Later | R7 |
+| F127 | Marquee selection of clips | Logic Pro, Final Cut Pro | done, Release 4 run 27 (moved from Later) | R7 |
+| F128 | A short automatic fade at each cut | Hindenburg PRO | Later | R7 |
 | F129 | An output device choice for playback | brief R7 | Later | R7 |
-| F130 | Snap to a time grid, and snap of a marker drag | Logic, Final Cut Pro; tester 2026-10-04 | Later | R7 |
-| F131 | More export formats and options: AIFF, ALAC, Opus, BWF, 32 kHz, MP3 at 32 and 320 kbit/s | Hindenburg, Logic | Later | R11 |
+| F130 | Snap to a time grid, and snap of a marker drag | Logic Pro, Final Cut Pro; tester 2026-10-04 | Later | R7 |
+| F131 | More export formats and options: AIFF, ALAC, Opus, BWF, 32 kHz, MP3 at 32 and 320 kbit/s | Hindenburg PRO, Logic Pro | Later | R11 |
 | F132 | Compact session: FLAC clip files | user 2026-10-05 | Later | R6 |
-| F133 | Exclusive solo and solo safe | Audition | Later | R7 |
-| F134 | Crossfade shapes: an asymmetric crossfade and a moved pivot | Logic, Hindenburg | Later | R7 |
-| F135 | Inspector extras: relative gain, a scrub drag, and a File section | Logic, Final Cut Pro, Hindenburg | Later | R7 |
-| F136 | JKL: hold K for fast | Hindenburg | Later | R7 |
-| F137 | Move a clip to another track with a key | Hindenburg | Later | R7 |
-| F138 | Import extras: paste a Finder file, and promised files from Mail or Music | Hindenburg, Logic | Later | R7 |
-| F139 | Double-click and triple-click on a clip or a gap, and a drag of a clip to Finder | Hindenburg | Later | R7 |
-| F140 | Recovery extras: salvage a damaged CAF, reveal an unplaced segment, a missing-audio dialog | REAPER, Hindenburg | Later | R6 |
-| F141 | Reopen the last session at launch | Logic | Later | R1 |
-| F142 | Edit > Insert Silence | Logic | Later | R7 |
-| F143 | Keyboard ripple trims (Q and W) | Hindenburg | Later | R7 |
-| F144 | Track > Arm Track (Shift-R), and Option-click to arm all tracks | Hindenburg, Pro Tools | Later | R3 |
-| F145 | Agent setup for MCP clients other than Claude Code | user 2026-10-12 | Later | R16 |
-| F146 | The take length during a take | Hindenburg | Later | R1 |
+| F133 | Exclusive solo and solo safe | Adobe Audition | Later | R7 |
+| F134 | Crossfade shapes: an asymmetric crossfade and a moved pivot | Logic Pro, Hindenburg PRO | Later | R7 |
+| F135 | Inspector extras: relative gain, a scrub drag, and a File section | Logic Pro, Final Cut Pro, Hindenburg PRO | Later | R7 |
+| F136 | JKL: hold K for fast | Hindenburg PRO | Later | R7 |
+| F137 | Move a clip to another track with a key | Hindenburg PRO | Later | R7 |
+| F138 | Import extras: paste a Finder file, and promised files from Mail or Music | Hindenburg PRO, Logic Pro | Later | R7 |
+| F139 | Double-click and triple-click on a clip or a gap, and a drag of a clip to Finder | Hindenburg PRO | Later | R7 |
+| F140 | Recovery extras: salvage a damaged CAF, reveal an unplaced segment, a missing-audio dialog | Reaper, Hindenburg PRO | Later | R6 |
+| F141 | Reopen the last session at launch | Logic Pro | Later | R1 |
+| F142 | Edit > Insert Silence | Logic Pro | Later | R7 |
+| F143 | Keyboard ripple trims (Q and W) | Hindenburg PRO | Later | R7 |
+| F144 | Track > Arm Track (Shift-R), and Option-click to arm all tracks | Hindenburg PRO, Pro Tools | Later | R3 |
+| F145 | Agent setup for MCP clients other than Claude Code | user 2026-10-12 | done, Release 3 run 6 (Copy Setup Command: Claude Code, Codex, opencode, any MCP app); Later: other clients | R16 |
+| F146 | The take length during a take | Hindenburg PRO | Later | R1 |
 | F147 | Agent tools for peaks, capture place, take finalize, capture add, and file add | brief R16 (decision 0041 parity list) | Later | R16 |
 | F148 | A clip mark on a live peak at 0 dBFS during a take | Audacity | Later | R3 |
 | F149 | Split a whole stereo track into L and R tracks that replace it | Audacity | Later | R7 |
-| F150 | Pan (balance) of a track | Hindenburg, Logic | Later | R7 |
+| F150 | Pan (balance) of a track | Hindenburg PRO, Logic Pro | Later | R7 |
 | F151 | Import Session: merge the tracks of another Dirigible package into the open session | Hindenburg PRO; user 2026-10-15 | done, Release 7 run 5 (File > Import Session..., dirigible import-session, and the import_session tool); Later: the drift fit of a shared voice (landing 2, after F74 L2) | R7 |
 | F152 | The record time and its warning show only under 3 hours | tester 2026-10-15 | done, Release 4 run 1 | R1 |
 | F153 | The record-over warning is a chip over the track headers, with a menu to go to the end, show the clip, or turn off record | tester 2026-10-15 | done, Release 4 run 3 | R7 |

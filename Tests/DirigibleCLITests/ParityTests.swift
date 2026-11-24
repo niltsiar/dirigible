@@ -162,11 +162,7 @@ struct ParityTests {
 
     /// The MCP section of the guide names each command with no tool, so a user knows the gap.
     @Test func theGuideNamesEachCommandWithNoTool() throws {
-        let guide = try String(
-            contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
-            encoding: .utf8)
-        let section = guide.components(separatedBy: "### Connect an AI agent").dropFirst().first ?? ""
-        let text = section.components(separatedBy: "\n### ").first ?? ""
+        let text = try Self.guideSection("Connect an AI agent")
         #expect(!text.isEmpty, "the guide has no MCP section")
         for command in Self.toolExemptions.keys.sorted() where !text.contains("`\(command)`") {
             Issue.record("the MCP section of docs/guide.md does not name \(command), a command with no tool")
@@ -190,7 +186,7 @@ struct ParityTests {
 
     /// The guide section for people that names what the agent manual gives (decision 0051, C10).
     @Test func theGuideNamesEachRecipe() throws {
-        let section = try Self.guideSection("#### What you can ask an agent")
+        let section = try Self.guideSection("What you can ask an agent")
         #expect(!section.isEmpty, "the guide has no section What you can ask an agent")
         for recipe in AgentManual.recipes where !section.contains("`\(recipe.name)`") {
             Issue.record("the agent section of docs/guide.md does not name the recipe \(recipe.name)")
@@ -210,7 +206,7 @@ struct ParityTests {
     /// Each one-word span of the agent section names a tool, an argument, an enum value, or a
     /// command word. The control: the scan finds a bad name in a guide line.
     @Test func theGuideSpansHaveAClass() throws {
-        let section = try Self.guideSection("#### What you can ask an agent")
+        let section = try Self.guideSection("What you can ask an agent")
         #expect(ManualScan.spans(in: section).count >= 5, "the scan found too few spans")
         #expect(ManualScan.spansWithNoClass(in: section).isEmpty, "\(ManualScan.spansWithNoClass(in: section))")
         #expect(ManualScan.spansWithNoClass(in: "- Ask the agent to run `clip_explode`.") == ["clip_explode"])
@@ -253,13 +249,47 @@ struct ParityTests {
         #expect(Self.manualExemptions.values.allSatisfy { !$0.isEmpty })
     }
 
-    /// The text from `heading` to the next heading of docs/guide.md, or an empty text.
-    static func guideSection(_ heading: String) throws -> String {
+    /// The section of docs/guide.md with this heading text, at any level (see `section(titled:in:)`).
+    static func guideSection(_ title: String) throws -> String {
         let guide = try String(
             contentsOf: URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../docs/guide.md"),
             encoding: .utf8)
-        let section = guide.components(separatedBy: "\n\(heading)\n").dropFirst().first ?? ""
-        return section.components(separatedBy: "\n#").first ?? ""
+        return section(titled: title, in: guide)
+    }
+
+    /// The lines after the heading with this text, at any level, up to the next heading of the same
+    /// or a higher level. The subsections are in it. A `#` line in a code block is not a heading.
+    /// The text is empty when no heading has this text.
+    static func section(titled title: String, in markdown: String) -> String {
+        var openLevel: Int?
+        var lines: [Substring] = []
+        var inCodeBlock = false
+        for line in markdown.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.hasPrefix("```") { inCodeBlock.toggle() }
+            let level = line.prefix(while: { $0 == "#" }).count
+            if !inCodeBlock, (1...6).contains(level), line.dropFirst(level).hasPrefix(" ") {
+                if let open = openLevel, level <= open { break }
+                if openLevel == nil, String(line.dropFirst(level + 1)) == title {
+                    openLevel = level
+                    continue
+                }
+            }
+            if openLevel != nil { lines.append(line) }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// A guide heading is found by its text when a later edit moves it to another level.
+    @Test func aGuideSectionIsFoundByItsHeadingTextAtAnyLevel() {
+        let text = [
+            "# Top", "## Other", "no", "### Agent", "one", "#### Deeper", "two", "```", "# not a heading", "```",
+            "three", "### Next", "four", "",
+        ].joined(separator: "\n")
+        let h3 = Self.section(titled: "Agent", in: text)
+        #expect(h3 == "one\n#### Deeper\ntwo\n```\n# not a heading\n```\nthree")
+        let h2 = Self.section(titled: "Agent", in: text.replacing("### Agent", with: "## Agent"))
+        #expect(h2.hasPrefix("one\n") && h2.contains("three") && h2.contains("four"))
+        #expect(Self.section(titled: "Missing", in: text).isEmpty)
     }
 
     /// The command words of each command that has no subcommand.

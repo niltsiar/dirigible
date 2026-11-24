@@ -174,9 +174,7 @@ enum ThinSegments {
         var blocks: [(span: ThinSpan, words: [TimedWord])] = []
         for redecode in redecodes {
             let span = redecode.span
-            var note = RedecodeNote(
-                start: span.start, end: span.end, before: span.firstPassWordCount, after: nil, kept: .firstPass,
-                fault: nil)
+            var note = RedecodeNote(start: span.start, end: span.end, before: span.firstPassWordCount, kept: .firstPass)
             switch redecode.outcome {
             case .stopped:
                 return (.stopped, notes)

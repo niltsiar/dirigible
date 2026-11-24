@@ -1,6 +1,7 @@
 #!/bin/bash
 # Check the structure of the docs that plans and reviews depend on.
 # Usage: scripts/check-docs.sh [repo root]. `make check` runs it.
+# It runs check-docs-code.sh and check-docs-drift.py once each: their headers hold their rules.
 # Rules of the provenance statement (the last rules of this script):
 #   No text file names a clean room, except docs/research and the two check-docs scripts.
 #   NOTICE names each file in Support/Resources and each Sources/C<name> folder that is not own code.
@@ -144,6 +145,11 @@ done <<<"$answered"
 # The rules that check the docs against the code (the Commands table, the module map, and the CLI
 # command names) are in check-docs-code.sh.
 "$(dirname "$0")/check-docs-code.sh" "$root" || fail=1
+
+# The rules that read the docs against the app, the records, and the release plan (menu paths and
+# keys, menu tables, decision Status, release state, decision cites, private text) are in
+# check-docs-drift.py.
+python3 -I "$(dirname "$0")/check-docs-drift.py" "$root" || fail=1
 
 # Every menu name of the app, in English and Spanish, is in bold in the user guide.
 guide="$root/docs/guide.md"

@@ -120,6 +120,7 @@ HOOK_TESTS = \
 	scripts/icon.test.sh \
 	scripts/bundle.test.sh \
 	scripts/guide-html.test.sh \
+	scripts/check-docs-drift.test.sh \
 	scripts/check-changed.test.sh \
 	scripts/check-stamp.test.sh \
 	scripts/evals-for.test.sh \

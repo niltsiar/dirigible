@@ -29,7 +29,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 ## End of a release
 
 - End a release with these steps in order: the architecture run, the UI polish run, the hardening pass, the docs coherence pass, one release post to the testers, and last, the `Status: closed` line of the release in `docs/requirements/releases.md`.
-- The docs coherence pass reads `README.md`, `docs/guide.md`, `docs/CONTRIBUTING.md`, `CONTEXT.md`, `docs/requirements/`, and the docs map against each other and the code. It fixes each contradiction, each term with two names, each menu table out of menu order, each duplicate or misplaced section, and each stale behavior claim, in one docs run with the doc lenses.
+- The docs coherence pass reads `README.md`, `docs/guide.md`, `docs/CONTRIBUTING.md`, `CONTEXT.md`, `docs/requirements/`, and the docs map against each other and the code. It fixes each contradiction, each term with two names, each menu table out of menu order, each duplicate or misplaced section, and each stale behavior claim, in one docs run. One reviewer agent reads `README.md`, `docs/guide.md`, and the agent manual (`Sources/DirigibleMCP/AgentManual.swift`) against the features of the release, and reports each hit.
 - The UI polish run asks the UI panel: UI expert agents for Hindenburg PRO, Logic Pro, GarageBand, and Final Cut Pro.
 
 ## Posts

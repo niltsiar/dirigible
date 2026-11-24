@@ -6,7 +6,8 @@
 # origin decide a refusal: a stale local tag of the version goes, a stale local tag of another
 # version on the commit does not block, and a forced fetch takes the tag of origin of the same name.
 # A version 0.<r>.<n> with r of 4 or more needs a features.md row of the commit that is done in
-# Release <r> run <n>; a pass prints the reminder to post the DMG and the release summary.
+# Release <r> run <n>; a pass prints the reminder to post the DMG, and after the last run of a release,
+# to run the docs coherence pass, post the release summary, and close the release.
 # scripts/bundle.test.sh runs it, so make test-hooks runs it.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/tag-release.sh"
@@ -138,7 +139,7 @@ run 0.3.10 "$two"
 
 # A version 0.<r>.<n> with r of 4 or more needs a features.md row of the commit whose State is done
 # in Release <r> with a run list that names n. A four-number version and a version under 4 need no row.
-reminder='tag-release: post the DMG to the testers; after the last run of a release, post the release summary'
+reminder='tag-release: post the DMG to the testers; after the last run of a release, run the docs coherence pass, post the release summary, then add Status: closed to the release in releases.md'
 passes() { # passes <state> <version>
     setup "p-$2-${1//[^a-z0-9]/}" "$1"
     run "$2" "$two"

@@ -17,7 +17,8 @@
 # - A version 0.<r>.<n> with r of 4 or more needs a State in docs/requirements/features.md at the
 #   commit that is done in Release <r> with n in its run list; else it exits 1. A version with
 #   four numbers needs no row. After each tag, it prints one reminder: post the DMG to the
-#   testers, and after the last run of a release, post the release summary.
+#   testers, and after the last run of a release, run the docs coherence pass, post the release
+#   summary, and close the release (docs/workflow/release-cycle.md, End of a release).
 # scripts/tag-release.test.sh tests it (scripts/bundle.test.sh runs the test).
 set -euo pipefail
 
@@ -76,4 +77,4 @@ made=1
 git push -q origin "refs/tags/v$version"
 made=""
 echo "tagged v$version on $(git rev-parse --short "$commit") (newest before: ${newest:-none})"
-echo "tag-release: post the DMG to the testers; after the last run of a release, post the release summary"
+echo "tag-release: post the DMG to the testers; after the last run of a release, run the docs coherence pass, post the release summary, then add Status: closed to the release in releases.md"

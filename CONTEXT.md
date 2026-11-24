@@ -27,5 +27,5 @@ The SRT or WebVTT file that a transcript export writes.
 _Avoid_: captions file
 
 **Cue**:
-One timed text unit of an imported WebVTT or SRT file, with no word times of its own. A cut removes a cue with no word times whole.
+One timed text unit of an imported WebVTT or SRT file, with no word times of its own. A cue shows under the clip that holds its middle. A `transcript cut` of a cue removes the whole cue. A cut by time range shortens a cue when its middle stays, and removes it when its middle goes.
 _Avoid_: caption

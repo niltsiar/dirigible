@@ -142,6 +142,7 @@ An AI agent (Claude Code, Codex, opencode, or any MCP app) can read and edit a s
 - [Contributing](docs/CONTRIBUTING.md): who can open issues and pull requests, and how the project works.
 - [Security](docs/SECURITY.md): how to report a security problem.
 - [How Dirigible was made](docs/provenance.md): the statement of how the code was made, and the third-party parts.
+- [Docs map](docs/README.md): the requirements, the decisions, the research, the glossary, and the workflow docs.
 
 ## Contributing
 

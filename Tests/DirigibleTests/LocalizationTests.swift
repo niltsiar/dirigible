@@ -181,20 +181,20 @@ struct LocalizationTests {
         }
     }
 
-    /// The banner after Remove Unused Files puts no noun after the count, so 1 does not read
-    /// "1 files" (decision 0010: avoid a plural).
-    @Test func theMovedBannerHasNoNounAfterTheCount() throws {
+    /// The banner after Remove Unused Files has one text for 1 file and one for more, so 1 does not
+    /// read "1 files" (decision 0010, **Voice**). The text for 1 file has no count specifier.
+    @Test func theMovedBannerHasATextForOneFile() throws {
         let texts = [
-            "en": "Files moved to the Trash: %lld (%@).",
-            "es": "Archivos trasladados a la Papelera: %lld (%@).",
+            "en": ["Moved 1 file to the Trash (%@).", "Moved %lld files to the Trash (%@)."],
+            "es": ["Se movió 1 archivo a la Papelera (%@).", "Se movieron %lld archivos a la Papelera (%@)."],
         ]
-        for (language, text) in texts {
-            #expect(try stringsTable(language)[L10n.bannerUnusedMoved.rawValue] == text, "\(language)")
-        }
-        // The other languages keep the form `<words>: %lld (%@).`; French puts a space before the colon.
-        for language in AppLanguage.allCases.map(\.rawValue) where texts[language] == nil {
-            let text = try #require(try stringsTable(language)[L10n.bannerUnusedMoved.rawValue], "\(language)")
-            #expect(text.wholeMatch(of: /[^%:]+: %lld \(%@\)\./) != nil, "\(language): \(text)")
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            let one = try #require(table[L10n.bannerUnusedMovedOne.rawValue], "\(language)")
+            let many = try #require(table[L10n.bannerUnusedMoved.rawValue], "\(language)")
+            if let expected = texts[language] { #expect([one, many] == expected, "\(language)") }
+            #expect(one.contains("1 ") && !one.contains("%lld") && one.contains("%@"), "\(language): \(one)")
+            #expect(many.contains("%lld") && many.contains("%@"), "\(language): \(many)")
         }
     }
 

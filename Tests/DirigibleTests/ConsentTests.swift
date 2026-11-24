@@ -345,7 +345,7 @@ import os
         #expect(english[L10n.consentAgentLine.rawValue] == "It says it is “%@”.")
         #expect(
             english[L10n.bannerConsentExpired.rawValue]
-                == "An AI agent (it says: “%@”) asked to record. The request ended with no answer.")
+                == "The recording request from an AI agent calling itself \u{201C}%@\u{201D} expired.")
     }
 
     /// C9: a request with an app track shows the line about the call; device tracks only, none.

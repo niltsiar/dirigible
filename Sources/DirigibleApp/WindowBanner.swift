@@ -256,6 +256,7 @@ enum WindowBanner: Equatable {
         case .leveledOverTime(let result, _): L10n.rideResult(result)
         case .voiceMatched(let result, _): L10n.matchResult(result)
         case .voiceMatchRefused(let text, _): text
+        case .unusedFilesMoved(1, let bytes): L10n.bannerUnusedMovedOne.format(L10n.bytes(bytes))
         case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .archived: L10n.bannerArchived.text
@@ -307,13 +308,13 @@ func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [
     return text
 }
 
-/// "Over 0 dBFS, so these files clip: a.wav, b.wav. ..." `text` gives the value of a key.
+/// "The stem files a.wav, b.wav clip over 0 dBFS and won't add up to the mix." `text` gives the value of a key.
 func stemsClippedText(_ names: [String], text: (L10n) -> String = { $0.text }) -> String {
     String(format: text(.bannerStemsClipped), names.joined(separator: ", "))
 }
 
-/// The text of the take sync banner: "Claude Code moved part of the take audio. Take 4 is out of
-/// sync with the recording from 0:21:07 on the timeline." `text` gives the value of a key.
+/// The text of the take sync banner: "Claude Code moved part of take 4, which is now out of sync with
+/// its recording from 0:21:07." `text` gives the value of a key.
 func takeSyncBreakText(
     take: Int, from: Frames, rate: Int, agent: String?, text: (L10n) -> String = { $0.text }
 ) -> String {

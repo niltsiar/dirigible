@@ -87,11 +87,11 @@ struct BannerValueTests {
             (.lowRecordTime(minutes: 5), .warning, L10n.bannerLowRecordTimeLeft.text, .high),
             (
                 .levelReport(LevelReport(changed: 1, atLimit: 0, unmeasured: 0), press: 1), .info,
-                L10n.bannerLevelChanged.text, .medium
+                L10n.bannerLevelChangedOne.text, .medium
             ),
             (
                 .levelReport(LevelReport(changed: 1, atLimit: 1, unmeasured: 0), press: 1), .warning,
-                L10n.bannerLevelChanged.text + " " + L10n.bannerLevelLimit.text, .medium
+                L10n.bannerLevelChangedOne.text + " " + L10n.bannerLevelLimitOne.text, .medium
             ),
         ]
         for (banner, kind, text, announcement) in banners {

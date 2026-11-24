@@ -1,0 +1,11 @@
+/* Ten UI texts of a macOS audio editor, one per line: "key" = "text". The key names the surface: a banner shows in the window after an event. */
+"banner.record.stopped" = "Recording stopped. The recording has stopped.";
+"banner.level.changed" = "Clips changed: %lld.";
+"error.file.read" = "Dirigible cannot read the audio file.";
+"notice.clip.moved" = "Cut 2 s from the start of the clip, because it moved before the start of the session.";
+"banner.index.rows.deleted" = "Deleted 3 items";
+"window.subtitle" = "48 kHz · 2 tracks · 00:12:30 · Saved";
+"alert.save.discard" = "Don't Save";
+"menu.choose.input" = "Choose Input…";
+"banner.mic.off" = "Microphone access is off. Turn it on in Privacy Settings.";
+"error.session.save" = "Couldn't save the session. Choose another folder.";

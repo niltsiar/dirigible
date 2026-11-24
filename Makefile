@@ -115,6 +115,7 @@ HOOK_TESTS = \
 	.claude/skills/deliver/scripts/mutate.test.sh \
 	.claude/skills/deliver/scripts/run-files.test.sh \
 	.claude/skills/reflect/scripts/seen.test.sh \
+	.claude/skills/ui-audit/scripts/text-tells.test.sh \
 	scripts/bench-pairs.test.sh \
 	scripts/test-helper.test.sh \
 	scripts/test-shards.test.sh \

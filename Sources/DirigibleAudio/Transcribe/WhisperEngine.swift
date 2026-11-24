@@ -113,8 +113,9 @@ final class WhisperEngine {
         case .finished: break
         }
         let outcome = ThinSegments.redecode(
-            first: WhisperWords.joinWithSegments(tokens()), bounds: segmentBounds(), sampleCount: samples.count,
-            language: detectedLanguage(), log: log
+            first: WhisperWords.joinWithSegments(tokens()), bounds: segmentBounds(),
+            speech: vadPath == nil ? nil : vadSpeech(), sampleCount: samples.count, language: detectedLanguage(),
+            log: log
         ) { range, code in
             RedecodeOutcome(code: run(params, samples[range], language: .code(code)), stopFlagSet: stop.isSet) {
                 WhisperWords.join(tokens())
@@ -172,6 +173,15 @@ final class WhisperEngine {
     }
 
     private func detectedLanguage() -> String { String(cString: whisper_lang_str(whisper_full_lang_id(context))) }
+
+    /// The speech ranges that the VAD of the last call found, in ticks of the piece. whisper.cpp keeps
+    /// the list of an earlier call when VAD finds no speech, but such a call gives no segment.
+    private func vadSpeech() -> [Range<Int>] {
+        (0..<whisper_full_n_vad_segments(context)).map {
+            let start = Int(whisper_full_get_vad_segment_t0(context, $0))
+            return start..<max(start, Int(whisper_full_get_vad_segment_t1(context, $0)))
+        }
+    }
 
     private func segmentBounds() -> [(start: Int, end: Int)] {
         (0..<whisper_full_n_segments(context)).map {

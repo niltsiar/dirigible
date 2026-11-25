@@ -57,8 +57,16 @@ public struct Session: Hashable, Sendable {
         captures[id] = nil
     }
 
-    /// Adding a file that is equal to the one with its ID changes nothing.
+    /// Adding a file that is equal to the one with its ID changes nothing. A path at the FLAC name
+    /// of a pool WAV, and a WAV whose FLAC name is a pool path, in any case, are taken
+    /// (`.duplicateID`): an archived WAV is on disk at its FLAC name (decision 0072).
     public mutating func addFile(_ file: AudioFile) throws(SessionError) {
+        try addFile(file, stored: false)
+    }
+
+    /// `addFile(_:)`. With `stored`, the reader keeps a pair of paths that an older build saved
+    /// (decision 0024 P2), and the archive jobs skip that pair.
+    mutating func addFile(_ file: AudioFile, stored: Bool) throws(SessionError) {
         if let present = files[file.id] {
             guard present == file else { throw .duplicateID(file.id.rawValue) }
             return
@@ -69,6 +77,11 @@ public struct Session: Hashable, Sendable {
         if let capture = file.capture, captures[capture] == nil { throw .unknownCapture(capture) }
         if let origin = file.origin { try check(origin, of: file) }
         if let drift = file.drift { try check(drift, of: file) }
+        if !stored {
+            let path = file.path.lowercased()
+            let isFLACOfAWAV = files.values.contains { archivedPath(of: $0.path)?.lowercased() == path }
+            guard !isFLACOfAWAV, !flacNameIsTaken(file.path) else { throw .duplicateID(file.path) }
+        }
         files[file.id] = file
     }
 

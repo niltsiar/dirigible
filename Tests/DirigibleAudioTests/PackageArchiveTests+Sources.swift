@@ -68,4 +68,43 @@ extension PackageArchiveTests {
         #expect(try session.archive == nil && fixture.stored().archive == nil, "no FLAC, so no attribute")
         #expect(try fixture.names() == ["b.wav", "short.wav"])
     }
+
+    /// The pool entry `foo.flac` of other audio next to the missing pool WAV `foo.wav`, as an older
+    /// build or a hand edit saved them: no job converts, unlinks, or counts that FLAC for the WAV
+    /// entry. Fail value: the unarchive converts the FLAC of the other entry to `foo.wav` and
+    /// unlinks it.
+    @Test func noJobConvertsTheFLACOfAnotherPoolEntry() throws {
+        let fixture = try ArchiveFixture()
+        let other = try fixture.addWAV("other.wav", seed: 2)
+        #expect(try archiveClip(other, in: fixture.package, rate: ArchiveFixture.rate))
+        try FileManager.default.moveItem(at: fixture.url("Clips/other.flac"), to: fixture.url("Clips/foo.flac"))
+        var session = Session(sampleRate: ArchiveFixture.rate)
+        try session.addFile(AudioFile(id: "a", path: "foo.wav", layout: .mono, length: 30_000))
+        try session.addFile(AudioFile(id: "b", path: "other.flac", layout: .mono, length: 30_000))
+        _ = try fixture.save(session)
+        // An edit refuses a pool path at the FLAC name of a pool WAV, and the reader keeps one.
+        let xml = try String(contentsOf: fixture.url("session.xml"), encoding: .utf8)
+        try xml.replacingOccurrences(of: #"path="other.flac""#, with: #"path="foo.flac""#)
+            .write(to: fixture.url("session.xml"), atomically: true, encoding: .utf8)
+        session = try fixture.stored()
+        try #require(Set(session.files.values.map(\.path)) == ["foo.wav", "foo.flac"])
+        let flac = try fixture.contents(of: ["Clips/foo.flac"])
+
+        let report = try unarchivePackage(&session, in: fixture.package, save: fixture.save)
+
+        try #require(report.converted.isEmpty, "\(report)")
+        #expect(report.kept == ["foo.wav": .missing, "foo.flac": .notWAV], "\(report)")
+        #expect(try fixture.contents(of: ["Clips/foo.flac"]) == flac)
+        let archive = try archivePackage(&session, in: fixture.package, save: fixture.save)
+        #expect(archive.kept == ["foo.wav": .missing, "foo.flac": .notWAV] && archive.converted.isEmpty, "\(archive)")
+        #expect(try fixture.names() == ["foo.flac"] && fixture.contents(of: ["Clips/foo.flac"]) == flac)
+        #expect(try fixture.stored().archive == nil)
+
+        try fixture.addWAV("foo.wav", seed: 3)
+        let wav = try fixture.contents(of: ["Clips/foo.wav"])
+        let present = try archivePackage(&session, in: fixture.package, save: fixture.save)
+        let reason = present.kept["foo.wav"]
+        #expect(present.converted.isEmpty && reason != nil && reason != .missing, "\(present)")
+        #expect(try fixture.contents(of: ["Clips/foo.flac", "Clips/foo.wav"]) == flac.merging(wav) { $1 })
+    }
 }

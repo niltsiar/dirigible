@@ -112,6 +112,7 @@ private func keptLines(_ report: ArchiveReport, damaged: Bool = true) -> [String
         case .missing: text = "missing"
         case .notWAV: text = "not a WAV file"
         case .notArchivable: text = "not a 24-bit WAV of the session rate"
+        case .flacNameTaken: text = "another pool file has its FLAC name"
         case .damaged(let frames):
             guard damaged else { return nil }
             text = "damaged, \(frames.count) frames decoded"

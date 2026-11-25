@@ -169,7 +169,7 @@ extension ExportWindowTests {
             // The number takes the grouping of the locale of the Mac.
             text = L10n.errorExportPresetsRate.format("Feed", 96_000)
         }
-        #expect(text.hasPrefix("The preset \u{201C}Feed\u{201D} cannot write 96"))
+        #expect(text.hasPrefix("The preset \u{201C}Feed\u{201D} can't write 96"))
         #expect(text.hasSuffix(" Hz. Edit the preset and select 44.1 kHz or 48 kHz."))
         #expect(lines == [text, text])
         model.cancelPresets()

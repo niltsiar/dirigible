@@ -228,8 +228,9 @@ package enum AgentManual {
     static let archiveLine =
         "`file_archive` (CLI: `dirigible file archive <package>`) converts each 24-bit clip WAV to FLAC with the "
         + "same samples to save disk space. An edit or `file_prune` converts the files back first, and "
-        + "`file_unarchive` does it alone. An archived session has the `archive` key in `session_info` (CLI: the "
-        + "`archive:` line of `info`). A damaged FLAC stays, and `file_unarchive` then gives an error that names it. "
+        + "`file_unarchive` (CLI: `dirigible file unarchive <package>`) does it alone. An archived session has "
+        + "the `archive` key in `session_info` (CLI: the `archive:` line of `info`). A damaged FLAC stays, and "
+        + "`file_unarchive` then gives an error that names it. "
         + archiveStoreRule
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.

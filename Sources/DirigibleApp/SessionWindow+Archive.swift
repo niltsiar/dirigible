@@ -103,10 +103,11 @@ extension SessionWindow {
     /// The Cancel of the progress sheet of a package job: the job stops after the file in hand.
     func cancelPackageJob() { studio?.cancelArchive() }
 
-    /// "Archiving file 12 of 40": the file in hand by the fraction of the files.
+    /// "Archiving file 12 of 40": the file in hand by the fraction of the files that the job
+    /// converts.
     var archiveSheetTitle: String {
-        let count = max(1, archiveFileCount)
-        let number = min(count, Int((studio?.archiveProgress ?? 0) * Double(count)) + 1)
+        let count = max(1, studio?.archiveProgress.files ?? 0)
+        let number = min(count, Int((studio?.archiveProgress.fraction ?? 0) * Double(count)) + 1)
         let kind = studio?.archiveRun?.kind ?? .archive
         return (kind == .archive ? L10n.sheetArchiveFile : L10n.sheetUnarchiveFile).format(number, count)
     }
@@ -128,7 +129,6 @@ extension SessionWindow {
     ) async {
         archiveShown = nil
         archiveCountsCache = nil
-        archiveFileCount = studio.session.files.count
         defer { archiveCountsCache = nil }
         do throws(StudioError) {
             let report =
@@ -154,7 +154,7 @@ struct ArchiveSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(verbatim: model.archiveSheetTitle).font(.headline)
-            ProgressView(value: studio.archiveProgress).frame(width: 320)
+            ProgressView(value: studio.archiveProgress.fraction).frame(width: 320)
             HStack {
                 Spacer()
                 Button(L10n.sheetExportCancel.key) { model.cancelPackageJob() }.keyboardShortcut(.cancelAction)

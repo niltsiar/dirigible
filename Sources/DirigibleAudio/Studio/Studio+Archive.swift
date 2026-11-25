@@ -119,7 +119,7 @@ extension Studio {
         if let refusal = archiveRefusal(kind) { throw refusal }
         let stopped = endPlayForTake()
         let flags = ArchiveFlags()
-        (archiveProgress, archiveStop) = (0, nil)
+        (archiveProgress, archiveStop) = ((files: 0, fraction: 0), nil)
         let task = Task { await archiveTurn(kind, flags, stopped, progress: progress) }
         transport = .archiving(ArchiveRun(kind: kind, flags: flags, task: task))
         defer { transport = .idle }
@@ -148,15 +148,22 @@ extension Studio {
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         if let self, self.archiveRun?.flags === flags {
-                            self.archiveProgress = max(self.archiveProgress, fraction)
+                            self.archiveProgress.fraction = max(self.archiveProgress.fraction, fraction)
                         }
                         progress(fraction)
                     }
                 }
             }
+            let count: @Sendable (Int) -> Void = { [weak self] files in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if let self, self.archiveRun?.flags === flags { self.archiveProgress.files = files }
+                    }
+                }
+            }
             let done = await convertPackage(
                 kind, session, lock: lock, cache: peakLoad.cache, environment: environment, flags: flags,
-                progress: hop)
+                files: count, progress: hop)
             if let written = done.written {
                 url = packageIdentity(written)
                 // A change of only `archive` records no undo entry; the save wrote the whole session.
@@ -170,10 +177,11 @@ extension Studio {
 }
 
 /// One package job on a utility GCD thread, in the package that `lock` holds now (decision 0072).
-/// Both saves write `session.xml` with no backup. `written` is the path of the last save.
+/// Both saves write `session.xml` with no backup. `written` is the path of the last save. `files`
+/// gets the count of the files that the job converts.
 @concurrent nonisolated func convertPackage(
     _ kind: ArchiveRun.Kind, _ session: Session, lock: PackageLock, cache: URL?, environment: CaptureEnvironment,
-    flags: ArchiveFlags, progress: @escaping @Sendable (Double) -> Void
+    flags: ArchiveFlags, files: @escaping @Sendable (Int) -> Void, progress: @escaping @Sendable (Double) -> Void
 ) async -> (result: Result<ArchiveReport, StudioError>, session: Session, written: URL?) {
     @Sendable func run() -> (result: Result<ArchiveReport, StudioError>, session: Session, written: URL?) {
         dispatchPrecondition(condition: .notOnQueue(.main))
@@ -207,11 +215,11 @@ extension Studio {
             if kind == .archive {
                 report = try archivePackage(
                     &current, in: package, cache: cache, progress: progress, isStopped: { flags.stopsAfterFile },
-                    save: save, seams: seams)
+                    save: save, seams: seams, files: files)
             } else {
                 report = try unarchivePackage(
                     &current, also: [], in: package, cache: cache, progress: progress,
-                    isStopped: { flags.stopsAfterFile }, save: save, seams: seams)
+                    isStopped: { flags.stopsAfterFile }, save: save, seams: seams, files: files)
             }
             return (.success(report), current, written)
         } catch {

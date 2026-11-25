@@ -169,8 +169,8 @@ import Observation
     /// The largest fraction of the running file import, 0 at the start of each run. The banner of
     /// an agent import shows it (decision 0049).
     public internal(set) var importProgress = 0.0
-    /// The largest fraction of the running archive or unarchive, 0 at the start of each job.
-    public internal(set) var archiveProgress = 0.0
+    /// The files that the running archive or unarchive converts and its largest fraction, 0 at its start.
+    public internal(set) var archiveProgress = (files: 0, fraction: 0.0)
     /// Why the last archive or unarchive stopped before its end. Nil until a stop.
     @ObservationIgnored public internal(set) var archiveStop: ExportStop?
     /// True from the start of `settle()` to its end: no peak pass and no export starts.

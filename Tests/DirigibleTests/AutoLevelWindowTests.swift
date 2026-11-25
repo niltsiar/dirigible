@@ -126,7 +126,8 @@ import Testing
         for (selection, label) in values {
             model.timeline.marks = Self.oneSecondOnT1
             await model.level(.eachClip)
-            #expect(model.levelReport != nil, "\(label): no level before the value")
+            await model.level(.eachClip)
+            #expect(model.levelReport != nil, "\(label): the second level has no banner before the value")
             let (before, undo, count) = (studio.session, studio.canUndo, beeps)
             model.timeline.selection = selection
             await model.level(.eachClip)
@@ -215,7 +216,8 @@ import Testing
         studio.environment = hal.environment
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
         await model.level(.eachClip)
-        #expect(model.levelReport != nil, "take running: no level before the take")
+        await model.level(.eachClip)
+        #expect(model.levelReport != nil, "take running: the second level has no banner before the take")
         await model.record()
         #expect(model.levelReport == nil, "take running: the take start keeps the level banner")
         #expect(studio.transport == .recording(take: 1))

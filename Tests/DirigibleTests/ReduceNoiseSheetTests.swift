@@ -307,19 +307,17 @@ extension DenoiseDraft {
         #expect(String(format: try #require(tables[1][key]), 12) == "12 decibelios")
     }
 
-    /// C21: hum alone gives a banner and a report with the hum and no decibels. The texts of the
-    /// four forms in English and Spanish.
-    @Test func humResultBanner() async throws {
+    /// C21: hum alone gives an announcement with the hum and no decibels. The texts of the four forms
+    /// in English and Spanish.
+    @Test func humResultAnnouncement() async throws {
         let (model, _) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
         model.timeline.selection = set("c3", "c4")
         try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: false, decibels: 12, hum: true, .hz50) }
         await until("the render ends") { model.importJob == nil }
 
-        let report = try #require(model.denoiseReport)
-        #expect(report.clips == 2 && report.treatment == Treatment(.hum(.hz50)), "\(report)")
-        await until("the banner shows") { model.shown.banners.contains { $0.key.hasPrefix("denoiseReport") } }
-        let banner = try #require(model.shown.banners.first { $0.key.hasPrefix("denoiseReport") })
-        #expect(banner.text == L10n.denoiseResult(clips: 2, treatment: Treatment(.hum(.hz50))), "\(banner.text)")
+        #expect(heard.contains(L10n.denoiseResult(clips: 2, treatment: Treatment(.hum(.hz50)))), "\(heard)")
 
         let tables = try ["en", "es"].map { try stringsTable($0) }
         func text(_ clips: Int, _ decibels: Int?, _ language: Int) -> String {

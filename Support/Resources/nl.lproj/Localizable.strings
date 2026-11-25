@@ -676,8 +676,8 @@
 "banner.use.headphones" = "Gebruik een koptelefoon, zodat de stem van de gast niet in je microfoon komt.";
 "banner.monitor.headphones" = "Gebruik een koptelefoon om de monitor te horen.";
 "banner.export.report" = "%1$@ geëxporteerd (%2$@).";
-"banner.level.changed" = "%lld clips gewijzigd.";
-"banner.level.changed.one" = "1 clip gewijzigd.";
+"announce.level.changed" = "%lld clips gewijzigd.";
+"announce.level.changed.one" = "1 clip gewijzigd.";
 "banner.level.changed.none" = "Geen clips gewijzigd.";
 "announce.unused.moved" = "%lld bestanden naar de prullenmand verplaatst (%@).";
 "announce.unused.moved.one" = "1 bestand naar de prullenmand verplaatst (%@).";

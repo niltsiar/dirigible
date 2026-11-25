@@ -676,8 +676,8 @@
 "banner.use.headphones" = "Usa le cuffie per tenere la voce dell\U2019ospite fuori dal tuo microfono.";
 "banner.monitor.headphones" = "Usa le cuffie per ascoltare il monitoraggio.";
 "banner.export.report" = "Esportato %1$@ (%2$@).";
-"banner.level.changed" = "Modificati %lld clip.";
-"banner.level.changed.one" = "Modificato 1 clip.";
+"announce.level.changed" = "Modificati %lld clip.";
+"announce.level.changed.one" = "Modificato 1 clip.";
 "banner.level.changed.none" = "Nessun clip modificato.";
 "announce.unused.moved" = "Spostati %lld file nel Cestino (%@).";
 "announce.unused.moved.one" = "Spostato 1 file nel Cestino (%@).";

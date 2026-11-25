@@ -124,11 +124,26 @@ extension MatchVoiceWindowTests {
         await model.matchVoice(tracks: ["t1", "t2"])
 
         #expect(studio.session.track("t1")?.match == nil && studio.session.track("t2")?.match != nil)
-        if case .voiceMatched(let result, _) = model.voiceMatchReport?.banner {
-            #expect(result.tracks == 1, "the banner counts the matched track only")
-        } else {
-            Issue.record("no result banner: \(String(describing: model.voiceMatchReport))")
-        }
+        await model.close()
+    }
+
+    /// C9 (h): a Match Voice that matched tracks shows no banner, because the mark of each track shows
+    /// the match. VoiceOver hears the result once, and it counts the matched track only.
+    @Test func matchVoiceShowsNoBannerAndIsAnnounced() async throws {
+        let (model, studio) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
+        model.timeline.selection = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
+        model.useAsVoiceReference()
+
+        await model.matchVoice(tracks: ["t1", "t2"])
+
+        let match = try #require(studio.session.track("t2")?.match)
+        let extremes = match.extremes(at: match.amount)
+        let text = L10n.matchResult(VoiceMatchResult(tracks: 1, boost: extremes.boost, cut: extremes.cut))
+        #expect(heard.count(where: { $0 == text }) == 1, "VoiceOver hears the result once: \(heard)")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.text == text }, "a match that worked has no banner: \(banners)")
         await model.close()
     }
 }

@@ -676,8 +676,8 @@
 "banner.use.headphones" = "Use fones de ouvido para que a voz do convidado não entre no seu microfone.";
 "banner.monitor.headphones" = "Use fones de ouvido para ouvir o monitor.";
 "banner.export.report" = "%1$@ exportado (%2$@).";
-"banner.level.changed" = "%lld clipes alterados.";
-"banner.level.changed.one" = "1 clipe alterado.";
+"announce.level.changed" = "%lld clipes alterados.";
+"announce.level.changed.one" = "1 clipe alterado.";
 "banner.level.changed.none" = "Nenhum clipe alterado.";
 "announce.unused.moved" = "%lld arquivos movidos para o Lixo (%@).";
 "announce.unused.moved.one" = "1 arquivo movido para o Lixo (%@).";

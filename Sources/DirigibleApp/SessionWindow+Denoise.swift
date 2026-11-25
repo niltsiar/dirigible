@@ -112,10 +112,15 @@ extension SessionWindow {
         }
     }
 
+    /// A run that changed clips shows in the lanes, so VoiceOver hears the count and no banner shows.
+    /// A run that changed none shows the banner "Nothing to change."
     private func showDenoiseReport(_ report: ClipRenderReport, revision: Int) {
         guard !report.clips.isEmpty || !report.unchanged.isEmpty else { return }
         denoisePresses += 1
-        denoiseReport = DenoiseReportShown(
-            clips: report.clips.count, treatment: report.treatment, revision: revision, press: denoisePresses)
+        if report.clips.isEmpty {
+            denoiseReport = DenoiseReportShown(revision: revision, press: denoisePresses)
+        } else {
+            chrome?.announce(L10n.denoiseResult(clips: report.clips.count, treatment: report.treatment), .medium)
+        }
     }
 }

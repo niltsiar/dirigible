@@ -676,8 +676,8 @@
 "banner.use.headphones" = "Use headphones to keep the guest's voice out of your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "Exported %1$@ (%2$@).";
-"banner.level.changed" = "Changed %lld clips.";
-"banner.level.changed.one" = "Changed 1 clip.";
+"announce.level.changed" = "Changed %lld clips.";
+"announce.level.changed.one" = "Changed 1 clip.";
 "banner.level.changed.none" = "No clips changed.";
 "announce.unused.moved" = "Moved %lld files to the Trash (%@).";
 "announce.unused.moved.one" = "Moved 1 file to the Trash (%@).";

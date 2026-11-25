@@ -115,8 +115,24 @@ import Testing
         await model.close()
     }
 
-    /// One Level Over Time on two clips is one undo step and gives a banner; a second
-    /// run with no change gives the same rides, no undo entry, and a new banner.
+    /// C9 (g): a Level Over Time that rides clips shows no banner, because the line of each clip shows
+    /// the ride. VoiceOver hears the count of the leveled clips once.
+    @Test func levelOverTimeShowsNoBannerAndIsAnnounced() async throws {
+        let (model, studio, _) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
+
+        await levelOverTime(model, set("c1", "c2"))
+
+        let texts = (-6...6).map { L10n.rideDone(RideResult(leveled: 2, unmeasured: 0, gain: $0)) }
+        #expect(heard.count == 1 && texts.contains(heard[0]), "VoiceOver hears the result once: \(heard)")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.key.hasPrefix("rideReport") }, "each clip got a level: \(banners)")
+        await model.close()
+    }
+
+    /// One Level Over Time on two clips is one undo step; a second run with no change gives the same
+    /// rides and no undo entry.
     @Test func undoRedoAndSecondRun() async throws {
         let (model, studio, _) = try await open()
         let before = studio.session
@@ -125,12 +141,6 @@ import Testing
 
         let first = studio.session
         #expect(model.alert == nil && !ride("c1", studio).isEmpty && !ride("c2", studio).isEmpty)
-        #expect(
-            model.rideReport?.result.leveled == 2 && model.rideReport?.press == 1,
-            "\(String(describing: model.rideReport))")
-        await until("the banner shows") { model.shown.banners.contains { $0.key == "rideReport.1" } }
-        let banner = try #require(model.shown.banners.first { $0.key == "rideReport.1" })
-        #expect(banner.kind == .info && banner.announcement == .medium)
         try studio.undo()
         #expect(studio.session == before && !studio.canUndo, "one undo step")
         try studio.redo()
@@ -139,33 +149,40 @@ import Testing
         await levelOverTime(model, set("c1", "c2"))
 
         #expect(studio.session == first && model.alert == nil, "the second run gives the same rides")
-        await until("the second banner shows") { model.shown.banners.contains { $0.key == "rideReport.2" } }
         try studio.undo()
         #expect(studio.session == before, "the second run made no undo entry")
         await model.close()
     }
 
-    /// The banner text of the counts, in English and Spanish. N = 0 has no "Leveled" sentence;
-    /// the gain has its sign.
+    /// The announcement and the banner text of the counts, in English and Spanish. The announcement
+    /// has the leveled clips and the gain with its sign; the banner has the unmeasured clips only.
     @Test func resultBanner() throws {
         let tables = try ["en", "es"].map { try stringsTable($0) }
         func text(_ result: RideResult, _ table: [String: String]) -> String {
             L10n.rideResult(result) { table[$0.rawValue] ?? $0.rawValue }
         }
+        func done(_ result: RideResult, _ table: [String: String]) -> String {
+            L10n.rideDone(result) { table[$0.rawValue] ?? $0.rawValue }
+        }
         #expect(
-            text(RideResult(leveled: 3, unmeasured: 0, gain: 4), tables[0]) == "Leveled 3 clips over time, up to +4 dB."
+            done(RideResult(leveled: 3, unmeasured: 0, gain: 4), tables[0]) == "Leveled 3 clips over time, up to +4 dB."
         )
         #expect(
-            text(RideResult(leveled: 1, unmeasured: 0, gain: -2), tables[0]) == "Leveled 1 clip over time, up to -2 dB."
+            done(RideResult(leveled: 1, unmeasured: 0, gain: -2), tables[0]) == "Leveled 1 clip over time, up to -2 dB."
         )
         #expect(
-            text(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[0])
-                == "Leveled 2 clips over time, up to +5 dB. 1 clip has no level to measure.")
+            done(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[0]) == "Leveled 2 clips over time, up to +5 dB."
+        )
+        #expect(text(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[0]) == "1 clip has no level to measure.")
+        #expect(text(RideResult(leveled: 3, unmeasured: 0, gain: 4), tables[0]) == "", "no warning, no banner")
+        #expect(done(RideResult(leveled: 0, unmeasured: 2, gain: 0), tables[0]) == "", "nothing leveled")
         #expect(text(RideResult(leveled: 0, unmeasured: 2, gain: 0), tables[0]) == "2 clips have no level to measure.")
         #expect(text(RideResult(leveled: 0, unmeasured: 1, gain: 0), tables[0]) == "1 clip has no level to measure.")
         #expect(
-            text(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[1])
-                == "Nivelados 2 clips en el tiempo, hasta +5 dB. 1 clip no tiene nivel que medir.")
+            done(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[1])
+                == "Nivelados 2 clips en el tiempo, hasta +5 dB.")
+        #expect(
+            text(RideResult(leveled: 2, unmeasured: 1, gain: 5), tables[1]) == "1 clip no tiene nivel que medir.")
         #expect(tables[0][L10n.rideCanceled.rawValue] == "Level Over Time canceled. No clip changed.")
         #expect(tables[1][L10n.rideCanceled.rawValue] == "Nivelación en el tiempo cancelada. Ningún clip cambió.")
     }
@@ -174,21 +191,21 @@ import Testing
     /// sentence has no "+0 dB". Control: 1 dB keeps it.
     @Test func zeroGainHasNoUpTo() throws {
         let table = try stringsTable("en")
-        func text(_ result: RideResult) -> String { L10n.rideResult(result) { table[$0.rawValue] ?? $0.rawValue } }
+        func text(_ result: RideResult) -> String { L10n.rideDone(result) { table[$0.rawValue] ?? $0.rawValue } }
         #expect(text(RideResult(leveled: 2, unmeasured: 0, gain: 0)) == "Leveled 2 clips over time.")
-        #expect(
-            text(RideResult(leveled: 1, unmeasured: 1, gain: 0))
-                == "Leveled 1 clip over time. 1 clip has no level to measure.")
+        #expect(text(RideResult(leveled: 1, unmeasured: 1, gain: 0)) == "Leveled 1 clip over time.")
         #expect(text(RideResult(leveled: 1, unmeasured: 0, gain: 1)) == "Leveled 1 clip over time, up to +1 dB.")
         #expect(RideResult(RideReport(leveled: ["c1"], unmeasured: [], largestGain: Gain(dB: 0.4)!)).gain == 0)
         #expect(RideResult(RideReport(leveled: ["c1"], unmeasured: [], largestGain: Gain(dB: -2.6)!)).gain == -3)
     }
 
-    /// One silent clip and two speech clips give "Leveled 2 clips" and
-    /// the sentence for one unmeasured clip. A silent clip alone gives no "Leveled" sentence, and
-    /// no undo entry.
+    /// C9 (g), near input: one silent clip and two speech clips give a warning banner with the
+    /// sentence for one unmeasured clip, and VoiceOver hears "Leveled 2 clips". A silent clip alone
+    /// gives the banner, no "Leveled" sentence, and no undo entry.
     @Test func resultBannerFromARun() async throws {
         let (model, studio, _, _) = try await openLanes(app, try await Self.silentPackage(in: folder.url))
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
 
         await levelOverTime(model, set("c1", "c2", "s"))
 
@@ -197,7 +214,8 @@ import Testing
         #expect(ride("s", studio).isEmpty, "the silent clip has no ride")
         await until("the banner shows") { model.shown.banners.contains { $0.key == "rideReport.1" } }
         let banner = try #require(model.shown.banners.first { $0.key == "rideReport.1" })
-        #expect(banner.text == L10n.rideResult(RideResult(leveled: 2, unmeasured: 1, gain: result.gain)))
+        #expect(banner.kind == .warning && banner.text == L10n.rideUnmeasuredOne.text, "\(banner.text)")
+        #expect(heard.contains(L10n.rideDone(RideResult(leveled: 2, unmeasured: 1, gain: result.gain))), "\(heard)")
 
         let session = studio.session
         await levelOverTime(model, set("s"))

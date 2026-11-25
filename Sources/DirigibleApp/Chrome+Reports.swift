@@ -21,7 +21,7 @@ extension ChromeState {
             banners.append(.levelReport(shown.report, press: shown.press))
         }
         if let shown = model.denoiseReport, shown.revision == studio.sessionRevision {
-            banners.append(.noiseReduced(clips: shown.clips, treatment: shown.treatment, press: shown.press))
+            banners.append(.noiseUnchanged(press: shown.press))
         }
         if let shown = model.repairReport, shown.revision == studio.sessionRevision {
             banners.append(.soundRepaired(shown.result, press: shown.press))

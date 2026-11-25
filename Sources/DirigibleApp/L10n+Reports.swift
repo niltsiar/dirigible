@@ -25,17 +25,16 @@ extension L10n {
         value == 1 ? text(one) : String(format: text(many), locale: .current, value)
     }
 
-    /// The banner text of an Auto Level: the head, the track volume sentence when no clip changed,
-    /// then the clips at the limit and the clips with no level. `text` gives the value of a key,
-    /// so a test can read the English table.
+    /// The banner text of an Auto Level: the no-change sentences and the track volume sentence when no
+    /// clip changed, then the clips at the limit and the clips with no level. Empty when clips changed
+    /// and nothing needs a check: VoiceOver hears the count (`announceLevelChanged`) and no banner
+    /// shows. `text` gives the value of a key, so a test can read the English table.
     static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
-        var parts: [String]
+        var parts: [String] = []
         if report.isEmpty {
-            parts = [text(.bannerLevelNone)]
+            parts.append(text(.bannerLevelNone))
         } else if report.changed == 0 {
-            parts = [text(.bannerLevelChangedNone)]
-        } else {
-            parts = [counted(report.changed, one: .bannerLevelChangedOne, many: .bannerLevelChanged, text: text)]
+            parts.append(text(.bannerLevelChangedNone))
         }
         if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
         if report.atLimit > 0 {
@@ -48,9 +47,9 @@ extension L10n {
         return parts.joined(separator: " ")
     }
 
-    /// The result banner of a Reduce Noise run: "Reduced noise in 3 clips by 12 dB.", with one form for
-    /// a single clip, and the forms with hum. A treatment with no noise reduction is hum alone. `text`
-    /// gives the value of a key, so a test can read a table.
+    /// The announcement of a Reduce Noise run that changed clips: "Reduced noise in 3 clips by 12 dB.",
+    /// with one form for a single clip, and the forms with hum. A treatment with no noise reduction is
+    /// hum alone. `text` gives the value of a key, so a test can read a table.
     static func denoiseResult(
         clips: Int, treatment: Treatment, text: (L10n) -> String = { $0.text }
     ) -> String {
@@ -67,47 +66,56 @@ extension L10n {
         }
     }
 
-    /// The result banner of a Repair Sound run (decision 0064 D4): "Repaired clipped peaks in 2 clips.
-    /// The level is up to 4 dB lower." for a de-clip that found runs, "No clipped peaks found." for
-    /// a de-clip alone that found none, and "Repaired the sound of 3 clips." for the other repairs.
-    /// The drop sentence has no dB value of 0. `text` gives the value of a key.
+    /// The banner text of a Repair Sound run (decision 0064 D4): "Nothing to change." for clips that the
+    /// run did not change, "No clipped peaks found." for a de-clip alone that found none, and the level
+    /// drop of a de-clip that found runs ("The level is up to 4 dB lower."). Empty for a repair that
+    /// needs no check: `repairDone` is its announcement. The drop sentence has no dB value of 0. `text`
+    /// gives the value of a key.
     static func repairResult(_ result: RepairResult, text: (L10n) -> String = { $0.text }) -> String {
-        func fill(_ key: L10n, _ values: Int...) -> String {
-            String(format: text(key), locale: .current, arguments: values)
-        }
         guard result.clips > 0 else { return text(.denoiseUnchanged) }
         guard result.declip, result.repaired > 0 else {
-            if result.declip, !result.others { return text(.repairNone) }
-            return result.clips == 1 ? fill(.repairSoundOne) : fill(.repairSoundMany, result.clips)
+            return result.declip && !result.others ? text(.repairNone) : ""
         }
-        let one = result.repaired == 1
-        let found = one ? fill(.repairPeaksOne) : fill(.repairPeaksMany, result.repaired)
-        guard result.drop > 0 else { return found }
-        return found + " " + (one ? fill(.repairDropOne, result.drop) : fill(.repairDropMany, result.drop))
+        guard result.drop > 0 else { return "" }
+        return String(
+            format: text(result.repaired == 1 ? .repairDropOne : .repairDropMany), locale: .current, result.drop)
     }
 
-    /// The result banner of a Level Over Time run: "Leveled 2 clips over time, up to +4 dB.", then
-    /// "1 clip has no level to measure." when a clip had no reference. A largest gain of 0 dB has no
-    /// "up to" part. With no leveled clip, only the second sentence. `text` gives the value of a
-    /// key, so a test can read a table.
-    static func rideResult(_ result: RideResult, text: (L10n) -> String = { $0.text }) -> String {
+    /// The announcement of a Repair Sound run that changed clips: "Repaired clipped peaks in 2 clips."
+    /// for a de-clip that found runs and "Repaired the sound of 3 clips." for the other repairs. Empty
+    /// when the banner says the whole result. `text` gives the value of a key.
+    static func repairDone(_ result: RepairResult, text: (L10n) -> String = { $0.text }) -> String {
         func fill(_ key: L10n, _ values: Int...) -> String {
             String(format: text(key), locale: .current, arguments: values)
         }
-        var parts: [String] = []
+        guard result.clips > 0 else { return "" }
+        guard result.declip, result.repaired > 0 else {
+            if result.declip, !result.others { return "" }
+            return result.clips == 1 ? fill(.repairSoundOne) : fill(.repairSoundMany, result.clips)
+        }
+        return result.repaired == 1 ? fill(.repairPeaksOne) : fill(.repairPeaksMany, result.repaired)
+    }
+
+    /// The banner text of a Level Over Time run: "1 clip has no level to measure." for clips with no
+    /// reference. Empty when each clip got a level. `text` gives the value of a key, so a test can read
+    /// a table.
+    static func rideResult(_ result: RideResult, text: (L10n) -> String = { $0.text }) -> String {
+        if result.unmeasured == 1 { return text(.rideUnmeasuredOne) }
+        guard result.unmeasured > 1 else { return "" }
+        return String(format: text(.rideUnmeasuredMany), locale: .current, result.unmeasured)
+    }
+
+    /// The announcement of a Level Over Time run that leveled clips: "Leveled 2 clips over time, up to
+    /// +4 dB." A largest gain of 0 dB has no "up to" part. Empty with no leveled clip. `text` gives the
+    /// value of a key, so a test can read a table.
+    static func rideDone(_ result: RideResult, text: (L10n) -> String = { $0.text }) -> String {
+        func fill(_ key: L10n, _ values: Int...) -> String {
+            String(format: text(key), locale: .current, arguments: values)
+        }
         let flat = result.gain == 0
-        if result.leveled == 1 {
-            parts.append(flat ? text(.rideFlatOne) : fill(.rideDoneOne, result.gain))
-        } else if result.leveled > 1 {
-            parts.append(
-                flat ? fill(.rideFlatMany, result.leveled) : fill(.rideDoneMany, result.leveled, result.gain))
-        }
-        if result.unmeasured == 1 {
-            parts.append(text(.rideUnmeasuredOne))
-        } else if result.unmeasured > 1 {
-            parts.append(fill(.rideUnmeasuredMany, result.unmeasured))
-        }
-        return parts.joined(separator: " ")
+        if result.leveled == 1 { return flat ? text(.rideFlatOne) : fill(.rideDoneOne, result.gain) }
+        guard result.leveled > 1 else { return "" }
+        return flat ? fill(.rideFlatMany, result.leveled) : fill(.rideDoneMany, result.leveled, result.gain)
     }
 
     /// The banner of Import Transcript: one sentence for each count that is not zero ("3 words have

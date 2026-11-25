@@ -148,9 +148,9 @@ import Testing
         await model.close()
     }
 
-    /// C11 and C17: a match from the window takes amount 75, is one undo entry, gives a banner with
-    /// the count and the extremes, and a second match keeps the amount of the track.
-    @Test func matchIsOneEntryWithABanner() async throws {
+    /// C11 and C17: a match from the window takes amount 75, is one undo entry, and a second match
+    /// keeps the amount of the track. `matchVoiceShowsNoBannerAndIsAnnounced` covers the result text.
+    @Test func matchIsOneUndoEntry() async throws {
         let (model, studio) = try await open()
         let before = studio.session
         model.timeline.selection = ClipSet(["c1"]).map { Selection.clips($0) } ?? .none
@@ -162,9 +162,6 @@ import Testing
         #expect(model.alert == nil && amount("t2", studio) == 75, "\(String(describing: model.alert))")
         #expect(first.track("t2")?.match?.reference == "f1" && first.track("t1")?.match == nil)
         #expect(model.matchingTracks.isEmpty && model.matchProgress == nil, "the read ends")
-        await until("the banner shows") { model.shown.banners.contains { $0.key == "voiceMatch.1" } }
-        let banner = try #require(model.shown.banners.first { $0.key == "voiceMatch.1" })
-        #expect(banner.kind == .info && banner.announcement == .medium)
         try studio.undo()
         #expect(studio.session == before && !studio.canUndo, "one undo step")
         try studio.redo()

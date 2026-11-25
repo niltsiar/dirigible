@@ -676,8 +676,8 @@
 "banner.use.headphones" = "Utilisez un casque pour que la voix de l\U2019invité n\U2019entre pas dans votre micro.";
 "banner.monitor.headphones" = "Utilisez un casque pour entendre le monitoring.";
 "banner.export.report" = "%1$@ exporté (%2$@).";
-"banner.level.changed" = "%lld clips modifiés.";
-"banner.level.changed.one" = "1 clip modifié.";
+"announce.level.changed" = "%lld clips modifiés.";
+"announce.level.changed.one" = "1 clip modifié.";
 "banner.level.changed.none" = "Aucun clip modifié.";
 "announce.unused.moved" = "%lld fichiers placés dans la corbeille (%@).";
 "announce.unused.moved.one" = "1 fichier placé dans la corbeille (%@).";

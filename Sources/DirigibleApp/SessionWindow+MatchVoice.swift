@@ -111,8 +111,8 @@ extension SessionWindow {
         voiceReference = reference
     }
 
-    /// Matches `tracks` to the reference as one undo step, with a banner for the result or the
-    /// refusal. The banner Cancel changes nothing, and VoiceOver says the cancel text.
+    /// Matches `tracks` to the reference as one undo step. VoiceOver hears the result, and a banner
+    /// shows a refusal. The banner Cancel changes nothing, and VoiceOver says the cancel text.
     func matchVoice(tracks: [TrackID]) async {
         guard canMatchVoice(tracks: tracks), let studio = idleStudio, let reference = voiceReference,
             let range = reference.range(in: studio.session), let home = studio.session.clip(reference.clip)?.track
@@ -127,11 +127,9 @@ extension SessionWindow {
                 reference: reference.clip, range: range, tracks: Set(tracks), agent: nil
             ) { [weak self] fraction in self?.matchProgress = fraction }
             let extremes = matches.values.map { $0.extremes(at: $0.amount) }
-            matchPresses += 1
             let result = VoiceMatchResult(
                 tracks: matches.count, boost: extremes.map(\.boost).max() ?? 0, cut: extremes.map(\.cut).min() ?? 0)
-            voiceMatchReport = ToolBannerShown(
-                banner: .voiceMatched(result, press: matchPresses), revision: studio.sessionRevision)
+            chrome?.announce(L10n.matchResult(result), .medium)
         } catch {
             switch error {
             case .matchCancelled: chrome?.announce(L10n.matchCanceled.text, .medium)

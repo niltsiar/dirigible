@@ -83,7 +83,7 @@ public enum MicrophoneAccess: Hashable, Sendable {
 
 /// The free space that a take keeps (decision 0004): a start needs it, and a take stops when
 /// the free space goes under it plus the WAV bytes of the take.
-let diskMargin: Int64 = 1_000_000_000
+package let diskMargin: Int64 = 1_000_000_000
 
 /// An armed track with its arm number (1-based), channels, and device, after the route checks.
 /// For an app route, `app` is the bundle ID, `device` has the UID `app:<bundle ID>` and the app

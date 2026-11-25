@@ -33,7 +33,7 @@ struct ArchiveFacts: Equatable {
     let bytes: Int64
 
     /// The unarchive need of decision 0072 with a FLAC of 0 private bytes: its upper bound.
-    var unarchiveNeed: Int64 { bytes + 1_000_000_000 }
+    var unarchiveNeed: Int64 { bytes + diskMargin }
 }
 
 extension TimelineCommand {

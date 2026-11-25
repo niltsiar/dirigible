@@ -143,7 +143,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F129 | An output device choice for playback | brief R7 | Later | R7 |
 | F130 | Snap to a time grid, and snap of a marker drag | Logic Pro, Final Cut Pro; tester 2026-10-04 | Later | R7 |
 | F131 | More export formats and options: AIFF, ALAC, Opus, BWF, 32 kHz, MP3 at 32 and 320 kbit/s | Hindenburg PRO, Logic Pro | Later | R11 |
-| F132 | Compact session: FLAC clip files | user 2026-10-05; tester 2026-10-17 | done, Release 7 run 8 (File > Archive Session... and Unarchive Session, dirigible file archive and file unarchive, and the file_archive and file_unarchive tools; an edit unarchives first) | R6 |
+| F132 | Compact session: FLAC clip files | user 2026-10-05; tester 2026-10-17 | done, Release 7 run 8 (File > Archive Session... and Unarchive Session, dirigible file archive and file unarchive, and the file_archive and file_unarchive tools; an edit, Play, an export, and Record unarchive first); Later: play and export from the FLAC files in place, with a seek table | R6 |
 | F133 | Exclusive solo and solo safe | Adobe Audition | Later | R7 |
 | F134 | Crossfade shapes: an asymmetric crossfade and a moved pivot | Logic Pro, Hindenburg PRO | Later | R7 |
 | F135 | Inspector extras: relative gain, a scrub drag, and a File section | Logic Pro, Final Cut Pro, Hindenburg PRO | Later | R7 |

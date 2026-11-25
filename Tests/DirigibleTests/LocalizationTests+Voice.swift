@@ -19,6 +19,30 @@ extension LocalizationTests {
         #expect(several.count <= sentenceBudget, "\(several.count) texts have two sentences or more: \(several)")
     }
 
+    /// An error text has no uncontracted negation and does not open with the app name as the subject.
+    @Test func errorTextsUseContractions() throws {
+        let values = try stringsTable("en").filter { $0.key.hasPrefix("error.") }
+        #expect(values.count >= 110, "the filter found \(values.count) error keys")
+        #expect(errorProblems(values) == [])
+    }
+
+    @Test func errorCheckerFindsAnUncontractedNegationAndAnAppNameOpener() {
+        let tells = [
+            "error.a": "Dirigible can't render the clips.", "error.b": "The clip cannot move.",
+            "error.c": "Dirigible could not save the take. The disk is not mounted.",
+        ]
+        #expect(
+            errorProblems(tells) == [
+                "error.a: the app name as the subject", "error.b: an uncontracted negation",
+                "error.c: an uncontracted negation", "error.c: the app name as the subject",
+            ])
+        let voice = [
+            "error.a": "There isn't enough space to render the clips.", "error.b": "The clip can't move.",
+            "error.c": "The take couldn't be saved. Dirigible keeps the audio.",
+        ]
+        #expect(errorProblems(voice) == [])
+    }
+
     @Test func sentenceCounterFindsASecondSentenceAndKeepsOneSentence() {
         let values = [
             "alert.a": "The clip moved. Undo it.", "alert.b": "Replace the file in %@?",
@@ -144,10 +168,24 @@ private func voiceProblems(_ values: [String: String], nameLists: Set<String>) -
     var problems: [String] = []
     for (key, value) in values.sorted(by: { $0.key < $1.key }) {
         if value.firstMatch(of: /: %(?:lld|d|@)\.?$/) != nil { problems.append("\(key): a count after a colon") }
-        if value.firstMatch(of: /\b(?:cannot|does not|did not|do not|is not|are not|could not)\b/) != nil {
-            problems.append("\(key): an uncontracted negation")
-        }
+        if hasUncontractedNegation(value) { problems.append("\(key): an uncontracted negation") }
         if value.count >= 100, !nameLists.contains(key) { problems.append("\(key): 100 characters or more") }
+    }
+    return problems
+}
+
+private func hasUncontractedNegation(_ value: String) -> Bool {
+    value.firstMatch(of: /\b(?:cannot|does not|did not|do not|is not|are not|could not)\b/) != nil
+}
+
+/// One line for each tell of an error text: `<key>: <tell>`, sorted by key.
+private func errorProblems(_ values: [String: String]) -> [String] {
+    var problems: [String] = []
+    for (key, value) in values.sorted(by: { $0.key < $1.key }) {
+        if hasUncontractedNegation(value) { problems.append("\(key): an uncontracted negation") }
+        if value.firstMatch(of: /^Dirigible (?:cannot|can|could|did|does)(?![A-Za-z])/) != nil {
+            problems.append("\(key): the app name as the subject")
+        }
     }
     return problems
 }

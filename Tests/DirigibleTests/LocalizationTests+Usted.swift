@@ -29,6 +29,8 @@ extension LocalizationTests {
             ("Para que el audio se guarde, compruebe el disco.", ["compruebe"]),
             ("Si usted quiere, pulse Grabar.", ["usted", "pulse"]),
             ("Asegúrate de que hay espacio y vuelva a intentarlo.", ["vuelva"]),
+            ("Revise el disco, descárguelo y restaure el archivo.", ["revise", "descárguelo", "restaure"]),
+            ("Revisa el disco, descárgalo y restaura el archivo.", []),
             ("Comprueba el disco y vuelve a intentarlo.", []),
             ("Vuelve a poner el archivo en esa carpeta e inténtalo de nuevo.", []),
             ("En Marcadores, elige la imagen de nuevo o quítala. Después exporta de nuevo.", []),
@@ -52,10 +54,11 @@ extension LocalizationTests {
 /// has as a tú imperative. A form that is also a common noun (ajuste, informe, importe, cierre,
 /// arrastre) is out, because a sentence that starts with the noun would be a false hit.
 private let ustedImperatives: Set<String> = [
-    "abra", "actualice", "active", "añada", "ciérrela", "compruebe", "conecte", "copie", "defina", "descargue",
-    "desactive", "desplace", "divida", "elija", "escriba", "espere", "exporte", "haga", "inténtelo", "libere",
-    "mueva", "muévala", "muévalos", "péguelo", "permita", "pulse", "quite", "quítela", "reinicie", "salga",
-    "seleccione", "termine", "use", "vuelva",
+    "abra", "actualice", "active", "añada", "borre", "bórrelo", "busque", "cambie", "ciérrela", "compruebe",
+    "conecte", "copie", "defina", "desactive", "desactívelo", "descargue", "descárguelo", "desplace", "divida",
+    "divídalo", "edite", "elija", "elimínelo", "escriba", "espere", "exporte", "haga", "inténtelo", "instale",
+    "libere", "mueva", "muévala", "muévalos", "péguelo", "permita", "pulse", "quite", "quítela", "reinicie",
+    "repita", "restaure", "revise", "salga", "seleccione", "termine", "use", "vuelva",
 ]
 
 /// The usted words of a value, in order: `usted` and `ustedes`, and each listed imperative with no

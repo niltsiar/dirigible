@@ -100,8 +100,8 @@ import Testing
         await model.close()
     }
 
-    /// C13 and C14: a dialogue clip and a music clip. Only the dialogue clip moves to a new file; the
-    /// banner counts 1 clip and 12 dB, and one undo and one redo swap the clip back and forth.
+    /// C13 and C14: a dialogue clip and a music clip. Only the dialogue clip moves to a new file, and
+    /// one undo and one redo swap the clip back and forth.
     @Test func mixedSelectionKeepsMusic() async throws {
         let (model, studio, _) = try await open()
         let before = studio.session
@@ -114,17 +114,29 @@ import Testing
         #expect(
             file != "f1" && music == "f1", "dialogue \(String(describing: file)), music \(String(describing: music))")
         #expect(model.alert == nil)
-        let report = model.denoiseReport
-        #expect(
-            report?.clips == 1 && report?.treatment == Treatment(.noise(.standard)), "\(String(describing: report))")
-        await until("the banner shows") { model.shown.banners.contains { $0.key.hasPrefix("denoiseReport") } }
-        let banner = try #require(model.shown.banners.first { $0.key.hasPrefix("denoiseReport") })
-        #expect(banner.kind == .info && banner.announcement == .medium)
         let after = studio.session
         try studio.undo()
         #expect(studio.session == before, "one undo step")
         try studio.redo()
         #expect(studio.session == after, "redo")
+        await model.close()
+    }
+
+    /// C9 (e): a Reduce Noise that changes clips shows no banner, because the lanes show the new files.
+    /// VoiceOver hears the count of the clips and the decibels once.
+    @Test func reduceNoiseShowsNoBannerAndIsAnnounced() async throws {
+        let (model, studio, _) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
+        model.timeline.selection = set("c2", "c3")
+
+        try model.reduceNoiseFromSheet()
+        await until("the render ends") { model.importJob == nil }
+
+        let text = L10n.denoiseResult(clips: 1, treatment: Treatment(.noise(.standard)))
+        #expect(heard.count(where: { $0 == text }) == 1, "VoiceOver hears the result once: \(heard)")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.key.hasPrefix("denoiseReport") }, "a render that changed clips: \(banners)")
         await model.close()
     }
 
@@ -144,7 +156,7 @@ import Testing
         await until("the second press ends") { model.importJob == nil }
 
         #expect(studio.session == rendered && model.alert == nil)
-        #expect(model.denoiseReport?.clips == 0, "\(String(describing: model.denoiseReport))")
+        #expect(model.denoiseReport != nil, "a render that changed no clip keeps its banner")
         await until("the banner shows") { model.shown.banners.contains { $0.key == "denoiseReport.2" } }
         let banner = try #require(model.shown.banners.first { $0.key == "denoiseReport.2" })
         #expect(banner.kind == .info && banner.text == L10n.denoiseUnchanged.text, "\(banner.text)")

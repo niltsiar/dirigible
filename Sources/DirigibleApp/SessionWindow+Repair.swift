@@ -60,9 +60,9 @@ extension SessionWindow {
     }
 
     /// Repair of the sheet: closes it and renders the clips with the checked repairs, with the values
-    /// kept for the next open. At the end, a banner names the level drop of a de-clip. Another error
-    /// shows the alert, also the busy refusal of a studio that started another job while the sheet
-    /// was open.
+    /// kept for the next open. At the end, VoiceOver hears the count, and a banner names the level drop
+    /// of a de-clip or says that no clipped peak was found. Another error shows the alert, also the
+    /// busy refusal of a studio that started another job while the sheet was open.
     func applyRepair(_ draft: RepairDraft) {
         guard importJob == nil, case .open(let studio) = phase, let request = draft.request,
             !draft.clips.isEmpty
@@ -73,8 +73,12 @@ extension SessionWindow {
             [weak self] report, revision in
             guard let self, !report.clips.isEmpty || !report.unchanged.isEmpty else { return }
             denoisePresses += 1
-            repairReport = RepairReportShown(
-                result: RepairResult(report), revision: revision, press: denoisePresses)
+            let result = RepairResult(report)
+            let done = L10n.repairDone(result)
+            if !done.isEmpty { chrome?.announce(done, .medium) }
+            if !L10n.repairResult(result).isEmpty {
+                repairReport = RepairReportShown(result: result, revision: revision, press: denoisePresses)
+            }
         }
     }
 }

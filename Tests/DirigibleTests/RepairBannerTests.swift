@@ -6,8 +6,9 @@ import Testing
 @testable import DirigibleCore
 @testable import DirigibleMCP
 
-/// The banner after Repair Sound (decision 0064 D4, criterion C13): the level drop of a de-clip in
-/// whole dB, and "No clipped peaks found.".
+/// The banner and the announcement after Repair Sound (decision 0064 D4, criteria C13 and C9 (f)): the
+/// banner holds the level drop of a de-clip in whole dB and "No clipped peaks found."; the
+/// announcement holds the count of the repaired clips.
 struct RepairBannerTests {
     /// The report of a render of `clips` with `treatment`; `repairs` gives the runs and the drop in
     /// dB of each clip.
@@ -17,10 +18,16 @@ struct RepairBannerTests {
             unchanged: [], repairs: repairs.mapValues { ClipRepair(runs: $0.runs, levelDrop: $0.drop) })
     }
 
-    /// The English text of the result of `repairs`.
+    /// The English banner text of the result of `repairs`.
     func text(_ treatment: Treatment, _ repairs: [ClipID: (runs: Int, drop: Double)]) throws -> String {
         let table = try stringsTable("en")
         return L10n.repairResult(RepairResult(report(treatment, repairs))) { table[$0.rawValue] ?? $0.rawValue }
+    }
+
+    /// The English announcement of the result of `repairs`.
+    func done(_ treatment: Treatment, _ repairs: [ClipID: (runs: Int, drop: Double)]) throws -> String {
+        let table = try stringsTable("en")
+        return L10n.repairDone(RepairResult(report(treatment, repairs))) { table[$0.rawValue] ?? $0.rawValue }
     }
 
     let declip = Treatment(.declip(.standard))
@@ -28,20 +35,20 @@ struct RepairBannerTests {
     /// C13: one clip with a drop of 3.6 dB gives "4 dB lower" in whole dB. Fail: no drop sentence,
     /// and a drop of 3 dB cut and not rounded.
     @Test func namesTheLevelDrop() throws {
+        #expect(try text(declip, ["c1": (3, 3.6)]) == "The level is 4 dB lower.")
+        #expect(try done(declip, ["c1": (3, 3.6)]) == "Repaired clipped peaks in 1 clip.")
         #expect(
-            try text(declip, ["c1": (3, 3.6)]) == "Repaired clipped peaks in 1 clip. The level is 4 dB lower.")
+            WindowBanner.soundRepaired(RepairResult(report(declip, ["c1": (3, 3.6)])), press: 1).kind == .warning,
+            "a level drop is a warning")
     }
 
     /// C13: clips with drops of 3 and 5 dB give "up to 5 dB lower". Fail: the drop of the first clip.
     @Test func namesTheLargestDropOfTheClips() throws {
-        #expect(
-            try text(declip, ["c1": (2, 3.0), "c2": (1, 5.0)])
-                == "Repaired clipped peaks in 2 clips. The level is up to 5 dB lower.")
-        #expect(
-            try text(declip, ["c1": (2, 5.0), "c2": (1, 3.0)])
-                == "Repaired clipped peaks in 2 clips. The level is up to 5 dB lower.")
-        #expect(
-            try text(declip, ["c1": (2, 0.2)]) == "Repaired clipped peaks in 1 clip.", "a drop of 0 dB has no sentence")
+        #expect(try text(declip, ["c1": (2, 3.0), "c2": (1, 5.0)]) == "The level is up to 5 dB lower.")
+        #expect(try text(declip, ["c1": (2, 5.0), "c2": (1, 3.0)]) == "The level is up to 5 dB lower.")
+        #expect(try done(declip, ["c1": (2, 3.0), "c2": (1, 5.0)]) == "Repaired clipped peaks in 2 clips.")
+        #expect(try text(declip, ["c1": (2, 0.2)]) == "", "a drop of 0 dB has no banner")
+        #expect(try done(declip, ["c1": (2, 0.2)]) == "Repaired clipped peaks in 1 clip.")
     }
 
     /// Decision 0011 (CLI parity): the lines of `clip repair` and the banner name the same values for
@@ -64,16 +71,19 @@ struct RepairBannerTests {
     /// run of the other repairs, which says that it repaired the sound.
     @Test func saysNoClippedPeaksFound() throws {
         #expect(try text(declip, ["c1": (0, 0), "c2": (0, 0)]) == "No clipped peaks found.")
-        #expect(
-            try text(declip, ["c1": (0, 0), "c2": (4, 6.0)])
-                == "Repaired clipped peaks in 1 clip. The level is 6 dB lower.")
+        #expect(try done(declip, ["c1": (0, 0), "c2": (0, 0)]) == "", "the banner says the whole result")
+        #expect(try text(declip, ["c1": (0, 0), "c2": (4, 6.0)]) == "The level is 6 dB lower.")
+        #expect(try done(declip, ["c1": (0, 0), "c2": (4, 6.0)]) == "Repaired clipped peaks in 1 clip.")
         let rumble = Treatment(.rumble(.standard))
-        #expect(try text(rumble, ["c1": (0, 0), "c2": (0, 0)]) == "Repaired the sound of 2 clips.")
+        #expect(try text(rumble, ["c1": (0, 0), "c2": (0, 0)]) == "", "a repair with no warning has no banner")
+        #expect(try done(rumble, ["c1": (0, 0), "c2": (0, 0)]) == "Repaired the sound of 2 clips.")
         let both = Treatment([.declip(.standard), .rumble(.standard)])!
-        #expect(try text(both, ["c1": (0, 0)]) == "Repaired the sound of 1 clip.")
+        #expect(try text(both, ["c1": (0, 0)]) == "")
+        #expect(try done(both, ["c1": (0, 0)]) == "Repaired the sound of 1 clip.")
         let table = try stringsTable("en")
         let none = RepairResult(clips: 0, declip: true, others: false, repaired: 0, drop: 0)
         #expect(L10n.repairResult(none) { table[$0.rawValue] ?? $0.rawValue } == "Nothing to change.")
+        #expect(L10n.repairDone(none) { table[$0.rawValue] ?? $0.rawValue } == "")
     }
 
     /// C14 (app part): the error values of a clip render name the clip render in each table, and the

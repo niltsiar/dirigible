@@ -218,7 +218,8 @@ extension SessionWindow {
     /// track name saves first, as at Record: the level makes the name field read-only. Each press
     /// removes the banner of the last level first. With a busy studio, it does nothing else and
     /// shows no alert. A selection with no clip beeps. An error shows the alert, except a cancel
-    /// from the banner. A level shows its report in a banner.
+    /// from the banner. VoiceOver hears the count of changed clips. A level shows a banner only when
+    /// no clip changed or a clip needs a check.
     func level(_ mode: LevelMode) async {
         levelReport = nil
         commitDrafts()
@@ -230,7 +231,13 @@ extension SessionWindow {
         do throws(StudioError) {
             let report = try await studio.level(clips, mode).report
             levelPresses += 1
-            levelReport = LevelReportShown(report: report, revision: studio.sessionRevision, press: levelPresses)
+            if report.changed > 0 {
+                let count = L10n.counted(report.changed, one: .announceLevelChangedOne, many: .announceLevelChanged)
+                chrome?.announce(count, .medium)
+            }
+            if !L10n.message(for: report).isEmpty {
+                levelReport = LevelReportShown(report: report, revision: studio.sessionRevision, press: levelPresses)
+            }
         } catch .levelCancelled {
             // The banner Cancel: the user asked for it, so no alert.
         } catch {

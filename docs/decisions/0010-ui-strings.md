@@ -32,7 +32,7 @@ R13 asks for a UI in English, Spanish, German, French, Italian, Dutch, Brazilian
     - An error says what happened and what to do. It does not blame the user and does not say "we". The app name may be the subject (F127, F140).
     - Use the ellipsis character (F122, F135).
   - Repo rules, which no Apple source sets:
-    - One fact in each sentence. A count has its noun in the same sentence: "Changed 3 clips.", not "Clips changed: 3". A count with a noun has one key for 1 and one key for more (`banner.level.changed.one`), so that 1 does not read "1 clips".
+    - One fact in each sentence. A count has its noun in the same sentence: "Changed 3 clips.", not "Clips changed: 3". A count with a noun has one key for 1 and one key for more (`announce.level.changed.one`), so that 1 does not read "1 clips".
     - No cause clause ("because", "so") when the next step is enough.
     - A message text has fewer than 100 characters, unless it lists file names (the keys of `voiceNameLists` in `LocalizationTests+Voice.swift`).
     - A banner shows no internal measure: no ppm, no resample count, no match score.

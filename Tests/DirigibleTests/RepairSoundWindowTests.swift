@@ -66,10 +66,13 @@ import Testing
         await model.close()
     }
 
-    /// C13: Repair renders each selected clip, also on a music track, onto a new file in one undo
-    /// entry, and the banner counts the clips. Control: the draft with no box on renders nothing.
-    @Test func repairRendersEachClipAndSaysSo() async throws {
+    /// C13 and C9 (f): Repair renders each selected clip, also on a music track, onto a new file in one
+    /// undo entry. The lanes show the new files, so no banner opens, and VoiceOver hears the count once.
+    /// Control: the draft with no box on renders nothing.
+    @Test func repairSoundShowsNoBannerAndIsAnnounced() async throws {
         let (model, studio) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
         let before = studio.session
         model.timeline.selection = set("c1", "c3")
         model.run(.repairSound)
@@ -83,9 +86,10 @@ import Testing
 
         let files = ["c1", "c3"].map { studio.session.clip($0)?.clip.file }
         #expect(files.allSatisfy { $0 != nil && $0 != "f1" } && model.alert == nil, "\(files)")
-        await until("the banner shows") { model.shown.banners.contains { $0.key == "repairReport.1" } }
-        let banner = try #require(model.shown.banners.first { $0.key == "repairReport.1" })
-        #expect(banner.kind == .info && banner.text == L10n.repairSoundMany.format(2), "\(banner.text)")
+        let text = L10n.repairSoundMany.format(2)
+        #expect(heard.count(where: { $0 == text }) == 1, "VoiceOver hears the count once: \(heard)")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.key.hasPrefix("repairReport") }, "a repair with no warning: \(banners)")
         try studio.undo()
         #expect(studio.session == before && !studio.canUndo, "one undo entry")
         await model.close()

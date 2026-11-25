@@ -31,7 +31,8 @@ struct RideReportShown: Equatable {
 /// sheet.
 extension SessionWindow {
     /// Rides the clips of the selection, whatever their track roles, as one undo step. A selection
-    /// with no clip beeps. With a dialog, it does nothing. The banner Cancel shows no alert, and
+    /// with no clip beeps. With a dialog, it does nothing. VoiceOver hears the count of leveled clips,
+    /// and a banner warns of clips with no level to measure. The banner Cancel shows no alert, and
     /// VoiceOver says the cancel text.
     func levelOverTime() async {
         guard importJob == nil, !dialogShowing, let studio = idleStudio else { return }
@@ -42,7 +43,9 @@ extension SessionWindow {
         do throws(StudioError) {
             let report = try await studio.levelOverTime(Set(clips), agent: nil)
             let result = RideResult(report)
-            guard result.leveled > 0 || result.unmeasured > 0 else { return }
+            let done = L10n.rideDone(result)
+            if !done.isEmpty { chrome?.announce(done, .medium) }
+            guard result.unmeasured > 0 else { return }
             ridePresses += 1
             rideReport = RideReportShown(result: result, revision: studio.sessionRevision, press: ridePresses)
         } catch .rideCancelled {

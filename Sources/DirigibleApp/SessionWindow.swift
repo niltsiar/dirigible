@@ -145,7 +145,7 @@ import SwiftUI
     /// and the banner bar. Nil progress: no match of this window runs.
     var matchingTracks: Set<TrackID> = []
     var matchProgress: Double?
-    /// The banner of the last Match Voice, at its session revision.
+    /// The refusal banner of the last Match Voice, at its session revision.
     var voiceMatchReport: ToolBannerShown?
     @ObservationIgnored var matchPresses = 0
     /// The result line of the last Import Session, at its session revision (decision 0075).

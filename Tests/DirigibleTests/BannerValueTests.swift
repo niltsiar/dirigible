@@ -86,12 +86,28 @@ struct BannerValueTests {
             (.missingMedia(["a.wav"]), .error, L10n.mediaMissing.text, .medium),
             (.lowRecordTime(minutes: 5), .warning, L10n.bannerLowRecordTimeLeft.text, .high),
             (
-                .levelReport(LevelReport(changed: 1, atLimit: 0, unmeasured: 0), press: 1), .info,
-                L10n.bannerLevelChangedOne.text, .medium
+                .levelReport(LevelReport(changed: 0, atLimit: 0, unmeasured: 0), press: 1), .info,
+                L10n.bannerLevelNone.text + " " + L10n.bannerLevelVolume.text, .medium
             ),
             (
                 .levelReport(LevelReport(changed: 1, atLimit: 1, unmeasured: 0), press: 1), .warning,
-                L10n.bannerLevelChangedOne.text + " " + L10n.bannerLevelLimitOne.text, .medium
+                L10n.bannerLevelLimitOne.text, .medium
+            ),
+            (
+                .levelReport(LevelReport(changed: 1, atLimit: 0, unmeasured: 1), press: 1), .warning,
+                L10n.bannerLevelUnmeasuredOne.text, .medium
+            ),
+            (
+                .leveledOverTime(RideResult(leveled: 2, unmeasured: 1, gain: 4), press: 1), .warning,
+                L10n.rideUnmeasuredOne.text, .medium
+            ),
+            (
+                .soundRepaired(RepairResult(clips: 2, declip: true, others: false, repaired: 2, drop: 4), press: 1),
+                .warning, L10n.repairDropMany.format(4), .medium
+            ),
+            (
+                .soundRepaired(RepairResult(clips: 2, declip: true, others: false, repaired: 0, drop: 0), press: 1),
+                .info, L10n.repairNone.text, .medium
             ),
         ]
         for (banner, kind, text, announcement) in banners {

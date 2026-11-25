@@ -9,19 +9,17 @@ struct ExportReportShown: Equatable {
     let revision: Int
 }
 
-/// The report of the last Auto Level, the session revision after it, and the number of its press,
-/// so each press gives a new banner key and VoiceOver reads each result.
+/// The report of the last Auto Level that has banner text, the session revision after it, and the number
+/// of its press, so each press gives a new banner key and VoiceOver reads each result.
 struct LevelReportShown: Equatable {
     let report: LevelReport
     let revision: Int
     let press: Int
 }
 
-/// The result of the last Reduce Noise: the clips that moved, the treatment of the run, the
-/// session revision after it, and the number of its run, so each run gives a new banner key.
+/// A Reduce Noise run that changed no clip, the session revision after it, and the number of its run,
+/// so each run gives a new banner key.
 struct DenoiseReportShown: Equatable {
-    let clips: Int
-    let treatment: Treatment
     let revision: Int
     let press: Int
 }
@@ -33,8 +31,8 @@ struct TranscriptImportShown: Equatable {
     let press: Int
 }
 
-/// The banner of the last duck, Match Voice, or sync, and the session revision at its end: the next
-/// change of the session hides it.
+/// The banner of the last duck, Match Voice refusal, session import, or sync, and the session revision at
+/// its end: the next change of the session hides it.
 struct ToolBannerShown: Equatable {
     let banner: WindowBanner
     let revision: Int
@@ -79,18 +77,21 @@ enum WindowBanner: Equatable {
     /// The count of cues that an exported transcript file leaves out because they have no length,
     /// as `dirigible transcript export` warns (decision 0061).
     case transcriptLeftOut(count: Int, file: String)
-    /// The result of an Auto Level (run 2026-10-12-autolevel-fader). The press number makes a
-    /// new key for each press. A warning when a clip is at the 20 dB limit.
+    /// What an Auto Level asks the user to check, or that no clip changed (run 2026-10-12-autolevel-fader).
+    /// The press number makes a new key for each press. A warning when a clip is at the 20 dB limit
+    /// or has no level.
     case levelReport(LevelReport, press: Int)
-    /// The result of a Reduce Noise run (decision 0054). The press number makes a new key for each run.
-    case noiseReduced(clips: Int, treatment: Treatment, press: Int)
-    /// The result of a Repair Sound run (decision 0064). The press number makes a new key for each run.
+    /// A Reduce Noise run that changed no clip (decision 0054). The press number makes a new key for
+    /// each run.
+    case noiseUnchanged(press: Int)
+    /// What a Repair Sound run asks the user to check (decision 0064): the level drop of a de-clip, or
+    /// that it found no clipped peak. The press number makes a new key for each run.
     case soundRepaired(RepairResult, press: Int)
-    /// The result of a Level Over Time run. The press number makes a new key for each run.
+    /// The clips that a Level Over Time run could not measure, as a warning. The press number makes a
+    /// new key for each run.
     case leveledOverTime(RideResult, press: Int)
-    /// The result of a Match Voice run, and the refusal text of one that stored nothing. The press number
-    /// makes a new key for each run.
-    case voiceMatched(VoiceMatchResult, press: Int)
+    /// The refusal text of a Match Voice run that stored nothing. The press number makes a new key for
+    /// each run.
     case voiceMatchRefused(String, press: Int)
     /// What the last Import Transcript skipped or dropped. The press number makes a new key.
     case transcriptImported(String, press: Int)
@@ -176,10 +177,9 @@ enum WindowBanner: Equatable {
         case .titleMissing(let file): "titleMissing.\(file)"
         case .transcriptLeftOut: "transcriptLeftOut"
         case .levelReport(_, let press): "levelReport.\(press)"
-        case .noiseReduced(_, _, let press): "denoiseReport.\(press)"
+        case .noiseUnchanged(let press): "denoiseReport.\(press)"
         case .soundRepaired(_, let press): "repairReport.\(press)"
         case .leveledOverTime(_, let press): "rideReport.\(press)"
-        case .voiceMatched(_, let press): "voiceMatch.\(press)"
         case .voiceMatchRefused(_, let press): "voiceMatchRefused.\(press)"
         case .transcriptImported(_, let press): "transcriptImported.\(press)"
         case .unusedFilesFailed: "unusedFilesFailed"
@@ -203,13 +203,13 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported:
+            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
-        case .archived, .archiveSaved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime,
-            .noWordsFound, .exportSetDone, .voiceMatched, .syncMoved:
+        case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound, .exportSetDone, .syncMoved:
             .info
-        case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
+        case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
+        case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
     }
@@ -236,11 +236,9 @@ enum WindowBanner: Equatable {
         case .transcriptLeftOut(let count, let file): L10n.bannerTranscriptLeftOut.format(file, count)
         case .levelReport(let report, _): L10n.message(for: report)
         case .transcriptImported(let text, _): text
-        case .noiseReduced(0, _, _): L10n.denoiseUnchanged.text
-        case .noiseReduced(let clips, let treatment, _): L10n.denoiseResult(clips: clips, treatment: treatment)
+        case .noiseUnchanged: L10n.denoiseUnchanged.text
         case .soundRepaired(let result, _): L10n.repairResult(result)
         case .leveledOverTime(let result, _): L10n.rideResult(result)
-        case .voiceMatched(let result, _): L10n.matchResult(result)
         case .voiceMatchRefused(let text, _): text
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .archived: L10n.bannerArchived.text
@@ -270,7 +268,7 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .stemsClipped,
             .stemsMixClipped, .stemsStopped, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
-            .levelReport, .noiseReduced, .soundRepaired, .leveledOverTime, .voiceMatched, .voiceMatchRefused,
+            .levelReport, .noiseUnchanged, .soundRepaired, .leveledOverTime, .voiceMatchRefused,
             .transcriptImported, .archived, .archiveSaved, .archiveDamaged, .unusedFilesFailed, .consentExpired,
             .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound, .syncMoved, .syncNoMatch:

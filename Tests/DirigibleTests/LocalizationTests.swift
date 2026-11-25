@@ -181,6 +181,23 @@ struct LocalizationTests {
         }
     }
 
+    /// D18: the texts that only the announcement of an Auto Level reads have `announce.` keys, one for 1
+    /// clip and one for more (decision 0010, **Voice**), and the table has no `banner.` copy of them.
+    @Test func theLevelChangedAnnouncementHasATextForOneClip() throws {
+        let texts = [
+            "en": ["Changed 1 clip.", "Changed %lld clips."],
+            "es": ["Se cambió 1 clip.", "Se cambiaron %lld clips."],
+        ]
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            let one = try #require(table["announce.level.changed.one"], "\(language)")
+            let many = try #require(table["announce.level.changed"], "\(language)")
+            if let expected = texts[language] { #expect([one, many] == expected, "\(language)") }
+            #expect(!one.contains("%lld") && many.contains("%lld"), "\(language): \(one) \(many)")
+            #expect(table["banner.level.changed"] == nil && table["banner.level.changed.one"] == nil, "\(language)")
+        }
+    }
+
     /// The announcement after Remove Unused Files has one text for 1 file and one for more, so 1 does
     /// not read "1 files" (decision 0010, **Voice**). The text for 1 file has no count specifier.
     @Test func theMovedAnnouncementHasATextForOneFile() throws {

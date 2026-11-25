@@ -81,7 +81,7 @@ extension Session {
         exportPresets = presets
         do throws(SessionError) {
             for capture in captures { try addCapture(capture) }
-            for file in files { try addFile(file) }
+            for file in files { try addFile(file, stored: true) }
             try setOrigins(origins)
             try setDriftLinks(drifts)
             try addBins(bins)

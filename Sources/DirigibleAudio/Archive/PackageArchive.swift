@@ -23,6 +23,8 @@ public enum KeptReason: Hashable, Sendable {
     case notWAV
     /// The WAV is not 24-bit integer PCM at the rate of the session with the channels of its entry.
     case notArchivable
+    /// Another pool file has the FLAC name of the WAV as its path, so no FLAC of the WAV can be.
+    case flacNameTaken
     /// A decode fault of the source, frames or an MD5 that differ, or fewer frames than the pool
     /// entry. `frames` decoded before the fault. A POSIX I/O fault is never this: it stops the job.
     case damaged(frames: Frames)
@@ -186,9 +188,14 @@ package func archiveSources(
             continue
         }
         let name = poolFileName(file, in: package)
+        let wav = package.appending(path: name.name)
+        if session.flacNameIsTaken(file.path) {
+            // The item at the FLAC name is the file of another pool entry.
+            kept[file.path] = name.form == .pool && exists(wav) ? .flacNameTaken : .missing
+            continue
+        }
         // A FLAC with no WAV: converted before.
         guard name.form == .pool else { continue }
-        let wav = package.appending(path: name.name)
         guard exists(wav) else {
             kept[file.path] = .missing
             continue
@@ -210,21 +217,23 @@ func unarchivePackage(
     var report = ArchiveReport()
     var sources: [(file: AudioFile, flac: String, sizes: FileSizes)] = []
     var paths = Set<String>()
-    for file in (Array(session.files.values) + also).sorted(by: { $0.path < $1.path })
-    where paths.insert(file.path).inserted {
+    let pool = Array(session.files.values) + also
+    // The item at a FLAC name that a pool file has as its path is the file of that entry.
+    let taken = Set(pool.map { $0.path.lowercased() })
+    for file in pool.sorted(by: { $0.path < $1.path }) where paths.insert(file.path).inserted {
         guard let flacPath = archivedPath(of: file.path) else {
             report.kept[file.path] = .notWAV
             continue
         }
         let flac = clips.appending(path: flacPath)
-        if exists(flac) {
+        if !taken.contains(flacPath.lowercased()), exists(flac) {
             try sources.append((file, flacPath, sizes(flac, flacPath, seams)))
         } else if !exists(clips.appending(path: file.path)) {
             report.kept[file.path] = .missing
         }
     }
     for segment in soleCopySegments(in: package, clip: { "\(clipsFolderName)/\($0.stem).flac" })
-    where paths.insert("\(segment.stem).wav").inserted {
+    where paths.insert("\(segment.stem).wav").inserted && !taken.contains("\(segment.stem).flac".lowercased()) {
         let (path, flacPath) = ("\(segment.stem).wav", "\(segment.stem).flac")
         let flac = clips.appending(path: flacPath)
         // No pool entry names the file, so STREAMINFO gives its channels and frames.

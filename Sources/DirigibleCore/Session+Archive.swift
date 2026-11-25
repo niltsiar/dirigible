@@ -13,6 +13,15 @@ public func archivedPath(of path: String) -> String? {
     return String(path.dropLast(4)) + ".flac"
 }
 
+extension Session {
+    /// True when another pool file has the path `archivedPath(of: path)`, in any case: the item at
+    /// that name is the file of that entry, never the FLAC of `path` (decision 0072).
+    package func flacNameIsTaken(_ path: String) -> Bool {
+        guard let flac = archivedPath(of: path)?.lowercased() else { return false }
+        return files.values.contains { $0.path.lowercased() == flac }
+    }
+}
+
 /// The name in the folder of `name` of the file that an archive job writes for `name` until its
 /// rename: ".<name>.archive-<UUID>.tmp".
 package func archiveTemporaryName(of name: String, _ uuid: UUID) -> String { ".\(name).archive-\(uuid.uuidString).tmp" }

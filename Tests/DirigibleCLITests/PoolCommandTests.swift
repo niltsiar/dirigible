@@ -93,6 +93,25 @@ struct PoolCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// An archived pool WAV is on disk at its FLAC name (decision 0072), so a pool path at the FLAC
+    /// name of a pool WAV, and a pool WAV whose FLAC name is a pool path, in any case, are refused.
+    /// Fail value: `file add` adds the second entry.
+    @Test func aPathAtTheFLACNameOfAPoolWAVIsRefused() async throws {
+        func add(_ path: String, _ id: String) async throws -> CLIResult {
+            try await package.run("file", "add", "PKG", "--path", path, "--layout", "mono", "--length", "5", "--id", id)
+        }
+        #expect(try await add("host.wav", "f1") == CLIResult(status: 0, stdout: "f1\n", stderr: ""))
+        #expect(try await add("guest.flac", "f2") == CLIResult(status: 0, stdout: "f2\n", stderr: ""))
+        let before = try package.xml()
+
+        let flac = try await add("Host.FLAC", "f3")
+        let wav = try await add("guest.wav", "f4")
+
+        #expect(flac == CLIResult(status: 1, stdout: "", stderr: "Error: the ID \"Host.FLAC\" is already used.\n"))
+        #expect(wav == CLIResult(status: 1, stdout: "", stderr: "Error: the ID \"guest.wav\" is already used.\n"))
+        #expect(try package.xml() == before)
+    }
+
     @Test(arguments: [
         [
             "capture", "add", "PKG", "--device-uid", "u", "--device-name", "n", "--host-time", "-1", "--sample-time",

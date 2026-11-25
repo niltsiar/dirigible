@@ -7,7 +7,7 @@
 
 ## Context
 
-A tester archives finished sessions by hand to save disk space (backlog item 0222, F132). The user asked for four things (2026-10-17): an archived session returns to work at any later time; each sample and each session fact stays; a later build unarchives an older archive; and Dirigible unarchives by itself before an edit, with progress.
+A tester archives finished sessions by hand to save disk space (F132). The user asked for four things (2026-10-17): an archived session returns to work at any later time; each sample and each session fact stays; a later build unarchives an older archive; and Dirigible unarchives by itself before an edit, with progress.
 
 The clip files are 24-bit WAV (0003). FLAC holds 24-bit integer samples with no loss. A probe of run `2026-11-04-flac-archive` (`probe-flac/`) converted the 61 clip WAVs of the tester corpus to FLAC and back with the AudioToolbox codec: all 61 are sample-equal. The FLAC files use 0.486 of the WAV bytes (0.231 to 0.537 for each package). The STREAMINFO MD5 equals the MD5 of the WAV `data` bytes. The Apple encoder writes no SEEKTABLE, and 0003 measured a FLAC seek of 0.65 s at minute 28.
 
@@ -59,7 +59,7 @@ Each job that changes the package unarchives first: an edit, a take, import, pas
 
 - **A `.flac` path in each `<file>`.** Rejected: each backup, each undo snapshot, and each clipboard record holds the `.wav` path, so a revert or an undo would point at a missing file, and the backups would need a rewrite.
 - **No attribute: the files on disk are the state.** Rejected: an older build shows each archived clip as missing media and records new WAVs into the package.
-- **Read FLAC in place for every job.** Rejected: the user asked for an unarchive before an edit, and a FLAC seek grows with the position (0003). The gate measured it (see What works). A FLAC with a SEEKTABLE is backlog 1538.
+- **Read FLAC in place for every job.** Rejected: the user asked for an unarchive before an edit, and a FLAC seek grows with the position (0003). The gate measured it (see What works). A FLAC with a SEEKTABLE is a later item.
 - **A prune that refuses an archived package.** Rejected: the studio prune unarchives first, so the CLI and MCP prune do the same through the one step.
 - **A copy of the session in FLAC, as Reaper does.** Rejected: the tester wants the space back in place.
 

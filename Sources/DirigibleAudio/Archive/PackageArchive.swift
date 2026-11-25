@@ -23,8 +23,8 @@ public enum KeptReason: Hashable, Sendable {
     case notWAV
     /// The WAV is not 24-bit integer PCM at the rate of the session with the channels of its entry.
     case notArchivable
-    /// A decode fault of the source, or frames or an MD5 that differ. `frames` decoded before the
-    /// fault. A POSIX I/O fault is never this: it stops the job.
+    /// A decode fault of the source, frames or an MD5 that differ, or fewer frames than the pool
+    /// entry. `frames` decoded before the fault. A POSIX I/O fault is never this: it stops the job.
     case damaged(frames: Frames)
 }
 

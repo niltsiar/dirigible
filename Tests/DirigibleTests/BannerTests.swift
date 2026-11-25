@@ -51,10 +51,11 @@ import os
     /// The window subtitle has the record time part.
     func timePart(_ window: NSWindow) -> Bool { window.subtitle.contains(L10n.subtitleRecordTime.text) }
 
-    /// The record time part of the subtitle for `minutes` whole minutes, in the test locale.
+    /// The record time part of the subtitle for `minutes` whole minutes, in the test locale. The test
+    /// process has no app table, so the part is the key and holds no time: BannerValueTests checks the units.
     func timePart(minutes: Int) -> String {
         let units = Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
-        return "\(L10n.subtitleRecordTime.text) \(units)"
+        return String(format: L10n.subtitleRecordTime.text, units)
     }
 
     /// Sets the free space, reads it again, and waits until the window has the new time.
@@ -68,20 +69,15 @@ import os
 
     // MARK: A12
 
-    @Test func theWindowSubtitleFollowsTheTracks() async throws {
+    @Test func theWindowSubtitleHoldsTheRateAndNoTrackCount() async throws {
         let (model, studio, window, _) = try await open()
-        await until(limit: .seconds(5), "the subtitle has the track count") {
-            window.subtitle.contains("\(L10n.subtitleTracks.text) 1")
-        }
-        #expect(window.subtitle.hasPrefix("48 kHz · \(L10n.subtitleTracks.text) 1"), "\(window.subtitle)")
+        await until(limit: .seconds(5), "the subtitle has the rate") { window.subtitle == "48 kHz" }
+        #expect(window.subtitle == "48 kHz", "\(window.subtitle)")
 
         model.addTrack()
 
         #expect(studio.session.tracks.count == 2)
-        await until(limit: .seconds(5), "Add Track changes the count") {
-            window.subtitle.contains("\(L10n.subtitleTracks.text) 2")
-        }
-        #expect(window.subtitle.contains("\(L10n.subtitleTracks.text) 2"), "\(window.subtitle)")
+        #expect(window.subtitle == "48 kHz", "Add Track adds no count: \(window.subtitle)")
         await model.close()
     }
 
@@ -89,9 +85,7 @@ import os
     /// the scene removes the subtitle field from the title bar, and `window.subtitle` keeps its value.
     @Test func theTitleBarShowsTheSubtitle() async throws {
         let (model, _, window, _) = try await open()
-        await until(limit: .seconds(5), "the subtitle has the track count") {
-            window.subtitle.contains("\(L10n.subtitleTracks.text) 1")
-        }
+        await until(limit: .seconds(5), "the subtitle has the rate") { window.subtitle == "48 kHz" }
         let frame = try #require(window.contentView?.superview)
         #expect(
             textFields(under: frame).contains { $0.stringValue == window.subtitle && !$0.isHiddenOrHasHiddenAncestor },

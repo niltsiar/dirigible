@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleTimeline
 import Foundation
 import Testing
 
@@ -7,33 +8,74 @@ import Testing
 
 /// The pure values of the subtitle and the banners (ui-shell criteria A12, A15).
 struct BannerValueTests {
-    /// A12, F152: the rate in kHz, "Tracks: N" with no plural form, and the time left rounded down
-    /// to the minute, in units that Foundation gives. The test process has no app tables, so the
-    /// labels come from each table.
-    @Test func theSubtitleShowsRateTracksAndTimeLeft() throws {
+    /// A12, F152: the rate in kHz, and the time left rounded down to the minute, in units that
+    /// Foundation gives. The test process has no app tables, so the labels come from each table.
+    @Test func theSubtitleShowsTheRateAndTheTimeLeft() throws {
         let (en, es) = (try stringsTable("en"), try stringsTable("es"))
-        #expect(en[L10n.subtitleRecordTime.rawValue] == "Record time left:")
-        #expect(es[L10n.subtitleRecordTime.rawValue] == "Grabación restante:")
+        #expect(en[L10n.subtitleRecordTime.rawValue] == "%@ left")
+        #expect(es[L10n.subtitleRecordTime.rawValue] == "%@ restantes")
         let (english, spanish) = ({ (key: L10n) in en[key.rawValue] ?? "" }, { (key: L10n) in es[key.rawValue] ?? "" })
         let (enUS, esES) = (Locale(identifier: "en_US"), Locale(identifier: "es_ES"))
         #expect(
-            subtitleText(rate: 48_000, tracks: 3, recordTimeLeft: .seconds(10_799), locale: enUS, text: english)
-                == "48 kHz · Tracks: 3 · Record time left: 2 hr, 59 min")
+            subtitleText(rate: 48_000, recordTimeLeft: .seconds(10_799), locale: enUS, text: english)
+                == "48 kHz · 2 hr, 59 min left")
         #expect(
-            subtitleText(rate: 48_000, tracks: 3, recordTimeLeft: .seconds(10_799), locale: esES, text: spanish)
-                == "48 kHz · Pistas: 3 · Grabación restante: 2 h y 59 min")
+            subtitleText(rate: 48_000, recordTimeLeft: .seconds(10_799), locale: esES, text: spanish)
+                == "48 kHz · 2 h y 59 min restantes")
         for (seconds, left) in [(7_199, "1 hr, 59 min"), (3_600, "1 hr"), (59, "0 min")] {
             #expect(
-                subtitleText(rate: 48_000, tracks: 1, recordTimeLeft: .seconds(seconds), locale: enUS, text: english)
-                    == "48 kHz · Tracks: 1 · Record time left: \(left)", "\(seconds) s")
+                subtitleText(rate: 48_000, recordTimeLeft: .seconds(seconds), locale: enUS, text: english)
+                    == "48 kHz · \(left) left", "\(seconds) s")
         }
         for (table, locale) in [(english, enUS), (spanish, esES)] {
-            #expect(
-                subtitleText(rate: 48_000, tracks: 0, recordTimeLeft: nil, locale: locale, text: table)
-                    == "48 kHz · \(table(.subtitleTracks)) 0")
+            #expect(subtitleText(rate: 48_000, recordTimeLeft: nil, locale: locale, text: table) == "48 kHz")
         }
-        #expect(subtitleText(rate: 44_100, tracks: 1, recordTimeLeft: nil, locale: esES).hasPrefix("44,1 kHz"))
-        #expect(en[L10n.subtitleTracks.rawValue] == "Tracks:")
+        #expect(subtitleText(rate: 44_100, recordTimeLeft: nil, locale: esES).hasPrefix("44,1 kHz"))
+    }
+
+    /// C16, F30: the subtitle has the rate and at most one more part: one middle dot at most, and no
+    /// colon. The part follows the priority pre-roll, record time left, drag mode. The labels come
+    /// from each table, because the test process has none.
+    @Test func subtitleHasAtMostOneDotInEachState() throws {
+        let lefts: [Duration?] = [nil, .seconds(7_200)]
+        for (code, identifier) in [("en", "en_US"), ("es", "es_ES")] {
+            let table = try stringsTable(code)
+            let text = { (key: L10n) in table[key.rawValue] ?? "" }
+            for preRoll in [false, true] {
+                for mode in DragMode.allCases {
+                    for left in lefts {
+                        let result = subtitleText(
+                            rate: 48_000, recordTimeLeft: left, preRoll: preRoll, dragMode: mode,
+                            locale: Locale(identifier: identifier), text: text)
+                        let state = "\(code), pre-roll \(preRoll), \(mode), \(String(describing: left)): \(result)"
+                        #expect(result.filter { $0 == "·" }.count <= 1, "\(state)")
+                        #expect(!result.contains(":"), "\(state)")
+                    }
+                }
+            }
+        }
+        let en = try stringsTable("en")
+        let english = { (key: L10n) in en[key.rawValue] ?? "" }
+        func subtitle(preRoll: Bool = false, mode: DragMode = .overwrite, left: Duration? = nil) -> String {
+            subtitleText(
+                rate: 48_000, recordTimeLeft: left, preRoll: preRoll, dragMode: mode,
+                locale: Locale(identifier: "en_US"), text: english)
+        }
+        let timeLeft = String(format: english(.subtitleRecordTime), "2 hr")
+        let cue = String(format: english(.timelineDragModeCue), english(.menuEditDragModeShuffle))
+        let twoHours = Duration.seconds(7_200)
+        #expect(subtitle() == "48 kHz")
+        #expect(subtitle(preRoll: true, mode: .shuffle, left: twoHours) == "48 kHz · \(english(.subtitlePreRoll))")
+        #expect(subtitle(mode: .shuffle, left: twoHours) == "48 kHz · \(timeLeft)")
+        #expect(subtitle(mode: .shuffle) == "48 kHz · \(cue)")
+        for code in ["de", "en", "es", "fr", "it", "nl", "pt", "pt-PT"] {
+            let table = try stringsTable(code)
+            for key in [L10n.subtitleRecordTime, .timelineDragModeCue] {
+                let value = table[key.rawValue] ?? ""
+                #expect(!value.contains(":"), "\(code) \(key.rawValue): \(value)")
+            }
+        }
+        #expect(L10n(rawValue: "subtitle.tracks") == nil, "the track count is not in the subtitle")
     }
 
     /// F152: before a take under 3 h with a band of 300 s, during a take under 10 min with a band

@@ -669,8 +669,7 @@
 "key.space" = "Leertaste";
 
 /* Subtitle and banners (decision 0023) */
-"subtitle.tracks" = "Spuren:";
-"subtitle.record.time" = "Verbleibende Aufnahmezeit:";
+"subtitle.record.time" = "%@ verbleibend";
 "subtitle.pre.roll" = "Vorlauf";
 "banner.low.record.time.left" = "Auf dieser Festplatte bleiben weniger als %@ Aufnahmezeit. Gib Speicherplatz frei, bevor du aufnimmst.";
 "banner.use.headphones" = "Verwende Kopfhörer, damit die Stimme des Gasts nicht in dein Mikrofon gelangt.";
@@ -911,7 +910,7 @@
 "menu.edit.drag.mode.no.overlap" = "Keine Überlappung";
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
-"timeline.drag.mode.cue" = "Ziehmodus: %@";
+"timeline.drag.mode.cue" = "Ziehmodus %@";
 "menu.view.index.show" = "Sitzungsindex einblenden";
 "menu.view.index.hide" = "Sitzungsindex ausblenden";
 "index.pane.segment.index" = "Index";

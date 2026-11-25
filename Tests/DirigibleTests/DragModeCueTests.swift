@@ -11,8 +11,7 @@ import Testing
     static let english: (L10n) -> String = { key in
         switch key {
         case .subtitlePreRoll: "Pre-roll"
-        case .subtitleTracks: "Tracks"
-        case .timelineDragModeCue: "Drag Mode: %@"
+        case .timelineDragModeCue: "%@ drag mode"
         case .menuEditDragModeOverwrite: "Overwrite"
         case .menuEditDragModeNoOverlap: "No Overlap"
         case .menuEditDragModeCrossfade: "Crossfade"
@@ -23,20 +22,20 @@ import Testing
 
     func subtitle(_ mode: DragMode, preRoll: Bool = false) -> String {
         subtitleText(
-            rate: 48_000, tracks: 3, recordTimeLeft: nil, preRoll: preRoll, dragMode: mode,
+            rate: 48_000, recordTimeLeft: nil, preRoll: preRoll, dragMode: mode,
             locale: Locale(identifier: "en_US"), text: Self.english)
     }
 
     @Test func theCueShowsOnlyOutsideOverwrite() {
-        #expect(subtitle(.overwrite) == "48 kHz · Tracks 3")
-        #expect(subtitle(.noOverlap) == "Drag Mode: No Overlap · 48 kHz · Tracks 3")
-        #expect(subtitle(.crossfade) == "Drag Mode: Crossfade · 48 kHz · Tracks 3")
-        #expect(subtitle(.shuffle) == "Drag Mode: Shuffle · 48 kHz · Tracks 3")
+        #expect(subtitle(.overwrite) == "48 kHz")
+        #expect(subtitle(.noOverlap) == "48 kHz · No Overlap drag mode")
+        #expect(subtitle(.crossfade) == "48 kHz · Crossfade drag mode")
+        #expect(subtitle(.shuffle) == "48 kHz · Shuffle drag mode")
     }
 
-    @Test func theCueComesAfterPreRoll() {
-        #expect(subtitle(.shuffle, preRoll: true) == "Pre-roll · Drag Mode: Shuffle · 48 kHz · Tracks 3")
-        #expect(subtitle(.overwrite, preRoll: true) == "Pre-roll · 48 kHz · Tracks 3")
+    @Test func thePreRollTakesThePlaceOfTheCue() {
+        #expect(subtitle(.shuffle, preRoll: true) == "48 kHz · Pre-roll")
+        #expect(subtitle(.overwrite, preRoll: true) == "48 kHz · Pre-roll")
     }
 
     /// The window state reads the app mode, so a menu click changes the subtitle.
@@ -49,7 +48,7 @@ import Testing
 
         #expect(!ChromeState(model: model).subtitle.contains(cue))
         app.dragMode = .shuffle
-        #expect(ChromeState(model: model).subtitle.hasPrefix(cue + " · "))
+        #expect(ChromeState(model: model).subtitle.hasSuffix(" · " + cue))
         await model.close()
     }
 }

@@ -128,9 +128,10 @@ extension FileCommand {
             discussion: """
                 It saves session.xml with archive="flac" first, so an older Dirigible refuses the package, then \
                 converts each pool WAV and removes it. An edit converts the files back first. A file that does not \
-                convert stays, with a line. The report gives the freed bytes, the written bytes, and the net change. \
-                \(archiveStoreRule) Exit 2 when the package cannot be read or written, is locked, has a take that is \
-                not finalized, is the Favorites store, or the disk has too little free space.
+                convert stays, with a line. When no file converts, session.xml keeps no archive attribute. The \
+                report gives the freed bytes, the written bytes, and the net change. \(archiveStoreRule) Exit 2 when \
+                the package cannot be read or written, is locked, has a take that is not finalized, is the Favorites \
+                store, or the disk has too little free space.
                 """)
         @OptionGroup var package: PackageArgument
 

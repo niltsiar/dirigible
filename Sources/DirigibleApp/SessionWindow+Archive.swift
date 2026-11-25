@@ -176,14 +176,12 @@ struct ArchiveSheet: View {
     return alert
 }
 
-/// The pool WAVs of `session` that have no FLAC yet and their bytes. It reads the disk.
+/// The pool WAVs of `session` that the archive converts (`archiveSources`) and their bytes. It
+/// reads the disk.
 @concurrent func archiveFacts(of session: Session, in package: URL) async -> ArchiveFacts {
     var (files, bytes) = (0, Int64(0))
-    for file in session.files.values where archivedPath(of: file.path) != nil {
-        let name = poolFileName(file, in: package)
-        guard name.form == .pool,
-            let size = try? package.appending(path: name.name).resourceValues(forKeys: [.fileSizeKey]).fileSize
-        else { continue }
+    for source in archiveSources(of: session, in: package).files {
+        guard let size = try? source.wav.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
         files += 1
         bytes += Int64(size)
     }

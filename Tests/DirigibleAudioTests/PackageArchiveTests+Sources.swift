@@ -43,4 +43,29 @@ extension PackageArchiveTests {
         #expect(try wavData(fixture.url("Clips/long.wav")) == data)
         #expect(try fixture.stored().archive == nil)
     }
+
+    /// An archive that converts no file leaves no attribute: a pool of only a 16-bit WAV changes
+    /// no file, and a pool whose WAVs are all damaged ends with no attribute. Fail value: the
+    /// session reads as archived with no FLAC on disk.
+    @Test func anArchiveThatConvertsNoFileLeavesNoAttribute() throws {
+        let fixture = try ArchiveFixture()
+        var session = Session(sampleRate: ArchiveFixture.rate)
+        try session.addFile(try fixture.addWAV("b.wav", bits: 16, seed: 2))
+        _ = try fixture.save(session)
+        let before = try fixture.sessionFile()
+
+        let report = try archivePackage(&session, in: fixture.package, save: fixture.save)
+
+        try #require(try fixture.sessionFile() == before, "session.xml changed")
+        #expect(report.kept == ["b.wav": .notArchivable] && report.converted.isEmpty, "\(report)")
+        #expect(try session.archive == nil && fixture.stored().archive == nil)
+
+        try session.addFile(try fixture.addWAV("short.wav", frames: 20_000, length: 30_000, seed: 3))
+        _ = try fixture.save(session)
+        let damaged = try archivePackage(&session, in: fixture.package, save: fixture.save)
+
+        #expect(damaged.kept["short.wav"] == .damaged(frames: 20_000), "\(damaged)")
+        #expect(try session.archive == nil && fixture.stored().archive == nil, "no FLAC, so no attribute")
+        #expect(try fixture.names() == ["b.wav", "short.wav"])
+    }
 }

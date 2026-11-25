@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import DirigibleCore
 import Foundation
@@ -180,6 +181,35 @@ extension ArchiveWindowTests {
         if model.alert == nil { try await press(.alertCancel, in: window) }
         #expect(try clipNames(studio) == ["f1.wav"] && !studio.isArchived)
         model.alert = nil
+        await model.close()
+    }
+
+    /// C20: the confirm sheet counts only the pool WAVs that the archive converts, so a 16-bit WAV
+    /// is not one. Fail value: the sheet counts 2 files.
+    @Test func theConfirmSheetCountsOnlyTheWAVsThatConvert() async throws {
+        let (model, studio, _) = try await window(archived: false)
+        let sixteen = studio.url.appending(path: "Clips/f3.wav")
+        do {
+            let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4_800))
+            buffer.frameLength = 4_800
+            let file = try AVAudioFile(
+                forWriting: sixteen,
+                settings: [
+                    AVFormatIDKey: kAudioFormatLinearPCM, AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false,
+                    AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
+                ])
+            try file.write(from: buffer)
+        }
+        try studio.edit(ripple: false) { (session: inout Session) throws(SessionError) in
+            try session.addFile(AudioFile(id: "f3", path: "f3.wav", layout: .mono, length: 4_800))
+        }
+        let wav = try #require(
+            try studio.url.appending(path: "Clips/f1.wav").resourceValues(forKeys: [.fileSizeKey]).fileSize)
+
+        let facts = await archiveFacts(of: studio.session, in: studio.url)
+
+        #expect(facts == ArchiveFacts(files: 1, bytes: Int64(wav)), "\(facts)")
         await model.close()
     }
 }

@@ -188,7 +188,7 @@ func exists(_ url: URL) -> Bool {
 }
 
 /// True for a WAV of packed 24-bit integer PCM at `rate` with `channels`.
-private func isArchivable(_ url: URL, rate: Int, channels: Int) -> Bool {
+func isArchivable(_ url: URL, rate: Int, channels: Int) -> Bool {
     guard let file = try? AVAudioFile(forReading: url) else { return false }
     // The pointer lives only as long as its AVAudioFormat.
     let format = withExtendedLifetime(file.fileFormat) { $0.streamDescription.pointee }

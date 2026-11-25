@@ -50,10 +50,11 @@ public enum ArchiveFault: Error, Hashable, Sendable {
 public func needsUnarchive(_ session: Session) -> Bool { session.archive != nil }
 
 /// WAV to FLAC for each pool WAV of `session` (decision 0072). It refuses a pending take and the
-/// Favorites store of this process, then checks the disk need. It saves the session with
-/// `archive = .flac` through `save` before the first file, so an older build refuses the package
-/// before a WAV goes, and sets `session` to the saved value. A damaged source stays, and the job
-/// goes on. After each file, it writes the peak cache file of the new file in `cache` from the
+/// Favorites store of this process, then checks the disk need. With a WAV to convert
+/// (`archiveSources`), it saves the session with `archive = .flac` through `save` before the first
+/// file, so an older build refuses the package before a WAV goes, and sets `session` to the saved
+/// value. A damaged source stays, and the job goes on. When no file converts, it saves the session
+/// with no attribute again. After each file, it writes the peak cache file of the new file in `cache` from the
 /// file of the source (`PeakFile.rekey`); with no `cache`, the next pass computes the peaks again.
 /// It never reads or writes `session.xml` itself. Call it off the main actor, under the package
 /// lock.
@@ -117,26 +118,17 @@ func archivePackage(
 ) throws(ArchiveFault) -> ArchiveReport {
     guard session.recording == nil else { throw .pendingTake }
     guard Favorites.backups(for: package, environment: seams.environment) != .store else { throw .favoritesStore }
+    let scan = archiveSources(of: session, in: package)
     var report = ArchiveReport()
+    report.kept = scan.kept
     var sources: [(file: AudioFile, flac: String, sizes: FileSizes)] = []
-    for file in session.files.values.sorted(by: { $0.path < $1.path }) {
-        guard let flac = archivedPath(of: file.path) else {
-            report.kept[file.path] = .notWAV
-            continue
-        }
-        let name = poolFileName(file, in: package)
-        // A FLAC with no WAV: converted before.
-        guard name.form == .pool else { continue }
-        let wav = package.appending(path: name.name)
-        guard exists(wav) else {
-            report.kept[file.path] = .missing
-            continue
-        }
-        try sources.append((file, flac, sizes(wav, file.path, seams)))
+    for source in scan.files {
+        try sources.append((source.file, source.flac, sizes(source.wav, source.file.path, seams)))
     }
     try checkSpace(sources.map { ($0.sizes.bytes, $0.sizes.freed) }, in: package, seams: seams)
     guard seams.after(.checked) else { throw .cancelled }
-    if session.archive == nil, !sources.isEmpty {
+    let marks = session.archive == nil && !sources.isEmpty
+    if marks {
         var archived = session
         archived.archive = .flac
         try saved(archived, save)
@@ -168,7 +160,46 @@ func archivePackage(
             of: source.file, from: stamp, to: clips.appending(path: source.flac), rate: session.sampleRate, in: cache)
         progress(Double(index + 1) / Double(sources.count))
     }
+    // No file converted, so no FLAC needs the attribute that this job saved.
+    if marks, report.converted.isEmpty {
+        var working = session
+        working.archive = nil
+        try saved(working, save)
+        session = working
+    }
     return report
+}
+
+/// The pool WAVs of `session` that an archive converts, in path order, and the reason of each
+/// other pool file that keeps its form (decision 0072): a WAV that exists, with no FLAC, of
+/// packed 24-bit integer PCM at the session rate with the channels of its entry. `wav` is the
+/// URL of the WAV, `flac` its FLAC name in `Clips/`. It reads the disk and opens each WAV, so the
+/// confirm sheet of the app counts the files of the job.
+package func archiveSources(
+    of session: Session, in package: URL
+) -> (files: [(file: AudioFile, wav: URL, flac: String)], kept: [String: KeptReason]) {
+    var files: [(file: AudioFile, wav: URL, flac: String)] = []
+    var kept: [String: KeptReason] = [:]
+    for file in session.files.values.sorted(by: { $0.path < $1.path }) {
+        guard let flac = archivedPath(of: file.path) else {
+            kept[file.path] = .notWAV
+            continue
+        }
+        let name = poolFileName(file, in: package)
+        // A FLAC with no WAV: converted before.
+        guard name.form == .pool else { continue }
+        let wav = package.appending(path: name.name)
+        guard exists(wav) else {
+            kept[file.path] = .missing
+            continue
+        }
+        guard isArchivable(wav, rate: session.sampleRate, channels: file.layout.channelCount) else {
+            kept[file.path] = .notArchivable
+            continue
+        }
+        files.append((file, wav, flac))
+    }
+    return (files, kept)
 }
 
 func unarchivePackage(

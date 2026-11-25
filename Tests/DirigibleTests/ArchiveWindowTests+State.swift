@@ -212,4 +212,34 @@ extension ArchiveWindowTests {
         #expect(facts == ArchiveFacts(files: 1, bytes: Int64(wav)), "\(facts)")
         await model.close()
     }
+
+    /// C20: the progress sheet counts the files that the running job converts. After a stop, one of
+    /// the two pool files is a FLAC, so the unarchive shows "file 1 of 1". Fail value: the title
+    /// counts the pool, "file 1 of 2". The test runner has no string table, so the title of each count
+    /// is the bare key: the assert reads the title with the English table.
+    @Test func theProgressSheetCountsTheFilesOfTheJob() async throws {
+        let (model, studio, window) = try await window(archived: false, second: true)
+        let first = ArchiveHold()
+        studio.environment.archiveBlock = { first.step() }
+        model.toggleArchive()
+        try await confirm(in: window)
+        await until("the archive holds") { first.isHeld }
+        model.cancelPackageJob()
+        first.release()
+        await until("the archive ends") { studio.archiveRun == nil }
+        #expect(try clipNames(studio) == ["f1.flac", "f2.wav"])
+        let hold = ArchiveHold()
+        studio.environment.archiveBlock = { hold.step() }
+
+        model.toggleArchive()
+        await until("the unarchive holds") { hold.isHeld }
+        await runLoopPass()
+
+        try await HeaderStateLineTests().withStrings("en") {
+            #expect(model.archiveSheetTitle == L10n.sheetUnarchiveFile.format(1, 1), "\(model.archiveSheetTitle)")
+        }
+        hold.release()
+        await until("the unarchive ends") { !studio.isArchived && studio.archiveRun == nil }
+        await model.close()
+    }
 }

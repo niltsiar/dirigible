@@ -117,7 +117,7 @@ struct ArchiveSeams {
 
 func archivePackage(
     _ session: inout Session, in package: URL, cache: URL? = nil, progress: (Double) -> Void, isStopped: () -> Bool,
-    save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams
+    save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams, files: (Int) -> Void = { _ in }
 ) throws(ArchiveFault) -> ArchiveReport {
     guard session.recording == nil else { throw .pendingTake }
     guard Favorites.backups(for: package, environment: seams.environment) != .store else { throw .favoritesStore }
@@ -128,6 +128,7 @@ func archivePackage(
     for source in scan.files {
         try sources.append((source.file, source.flac, sizes(source.wav, source.file.path, seams)))
     }
+    files(sources.count)
     try checkSpace(sources.map { ($0.sizes.bytes, $0.sizes.freed) }, in: package, seams: seams)
     guard seams.after(.checked) else { throw .cancelled }
     let marks = session.archive == nil && !sources.isEmpty
@@ -215,7 +216,8 @@ package func archiveSources(
 
 func unarchivePackage(
     _ session: inout Session, also: [AudioFile], in package: URL, cache: URL? = nil, progress: (Double) -> Void,
-    isStopped: () -> Bool, save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams
+    isStopped: () -> Bool, save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams,
+    files: (Int) -> Void = { _ in }
 ) throws(ArchiveFault) -> ArchiveReport {
     let clips = package.appending(path: clipsFolderName)
     var report = ArchiveReport()
@@ -254,6 +256,7 @@ func unarchivePackage(
         if let identity = FileIdentity(path: flac.path), !seen.insert(identity).inserted { continue }
         try sources.append((file, flacPath, sizes(flac, flacPath, seams)))
     }
+    files(sources.count)
     try checkSpace(
         sources.map {
             (wavFileBytes(frames: Int64($0.file.length.count), channels: $0.file.layout.channelCount), $0.sizes.freed)

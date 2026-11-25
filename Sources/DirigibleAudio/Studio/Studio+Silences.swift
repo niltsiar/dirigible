@@ -41,7 +41,7 @@ extension Studio {
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> SilenceScan {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         if let unknown = tracks?.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
         return try await runReadJob(
             .findingSilences, cancelled: .silencesCancelled, agent: nil, progress: progress,

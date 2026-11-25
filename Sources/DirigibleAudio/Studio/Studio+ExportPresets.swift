@@ -20,7 +20,7 @@ extension Studio {
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> [ExportedPreset] {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let targets: [ExportPresetTarget]
         do throws(ExportPresetsError) {

@@ -120,7 +120,7 @@ private func keptLines(_ report: ArchiveReport, damaged: Bool = true) -> [String
     }
 }
 
-/// The count and the bytes of an archive (run criterion C12). The freed bytes do not count the
+/// The count and the bytes of an archive. The freed bytes do not count the
 /// data of a WAV that a clone shares, and an APFS snapshot keeps the data of a freed file.
 private func archiveLines(_ report: ArchiveReport) -> [String] {
     var lines = ["Converted to FLAC: \(report.converted.count) files."]

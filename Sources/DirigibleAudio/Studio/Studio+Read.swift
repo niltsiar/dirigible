@@ -49,7 +49,7 @@ extension Studio {
             ) -> Success
     ) async throws(StudioError) -> Success {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         let (session, lock, step, run) = (session, lock, environment.loudnessBlock, ReadRun())
         readRuns.append(run)
         defer { endRead(run) }

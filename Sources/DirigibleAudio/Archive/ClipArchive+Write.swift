@@ -51,7 +51,7 @@ func remove(
 }
 
 /// A new FLAC file through `ExtAudioFile` with the Apple encoder, 24-bit source data, and the packed
-/// 24-bit client format (run unknown U20).
+/// 24-bit client format.
 final class FLACWriter {
     private var file: ExtAudioFileRef?
     private let name: String

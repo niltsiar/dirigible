@@ -12,7 +12,7 @@ extension Studio {
     public func measureLoudness(
         _ clips: [Clip], progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> [(loudness: Loudness, fault: MediaFault?)] {
-        try checkReadable(.export)
+        try checkReadable()
         let (session, lock, step) = (session, lock, environment.loudnessBlock)
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         let hop: @Sendable (Double) -> Void = { fraction in Task { @MainActor in progress(fraction) } }

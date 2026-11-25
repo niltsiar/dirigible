@@ -27,7 +27,7 @@ extension Studio {
         async throws(StudioError)
     {
         try checkNotBusy()
-        try checkReadable(.play)
+        try checkReadable()
         let session = session
         let window: PreviewWindow
         do throws(SessionError) {

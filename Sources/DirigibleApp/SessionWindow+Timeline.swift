@@ -213,7 +213,7 @@ extension SessionWindow {
     /// A transport command: the Transport menu and the toolbar come here (decision 0016).
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
-        // A play reads the clips in time: C18 missed, so it unarchives first (decision 0072).
+        // A play reads the clips in time, so an archived window unarchives first (decision 0072).
         let seeks = if case .seek = command { true } else { false }
         if !seeks, startsOrSeeks(command), idleStudio?.isArchived == true {
             return unarchiveFirst { [weak self] in self?.transport(command) }

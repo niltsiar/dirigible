@@ -241,7 +241,7 @@ func unarchivePackage(
     return report
 }
 
-/// The sizes of one file for the disk rule (run unknown U40).
+/// The sizes of one file for the disk rule.
 struct FileSizes: Hashable {
     var bytes: Int64
     var allocated: Int64

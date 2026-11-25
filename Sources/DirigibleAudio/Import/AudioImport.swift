@@ -301,7 +301,10 @@ func importStems(of source: URL, suffixes: [String], in session: Session, packag
     let used = Set((names + taken).map { $0.lowercased() })
     func stems(_ number: Int) -> [String] { suffixes.map { number == 1 ? "\(base)\($0)" : "\(base)\($0) \(number)" } }
     var number = 1
-    while stems(number).contains(where: { used.contains($0.lowercased()) || used.contains("\($0).wav".lowercased()) }) {
+    // A pool path "<stem>.flac" is the file of its entry, and "<stem>.wav" would have that FLAC name.
+    while stems(number).contains(where: { stem in
+        [stem, "\(stem).wav", "\(stem).flac"].contains { used.contains($0.lowercased()) }
+    }) {
         number += 1
     }
     return stems(number)

@@ -25,10 +25,10 @@ public enum ClipArchiveFault: Error, Hashable, Sendable {
     case notArchivable(path: String)
     /// A file at the target name holds other audio.
     case nameTaken(path: String)
-    /// A decode fault of the source or of the new file, frames or an MD5 that differ, or a source
-    /// with fewer frames than its pool entry.
+    /// A decode fault of the source or of the new file, frames or an MD5 that differ, a source
+    /// with fewer frames than its pool entry, or a status of the codec at a write of the new file.
     case mismatch(path: String)
-    /// The errno of a write, a flush, a rename, or an unlink, or the OSStatus of the codec.
+    /// The errno of a write, a flush, a rename, or an unlink.
     case write(file: String, errno: Int32)
     /// The errno of a read of the disk.
     case read(file: String, errno: Int32)
@@ -301,20 +301,17 @@ private func decode(
     guard input.fileFormat.sampleRate == Double(rate), Int(input.fileFormat.channelCount) == channels,
         let buffer = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: blockFrames)
     else { throw .mismatch(path: name) }
-    func writeFault(_ error: FinalizeError) -> ClipArchiveFault {
-        if case .writeFailed(_, let status) = error { return .write(file: targetName, errno: status) }
-        return .write(file: targetName, errno: EIO)
-    }
+    // A status of the clip writer has no errno, so the FLAC stays and the job goes on.
     let writer: ClipWriter
     do { writer = try ClipWriter(url: target, file: targetName, format: input.processingFormat) } catch {
-        throw writeFault(error)
+        throw .mismatch(path: name)
     }
     while input.framePosition < input.length {
         if isCancelled() { return false }
         do { try input.read(into: buffer, frameCount: blockFrames) } catch { throw fault(error) }
         guard buffer.frameLength > 0 else { throw .mismatch(path: name) }
-        do { try writer.write(buffer) } catch { throw writeFault(error) }
+        do { try writer.write(buffer) } catch { throw .mismatch(path: name) }
     }
-    do { try writer.close() } catch { throw writeFault(error) }
+    do { try writer.close() } catch { throw .mismatch(path: name) }
     return true
 }

@@ -287,15 +287,17 @@ final class ArchiveFixture {
 
     func url(_ path: String) -> URL { package.appending(path: path) }
 
-    /// Writes `Clips/<path>`: `frames` frames of noise from `seed`, 24-bit through the clip writer,
-    /// or 16-bit. Returns its pool entry, of `length` frames (default `frames`); the caller adds it.
+    /// Writes `Clips/<path>`: `frames` frames of noise from `seed` at `rate`, 24-bit through the clip
+    /// writer, or 16-bit. Returns its pool entry, of `length` frames (default `frames`); the caller
+    /// adds it.
     @discardableResult
     func addWAV(
-        _ path: String, frames: Int = 30_000, channels: Int = 1, bits: Int = 24, length: Int? = nil, seed: UInt64
+        _ path: String, frames: Int = 30_000, channels: Int = 1, bits: Int = 24, length: Int? = nil,
+        rate: Int = ArchiveFixture.rate, seed: UInt64
     ) throws -> AudioFile {
         let url = url("\(clipsFolderName)/\(path)")
         let format = try #require(
-            AVAudioFormat(standardFormatWithSampleRate: Double(Self.rate), channels: AVAudioChannelCount(channels)))
+            AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: AVAudioChannelCount(channels)))
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)))
         buffer.frameLength = AVAudioFrameCount(frames)
         var state = seed
@@ -315,7 +317,7 @@ final class ArchiveFixture {
                 forWriting: url,
                 settings: [
                     AVFormatIDKey: kAudioFormatLinearPCM, AVLinearPCMBitDepthKey: bits, AVLinearPCMIsFloatKey: false,
-                    AVSampleRateKey: Self.rate, AVNumberOfChannelsKey: channels,
+                    AVSampleRateKey: rate, AVNumberOfChannelsKey: channels,
                 ])
             try file.write(from: buffer)
         }

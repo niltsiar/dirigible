@@ -51,7 +51,7 @@ func remove(
 }
 
 /// A new FLAC file through `ExtAudioFile` with the Apple encoder, 24-bit source data, and the packed
-/// 24-bit client format.
+/// 24-bit client format. A codec status is `.mismatch`: it has no errno.
 final class FLACWriter {
     private var file: ExtAudioFileRef?
     private let name: String
@@ -69,14 +69,14 @@ final class FLACWriter {
         format.mChannelsPerFrame = UInt32(channels)
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         var status = AudioFormatGetProperty(kAudioFormatProperty_FormatInfo, 0, nil, &size, &format)
-        guard status == noErr else { throw .write(file: name, errno: status) }
+        guard status == noErr else { throw .mismatch(path: name) }
         status = ExtAudioFileCreateWithURL(
             url as CFURL, kAudioFileFLACType, &format, nil, AudioFileFlags.eraseFile.rawValue, &file)
-        guard status == noErr, let file else { throw .write(file: name, errno: status) }
+        guard status == noErr, let file else { throw .mismatch(path: name) }
         var client = packed24(rate: rate, channels: channels)
         status = ExtAudioFileSetProperty(
             file, kExtAudioFileProperty_ClientDataFormat, UInt32(MemoryLayout.size(ofValue: client)), &client)
-        guard status == noErr else { throw .write(file: name, errno: status) }
+        guard status == noErr else { throw .mismatch(path: name) }
     }
 
     deinit {
@@ -85,15 +85,13 @@ final class FLACWriter {
 
     func write(_ list: inout AudioBufferList, frames: UInt32) throws(ClipArchiveFault) {
         guard let file else { return }
-        let status = ExtAudioFileWrite(file, frames, &list)
-        guard status == noErr else { throw .write(file: name, errno: status) }
+        guard ExtAudioFileWrite(file, frames, &list) == noErr else { throw .mismatch(path: name) }
     }
 
     /// Writes STREAMINFO and closes the file.
     func close() throws(ClipArchiveFault) {
         guard let file else { return }
         self.file = nil
-        let status = ExtAudioFileDispose(file)
-        guard status == noErr else { throw .write(file: name, errno: status) }
+        guard ExtAudioFileDispose(file) == noErr else { throw .mismatch(path: name) }
     }
 }

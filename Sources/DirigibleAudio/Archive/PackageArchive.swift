@@ -174,14 +174,15 @@ func archivePackage(
 
 /// The pool WAVs of `session` that an archive converts, in path order, and the reason of each
 /// other pool file that keeps its form (decision 0072): a WAV that exists, with no FLAC, of
-/// packed 24-bit integer PCM at the session rate with the channels of its entry. `wav` is the
-/// URL of the WAV, `flac` its FLAC name in `Clips/`. It reads the disk and opens each WAV, so the
-/// confirm sheet of the app counts the files of the job.
+/// packed 24-bit integer PCM at the session rate with the channels of its entry, once for each
+/// file on disk. `wav` is the URL of the WAV, `flac` its FLAC name in `Clips/`. It reads the disk
+/// and opens each WAV, so the confirm sheet of the app counts the files of the job.
 package func archiveSources(
     of session: Session, in package: URL
 ) -> (files: [(file: AudioFile, wav: URL, flac: String)], kept: [String: KeptReason]) {
     var files: [(file: AudioFile, wav: URL, flac: String)] = []
     var kept: [String: KeptReason] = [:]
+    var seen = Set<FileIdentity>()
     for file in session.files.values.sorted(by: { $0.path < $1.path }) {
         guard let flac = archivedPath(of: file.path) else {
             kept[file.path] = .notWAV
@@ -204,6 +205,8 @@ package func archiveSources(
             kept[file.path] = .notArchivable
             continue
         }
+        // Two entries with one path, or with paths that name one file, convert it once.
+        if let identity = FileIdentity(path: wav.path), !seen.insert(identity).inserted { continue }
         files.append((file, wav, flac))
     }
     return (files, kept)
@@ -217,6 +220,8 @@ func unarchivePackage(
     var report = ArchiveReport()
     var sources: [(file: AudioFile, flac: String, sizes: FileSizes)] = []
     var paths = Set<String>()
+    // Two paths that name one FLAC (a case variant, a link) convert it once.
+    var seen = Set<FileIdentity>()
     let pool = Array(session.files.values) + also
     // The item at a FLAC name that a pool file has as its path is the file of that entry.
     let taken = Set(pool.map { $0.path.lowercased() })
@@ -227,6 +232,7 @@ func unarchivePackage(
         }
         let flac = clips.appending(path: flacPath)
         if !taken.contains(flacPath.lowercased()), exists(flac) {
+            if let identity = FileIdentity(path: flac.path), !seen.insert(identity).inserted { continue }
             try sources.append((file, flacPath, sizes(flac, flacPath, seams)))
         } else if !exists(clips.appending(path: file.path)) {
             report.kept[file.path] = .missing
@@ -244,6 +250,7 @@ func unarchivePackage(
             continue
         }
         let file = AudioFile(id: FileID(segment.stem), path: path, layout: layout, length: Frames(Int(audio.length)))
+        if let identity = FileIdentity(path: flac.path), !seen.insert(identity).inserted { continue }
         try sources.append((file, flacPath, sizes(flac, flacPath, seams)))
     }
     try checkSpace(

@@ -107,4 +107,25 @@ extension PackageArchiveTests {
         #expect(present.converted.isEmpty && reason != nil && reason != .missing, "\(present)")
         #expect(try fixture.contents(of: ["Clips/foo.flac", "Clips/foo.wav"]) == flac.merging(wav) { $1 })
     }
+
+    /// Two pool entries with one path name one file on disk: each job converts it and counts its
+    /// bytes once. Fail value: the archive reports the path twice and doubles the freed and the
+    /// written bytes.
+    @Test func eachJobCountsAFileOfTwoEntriesOnce() throws {
+        let fixture = try ArchiveFixture()
+        var session = Session(sampleRate: ArchiveFixture.rate)
+        let file = try fixture.addWAV("a.wav", seed: 1)
+        try session.addFile(file)
+        try session.addFile(AudioFile(id: "a2", path: "a.wav", layout: file.layout, length: file.length))
+        let wav = try fileSizes(of: fixture.url("Clips/a.wav"), name: "a.wav")
+
+        let report = try archivePackage(&session, in: fixture.package, save: fixture.save)
+
+        try #require(report.converted == ["a.wav"], "\(report)")
+        let flac = try fileSizes(of: fixture.url("Clips/a.flac"), name: "a.flac")
+        #expect(report.bytesFreed == wav.freed && report.bytesWritten == flac.bytes, "\(report)")
+        let back = try unarchivePackage(&session, in: fixture.package, save: fixture.save)
+        #expect(back.converted == ["a.wav"] && back.bytesFreed == flac.freed, "\(back)")
+        #expect(try fixture.names() == ["a.wav"])
+    }
 }

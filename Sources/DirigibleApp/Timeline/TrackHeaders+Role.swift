@@ -38,7 +38,7 @@ struct RoleGlyph: View {
 
     var body: some View {
         Text(verbatim: role.letter.text)
-            .font(.system(size: 9, weight: .bold))
+            .font(.system(size: 10, weight: .bold))
             .foregroundStyle(Color.black.opacity(0.85))
             .frame(width: Self.size, height: Self.size)
             .background(Color(nsColor: role.color), in: RoundedRectangle(cornerRadius: 3))

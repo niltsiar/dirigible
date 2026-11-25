@@ -116,13 +116,16 @@ import Testing
         #expect(ticks(.db36) == [0, 0, -6, 100.0 / 6, -12, 100.0 / 3, -24, 200.0 / 3, -36, 100])
     }
 
-    /// A lane of 47 pt has no label and a lane of 48 pt has labels that do not touch.
+    /// A lane of 47 pt has no label and a lane of 48 pt has labels that do not touch. The label of -R dB
+    /// ends the column when it fits: a 3-digit label does not.
     @Test func theLabelsHideUnder48Points() {
         #expect(WaveformScaleStrip.labelled(range: .db60, laneHeight: 47).isEmpty)
         for range in WaveformRange.allCases {
             for height in [48.0, 60, 100, 200] {
                 let labels = WaveformScaleStrip.labelled(range: range, laneHeight: height)
-                #expect(labels.first?.dB == 0 && labels.last?.dB == -range.dB, "\(range.rawValue) dB at \(height) pt")
+                let endsWithR = labels.last?.dB == -range.dB
+                let name = "\(range.rawValue) dB at \(height) pt"
+                #expect(labels.first?.dB == 0 && endsWithR == (range.rawValue < 100), "\(name)")
                 for (above, below) in zip(labels, labels.dropFirst()) {
                     #expect(below.y - above.y >= 9, "\(range.rawValue) dB at \(height) pt: labels touch")
                 }
@@ -130,11 +133,12 @@ import Testing
         }
     }
 
-    /// A label is as tall as its text and the draw keeps it inside its lane, so the 0 dB label sits
-    /// below the lane top. No two labels of a lane overlap as drawn, at each range and lane height.
+    /// A label has the height of its digits and a gap, and the draw keeps it inside its lane, so the
+    /// 0 dB label sits below the lane top. No two labels of a lane overlap as drawn, at each range and
+    /// lane height.
     @Test func theLabelsDoNotOverlapAsDrawn() {
-        let text = NSAttributedString(string: "96", attributes: [.font: NSFont.systemFont(ofSize: 8)])
-        #expect(WaveformScaleStrip.labelHeight >= text.size().height, "the label height is the text height")
+        let digits = WaveformScaleStrip.labelFont(range: .db60).capHeight
+        #expect(WaveformScaleStrip.labelHeight >= digits, "the label height holds the digits")
         for range in WaveformRange.allCases {
             for height in LaneHeight.steps where height >= WaveformScaleStrip.labelsFrom {
                 let centers = WaveformScaleStrip.labelled(range: range, laneHeight: height)
@@ -146,29 +150,40 @@ import Testing
         }
     }
 
-    /// A label is the dB under full scale with no minus sign. Each range draws its labels in one
-    /// font: 8 pt when each label fits the room left of its tick, else the largest size in steps of
-    /// 0.25 pt at which the widest label fits, and never under 7 pt.
-    @Test func eachRangeDrawsItsLabelsInOneFontOf7PointsOrMore() {
+    /// A label is the dB under full scale with no minus sign.
+    @Test func aLabelIsTheDBUnderFullScale() {
         func texts(_ range: WaveformRange) -> [String] {
             WaveformScaleStrip.ticks(range: range, laneHeight: 100).map { WaveformScaleStrip.labelText(dB: $0.dB) }
         }
-        func width(_ text: String, _ size: Double) -> Double {
-            NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: size)]).size().width
-        }
         #expect(texts(.db60) == ["0", "6", "12", "24", "60"])
         #expect(texts(.db145) == ["0", "6", "12", "24", "145"])
-        #expect(WaveformScaleStrip.labelFont(range: .db60).pointSize == 8)
+    }
+
+    /// F112: no text under 10 pt. Each range draws its labels at 10 pt. A label that does not fit the
+    /// room left of its tick at 10 pt does not draw, and its tick stays.
+    @Test func scaleLabelsDrawAtTenPointsOrNotAtAll() {
+        func width(_ text: String) -> Double {
+            NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: 10)]).size().width
+        }
+        func drawn(_ range: WaveformRange, _ height: Double) -> [String] {
+            WaveformScaleStrip.labelled(range: range, laneHeight: height)
+                .map { WaveformScaleStrip.labelText(dB: $0.dB) }
+        }
         for range in WaveformRange.allCases {
-            let size = WaveformScaleStrip.labelFont(range: range).pointSize
-            #expect(size >= 7 && size <= 8, "\(range.rawValue) dB: \(size) pt")
-            let widest = texts(range).map { width($0, size) }.max() ?? 0
-            #expect(widest <= WaveformScaleStrip.labelRoom, "\(range.rawValue) dB: \(widest) pt at \(size) pt")
-            if size < 8 {
-                let larger = texts(range).map { width($0, size + 0.25) }.max() ?? 0
-                #expect(larger > WaveformScaleStrip.labelRoom, "\(range.rawValue) dB: \(size + 0.25) pt fits")
+            #expect(WaveformScaleStrip.labelFont(range: range).pointSize == 10, "\(range.rawValue) dB")
+            for height in [48.0, 100, 200] {
+                for text in drawn(range, height) {
+                    let fits = width(text) <= WaveformScaleStrip.labelRoom
+                    #expect(fits, "\(range.rawValue) dB at \(height) pt: \(text) is \(width(text)) pt wide")
+                }
             }
         }
+        #expect(drawn(.db145, 200) == ["0", "12", "24"], "the 3-digit label of 145 dB is left out")
+        #expect(drawn(.db120, 200) == ["0", "12", "24"], "the 3-digit label of 120 dB is left out")
+        #expect(drawn(.db60, 200) == ["0", "6", "12", "24", "60"], "a 2-digit label draws")
+        #expect(
+            WaveformScaleStrip.ticks(range: .db145, laneHeight: 200).map(\.dB) == [0, -6, -12, -24, -145],
+            "the tick of a label that does not draw stays")
     }
 
     /// The strip draws at the first draw and at a change of the range, the lane height, or the lane

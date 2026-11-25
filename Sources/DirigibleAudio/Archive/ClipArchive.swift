@@ -36,9 +36,9 @@ public enum ClipArchiveFault: Error, Hashable, Sendable {
 
 /// WAV to FLAC: encodes to `.<name>.archive-<UUID>.tmp` with the Apple encoder, flushes it, decodes
 /// it in full and compares the frames and the MD5 of the samples with the WAV and with STREAMINFO,
-/// renames it to "<stem>.flac", flushes `Clips/`, checks the length of the FLAC on disk, unlinks the
-/// WAV, and flushes `Clips/`. With a FLAC already there (a crash after the rename), it checks that
-/// FLAC and unlinks the WAV; a FLAC of other audio gives `.nameTaken`. Reads `isCancelled` before
+/// renames it to "<stem>.flac", flushes `Clips/`, checks the length and the byte size of the FLAC on
+/// disk, unlinks the WAV, and flushes `Clips/`. With a FLAC already there (a crash after the rename),
+/// it checks that FLAC and unlinks the WAV; a FLAC of other audio gives `.nameTaken`. Reads `isCancelled` before
 /// each block: a stop removes the temporary file, keeps the WAV, and returns false. `after` is the
 /// crash seam of tests: false stops after that step with no cleanup. Call it off the main actor,
 /// under the package lock.
@@ -57,12 +57,13 @@ func archiveClip(
     guard isArchivable(wav, rate: rate, channels: channels) else { throw .notArchivable(path: file.path) }
 
     if exists(flac) {
+        let size = try byteSize(of: flac, name: flacPath)
         guard
             let source = try readPacked(wav, name: file.path, rate: rate, channels: channels, isCancelled: isCancelled),
             let same = try isFLAC(flac, of: source, name: flacPath, rate: rate, isCancelled: isCancelled)
         else { return false }
         guard same, source.frames >= frames else { throw .nameTaken(path: flacPath) }
-        return try remove(wav, name: file.path, keeping: flac, frames: source.frames, after: after)
+        return try remove(wav, name: file.path, keeping: flac, frames: source.frames, size: size, after: after)
     }
 
     let temporary = flac.deletingLastPathComponent().appending(
@@ -83,7 +84,7 @@ func archiveClip(
         return false
     }
     guard after(.encoded, temporary) else { return false }
-    try flushNew(temporary, name: file.path)
+    let size = try flushNew(temporary, name: file.path)
     guard after(.flushed, temporary) else { return false }
     let same: Bool?
     do {
@@ -100,13 +101,13 @@ func archiveClip(
     guard after(.verified, temporary) else { return false }
     try rename(temporary, to: flac, name: flacPath)
     guard after(.renamed, flac) else { return false }
-    return try remove(wav, name: file.path, keeping: flac, frames: source.frames, after: after)
+    return try remove(wav, name: file.path, keeping: flac, frames: source.frames, size: size, after: after)
 }
 
 /// FLAC to WAV with `ClipWriter`, the writer of each clip WAV (the header of a Dirigible clip):
 /// decodes to `.<name>.archive-<UUID>.tmp`, flushes it, compares the frames and the MD5 of its
-/// samples with STREAMINFO, renames it to the pool path, flushes `Clips/`, checks the length of the
-/// WAV on disk, unlinks the FLAC, and flushes `Clips/`. With a WAV already there, it checks that WAV
+/// samples with STREAMINFO, renames it to the pool path, flushes `Clips/`, checks the length and the
+/// byte size of the WAV on disk, unlinks the FLAC, and flushes `Clips/`. With a WAV already there, it checks that WAV
 /// against STREAMINFO and unlinks the FLAC; a WAV of other audio gives `.nameTaken`. Stops, the
 /// seam, and the thread rule are those of `archiveClip`.
 func unarchiveClip(
@@ -126,18 +127,20 @@ func unarchiveClip(
     else { throw .mismatch(path: flacPath) }
 
     if exists(wav) {
+        let size = try byteSize(of: wav, name: file.path)
         guard
             let source = try readPacked(wav, name: file.path, rate: rate, channels: channels, isCancelled: isCancelled)
         else { return false }
         guard source == (info.md5, info.frames), isArchivable(wav, rate: rate, channels: channels) else {
             throw .nameTaken(path: file.path)
         }
-        return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, after: after)
+        return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, size: size, after: after)
     }
 
     let temporary = wav.deletingLastPathComponent().appending(
         path: archiveTemporaryName(of: wav.lastPathComponent, UUID()))
     let written: (md5: Data, frames: Int)?
+    let size: off_t
     do {
         guard
             try decode(
@@ -148,7 +151,7 @@ func unarchiveClip(
             return false
         }
         guard after(.encoded, temporary) else { return false }
-        try flushNew(temporary, name: file.path)
+        size = try flushNew(temporary, name: file.path)
         guard after(.flushed, temporary) else { return false }
         written = try readPacked(temporary, name: file.path, rate: rate, channels: channels, isCancelled: isCancelled)
     } catch {
@@ -164,7 +167,7 @@ func unarchiveClip(
     guard after(.verified, temporary) else { return false }
     try rename(temporary, to: wav, name: file.path)
     guard after(.renamed, wav) else { return false }
-    return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, after: after)
+    return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, size: size, after: after)
 }
 
 /// The frames of each read and write block.
@@ -185,6 +188,13 @@ func packed24(rate: Int, channels: Int) -> AudioStreamBasicDescription {
 func exists(_ url: URL) -> Bool {
     var info = stat()
     return lstat(url.path, &info) == 0
+}
+
+/// The byte size of the item at `url`, with no follow of a link.
+func byteSize(of url: URL, name: String) throws(ClipArchiveFault) -> off_t {
+    var info = stat()
+    guard lstat(url.path, &info) == 0 else { throw .read(file: name, errno: errno) }
+    return info.st_size
 }
 
 /// True for a WAV of packed 24-bit integer PCM at `rate` with `channels`.

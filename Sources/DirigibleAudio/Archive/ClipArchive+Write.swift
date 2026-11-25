@@ -5,8 +5,9 @@ import Foundation
 
 /// Releases the blocks that the codec allocated past the end of a new file, then flushes the file
 /// to the disk. On APFS a truncate to the same size keeps those blocks, and a truncate one byte up
-/// and back releases them (probe 2026-11-25: up to 16 MB after a file over 64 MB).
-func flushNew(_ url: URL, name: String) throws(ClipArchiveFault) {
+/// and back releases them (probe 2026-11-25: up to 16 MB after a file over 64 MB). Returns the byte
+/// size of the file.
+func flushNew(_ url: URL, name: String) throws(ClipArchiveFault) -> off_t {
     let descriptor = open(url.path, O_WRONLY | O_NOFOLLOW | O_CLOEXEC)
     var info = stat()
     let code: Int32? =
@@ -24,6 +25,7 @@ func flushNew(_ url: URL, name: String) throws(ClipArchiveFault) {
         unlink(url.path)
         throw .write(file: name, errno: code)
     }
+    return info.st_size
 }
 
 /// Moves the checked temporary file to its name, never over an item, and flushes the folder.
@@ -38,13 +40,16 @@ func rename(_ temporary: URL, to target: URL, name: String) throws(ClipArchiveFa
     if let code = fullFlush(path: target.deletingLastPathComponent().path) { throw .write(file: name, errno: code) }
 }
 
-/// Unlinks the source after a check that the target on disk opens with `frames`, then flushes the folder.
+/// Unlinks the source after a check that the target on disk opens with `frames` and has `size`
+/// bytes, then flushes the folder. A cut FLAC opens with its STREAMINFO length, so only the size
+/// shows the cut.
 func remove(
-    _ source: URL, name: String, keeping target: URL, frames: Int, after: (ClipArchiveStep, URL) -> Bool
+    _ source: URL, name: String, keeping target: URL, frames: Int, size: off_t,
+    after: (ClipArchiveStep, URL) -> Bool
 ) throws(ClipArchiveFault) -> Bool {
-    guard (try? AVAudioFile(forReading: target).length) == AVAudioFramePosition(frames) else {
-        throw .mismatch(path: name)
-    }
+    guard (try? AVAudioFile(forReading: target).length) == AVAudioFramePosition(frames),
+        (try? byteSize(of: target, name: name)) == size
+    else { throw .mismatch(path: name) }
     guard unlink(source.path) == 0 else { throw .write(file: name, errno: errno) }
     if let code = fullFlush(path: source.deletingLastPathComponent().path) { throw .write(file: name, errno: code) }
     return after(.removed, target)

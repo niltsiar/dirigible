@@ -63,6 +63,46 @@ struct ClipArchiveTests {
         #expect(try Data(contentsOf: clip.flac) == before)
     }
 
+    @Test func aFLACCutAfterTheRenameGivesAMismatchAndKeepsTheWAV() throws {
+        let clip = try ArchiveClip(channels: 2, rate: 48_000)
+        let before = try Data(contentsOf: clip.wav)
+        var length: AVAudioFramePosition?
+
+        #expect(throws: ClipArchiveFault.mismatch(path: "a.wav")) {
+            try archiveClip(
+                clip.file, in: clip.package, rate: 48_000,
+                after: { step, target in
+                    if step == .renamed, (try? cutToHalf(target)) != nil {
+                        length = try? AVAudioFile(forReading: target).length
+                    }
+                    return true
+                })
+        }
+        #expect(length == AVAudioFramePosition(ArchiveClip.frames), "the cut FLAC opens with its STREAMINFO length")
+        #expect(try clip.names() == ["a.flac", "a.wav"], "the WAV stays next to the cut FLAC")
+        #expect((try? Data(contentsOf: clip.wav)) == before)
+    }
+
+    @Test func aFLACWithAnotherLengthAfterTheRenameGivesAMismatchAndKeepsTheWAV() throws {
+        let clip = try ArchiveClip(channels: 2, rate: 48_000)
+        let before = try Data(contentsOf: clip.wav)
+        var length: AVAudioFramePosition?
+
+        #expect(throws: ClipArchiveFault.mismatch(path: "a.wav")) {
+            try archiveClip(
+                clip.file, in: clip.package, rate: 48_000,
+                after: { step, target in
+                    if step == .renamed, (try? setStreamInfoFrames(ArchiveClip.frames / 2, in: target)) != nil {
+                        length = try? AVAudioFile(forReading: target).length
+                    }
+                    return true
+                })
+        }
+        #expect(length == AVAudioFramePosition(ArchiveClip.frames / 2), "the FLAC opens with the new length")
+        #expect(try clip.names() == ["a.flac", "a.wav"], "the WAV stays next to the FLAC of another length")
+        #expect((try? Data(contentsOf: clip.wav)) == before)
+    }
+
     @Test func aWAVCutAfterTheRenameGivesAMismatchAndKeepsTheFLAC() throws {
         let clip = try ArchiveClip(channels: 2, rate: 48_000)
         #expect(try archiveClip(clip.file, in: clip.package, rate: 48_000))
@@ -267,6 +307,15 @@ func streamInfo(_ url: URL) throws -> (bits: Int, frames: Int, md5: Data) {
 func flipByte(in url: URL) throws {
     var bytes = try Data(contentsOf: url)
     bytes[bytes.count / 2] ^= 0xFF
+    try bytes.write(to: url)
+}
+
+/// Writes `frames` to the total-samples field of the STREAMINFO block of a FLAC file. The byte
+/// size stays.
+func setStreamInfoFrames(_ frames: Int, in url: URL) throws {
+    var bytes = try Data(contentsOf: url)
+    bytes[21] = bytes[21] & 0xF0 | UInt8(frames >> 32 & 0x0F)
+    for index in 0..<4 { bytes[22 + index] = UInt8(frames >> (24 - 8 * index) & 0xFF) }
     try bytes.write(to: url)
 }
 

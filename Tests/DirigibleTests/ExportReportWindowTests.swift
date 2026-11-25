@@ -11,11 +11,47 @@ import os
 
 /// Run 9a criterion 20: the loudness report of an export with a target, on a real session
 /// window. The tests are in the serialized suite `ExportWindowTests` and use its fixtures.
+/// The text of a key up to its first format specifier. A test process has no localized table, so
+/// `L10n.text` gives the key itself there: a test compares with this text and not with a literal.
+func leadText(_ key: String) -> String {
+    String((L10n(rawValue: key)?.text ?? key).prefix { $0 != "%" })
+}
+
 extension ExportWindowTests {
-    /// Run 9a criterion 20: a clean export with a target shows the report in a banner, not in a
-    /// modal alert, and VoiceOver reads it. The next export start removes it.
+    /// A window of 10 s of noise at -36 dB, so an export with a target needs a gain over the 20 dB limit
+    /// and shows its report as a warning banner.
+    func loudWindow() async throws -> (SessionWindow, Studio, NSWindow) {
+        let (model, studio, window) = try await self.window(noise: true)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setGain(Gain(dB: -36)!, clip: "c1")
+        }
+        return (model, studio, window)
+    }
+
+    /// C9 (i): an export with a usual gain shows no banner, because the file is in the folder. VoiceOver
+    /// hears the name of the file and the report.
+    @Test func aPlainExportShowsNoBannerAndIsAnnounced() async throws {
+        let (model, studio, _) = try await window(noise: true)
+        let chrome = try #require(model.chrome)
+        var heard: [String] = []
+        chrome.announce = { text, _ in heard.append(text) }
+        let source = try #require(model.source(of: .session, in: studio))
+
+        await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
+
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.key.hasPrefix("exportReport") }, "a plain export has a banner: \(banners)")
+        #expect(
+            heard.contains { $0.hasPrefix(leadText("banner.export.report")) }, "VoiceOver hears no report: \(heard)")
+        #expect(!heard.contains { $0.contains(L10n.reportGainLarge.text) }, "the fixture has a large gain: \(heard)")
+        await model.close()
+    }
+
+    /// Run 9a criterion 20: a clean export with a target and a gain over the limit shows the report in a
+    /// warning banner, not in a modal alert, and VoiceOver reads it. The next export start removes it.
     @Test func aTargetExportShowsTheReportBanner() async throws {
-        let (model, studio, _) = try await window()
+        let (model, studio, _) = try await loudWindow()
         let chrome = try #require(model.chrome)
         var heard: [String] = []
         chrome.announce = { text, _ in heard.append(text) }
@@ -25,7 +61,9 @@ extension ExportWindowTests {
 
         #expect(model.alert == nil, "the report is a modal alert: \(String(describing: model.alert))")
         let report = try #require(model.exportReport?.report)
+        #expect(report.exceedsLevelLimit, "the fixture has a usual gain: \(report.gain)")
         await until("the report banner shows") { model.shown.banners.contains(.exportReport(report, file: "mix.wav")) }
+        #expect(WindowBanner.exportReport(report, file: "mix.wav").kind == .warning)
         #expect(heard.contains(WindowBanner.exportReport(report, file: "mix.wav").text), "no announcement: \(heard)")
         let off = ExportTarget(url: folder.url.appending(path: "off.wav"), options: Self.options, confirmed: nil)
         await model.run(source, off, studio)
@@ -37,7 +75,7 @@ extension ExportWindowTests {
     /// Run 9a criterion 20: no modal alert or sheet holds the window while the report shows, so
     /// Record starts a take, and the take start removes the report.
     @Test func recordStartsWhileTheReportShows() async throws {
-        let (model, studio, window) = try await window()
+        let (model, studio, window) = try await loudWindow()
         let source = try #require(model.source(of: .session, in: studio))
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
         await until("the report banner shows") { model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
@@ -77,7 +115,7 @@ extension ExportWindowTests {
     /// Code gate 1: the banner names the exported file, and the first session edit after the
     /// export removes it, because the file no longer matches the session.
     @Test func aSessionEditRemovesTheReport() async throws {
-        let (model, studio, _) = try await window()
+        let (model, studio, _) = try await loudWindow()
         let source = try #require(model.source(of: .session, in: studio))
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
         let report = try #require(model.exportReport?.report)
@@ -94,7 +132,7 @@ extension ExportWindowTests {
     /// Code gate 2: an edit while the export runs is not in the file, so no report banner shows
     /// after the export.
     @Test func anEditDuringTheExportShowsNoReport() async throws {
-        let (model, studio, _) = try await window()
+        let (model, studio, _) = try await loudWindow()
         // The first chunk waits for the release; the other chunks run at once.
         let (release, first) = (release, OSAllocatedUnfairLock(initialState: true))
         studio.environment.exportChunk = {

@@ -198,6 +198,27 @@ struct LocalizationTests {
         }
     }
 
+    /// D18: the texts that only the announcement of an export set or a sync reads have `announce.` keys,
+    /// and the table has no `banner.` copy of them.
+    @Test func theSyncAndExportResultTextsHaveAnnounceKeys() throws {
+        let moved = [
+            "banner.export.set.done": "announce.export.set.done",
+            "banner.export.set.loudness": "announce.export.set.loudness",
+            "banner.sync.earlier": "announce.sync.earlier",
+            "banner.sync.later": "announce.sync.later",
+            "banner.drift.corrected": "announce.drift.corrected",
+            "banner.drift.split": "announce.drift.split",
+        ]
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            for (old, new) in moved.sorted(by: { $0.key < $1.key }) {
+                #expect(table[new] != nil && table[old] == nil, "\(language): \(old) to \(new)")
+            }
+        }
+        let en = try stringsTable("en")
+        #expect(en["announce.sync.later"] == "Moved the clip %@ later.")
+    }
+
     /// The announcement after Remove Unused Files has one text for 1 file and one for more, so 1 does
     /// not read "1 files" (decision 0010, **Voice**). The text for 1 file has no count specifier.
     @Test func theMovedAnnouncementHasATextForOneFile() throws {

@@ -101,6 +101,12 @@ extension SessionWindow {
 
     func showInFinder(_ files: [URL]) { app?.reveal(files) }
 
+    /// Keeps the result of a set for its banners, and tells VoiceOver that a finished set ended.
+    private func showSet(_ set: ExportSetShown) {
+        exportSet = set
+        if let text = set.doneText { chrome?.announce(text, .medium) }
+    }
+
     /// Runs the set. A stop with no error of a part shows the count banner, a fault shows its alert
     /// with the count, and a clean finish shows the done banner.
     private func startSet(
@@ -141,9 +147,10 @@ extension SessionWindow {
                 titleMissing: ExportText.lacksTitleTag(session.forPart($0.part), format: format),
                 file: $0.url.lastPathComponent, revision: revision)
         }
-        exportSet = ExportSetShown(
-            files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: old,
-            warnings: warnings, dropped: result.dropped, revision: revision)
+        showSet(
+            ExportSetShown(
+                files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: old,
+                warnings: warnings, dropped: result.dropped, revision: revision))
         let faulty = files.filter { !$0.result.faults.isEmpty }
         guard !faulty.isEmpty else { return }
         let faults = faulty.reduce(into: [FileID: MediaFault]()) { $0.merge($1.result.faults) { first, _ in first } }
@@ -196,9 +203,10 @@ extension SessionWindow {
                     titleMissing: ExportText.lacksTitleTag(session, format: preset.options.format),
                     file: file.url.lastPathComponent, revision: revision)
             }
-            exportSet = ExportSetShown(
-                files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: [],
-                warnings: warnings, revision: revision)
+            showSet(
+                ExportSetShown(
+                    files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness),
+                    old: [], warnings: warnings, revision: revision))
             let faulty = files.filter { !$0.result.faults.isEmpty }
             guard !faulty.isEmpty else { return }
             let faults = faulty.reduce(into: [FileID: MediaFault]()) {

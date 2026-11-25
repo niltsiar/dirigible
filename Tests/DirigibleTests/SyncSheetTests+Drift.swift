@@ -97,19 +97,24 @@ extension SyncSheetTests {
     }
 
     /// The box picks the run. On, the sync is `Studio.correctDrift`: the 8 s clip is under 5 min, so it
-    /// moves by the lag and the banner gives the cause. Off, it is the 0076 sync with no drift outcome.
+    /// moves by the lag and the banner gives the cause. Off, it is the 0076 sync, and a plain move shows no banner.
     @Test func theBoxPicksTheRun() async throws {
         for on in [true, false] {
             let (model, studio, _) = try await open()
             var draft = try #require(SyncDraft(clip: "C", in: studio.session))
             draft.correctsDrift = on
             await model.sync(draft)
+            #expect(studio.session.clip("C")?.clip.start == 960_000 && model.alert == nil, "box \(on)")
+            guard on else {
+                #expect(model.syncReport == nil, "box off: a plain move has a banner")
+                await model.close()
+                continue
+            }
             guard case .syncMoved(let moved, _, _) = try #require(model.syncReport?.banner) else {
                 Issue.record("box \(on): no result banner, alert \(String(describing: model.alert))")
                 return
             }
-            #expect(studio.session.clip("C")?.clip.start == 960_000 && model.alert == nil, "box \(on)")
-            #expect(moved.outcome == (on ? .notCorrected(.clipTooShort) : nil), "box \(on): \(moved)")
+            #expect(moved.outcome == .notCorrected(.clipTooShort), "box \(on): \(moved)")
             await model.close()
         }
     }

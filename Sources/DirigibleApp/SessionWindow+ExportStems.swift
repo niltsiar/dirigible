@@ -16,16 +16,20 @@ struct StemsShown: Equatable {
     let outcome: Outcome
     let revision: Int
 
-    /// The clip warning comes first: the stems over 0 dBFS, then the mix line, then the folder line.
-    /// A stop gives only the stop banner.
+    /// What VoiceOver hears when the stems are written. Nil after a stop: its banner says that.
+    var doneText: String? {
+        guard case .done(let folder, let files, _) = outcome else { return nil }
+        return exportSetDoneText(files.map { folder.appending(path: $0.name) }, nil, nil)
+    }
+
+    /// The clip warning comes first: the stems over 0 dBFS, then the mix line. A stop gives only the
+    /// stop banner. A clean finish gives no banner.
     var banners: [WindowBanner] {
-        guard case .done(let folder, let files, let mixPeak) = outcome else { return [.stemsStopped] }
+        guard case .done(_, let files, let mixPeak) = outcome else { return [.stemsStopped] }
         var banners: [WindowBanner] = []
         let clipped = files.filter(\.isOverFullScale).map(\.name)
         if !clipped.isEmpty { banners.append(.stemsClipped(clipped)) }
         if let mixPeak, mixPeak > 1 { banners.append(.stemsMixClipped) }
-        banners.append(
-            .exportSetDone(files: files.map { folder.appending(path: $0.name) }, low: nil, high: nil, old: []))
         return banners
     }
 }
@@ -95,9 +99,11 @@ extension SessionWindow {
         do throws(StudioError) {
             let result = try await studio.exportStems(
                 by: target.grouping, source: source, titles: .app(), options: target.options, folder: target.folder)
-            stemsShown = StemsShown(
+            let shown = StemsShown(
                 outcome: .done(folder: target.folder, files: result.files, mixPeak: result.mixPeak),
                 revision: revision)
+            stemsShown = shown
+            if let text = shown.doneText { chrome?.announce(text, .medium) }
             if !result.faults.isEmpty { alert = .exported(paths(of: result.faults, in: session), nil) }
         } catch .exportStems(.stopped(.cancelled)) {
             stemsShown = StemsShown(outcome: .stopped, revision: revision)

@@ -21,12 +21,8 @@ struct StemsDoneBannerTests {
 
         let banners = shown(files).banners
 
-        #expect(
-            banners == [
-                .stemsClipped(["02 Guest.wav"]),
-                .exportSetDone(files: files.map { folder.appending(path: $0.name) }, low: nil, high: nil, old: []),
-            ], "the clip warning is line 1 and the folder line follows; a peak of 1.0 gives no warning")
-        #expect(shown([file("01 Host.wav", peak: 1)]).banners.count == 1, "no clip: the folder line only")
+        #expect(banners == [.stemsClipped(["02 Guest.wav"])], "a peak of 1.0 gives no warning")
+        #expect(shown([file("01 Host.wav", peak: 1)]).banners.isEmpty, "no clip: no banner")
     }
 
     @Test func aStopSaysNoStemWasWritten() throws {

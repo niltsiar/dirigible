@@ -879,8 +879,8 @@
 "alert.export.replace.many" = "In %2$@ existieren bereits %1$lld Dateien. Ersetzen?";
 "alert.export.replace.confirm" = "Ersetzen";
 "alert.export.more" = "und %lld weitere";
-"banner.export.set.done" = "%1$lld Dateien wurden nach %2$@ exportiert.";
-"banner.export.set.loudness" = "Die Loudness reicht von %1$@ bis %2$@ LUFS.";
+"announce.export.set.done" = "%1$lld Dateien wurden nach %2$@ exportiert.";
+"announce.export.set.loudness" = "Die Loudness reicht von %1$@ bis %2$@ LUFS.";
 "banner.export.set.stopped" = "Nach %1$lld von %2$lld Dateien angehalten.";
 "banner.export.set.old.one" = "Dirigible löscht die ältere Datei %@ mit diesem Präfix nicht.";
 "banner.export.set.old.many" = "Dirigible löscht %1$lld ältere Dateien mit diesem Präfix nicht, darunter %2$@.";
@@ -959,8 +959,8 @@
 "sheet.sync.span" = "Durchsucht %@ vor und nach dem Clip.";
 "sheet.sync.no.call" = "Keine Anrufspur: Die erste Spur mit Ton wird gewählt.";
 "sheet.sync.apply" = "Synchronisieren";
-"banner.sync.earlier" = "Der Clip wurde um %@ nach vorn verschoben.";
-"banner.sync.later" = "Der Clip wurde um %@ nach hinten verschoben.";
+"announce.sync.earlier" = "Der Clip wurde um %@ nach vorn verschoben.";
+"announce.sync.later" = "Der Clip wurde um %@ nach hinten verschoben.";
 "banner.sync.already" = "Der Clip ist bereits synchron.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
@@ -974,8 +974,8 @@
 "banner.sync.undo" = "Widerrufen";
 "sheet.sync.drift" = "Drift korrigieren";
 "sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Sitzungsuhr.";
-"banner.drift.corrected" = "Drift von %lld ms über den Clip korrigiert.";
-"banner.drift.split" = "Clip bei %@ geteilt (die Aufnahme pausierte %@).";
+"announce.drift.corrected" = "Drift von %lld ms über den Clip korrigiert.";
+"announce.drift.split" = "Clip bei %@ geteilt (die Aufnahme pausierte %@).";
 "banner.drift.not.corrected" = "Der Drift wurde nicht korrigiert.";
 "banner.drift.cause.too.short" = "Der Clip ist kürzer als 5 min.";
 "banner.drift.cause.rendered" = "Der Clip spielt gerendertes Audio ab und braucht zuerst sein Originalaudio zurück.";

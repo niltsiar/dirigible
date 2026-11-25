@@ -879,8 +879,8 @@
 "alert.export.replace.many" = "%1$lld fichiers existent déjà dans %2$@. Les remplacer ?";
 "alert.export.replace.confirm" = "Remplacer";
 "alert.export.more" = "et %lld autres";
-"banner.export.set.done" = "%1$lld fichiers exportés vers %2$@.";
-"banner.export.set.loudness" = "La sonie va de %1$@ à %2$@ LUFS.";
+"announce.export.set.done" = "%1$lld fichiers exportés vers %2$@.";
+"announce.export.set.loudness" = "La sonie va de %1$@ à %2$@ LUFS.";
 "banner.export.set.stopped" = "Arrêté après l\U2019exportation de %1$lld fichiers sur %2$lld.";
 "banner.export.set.old.one" = "Dirigible ne supprime pas l\U2019ancien fichier %@ de ce préfixe.";
 "banner.export.set.old.many" = "Dirigible ne supprime pas %1$lld fichiers plus anciens de ce préfixe, dont %2$@.";
@@ -959,8 +959,8 @@
 "sheet.sync.span" = "Recherche sur %@ avant et après le clip.";
 "sheet.sync.no.call" = "Aucune piste d’appel : la première piste avec de l’audio est choisie.";
 "sheet.sync.apply" = "Synchroniser";
-"banner.sync.earlier" = "Le clip a été avancé de %@.";
-"banner.sync.later" = "Le clip a été retardé de %@.";
+"announce.sync.earlier" = "Le clip a été avancé de %@.";
+"announce.sync.later" = "Le clip a été retardé de %@.";
 "banner.sync.already" = "Le clip est déjà synchronisé.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
@@ -974,8 +974,8 @@
 "banner.sync.undo" = "Annuler";
 "sheet.sync.drift" = "Corriger la dérive";
 "sheet.sync.drift.take" = "Une prise enregistre sur l'horloge de la session.";
-"banner.drift.corrected" = "Dérive de %lld ms le long du clip corrigée.";
-"banner.drift.split" = "Clip coupé à %@ (l'enregistrement s'est interrompu %@).";
+"announce.drift.corrected" = "Dérive de %lld ms le long du clip corrigée.";
+"announce.drift.split" = "Clip coupé à %@ (l'enregistrement s'est interrompu %@).";
 "banner.drift.not.corrected" = "La dérive n\U2019a pas été corrigée.";
 "banner.drift.cause.too.short" = "Le clip dure moins de 5 min.";
 "banner.drift.cause.rendered" = "Le clip lit un audio rendu et doit d\U2019abord retrouver son audio d\U2019origine.";

@@ -49,11 +49,11 @@ enum WindowBanner: Equatable {
     /// The default output is the built-in speakers and Monitor Track is on (decision 0044).
     case monitorHeadphones
     /// The loudness of the last clean export with a target and the name of its file (decision
-    /// 0032). A warning when the gain is over the auto-level limit.
+    /// 0032). Shown only when the gain is over the auto-level limit: a warning.
     case exportReport(LoudnessReport, file: String)
-    /// The files of a split export, the lowest and the highest loudness of a target, and the older
-    /// files of the prefix that stay (decision 0067).
-    case exportSetDone(files: [URL], low: Double?, high: Double?, old: [String])
+    /// The older files of the prefix that a split export leaves in the folder, a warning, and the files
+    /// of the set for its Show in Finder button (decision 0067). A set with no older file shows no banner.
+    case exportSetDone(files: [URL], old: [String])
     /// A split export that stopped: the files on disk and the files of the set.
     case exportSetStopped(written: Int, count: Int)
     /// A split point that has no file of its own, because it starts at the time of the split point
@@ -203,11 +203,12 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
+            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime,
+            .exportSetDone:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
-        case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound, .exportSetDone, .syncMoved:
-            .info
+        case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound: .info
+        case .syncMoved(let moved, _, _): moved.needsCheck ? .warning : .info
         case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
         case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
@@ -223,7 +224,7 @@ enum WindowBanner: Equatable {
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
         case .exportReport(let report, let file):
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
-        case .exportSetDone(let files, let low, let high, let old): exportSetDoneText(files, low, high, old)
+        case .exportSetDone(_, let old): L10n.oldFilesText(old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
         case .stemsClipped(let names): stemsClippedText(names)
@@ -278,14 +279,14 @@ enum WindowBanner: Equatable {
     }
 }
 
-/// "Exported 10 files to <folder>.", then the loudness range of the files, then the older files of the prefix.
-func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [String]) -> String {
+/// What VoiceOver hears when a set or a stem export ends: "Exported 10 files to <folder>.", then the
+/// loudness range of the files.
+func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?) -> String {
     let folder = files.first.map { $0.deletingLastPathComponent().path(percentEncoded: false) } ?? ""
-    var text = L10n.bannerExportSetDone.format(files.count, folder)
+    var text = L10n.announceExportSetDone.format(files.count, folder)
     if let low, let high {
-        text += " " + L10n.bannerExportSetLoudness.format(L10n.loudnessNumber(low), L10n.loudnessNumber(high))
+        text += " " + L10n.announceExportSetLoudness.format(L10n.loudnessNumber(low), L10n.loudnessNumber(high))
     }
-    if !old.isEmpty { text += " " + L10n.oldFilesText(old) }
     return text
 }
 

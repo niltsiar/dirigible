@@ -89,9 +89,10 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
     return end <= origin || first >= origin + visibleFrames ? range.lowerBound : nil
 }
 
-/// What a sync did, for its result banner (decision 0076): the lag with its direction, the spread of
-/// the excerpt lags or why the drift was not measured, the head that the move cut, and the names of
-/// the other clips that it cut.
+/// What a sync did (decision 0076): the lag with its direction, the spread of the excerpt lags or why
+/// the drift was not measured, the head that the move cut, and the names of the other clips that it cut.
+/// The result sentences go to VoiceOver. A banner holds only the sentences to check: the drift that was
+/// not corrected, the head cut, and the replaced audio.
 struct SyncMoved: Equatable {
     let lag: Frames
     let drift: SyncDrift
@@ -101,10 +102,28 @@ struct SyncMoved: Equatable {
     /// What the drift fix did, or nil for a sync with no drift option.
     var outcome: DriftOutcome?
 
-    /// "Moved the clip 2 min 3.0 s later." (the direction as a word, never a sign), or "The clip is
-    /// already in sync." for lag 0, the lag change or the not-measured sentence, the drift fix or its
-    /// cause, the head cut, and the other clips that the move cut. `text` gives the value of a key.
+    /// True when the sync did not correct the drift, cut the head of the clip, or replaced audio: the
+    /// banner is a warning.
+    var needsCheck: Bool {
+        if case .notCorrected = outcome { return true }
+        return headCut > .zero || !replaced.isEmpty
+    }
+
+    /// The text of the banner: the sentences to check, or the result when none needs a check, which is a
+    /// sync that moved nothing. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
+        let parts = sentences(text: text, locale: locale)
+        return (parts.check.isEmpty ? parts.done : parts.check).joined(separator: " ")
+    }
+
+    /// The result for VoiceOver: "Moved the clip 2 min 3.0 s later." (the direction as a word, never a
+    /// sign), or "The clip is already in sync." for lag 0, then the lag change or the not-measured
+    /// sentence, or the drift fix. `text` gives the value of a key.
+    func doneText(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
+        sentences(text: text, locale: locale).done.joined(separator: " ")
+    }
+
+    private func sentences(text: (L10n) -> String, locale: Locale) -> (done: [String], check: [String]) {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: locale, arguments: arguments)
         }
@@ -113,36 +132,38 @@ struct SyncMoved: Equatable {
             let (minutes, seconds) = (tenths / 600, Double(tenths % 600) / 10)
             return minutes > 0 ? format(.syncDurationMinutes, minutes, seconds) : format(.syncDurationSeconds, seconds)
         }
-        var sentences = [
+        var done = [
             lag == .zero
                 ? format(.bannerSyncAlready)
-                : format(lag < .zero ? .bannerSyncEarlier : .bannerSyncLater, duration(lag))
+                : format(lag < .zero ? .announceSyncEarlier : .announceSyncLater, duration(lag))
         ]
         func milliseconds(_ frames: Double) -> Double { frames * 1000 / Double(rate) }
         if case .corrected(let fix) = outcome {
-            sentences.append(format(.bannerDriftCorrected, Int(milliseconds(abs(fix.across)).rounded())))
+            done.append(format(.announceDriftCorrected, Int(milliseconds(abs(fix.across)).rounded())))
             for split in fix.splits {
-                sentences.append(
-                    format(.bannerDriftSplit, duration(split.clipFrame), duration(Frames(Int(split.pause.rounded())))))
+                done.append(
+                    format(.announceDriftSplit, duration(split.clipFrame), duration(Frames(Int(split.pause.rounded()))))
+                )
             }
         } else {
             switch drift {
             case .spread(let spread) where SyncResult.spreadIsNotable(spread, rate: rate):
-                sentences.append(format(.bannerSyncSpread, Int(milliseconds(Double(spread.count)).rounded())))
+                done.append(format(.bannerSyncSpread, Int(milliseconds(Double(spread.count)).rounded())))
             case .spread: break
-            case .clipTooShort: sentences.append(format(.bannerSyncTooShort))
-            case .onePartMatched: sentences.append(format(.bannerSyncNotMeasured))
+            case .clipTooShort: done.append(format(.bannerSyncTooShort))
+            case .onePartMatched: done.append(format(.bannerSyncNotMeasured))
             }
         }
+        var check: [String] = []
         if case .notCorrected(let cause) = outcome {
-            sentences.append(format(.bannerDriftNotCorrected))
-            sentences.append(format(cause.reasonKey))
+            check.append(format(.bannerDriftNotCorrected))
+            check.append(format(cause.reasonKey))
         }
-        if headCut > .zero { sentences.append(format(.bannerSyncHeadCut, duration(headCut))) }
+        if headCut > .zero { check.append(format(.bannerSyncHeadCut, duration(headCut))) }
         if !replaced.isEmpty {
-            sentences.append(format(.bannerSyncReplaced, replaced.formatted(.list(type: .and).locale(locale))))
+            check.append(format(.bannerSyncReplaced, replaced.formatted(.list(type: .and).locale(locale))))
         }
-        return sentences.joined(separator: " ")
+        return (done, check)
     }
 }
 
@@ -283,8 +304,9 @@ extension SessionWindow {
 
     /// Sync of the sheet: moves the clip to the audio that it shares with the reference track, in one
     /// undo entry (decision 0076). With the Correct drift box on, it also fixes the clock drift
-    /// (`Studio.correctDrift`, decision 0077). A match shows the result banner, with Undo only when the
-    /// clip moved, and the view scrolls only when the new place is out of view. No match shows a banner
+    /// (`Studio.correctDrift`, decision 0077). A match tells VoiceOver the result. It shows a banner only
+    /// when the sync needs a check, or when the clip was already in place; the banner has Undo only when
+    /// the clip moved. The view scrolls only when the new place is out of view. No match shows a banner
     /// that changes nothing. The banner Cancel shows nothing; another error shows the alert, also the busy refusal
     /// of a studio that started another job while the sheet was open.
     func sync(_ draft: SyncDraft) async {
@@ -311,9 +333,13 @@ extension SessionWindow {
                 moved = SyncMoved(result, cut: cut, before: session)
             }
             let revision = studio.sessionRevision
-            syncReport = ToolBannerShown(
-                banner: .syncMoved(moved, revision: revision == before ? nil : revision, press: syncPresses),
-                revision: revision)
+            let unchanged = revision == before
+            if moved.needsCheck || unchanged {
+                syncReport = ToolBannerShown(
+                    banner: .syncMoved(moved, revision: unchanged ? nil : revision, press: syncPresses),
+                    revision: revision)
+            }
+            if moved.needsCheck || !unchanged { chrome?.announce(moved.doneText(), .medium) }
             revealSyncedClip(draft.clip, in: studio)
         } catch .syncCancelled {
             // The banner Cancel: the user asked for it, so no alert.

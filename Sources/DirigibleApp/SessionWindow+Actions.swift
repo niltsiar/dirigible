@@ -71,7 +71,9 @@ extension SessionWindow {
     /// It commits the drafts first, also when no track is armed. `startTake` keeps the other rules
     /// of `canRecord`. With `preRoll` (whole seconds), the Player plays the take mix first
     /// (decision 0070); its item is never disabled, so with no armed track or a consent hold, it beeps.
+    /// On an archived window it runs the unarchive and starts no take (U11).
     func record(preRoll: Int? = nil) async {
+        if idleStudio?.isArchived == true { return unarchiveFirst(then: nil) }
         commitDrafts()
         guard !consentHoldsRecord, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
         else {

@@ -55,6 +55,7 @@ struct SessionView: View {
                     .templateOldKept, .binFileFault:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
+                    if alert == .error(.archived) { Button(L10n.bannerArchiveUnarchive.key) { model.unarchive() } }
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
                     Button(L10n.alertOK.key) {}
                     if let pick = alert.pickButton { Button(pick.key) { model.startWithPickedFile(request) } }
@@ -112,7 +113,9 @@ struct SessionView: View {
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).
-            .sheet(isPresented: Binding(get: { studio.exportProgress != nil }, set: { _ in })) {
+            .sheet(
+                isPresented: Binding(get: { studio.exportProgress != nil || studio.archiveRun != nil }, set: { _ in })
+            ) {
                 ExportSheet(model: model, studio: studio)
             }
             // The list of Remove Unused Files (decision 0047). Only its buttons and Esc close it.
@@ -267,12 +270,17 @@ private struct TimelinePane: View {
 
 /// The progress of a running export, with Cancel and Record (decision 0019). The sheet can hold
 /// the key status, so the Record menu item may not reach the window: its button is the Record
-/// path. Studio cancels the export when the take checks pass.
+/// path. Studio cancels the export when the take checks pass. A package job shows its file count
+/// and Cancel, with no Record (decision 0072).
 private struct ExportSheet: View {
     let model: SessionWindow
     let studio: Studio
 
     var body: some View {
+        if studio.archiveRun != nil { ArchiveSheet(model: model, studio: studio) } else { exportBody }
+    }
+
+    private var exportBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(verbatim: model.sheetTitle).font(.headline)
             ProgressView(value: studio.exportProgress ?? 1).frame(width: 320)

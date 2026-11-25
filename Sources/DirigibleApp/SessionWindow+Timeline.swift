@@ -213,6 +213,11 @@ extension SessionWindow {
     /// A transport command: the Transport menu and the toolbar come here (decision 0016).
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
+        // A play reads the clips in time: C18 missed, so it unarchives first (decision 0072).
+        let seeks = if case .seek = command { true } else { false }
+        if !seeks, startsOrSeeks(command), idleStudio?.isArchived == true {
+            return unarchiveFirst { [weak self] in self?.transport(command) }
+        }
         commitInspector()
         if startsOrSeeks(command) { resumeTranscriptFollow() }
         transportWork = Task { await studio?.perform(command) }
@@ -249,8 +254,11 @@ extension SessionWindow {
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {
         leafCalls?.append("\(command)")
-        commitInspector()
         guard let studio else { return }
+        if command.unarchivesFirst, studio.isArchived {
+            return unarchiveFirst { [weak self] in self?.run(command) }
+        }
+        commitInspector()
         switch command {
         case .zoomIn: timelineView?.navigate(.zoom(by: 0.5))
         case .zoomOut: timelineView?.navigate(.zoom(by: 2))

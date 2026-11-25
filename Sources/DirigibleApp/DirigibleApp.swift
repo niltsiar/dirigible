@@ -50,6 +50,9 @@ struct DirigibleApp: App {
                     // No key: a rare command that moves files to the Trash (decision 0047).
                     Button(L10n.menuFileRemoveUnused.key) { app.key?.removeUnusedFiles() }
                         .disabled(!app.canRemoveUnusedFiles)
+                    // One item in one slot: Archive Session... or Unarchive Session (decision 0072).
+                    Button((app.key?.archiveMenuTitle ?? .menuFileArchive).key) { app.key?.toggleArchive() }
+                        .disabled(!app.canRemoveUnusedFiles)
                 }
                 // The timeline items (decision 0017). A plain key is never disabled (probe K1).
                 CommandGroup(after: .toolbar) {

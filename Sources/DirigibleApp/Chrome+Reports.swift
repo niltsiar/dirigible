@@ -43,6 +43,13 @@ extension ChromeState {
             banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
             if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
         }
+        if let shown = model.archiveShown {
+            if shown.kind == .archive, shown.revision == studio.sessionRevision {
+                banners.append(.archiveSaved(net: shown.report.bytesFreed - shown.report.bytesWritten))
+            }
+            // A replayed edit changes the revision, so the damaged files stay listed until the next job.
+            if !shown.damaged.isEmpty { banners.append(.archiveDamaged(shown.damaged)) }
+        }
         switch model.transcribe.notice {
         case .stopped(let request, let revision, let press) where revision == studio.sessionRevision:
             banners.append(.transcriptionStopped(request, press: press))

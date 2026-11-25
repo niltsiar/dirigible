@@ -11,9 +11,11 @@ struct PruneReportShown: Equatable {
 extension SessionWindow {
     /// File > Remove Unused Files… (decision 0047): the scan, then the confirmation sheet. With no
     /// file to move, an alert says so with the kept line. With a busy studio, it does nothing. A
-    /// typed track name saves first. The app clipboard keeps the files of its clips.
+    /// typed track name saves first. The app clipboard keeps the files of its clips. An archived
+    /// window unarchives first, and the scan runs after it (decision 0072).
     func removeUnusedFiles() {
         guard let studio = idleStudio else { return }
+        if studio.isArchived { return unarchiveFirst { [weak self] in self?.removeUnusedFiles() } }
         commitDrafts()
         pruneReport = nil
         Task {

@@ -44,6 +44,44 @@ struct ClipArchiveTests {
         #expect(try clip.names() == ["a.wav"], "no FLAC and no temporary file")
     }
 
+    @Test func aFlippedByteInTheDecodedWAVGivesAMismatchAndKeepsTheFLAC() throws {
+        let clip = try ArchiveClip(channels: 2, rate: 48_000)
+        #expect(try archiveClip(clip.file, in: clip.package, rate: 48_000))
+        let before = try Data(contentsOf: clip.flac)
+        var flipped = false
+
+        #expect(throws: ClipArchiveFault.mismatch(path: "a.flac")) {
+            try unarchiveClip(
+                clip.file, in: clip.package, rate: 48_000,
+                after: { step, temporary in
+                    if step == .flushed { flipped = (try? flipByte(in: temporary)) != nil }
+                    return true
+                })
+        }
+        #expect(flipped)
+        #expect(try clip.names() == ["a.flac"], "the FLAC stays, with no WAV and no temporary file")
+        #expect(try Data(contentsOf: clip.flac) == before)
+    }
+
+    @Test func aWAVCutAfterTheRenameGivesAMismatchAndKeepsTheFLAC() throws {
+        let clip = try ArchiveClip(channels: 2, rate: 48_000)
+        #expect(try archiveClip(clip.file, in: clip.package, rate: 48_000))
+        let before = try Data(contentsOf: clip.flac)
+        var cut = false
+
+        #expect(throws: ClipArchiveFault.mismatch(path: "a.flac")) {
+            try unarchiveClip(
+                clip.file, in: clip.package, rate: 48_000,
+                after: { step, target in
+                    if step == .renamed { cut = (try? cutToHalf(target)) != nil }
+                    return true
+                })
+        }
+        #expect(cut)
+        #expect(try clip.names() == ["a.flac", "a.wav"], "the FLAC stays next to the cut WAV")
+        #expect(try Data(contentsOf: clip.flac) == before)
+    }
+
     @Test func a16BitWAVStaysAndA24BitWAVConverts() throws {
         let clip = try ArchiveClip(channels: 1, rate: 48_000)
         let sixteen = clip.clips.appending(path: "b.wav")
@@ -230,4 +268,10 @@ func flipByte(in url: URL) throws {
     var bytes = try Data(contentsOf: url)
     bytes[bytes.count / 2] ^= 0xFF
     try bytes.write(to: url)
+}
+
+/// Cuts a file to the first half of its bytes.
+func cutToHalf(_ url: URL) throws {
+    let bytes = try Data(contentsOf: url)
+    try bytes.prefix(bytes.count / 2).write(to: url)
 }

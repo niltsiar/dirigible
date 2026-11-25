@@ -151,6 +151,7 @@ extension StudioError {
         case .favoritesYielded: "favoritesYielded"
         case .archive: "archive"
         case .archived: "archived"
+        case .loudnessRead: "loudnessRead"
         }
     }
 }

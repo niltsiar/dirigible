@@ -1107,3 +1107,4 @@
 "error.archive.clip.other" = "O Dirigible não pode converter o ficheiro de áudio %@. Verifique a pasta Clips da sessão e volte a tentar.";
 "error.archive.store" = "O repositório de favoritos nunca é arquivado.";
 "error.studio.archived" = "Esta sessão está arquivada como FLAC. Desarquive-a primeiro.";
+"error.loudness.read" = "O Dirigible não pode medir a intensidade. Não foi possível ler um ficheiro de áudio (erro %lld).";

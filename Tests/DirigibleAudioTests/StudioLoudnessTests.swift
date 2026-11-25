@@ -127,8 +127,26 @@ struct StudioMeasureLoudnessTests {
 
         switch result {
         case .success: Issue.record("a cancel of the caller did not end the measure")
-        case .failure(let error): #expect((error as? POSIXError)?.code == .ECANCELED, "\(error)")
+        case .failure(let error): #expect(error as? StudioError == .loudnessRead(ECANCELED), "\(error)")
         }
+        await studio.settle()
+    }
+
+    /// C7: the measure is an export read (`EXPORT miss` of C18), so an archived studio refuses it
+    /// and keeps each file; after the unarchive it measures.
+    @Test func anArchivedStudioRefusesTheMeasure() async throws {
+        let fixture = try await ArchiveStudioFixture.make()
+        let studio = try await fixture.open()
+        _ = try await studio.archive { _ in }
+        let files = try fixture.contents()
+        let clips = studio.session.tracks.flatMap(\.clips)
+
+        await #expect(throws: StudioError.archived) { try await studio.measureLoudness(clips) }
+        #expect(try fixture.contents() == files, "a refused measure changed a file")
+
+        _ = try await studio.unarchive { _ in }
+        let measured = try await studio.measureLoudness(clips)
+        #expect(measured.count == 2 && measured.allSatisfy { $0.fault == nil }, "\(measured)")
         await studio.settle()
     }
 }

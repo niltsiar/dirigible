@@ -177,7 +177,7 @@ private func writeDriftAudio() throws -> DriftAudio {
 }
 
 /// Writes a mono 24-bit WAV at 48 kHz of `length` frames in blocks from `samples`.
-private func writeWAV(_ url: URL, length: Int, samples: (Range<Int>) -> [Float]) throws {
+func writeWAV(_ url: URL, length: Int, samples: (Range<Int>) -> [Float]) throws {
     let settings: [String: Any] = [
         AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
         AVLinearPCMBitDepthKey: 24, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,

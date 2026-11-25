@@ -103,6 +103,7 @@ extension StudioError {
         case .favoritesYielded: "a take in another studio stopped the add to Favorites."
         case .archive(let fault): fault.message(package: package)
         case .archived: "\(package) is archived as FLAC. Run `dirigible file unarchive` first."
+        case .loudnessRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         }
     }
 }

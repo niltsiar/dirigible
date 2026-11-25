@@ -23,7 +23,7 @@ func liveTransport(_ work: TransportWork, _ call: AgentCall, target: AgentTarget
         guard case .stop = work else { return busyReply(.task, call) }
         return .result(text: transportStopTakeMessage(call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 

@@ -28,6 +28,6 @@ func liveImportSession(
         let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
         return .result(text: busy.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }

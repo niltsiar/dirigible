@@ -119,7 +119,14 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     } catch .busy {
         return .result(text: (target.busy ?? .task).message(package: path), isError: true)
     } catch {
-        return .result(text: error.message(package: path), isError: true)
+        return .refusal(error, package: path)
+    }
+}
+
+extension AgentReply {
+    /// The reply of a refused live studio call: `.archived` for an archived window, else the error text.
+    static func refusal(_ error: StudioError, package: String) -> AgentReply {
+        error == .archived ? .archived : .result(text: error.message(package: package), isError: true)
     }
 }
 
@@ -153,5 +160,6 @@ func liveInfo(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool, target: 
 func liveRecord(_ request: RecordRequest, _ call: AgentCall, target: AgentTarget) async -> AgentReply {
     if let busy = target.busy { return RecordAnswer.busy(busy).reply(package: call.path) }
     guard let record = target.record else { return .notOpen }
-    return await record(request, call.agent, call.connection).reply(package: call.path)
+    let answer = await record(request, call.agent, call.connection)
+    return answer == .refused(.archived) ? .archived : answer.reply(package: call.path)
 }

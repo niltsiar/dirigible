@@ -28,11 +28,15 @@ package enum AgentReply: Sendable, Equatable {
     case result(text: String, isError: Bool)
     /// No window of the app has the package: the bridge runs the call on the files.
     case notOpen
+    /// The window is archived as FLAC (decision 0072): `AgentServer` unarchives it and runs the
+    /// call again, so this case never goes on the wire.
+    case archived
 
     var line: String {
         switch self {
         case .result(let text, let isError): MCPServer.encode(["text": text, "isError": isError])
         case .notOpen: MCPServer.encode(["notOpen": true])
+        case .archived: MCPServer.encode(["text": archivedReplyText, "isError": true])
         }
     }
 
@@ -66,6 +70,9 @@ enum AppFrame: Equatable {
 
     static func progressLine(_ fraction: Double) -> String { MCPServer.encode(["progress": fraction]) }
 }
+
+/// The text of `AgentReply.archived` if it reaches a line or a route.
+let archivedReplyText = "The session is archived as FLAC."
 
 /// The size of one socket read of the listener and the bridge.
 let readSize = 64 * 1024

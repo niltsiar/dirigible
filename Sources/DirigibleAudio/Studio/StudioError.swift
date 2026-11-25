@@ -173,4 +173,7 @@ public enum StudioError: Error, Hashable, Sendable {
     /// The session is archived as FLAC: a write job or a read that C18 gates unarchives first
     /// (decision 0072).
     case archived
+    /// An agent loudness measure could not read an audio file, with its errno: ECANCELED for a
+    /// cancel of the caller (decision 0049).
+    case loudnessRead(Int32)
 }

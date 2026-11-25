@@ -310,7 +310,7 @@ Choose **View > Show Session Index** (Shift-Command-2) to show the pane at the i
 
 ## Select and edit
 
-A selection is a range or a set of clips. A range has an in point, an out point, and one or more tracks. Two triangles in the time ruler show the in point and the out point. A set of clips can hold clips on different tracks. Each clip of the set shows a tint and an outline in the accent color, and the time ruler shows nothing.
+A selection is a range or a set of clips. A range has an in point, an out point, and one or more tracks. Two triangles in the time ruler show the in point and the out point. On the tracks of the range, the part between them shows as a band that tints the lanes toward the accent color. A set of clips can hold clips on different tracks. Each clip of the set shows a tint and an outline in the accent color, and the time ruler shows nothing.
 
 ### Make a selection
 

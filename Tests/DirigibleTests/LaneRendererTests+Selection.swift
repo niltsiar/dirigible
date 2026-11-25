@@ -67,6 +67,6 @@ struct LaneRendererSelectionTests {
         let accent = try #require(NSColor.controlAccentColor.usingColorSpace(.sRGB))
         let red = UInt32((accent.redComponent * 255).rounded())
         let picked = LanePalette.pick(for: try #require(NSAppearance(named: .aqua)))
-        #expect((picked.outline >> 16) & 0xFF == red && picked.accent == nil, "the accent, and no band accent")
+        #expect((picked.outline >> 16) & 0xFF == red && picked.accent == nil, "the accent, and a light palette")
     }
 }

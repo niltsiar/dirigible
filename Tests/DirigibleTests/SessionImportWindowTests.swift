@@ -170,21 +170,21 @@ import Testing
         let table = { (key: L10n) in english[key.rawValue] ?? key.rawValue }
         #expect(
             L10n.sessionImportLine(tracks: 4, muted: 2, leftOut: 0, table: table)
-                == "Added 4 tracks at their recorded positions. 2 call tracks are muted: they repeat the other voice.")
+                == "Added 4 tracks at their recorded positions. 2 call tracks are muted. They repeat the other voice.")
         #expect(
             L10n.sessionImportLine(tracks: 1, muted: 0, leftOut: 0, table: table)
                 == "Added 1 track at its recorded position.")
         #expect(
             L10n.sessionImportLine(tracks: 2, muted: 1, leftOut: 0, table: table)
-                == "Added 2 tracks at their recorded positions. 1 call track is muted: it repeats the other voice.")
+                == "Added 2 tracks at their recorded positions. 1 call track is muted. It repeats the other voice.")
         #expect(
             L10n.sessionImportLine(tracks: 2, muted: 0, leftOut: 1, table: table)
-                == "Added 2 tracks at their recorded positions. 1 marker is left out: its position is after the end "
+                == "Added 2 tracks at their recorded positions. 1 marker is left out. Its position is after the end "
                 + "of the timeline.")
         #expect(
             L10n.sessionImportLine(tracks: 1, muted: 1, leftOut: 3, table: table)
-                == "Added 1 track at its recorded position. 1 call track is muted: it repeats the other voice. "
-                + "3 markers are left out: their positions are after the end of the timeline.")
+                == "Added 1 track at its recorded position. 1 call track is muted. It repeats the other voice. "
+                + "3 markers are left out. Their positions are after the end of the timeline.")
     }
 
     /// C12: a refused source names the source session, then gives the open refusal text unchanged.

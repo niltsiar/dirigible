@@ -136,7 +136,7 @@ extension TranscriptTextView {
         NSAccessibility.post(
             element: self, notification: .announcementRequested,
             userInfo: [
-                .announcement: L10n.transcriptSelected.format(high - low),
+                .announcement: L10n.counted(high - low, one: .transcriptSelectedOne, many: .transcriptSelected),
                 .priority: NSAccessibilityPriorityLevel.high.rawValue,
             ])
     }

@@ -57,8 +57,8 @@ struct RepairSheetTests {
     @Test func titleNamesTheClipCount() throws {
         let table = try stringsTable("en")
         func title(_ clips: [ClipID]) -> String { draft(clips).title { table[$0.rawValue] ?? $0.rawValue } }
-        #expect(title(["c1"]) == "Repair Sound: 1 clip")
-        #expect(title(["c1", "c2", "c3"]) == "Repair Sound: 3 clips")
+        #expect(title(["c1"]) == "Repair Sound for 1 clip")
+        #expect(title(["c1", "c2", "c3"]) == "Repair Sound for 3 clips")
     }
 
     /// C13: the rows are in chain order. Fail: rows in the order of the checkboxes of the CLI.

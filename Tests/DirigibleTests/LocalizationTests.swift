@@ -236,15 +236,20 @@ struct LocalizationTests {
         }
     }
 
-    /// The fill announcement puts no noun after the count, so 1 does not read "with 1 clips"
-    /// (decision 0010: avoid a plural). The count comes last, after its own clip label.
-    @Test func theFillTextHasNoNounAfterTheCount() throws {
-        #expect(try stringsTable("en")[L10n.fillDone.rawValue] == "Filled %1$@ seconds. Clips: %2$lld")
-        #expect(try stringsTable("es")[L10n.fillDone.rawValue] == "Rellenados %1$@ segundos. Clips: %2$lld")
+    /// The fill announcement has one text for 1 clip and one for more, so 1 does not read "with 1 clips"
+    /// (decision 0010, Voice).
+    @Test func theFillTextHasAFormForOneClip() throws {
+        let texts = [
+            "en": ["Filled %@ seconds with 1 clip.", "Filled %1$@ seconds with %2$lld clips."],
+            "es": ["Rellenados %@ segundos con 1 clip.", "Rellenados %1$@ segundos con %2$lld clips."],
+        ]
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try stringsTable(language)
-            let text = try #require(table[L10n.fillDone.rawValue], "\(language)")
-            #expect(text.contains("%1$@") && text.hasSuffix("%2$lld"), "\(language): \(text)")
+            let one = try #require(table["fill.done.one"], "\(language)")
+            let many = try #require(table[L10n.fillDone.rawValue], "\(language)")
+            if let expected = texts[language] { #expect([one, many] == expected, "\(language)") }
+            #expect(one.contains("1 ") && !one.contains("%2$lld") && one.contains("%@"), "\(language): \(one)")
+            #expect(many.contains("%1$@") && many.contains("%2$lld"), "\(language): \(many)")
         }
     }
 

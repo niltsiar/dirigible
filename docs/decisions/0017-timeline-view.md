@@ -29,6 +29,7 @@
 - Amended: 2026-10-18, run `2026-10-18-envelope-ducking` (see 0060). The gain line of a clip draws its gain envelope.
 - Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). The peak pass opens each clip file through `poolFileName`, so an archived session draws its peaks from the FLAC in place. The cache file name holds the stamp of the file that the pass opened, so each converted file misses. After each file, the archive and the unarchive write the entry of the new stamp from the entry of the old stamp, because the MD5 check proves equal samples. A write that fails leaves a miss, and the next pass computes the peaks again (0024 P5). A cold pass from FLAC is slower than from WAV.
 - Amended: 2026-11-24, run `2026-11-24-ui-design-audit` (F112). No text of the app draws under 10 pt, the macOS minimum. The labels of the scale strip draw at 10 pt at each range, with no step-down. A label that is wider than the 14 pt left of its tick does not draw, and its tick stays: the 3-digit label of 120 and 145 dB. The strip stays 20 pt wide. The role letter of a track header is 10 pt in its 14 pt box.
+- Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F148). A selected track header in a key window shows a light tint of the accent color (alpha 0.22), not the full selection fill, and its labels keep their normal text color. In a window that is not key, the header keeps the unemphasized source list fill (`HeaderRowStyle`).
 
 ## Context
 

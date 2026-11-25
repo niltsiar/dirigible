@@ -133,7 +133,7 @@
 "error.segment.newer" = "The audio %@ was made by a newer version of Dirigible. Update Dirigible to place it.";
 "error.segment.newer.anchor" = "The timing file of the audio %@ was made by a newer version of Dirigible. Select one track, then use Place at Playhead on Selected Track.";
 "error.segment.bad.audio" = "The audio %@ is damaged and cannot be converted.";
-"alert.place.no.clip" = "The audio %@ ends before the take playhead, so it has no clip. Its file stays in the pool.";
+"alert.place.no.clip" = "The audio %@ ends before the take playhead and stays in the pool with no clip.";
 "error.segment.no.alignment" = "The recorded time of the audio %@ is not known. Select one track, then use Place at Playhead on Selected Track.";
 "error.segment.wav.in.use" = "Another file of the session uses the clip name of the audio %@.";
 "error.export.exists" = "An item with this name exists. The export did not replace it.";
@@ -314,14 +314,14 @@
 "alert.cancel" = "Cancel";
 "alert.close.recording" = "Stop the recording and close the window?";
 "alert.close.recording.confirm" = "Stop and Close";
-"alert.close.unsaved" = "The last changes could not be saved. Close anyway?";
+"alert.close.unsaved" = "The last changes couldn't be saved. Close anyway?";
 "alert.close.unsaved.confirm" = "Close";
 "alert.track.remove" = "Remove the tracks and their clips?";
-"alert.unused.none" = "No unused files";
+"alert.unused.none" = "There are no unused files.";
 "alert.track.remove.confirm" = "Remove";
 "alert.quit.recording" = "Stop the recording and quit?";
 "alert.quit.recording.confirm" = "Stop and Quit";
-"alert.quit.unsaved" = "The last changes of these sessions could not be saved: %@. Quit anyway?";
+"alert.quit.unsaved" = "The last changes of these sessions couldn't be saved: %@. Quit anyway?";
 "alert.quit.unsaved.confirm" = "Quit";
 
 /* Tracks and takes */
@@ -563,15 +563,15 @@
 "undo.agent.unnamed" = "Undo Agent Edit";
 "banner.consent.expired" = "The recording request from an AI agent calling itself \U201C%@\U201D expired.";
 "banner.consent.expired.unnamed" = "The recording request from an AI agent expired.";
-"consent.title" = "An AI agent wants to record";
-"consent.agent.line" = "It says it is “%@”.";
-"consent.app.tracks" = "This take records %@. People in the call get no notice from Dirigible.";
-"consent.message" = "A take of %1$@ on %2$@, from %3$@. Nothing records until you click Record. This request ends in %4$lld s.";
+"consent.title" = "Allow an AI agent to record?";
+"consent.agent.line" = "It says it's \U201C%@\U201D.";
+"consent.app.tracks" = "This take records %@, and people in the call aren't notified.";
+"consent.message" = "A take of %1$@ on %2$@, from %3$@, with %4$lld s to answer.";
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
 "consent.pre.roll.line" = "Starts recording at %1$@, after a %2$@ pre-roll.";
 "consent.dont.record" = "Don't Record";
 "consent.grant" = "Don't ask again until I close this window";
-"consent.grant.help" = "Ends when you close this window, %1$@ after your click, after %2$@ of takes with no sheet, or when the agent reconnects. The take of your click does not count.";
+"consent.grant.help" = "Ends when this window closes, %1$@ after your click, %2$@ of later takes, or the agent reconnects.";
 "redo.agent.unnamed" = "Redo Agent Edit";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";
@@ -648,13 +648,13 @@
 "sheet.take.time.field" = "Take time";
 "sheet.take.time.format" = "Type the time from the record start of the take as H:MM:SS.mmm (or H:MM:SS,mmm), M:SS, or seconds.";
 "sheet.take.time.removed" = "No clip plays this time of take %lld: an edit removed it, or the take has no audio there. Type another time.";
-"alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
+"alert.export.missing" = "These files are missing or can't be read and will export as silence:\n%@";
 "alert.export.confirm" = "Export";
-"alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";
-"alert.exported.loudness" = "Export result: %@.";
+"alert.exported" = "Some missing or unreadable files exported as silence:\n%@";
+"alert.exported.loudness" = "The export has %@.";
 "alert.exported.parts" = "The silence is in these exported files:\n%@";
-"alert.import.chain" = "Dirigible did not import all the files:\n%@";
-"alert.import.not.imported" = "The import stopped. Dirigible did not import these files:\n%@";
+"alert.import.chain" = "Some files weren't imported:\n%@";
+"alert.import.not.imported" = "The import stopped before it reached these files:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Levels";
@@ -712,10 +712,10 @@
 "transcript.gotoword" = "Go to Word";
 "transcript.selected" = "Words selected: %lld";
 "panel.transcript.track" = "Track:";
-"alert.transcript.badfile" = "%@ is not a Whisper JSON, WebVTT, or SRT file with timed words. The session did not change.";
-"alert.transcript.take" = "The transcript was not imported, because a take started.";
-"alert.transcript.unreadable" = "%@ could not be read. %@ The session did not change.";
-"alert.transcript.busy" = "The transcript was not imported, because the session was busy.";
+"alert.transcript.badfile" = "%@ isn't a Whisper JSON, WebVTT, or SRT file with timed words.";
+"alert.transcript.take" = "The transcript wasn't imported while a take was in progress.";
+"alert.transcript.unreadable" = "%@ couldn't be read. %@";
+"alert.transcript.busy" = "The transcript wasn't imported while the session was busy.";
 "banner.transcript.skipped" = "%lld words have no clip.";
 "banner.transcript.skipped.one" = "1 word has no clip.";
 "banner.transcript.untimed" = "%lld words have no time.";
@@ -732,10 +732,10 @@
 "start.new" = "New Session";
 "start.name" = "Name:";
 "start.name.default" = "Episode %lld";
-"start.name.error.character" = "A name cannot contain “/” or “:”.";
-"start.name.error.dot" = "A name cannot start with a period.";
+"start.name.error.character" = "A name can't contain \U201C/\U201D or \U201C:\U201D.";
+"start.name.error.dot" = "A name can't start with a period.";
 "start.name.error.long" = "The name is too long.";
-"start.folder" = "Saved in: %@";
+"start.folder" = "Saved in %@";
 "start.change" = "Change…";
 "start.folder.choose" = "Choose";
 "start.create" = "Create";
@@ -875,8 +875,8 @@
 "panel.export.line.one" = "Writes 1 file: %1$@. %2$@ does not change.";
 "panel.export.loudness.note" = "Each file gets its own loudness gain.";
 "sheet.export.file" = "Exporting file %1$lld of %2$lld: %3$@";
-"alert.export.replace.one" = "1 file exists in %@. Replace it?";
-"alert.export.replace.many" = "%1$lld files exist in %2$@. Replace them?";
+"alert.export.replace.one" = "Replace the existing file in %@?";
+"alert.export.replace.many" = "Replace the %1$lld existing files in %2$@?";
 "alert.export.replace.confirm" = "Replace";
 "alert.export.more" = "and %lld more";
 "announce.export.set.done" = "Exported %1$lld files to %2$@.";
@@ -899,7 +899,7 @@
 "track.follow.help" = "Follow in Ripples is on. Turn it off in the Track menu.";
 "track.follow.turn.off" = "Turn Off Follow in Ripples";
 "alert.follow.overlap.title" = "A clip would cover another clip.";
-"alert.follow.overlap.body" = "The clip on %1$@ at %2$@ follows ripples. Move it, or turn off Follow in Ripples.";
+"alert.follow.overlap.body" = "Move the clip on %1$@ at %2$@, or turn off Follow in Ripples.";
 "error.ripple.follow.only" = "Each track follows ripples, so nothing would be cut. Turn off Follow in Ripples on the track to cut.";
 
 /* Edit > Find in Session Index */

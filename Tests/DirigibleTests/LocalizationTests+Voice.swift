@@ -4,16 +4,27 @@ import Testing
 @testable import DirigibleApp
 
 /// The Voice clause of decision 0010 for the English message texts: no count after a colon, no
-/// uncontracted negation, and under 100 characters unless the text lists file names.
+/// uncontracted negation, under 100 characters unless the text lists file names, and at most
+/// `sentenceBudget` texts with two sentences or more.
 extension LocalizationTests {
     @Test func messageTextsFollowTheVoiceClause() throws {
         let english = try stringsTable("en")
         let keys = english.keys.filter { key in
             voiceAreas.contains { key.hasPrefix($0 + ".") } || voiceKeys.contains(key)
         }
-        #expect(keys.count >= 70, "the filter found \(keys.count) message keys")
+        #expect(keys.count >= 130, "the filter found \(keys.count) message keys")
         let values = english.filter { keys.contains($0.key) }
         #expect(voiceProblems(values, nameLists: voiceNameLists) == [])
+        let several = severalSentences(english.filter { key, _ in sentenceAreas.contains { key.hasPrefix($0 + ".") } })
+        #expect(several.count <= sentenceBudget, "\(several.count) texts have two sentences or more: \(several)")
+    }
+
+    @Test func sentenceCounterFindsASecondSentenceAndKeepsOneSentence() {
+        let values = [
+            "alert.a": "The clip moved. Undo it.", "alert.b": "Replace the file in %@?",
+            "alert.c": "Some files exported as silence:\n%@", "alert.d": "Close anyway? The changes weren't saved.",
+        ]
+        #expect(severalSentences(values) == ["alert.a", "alert.d"])
     }
 
     @Test func voiceCheckerFindsEachTellAndKeepsTheVoice() {
@@ -73,8 +84,17 @@ extension LocalizationTests {
 }
 
 /// The key prefixes that the guard reads, and the single keys that join them.
-private let voiceAreas = ["announce", "banner", "notice", "reverted", "window"]
+private let sentenceAreas = ["banner", "alert", "consent", "notice", "empty", "start", "reverted", "window"]
+private let voiceAreas = ["announce"] + sentenceAreas
 private let voiceKeys: Set = ["media.missing", "inspector.clips"]
+
+/// The most message texts of `sentenceAreas` with two sentences or more.
+private let sentenceBudget = 10
+
+/// The keys of `values` that have a second sentence, sorted.
+private func severalSentences(_ values: [String: String]) -> [String] {
+    values.filter { $0.value.firstMatch(of: /[.?!][ ]/) != nil }.keys.sorted()
+}
 
 /// The label of each form row: the Clip form, Settings, and the sheets. A button, a menu item, a tab,
 /// and a sheet title keep title case, so none is here.

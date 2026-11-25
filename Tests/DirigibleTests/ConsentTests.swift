@@ -341,8 +341,8 @@ import os
         #expect(await answer.value == .declined)
         await model.close()
         let english = try stringsTable("en")
-        #expect(english[L10n.consentTitle.rawValue] == "An AI agent wants to record", "no name in the title")
-        #expect(english[L10n.consentAgentLine.rawValue] == "It says it is “%@”.")
+        #expect(english[L10n.consentTitle.rawValue] == "Allow an AI agent to record?", "no name in the title")
+        #expect(english[L10n.consentAgentLine.rawValue] == "It says it's \u{201C}%@\u{201D}.")
         #expect(
             english[L10n.bannerConsentExpired.rawValue]
                 == "The recording request from an AI agent calling itself \u{201C}%@\u{201D} expired.")
@@ -363,7 +363,7 @@ import os
         #expect(await answer.value == .declined)
         await model.close()
         let english = try stringsTable("en")[L10n.consentAppTracks.rawValue]
-        #expect(english == "This take records %@. People in the call get no notice from Dirigible.")
+        #expect(english == "This take records %@, and people in the call aren't notified.")
     }
 
     /// The IOPM assertions of this process named `name`.

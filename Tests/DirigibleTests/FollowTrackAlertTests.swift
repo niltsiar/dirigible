@@ -61,8 +61,8 @@ import Testing
         #expect(overlap(125).title(table: table) == "A clip would cover another clip.")
         #expect(
             overlap(125).body(locale: Locale(identifier: "en"), table: table)
-                == "The clip on Host at 2:05 follows ripples. Move it, or turn off Follow in Ripples.")
-        #expect(overlap(3_725).body(locale: Locale(identifier: "en"), table: table).contains("at 1:02:05 follows"))
+                == "Move the clip on Host at 2:05, or turn off Follow in Ripples.")
+        #expect(overlap(3_725).body(locale: Locale(identifier: "en"), table: table).contains("at 1:02:05,"))
         #expect(WindowAlert.followOverlap(overlap(125)).text == L10n.alertFollowOverlapTitle.text)
         #expect(WindowAlert.followOverlap(overlap(125)).message == overlap(125).body())
         #expect(WindowAlert.confirmStopAndClose.message == nil)

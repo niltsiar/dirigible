@@ -133,7 +133,7 @@
 "error.segment.newer" = "L’audio %@ a été créé par une version plus récente de Dirigible. Mettez à jour Dirigible pour le placer.";
 "error.segment.newer.anchor" = "Le fichier de temps de l’audio %@ a été créé par une version plus récente de Dirigible. Sélectionnez une piste, puis utilisez « Placer à la tête de lecture sur la piste sélectionnée ».";
 "error.segment.bad.audio" = "L’audio %@ est endommagé et ne peut pas être converti.";
-"alert.place.no.clip" = "L’audio %@ se termine avant la tête de lecture de la prise, il n’a donc pas de clip. Son fichier reste dans le pool.";
+"alert.place.no.clip" = "L\U2019audio %@ se termine avant la tête de lecture de la prise et reste dans le pool sans clip.";
 "error.segment.no.alignment" = "L’heure d’enregistrement de l’audio %@ est inconnue. Sélectionnez une piste, puis utilisez « Placer à la tête de lecture sur la piste sélectionnée ».";
 "error.segment.wav.in.use" = "Un autre fichier de la session utilise le nom de clip de l’audio %@.";
 "error.export.exists" = "Un élément portant ce nom existe déjà. L’exportation ne l’a pas remplacé.";
@@ -317,7 +317,7 @@
 "alert.close.unsaved" = "Les dernières modifications n’ont pas pu être sauvegardées. Fermer quand même ?";
 "alert.close.unsaved.confirm" = "Fermer";
 "alert.track.remove" = "Supprimer les pistes et leurs clips ?";
-"alert.unused.none" = "Aucun fichier inutilisé";
+"alert.unused.none" = "Il n\U2019y a aucun fichier inutilisé.";
 "alert.track.remove.confirm" = "Supprimer";
 "alert.quit.recording" = "Arrêter l’enregistrement et quitter ?";
 "alert.quit.recording.confirm" = "Arrêter et quitter";
@@ -563,15 +563,15 @@
 "undo.agent.unnamed" = "Annuler la modification de l’agent";
 "banner.consent.expired" = "La demande d\U2019enregistrement d\U2019un agent d\U2019IA se faisant appeler \U00AB %@ \U00BB a expiré.";
 "banner.consent.expired.unnamed" = "La demande d\U2019enregistrement d\U2019un agent d\U2019IA a expiré.";
-"consent.title" = "Un agent d’IA veut enregistrer";
+"consent.title" = "Autoriser un agent d\U2019IA à enregistrer ?";
 "consent.agent.line" = "Il dit être « %@ ».";
-"consent.app.tracks" = "Cette prise enregistre %@. Les personnes de l’appel ne reçoivent aucune notification de Dirigible.";
-"consent.message" = "Une prise de %1$@ sur %2$@, à partir de %3$@. Rien ne s’enregistre tant que vous ne cliquez pas sur Enregistrer. Cette demande prend fin dans %4$lld s.";
+"consent.app.tracks" = "Cette prise enregistre %@, et les personnes de l\U2019appel ne sont pas averties.";
+"consent.message" = "Une prise de %1$@ sur %2$@, à partir de %3$@, avec %4$lld s pour répondre.";
 "consent.record.over" = "L’enregistrement remplace l’audio sur %1$@ après %2$@.";
 "consent.pre.roll.line" = "L’enregistrement commence à %1$@, après un pré-roll de %2$@.";
 "consent.dont.record" = "Refuser";
 "consent.grant" = "Ne plus demander avant la fermeture de cette fenêtre";
-"consent.grant.help" = "Prend fin quand vous fermez cette fenêtre, %1$@ après votre clic, après %2$@ de prises au total sans confirmation, ou quand l’agent se reconnecte. La prise de votre clic ne compte pas.";
+"consent.grant.help" = "Prend fin à la fermeture de cette fenêtre, %1$@ après votre clic, après %2$@ de prises ultérieures ou à la reconnexion de l\U2019agent.";
 "redo.agent.unnamed" = "Rétablir la modification de l’agent";
 "marker.default.name" = "Marqueur %lld";
 "chapter.default.name" = "Chapitre %lld";
@@ -648,13 +648,13 @@
 "sheet.take.time.field" = "Temps de la prise";
 "sheet.take.time.format" = "Saisissez le temps depuis le début de l’enregistrement de la prise sous la forme H:MM:SS.mmm (ou H:MM:SS,mmm), M:SS ou en secondes.";
 "sheet.take.time.removed" = "Aucun clip ne lit ce temps de la prise %lld : une modification l’a supprimé, ou la prise n’a pas d’audio à cet endroit. Saisissez un autre temps.";
-"alert.export.missing" = "Ces fichiers sont manquants ou illisibles. Ils seront exportés sous forme de silence :\n%@";
+"alert.export.missing" = "Ces fichiers sont manquants ou illisibles et seront exportés sous forme de silence :\n%@";
 "alert.export.confirm" = "Exporter";
-"alert.exported" = "L’exportation est terminée. Ces fichiers étaient manquants ou illisibles, et ils ont été exportés sous forme de silence :\n%@";
-"alert.exported.loudness" = "Résultat de l’exportation : %@.";
+"alert.exported" = "Certains fichiers manquants ou illisibles ont été exportés sous forme de silence :\n%@";
+"alert.exported.loudness" = "L\U2019exportation a %@.";
 "alert.exported.parts" = "Le silence se trouve dans ces fichiers exportés :\n%@";
-"alert.import.chain" = "Dirigible n’a pas importé tous les fichiers :\n%@";
-"alert.import.not.imported" = "L’importation s’est arrêtée. Dirigible n’a pas importé ces fichiers :\n%@";
+"alert.import.chain" = "Certains fichiers n\U2019ont pas été importés :\n%@";
+"alert.import.not.imported" = "L\U2019importation s\U2019est arrêtée avant ces fichiers :\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Niveaux";
@@ -712,10 +712,10 @@
 "transcript.gotoword" = "Aller au mot";
 "transcript.selected" = "Mots sélectionnés : %lld";
 "panel.transcript.track" = "Piste :";
-"alert.transcript.badfile" = "%@ n’est pas un fichier JSON Whisper, WebVTT ou SRT avec des mots horodatés. La session n’a pas changé.";
-"alert.transcript.take" = "La transcription n’a pas été importée, car une prise a commencé.";
-"alert.transcript.unreadable" = "%@ n’a pas pu être lu. %@ La session n’a pas changé.";
-"alert.transcript.busy" = "La transcription n’a pas été importée, car la session était occupée.";
+"alert.transcript.badfile" = "%@ n\U2019est pas un fichier JSON Whisper, WebVTT ou SRT avec des mots horodatés.";
+"alert.transcript.take" = "La transcription n\U2019a pas été importée pendant qu\U2019une prise était en cours.";
+"alert.transcript.unreadable" = "%@ n\U2019a pas pu être lu. %@";
+"alert.transcript.busy" = "La transcription n\U2019a pas été importée pendant que la session était occupée.";
 "banner.transcript.skipped" = "%lld mots n\U2019ont pas de clip.";
 "banner.transcript.skipped.one" = "1 mot n\U2019a pas de clip.";
 "banner.transcript.untimed" = "%lld mots n\U2019ont pas de temps.";
@@ -735,7 +735,7 @@
 "start.name.error.character" = "Un nom ne peut pas contenir « / » ni « : ».";
 "start.name.error.dot" = "Un nom ne peut pas commencer par un point.";
 "start.name.error.long" = "Le nom est trop long.";
-"start.folder" = "Emplacement : %@";
+"start.folder" = "Enregistré dans %@";
 "start.change" = "Modifier…";
 "start.folder.choose" = "Choisir";
 "start.create" = "Créer";
@@ -875,8 +875,8 @@
 "panel.export.line.one" = "Écrit 1 fichier : %1$@. %2$@ ne change pas.";
 "panel.export.loudness.note" = "Chaque fichier reçoit son propre gain de sonie.";
 "sheet.export.file" = "Exportation du fichier %1$lld sur %2$lld : %3$@";
-"alert.export.replace.one" = "1 fichier existe déjà dans %@. Le remplacer ?";
-"alert.export.replace.many" = "%1$lld fichiers existent déjà dans %2$@. Les remplacer ?";
+"alert.export.replace.one" = "Remplacer le fichier existant dans %@ ?";
+"alert.export.replace.many" = "Remplacer les %1$lld fichiers existants dans %2$@ ?";
 "alert.export.replace.confirm" = "Remplacer";
 "alert.export.more" = "et %lld autres";
 "announce.export.set.done" = "%1$lld fichiers exportés vers %2$@.";
@@ -899,7 +899,7 @@
 "track.follow.help" = "« Suivre le décalage » est activé. Désactivez-le dans le menu Piste.";
 "track.follow.turn.off" = "Désactiver « Suivre le décalage »";
 "alert.follow.overlap.title" = "Un clip en recouvrirait un autre.";
-"alert.follow.overlap.body" = "Le clip de %1$@ à %2$@ suit le décalage. Déplacez-le ou désactivez « Suivre le décalage ».";
+"alert.follow.overlap.body" = "Déplacez le clip de %1$@ à %2$@ ou désactivez « Suivre le décalage ».";
 "error.ripple.follow.only" = "Chaque piste suit le décalage, donc rien ne serait coupé. Désactivez « Suivre le décalage » sur la piste pour couper.";
 
 /* Edit > Find in Session Index */

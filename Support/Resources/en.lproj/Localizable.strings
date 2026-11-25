@@ -679,8 +679,8 @@
 "banner.level.changed" = "Changed %lld clips.";
 "banner.level.changed.one" = "Changed 1 clip.";
 "banner.level.changed.none" = "No clips changed.";
-"banner.unused.moved" = "Moved %lld files to the Trash (%@).";
-"banner.unused.moved.one" = "Moved 1 file to the Trash (%@).";
+"announce.unused.moved" = "Moved %lld files to the Trash (%@).";
+"announce.unused.moved.one" = "Moved 1 file to the Trash (%@).";
 "banner.unused.failed" = "Couldn't move %@ to the Trash.";
 "banner.level.none" = "The clips are already at the target level.";
 "banner.level.volume" = "The track volume doesn't change the clip gain.";

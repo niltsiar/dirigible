@@ -39,7 +39,7 @@ extension LocalizationTests {
 }
 
 /// The key prefixes that the guard reads, and the single keys that join them.
-private let voiceAreas = ["banner", "notice", "reverted", "window"]
+private let voiceAreas = ["announce", "banner", "notice", "reverted", "window"]
 private let voiceKeys: Set = ["media.missing"]
 
 /// The keys that list file names, so they may hold 100 characters or more.

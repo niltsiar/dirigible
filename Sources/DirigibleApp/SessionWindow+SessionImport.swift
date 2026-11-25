@@ -93,7 +93,8 @@ extension SessionWindow {
     }
 
     /// Selects the new tracks with a range over all their clips, so the move and nudge keys act on
-    /// the new clips, scrolls the first new track into view, and shows and announces the result line.
+    /// the new clips, scrolls the first new track into view, and announces the result line. A line
+    /// that tells of a muted call track or a marker that was left out shows as a warning banner too.
     private func finishSessionImport(_ imported: SessionImported, in studio: Studio) {
         let session = studio.session
         let clips = imported.tracks.flatMap { session.track($0).map { Array($0.clips) } ?? [] }
@@ -105,9 +106,11 @@ extension SessionWindow {
         }
         let line = L10n.sessionImportLine(
             tracks: imported.tracks.count, muted: imported.mutedCallTracks, leftOut: imported.leftOutMarkers)
-        sessionImportPresses += 1
-        sessionImportReport = ToolBannerShown(
-            banner: .sessionImported(line, press: sessionImportPresses), revision: studio.sessionRevision)
+        if imported.mutedCallTracks > 0 || imported.leftOutMarkers > 0 {
+            sessionImportPresses += 1
+            sessionImportReport = ToolBannerShown(
+                banner: .sessionImported(line, press: sessionImportPresses), revision: studio.sessionRevision)
+        }
         chrome?.announce(line, .high)
     }
 }

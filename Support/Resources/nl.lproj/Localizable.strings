@@ -679,8 +679,8 @@
 "banner.level.changed" = "%lld clips gewijzigd.";
 "banner.level.changed.one" = "1 clip gewijzigd.";
 "banner.level.changed.none" = "Geen clips gewijzigd.";
-"banner.unused.moved" = "%lld bestanden naar de prullenmand verplaatst (%@).";
-"banner.unused.moved.one" = "1 bestand naar de prullenmand verplaatst (%@).";
+"announce.unused.moved" = "%lld bestanden naar de prullenmand verplaatst (%@).";
+"announce.unused.moved.one" = "1 bestand naar de prullenmand verplaatst (%@).";
 "banner.unused.failed" = "%@ kon niet naar de prullenmand worden verplaatst.";
 "banner.level.none" = "De clips staan al op het doelniveau.";
 "banner.level.volume" = "Het spoorvolume verandert de clipversterking niet.";

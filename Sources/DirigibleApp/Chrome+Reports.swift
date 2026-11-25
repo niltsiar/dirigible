@@ -20,9 +20,6 @@ extension ChromeState {
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }
-        if let shown = model.indexDeleted, shown.revision == studio.sessionRevision {
-            banners.append(.rowsDeleted(count: shown.count, press: shown.press))
-        }
         if let shown = model.denoiseReport, shown.revision == studio.sessionRevision {
             banners.append(.noiseReduced(clips: shown.clips, treatment: shown.treatment, press: shown.press))
         }
@@ -39,8 +36,6 @@ extension ChromeState {
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.syncReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
-            let moved = shown.report.moved.map(\.item.bytes)
-            banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
             if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
         }
         if let shown = model.archiveShown {

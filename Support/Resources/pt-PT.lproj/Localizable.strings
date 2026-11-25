@@ -679,8 +679,8 @@
 "banner.level.changed" = "%lld clipes alterados.";
 "banner.level.changed.one" = "1 clipe alterado.";
 "banner.level.changed.none" = "Nenhum clipe alterado.";
-"banner.unused.moved" = "%lld ficheiros movidos para o Lixo (%@).";
-"banner.unused.moved.one" = "1 ficheiro movido para o Lixo (%@).";
+"announce.unused.moved" = "%lld ficheiros movidos para o Lixo (%@).";
+"announce.unused.moved.one" = "1 ficheiro movido para o Lixo (%@).";
 "banner.unused.failed" = "Não foi possível mover %@ para o Lixo.";
 "banner.level.none" = "Os clipes já estão no nível alvo.";
 "banner.level.volume" = "O volume da faixa não altera o ganho do clipe.";

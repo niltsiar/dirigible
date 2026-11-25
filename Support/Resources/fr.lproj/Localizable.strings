@@ -679,8 +679,8 @@
 "banner.level.changed" = "%lld clips modifiés.";
 "banner.level.changed.one" = "1 clip modifié.";
 "banner.level.changed.none" = "Aucun clip modifié.";
-"banner.unused.moved" = "%lld fichiers placés dans la corbeille (%@).";
-"banner.unused.moved.one" = "1 fichier placé dans la corbeille (%@).";
+"announce.unused.moved" = "%lld fichiers placés dans la corbeille (%@).";
+"announce.unused.moved.one" = "1 fichier placé dans la corbeille (%@).";
 "banner.unused.failed" = "Impossible de placer %@ dans la corbeille.";
 "banner.level.none" = "Les clips sont déjà au niveau cible.";
 "banner.level.volume" = "Le volume de la piste ne change pas le gain du clip.";

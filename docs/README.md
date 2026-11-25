@@ -27,7 +27,7 @@ This file lists every doc of the repo, by group. The [README](../README.md) link
 
 ## Decisions
 
-Each record has a number, a status, and an area: product (what the app does or how it is built) or workflow (how the project runs). The numbers 0058, 0068, 0069, and 0072 are not used. A record can name a run or a `.scratchpads/` path: these are local working notes that are not in the repo.
+Each record has a number, a status, and an area: product (what the app does or how it is built) or workflow (how the project runs). The numbers 0058, 0068, and 0069 are not used. A record can name a run or a `.scratchpads/` path: these are local working notes that are not in the repo.
 
 | Number | Title | Status | Area |
 |---|---|---|---|
@@ -99,6 +99,7 @@ Each record has a number, a status, and an area: product (what the app does or h
 | [0067](decisions/0067-export-one-file-for-each-chapter.md) | Export one file for each chapter or marker: parts in DirigibleCore, one export job for the set, and a split argument of export | accepted | product |
 | [0070](decisions/0070-pre-roll.md) | Pre-roll: playback during a pre-roll take, an anchor at the heard punch point, a floor at the playhead | accepted | product |
 | [0071](decisions/0071-raw-capture-removal.md) | Raw capture removal after finalize | accepted | product |
+| [0072](decisions/0072-session-archive.md) | Session archive: FLAC clip files with an archive attribute | accepted | product |
 | [0073](decisions/0073-follow-tracks.md) | Follow tracks: a track flag in session.xml version 16, whole-clip moves in a ripple, and a refusal on overlap | accepted | product |
 | [0074](decisions/0074-voice-match.md) | Voice match: a live EQ stage of the track, after the rendered levels | accepted | product |
 | [0075](decisions/0075-import-session.md) | Import Session: one paste of a whole-session excerpt into new tracks, at the source positions plus an offset | accepted | product |

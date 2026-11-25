@@ -203,6 +203,13 @@ struct FileArchiveCommandTests {
         #expect(fault.message(package: "Show.dirigible").contains("2158377692"))
         #expect(fault.message(package: "Show.dirigible").contains("2158377691"))
     }
+
+    /// C17: the archive line of the agent manual gives the CLI form of each command.
+    @Test func theArchiveLineGivesTheCommandOfEachTool() {
+        let line = AgentManual.archiveLine
+        #expect(line.contains("`file_archive` (CLI: `dirigible file archive <package>`)"), "\(line)")
+        #expect(line.contains("`file_unarchive` (CLI: `dirigible file unarchive <package>`)"), "\(line)")
+    }
 }
 
 /// C6 and C10 on an archived package: the near inputs, the repairs, and a damaged FLAC.

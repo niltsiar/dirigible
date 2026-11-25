@@ -1347,7 +1347,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 93 tools, in groups:
+The 95 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`, `track_follow`, `track_match_voice`.
@@ -1671,7 +1671,7 @@ This section describes the files of a session package.
 A session is a macOS package: a folder with the extension `.dirigible` that Finder shows as one item.
 
 - `session.xml` holds the tracks, the clips, the markers, the chapters, the episode fields, the export presets, the bins, the gain envelopes and the rides of the clips, and the take that records.
-- `Clips/` holds the audio of the clips as WAV files.
+- `Clips/` holds the audio of the clips as WAV files, or as FLAC files while the session is archived (**Archive a session as FLAC**).
 - `Artwork/` holds the episode artwork and the chapter images.
 - `Transcripts/` holds the words of each transcript, one file each. A transcript comes from an import or from Transcribe. A change of the words writes a new file, and the old file stays until **File > Remove Unused Files...** finds that no state of the session names it. When a transcript file is missing or damaged, the session still opens: `dirigible transcript words` names the transcript, and a cut asks you to import it again.
 - `Capture/` holds the audio of a take while it records, in files that survive a crash. The anchor file of each take (`take<n>.anchor`) keeps the record start of the take, so the take time of the audio comes from it. Keep it in the package.

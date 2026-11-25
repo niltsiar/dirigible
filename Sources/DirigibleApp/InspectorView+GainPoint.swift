@@ -25,10 +25,14 @@ struct PointGainField: View {
         let text = Binding(
             get: { model.inspectorDraft?.field == .pointGain ? model.inspectorDraft?.text ?? shown : shown },
             set: { model.type($0, in: .pointGain) })
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.inspectorGainAtPlayhead.key)
+        GridRow {
+            Text(L10n.inspectorGainAtPlayhead.key).gridColumnAlignment(.trailing)
             HStack(spacing: 4) {
-                TextField(text: text, prompt: point?.gain == .mixed ? Text(L10n.inspectorMixed.key) : nil) {
+                TextField(
+                    text: text,
+                    prompt: point?.gain == .mixed
+                        ? Text(L10n.inspectorMixed.key) : Text(verbatim: InspectorView.emptyFieldPrompt)
+                ) {
                     Text(L10n.inspectorGainAtPlayhead.key)
                 }
                 .labelsHidden()
@@ -48,11 +52,15 @@ struct PointGainField: View {
                     Text(L10n.inspectorGainAtPlayhead.key) + Text(verbatim: ", ") + Text(L10n.inspectorDecibels.key))
                 Text(L10n.inspectorDecibels.key).foregroundStyle(.secondary)
             }
+            .gridColumnAlignment(.leading)
         }
     }
 }
 
 extension InspectorView {
+    /// The prompt of an empty field: a dash, so the label does not show as the placeholder.
+    static let emptyFieldPrompt = "\u{2013}"
+
     /// The text of the Gain at Playhead field: the envelope to 0.1 dB, empty for Mixed or no clip.
     static func pointText(_ point: PointGain?) -> String {
         guard case .value(let dB)? = point?.gain else { return "" }

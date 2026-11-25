@@ -49,7 +49,10 @@ extension LocalizationTests {
 let inspectorRooms: [(name: String, size: Double, weight: NSFont.Weight, room: Double, keys: [L10n])] = [
     ("clip labels", 11, .regular, 50, [.inspectorGain, .inspectorFadeIn, .inspectorFadeOut]),
     ("clip units", 11, .regular, 16, [.inspectorDecibels, .inspectorMilliseconds]),
-    ("clip wide label", 11, .regular, 190, [.inspectorGainAtPlayhead, .inspectorEffects, .inspectorEffectNoise]),
+    // Gain at playhead shares the label column with Gain and the fades: the pane is 216 pt wide inside its
+    // padding, less 8 pt of spacing, the 72 pt field, 4 pt, and the 16 pt unit.
+    ("gain at playhead", 11, .regular, 116, [.inspectorGainAtPlayhead]),
+    ("clip wide label", 11, .regular, 190, [.inspectorEffects, .inspectorEffectNoise]),
     (
         "episode labels", 11, .regular, 59,
         [

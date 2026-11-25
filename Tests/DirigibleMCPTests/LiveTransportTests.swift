@@ -81,7 +81,7 @@ struct LiveTransportTests {
         }
 
         let text =
-            "To play, stop, or locate, open \(path) in Dirigible and turn on Let Agents Edit Open Sessions in Settings."
+            "To play, stop, or locate, open \(path) in Dirigible and turn on Let agents edit open sessions in Settings."
         #expect(toolText(answer) == (text, true))
     }
 

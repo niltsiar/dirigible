@@ -28,6 +28,17 @@ struct LanguageChoiceTests {
             ])
     }
 
+    /// The Settings line "Restart Dirigible to apply the language" shows when the pick is not the
+    /// language that the app runs in. System Language is the first language of the Mac that the app has.
+    @Test func theRestartLineShowsOnlyForAnotherLanguage() {
+        let system = ["es-ES", "en-US"]
+        #expect(!LanguageChoice.system.needsRestart(running: "es", system: system), "the Mac reads Spanish")
+        #expect(!LanguageChoice.language(.spanish).needsRestart(running: "es", system: system), "the same one")
+        #expect(LanguageChoice.language(.german).needsRestart(running: "es", system: system))
+        #expect(LanguageChoice.system.needsRestart(running: "de", system: system), "the Mac does not read German")
+        #expect(!LanguageChoice.language(.portuguesePortugal).needsRestart(running: "pt-PT", system: system))
+    }
+
     /// C3: a stored list shows the language of the next launch, never System Language.
     @Test(arguments: [
         (["de-AT"], LanguageChoice.language(.german)),

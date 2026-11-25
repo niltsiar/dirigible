@@ -28,12 +28,8 @@ func preRollLengthText(seconds: Int, locale: Locale = .current) -> String {
     "\(seconds.formatted(.number.locale(locale))) s"
 }
 
-/// The text of the Settings row, "Pre-roll: 3 s". `text` gives the value of a key.
-func preRollRowText(seconds: Int, locale: Locale = .current, text: (L10n) -> String = { $0.text }) -> String {
-    String(format: text(.settingsPreRoll), locale: locale, preRollLengthText(seconds: seconds, locale: locale))
-}
-
-/// The pre-roll row of Settings: the length with a stepper.
+/// The pre-roll row of Settings: the label "Pre-roll" in the label column, and the length with its
+/// stepper in the control column.
 struct PreRollSettingsView: View {
     let app: AppDelegate
     @State private var seconds: Int
@@ -44,8 +40,13 @@ struct PreRollSettingsView: View {
     }
 
     var body: some View {
-        Stepper(value: $seconds, in: PreRollSetting.range) {
-            Text(verbatim: preRollRowText(seconds: seconds)).monospacedDigit()
+        let shown = preRollLengthText(seconds: seconds)
+        LabeledContent(L10n.settingsPreRoll.key) {
+            Stepper(value: $seconds, in: PreRollSetting.range) {
+                Text(verbatim: shown).monospacedDigit()
+            }
+            .accessibilityLabel(Text(L10n.settingsPreRoll.key))
+            .accessibilityValue(Text(verbatim: shown))
         }
         .onChange(of: seconds) { _, new in app.preRollSeconds = new }
     }

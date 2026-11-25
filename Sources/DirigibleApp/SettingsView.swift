@@ -69,6 +69,19 @@ enum LanguageChoice: Hashable {
     func write(to defaults: UserDefaults) {
         defaults.set(appleLanguages, forKey: Self.key)
     }
+
+    /// True when the next launch shows another language than `running`. System Language is the first
+    /// language of `system` that the app has.
+    func needsRestart(running: String, system: [String]) -> Bool {
+        let next =
+            switch self {
+            case .language(let language): language.rawValue
+            case .system:
+                Bundle.preferredLocalizations(from: AppLanguage.allCases.map(\.rawValue), forPreferences: system)
+                    .first ?? AppLanguage.english.rawValue
+            }
+        return next != running
+    }
 }
 
 /// Dirigible > Settings: one pane with the language pop-up (run 15 UI panel) and the agent
@@ -104,7 +117,12 @@ struct SettingsView: View {
                     Text(verbatim: language.endonym).tag(LanguageChoice.language(language))
                 }
             }
-            Text(L10n.settingsLanguageRestart.key).settingsHelp()
+            if choice.needsRestart(
+                running: Bundle.main.preferredLocalizations.first ?? AppLanguage.english.rawValue,
+                system: Locale.preferredLanguages)
+            {
+                Text(L10n.settingsLanguageRestart.key).settingsHelp()
+            }
             if let app {
                 Divider()
                 PreRollSettingsView(app: app)

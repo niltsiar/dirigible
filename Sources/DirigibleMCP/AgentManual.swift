@@ -139,8 +139,8 @@ package enum AgentManual {
         - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report it. Saves keep backups: `backup_list`.
         - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Give all \
         the ranges of a cut in one call.
-        - On a package open in the app, an edit is one undo step there when Settings > Let Agents Edit Open \
-        Sessions is on; else it is refused. On "is busy in Dirigible", if the text asks the user, ask and wait. \
+        - On a package open in the app, an edit is one undo step there when Settings > Let agents edit open \
+        sessions is on; else it is refused. On "is busy in Dirigible", if the text asks the user, ask and wait. \
         Else try again after a few seconds, at most 3 times.
         - `track_match_voice` matches tracks to a voice.
 

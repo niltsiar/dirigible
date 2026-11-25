@@ -9,7 +9,7 @@ struct MCPTransportToolTests {
     init() throws { package = try TemporaryPackage(Session(sampleRate: 48_000)) }
 
     private func text(_ path: String) -> String {
-        "To play, stop, or locate, open \(path) in Dirigible and turn on Let Agents Edit Open Sessions in Settings."
+        "To play, stop, or locate, open \(path) in Dirigible and turn on Let agents edit open sessions in Settings."
     }
 
     private func call(_ tool: String, _ arguments: [String: Any]) async throws -> (text: String, isError: Bool) {

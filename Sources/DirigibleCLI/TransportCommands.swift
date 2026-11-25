@@ -37,7 +37,7 @@ struct TransportPlay: ParsableCommand {
         commandName: "play",
         abstract: "Play the window of a session forward at 1x, and stop at --to.",
         discussion: """
-            The command needs the app with the package open and Let Agents Edit Open Sessions on. With \
+            The command needs the app with the package open and Let agents edit open sessions on. With \
             no --from, the play starts at the playhead. With no --to, it stops at the end of the session. \
             During a forward 1x play, a call with neither changes nothing and writes the end of the \
             running play. During a play, a call with --from or --to starts a new play with the new end. \
@@ -72,7 +72,7 @@ struct TransportStop: ParsableCommand {
         commandName: "stop",
         abstract: "Stop the play of the window of a session.",
         discussion: """
-            The command needs the app with the package open and Let Agents Edit Open Sessions on. It \
+            The command needs the app with the package open and Let agents edit open sessions on. It \
             writes Stopped at <frame>. With nothing playing, it changes nothing. It never stops a \
             take: during a take it exits 1.
             """)
@@ -87,7 +87,7 @@ struct TransportLocate: ParsableCommand {
         commandName: "locate",
         abstract: "Move the playhead of the window of a session to a frame.",
         discussion: """
-            The command needs the app with the package open and Let Agents Edit Open Sessions on. A \
+            The command needs the app with the package open and Let agents edit open sessions on. A \
             play goes on from the frame. In a play with --to, a frame before --to keeps it, and a \
             frame at or after --to plays on to the end of the session. During a forward play, a frame \
             at or after the end of the session stops it there. The next take starts at the playhead. \

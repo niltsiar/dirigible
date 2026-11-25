@@ -49,8 +49,11 @@ enum ManualScan {
     }
 
     /// The key and the line of the `info` output that the manual names (decision 0071), and the
-    /// marker lines of the `import_session` reply (decision 0075).
-    static let outputNames: Set<String> = ["rawKept", "raw <stem> kept: <reason>", "marker <id>", "Left out:"]
+    /// marker lines of the `import_session` reply (decision 0075), and the label of the `archive:` line
+    /// of `info` (decision 0072).
+    static let outputNames: Set<String> = [
+        "rawKept", "raw <stem> kept: <reason>", "marker <id>", "Left out:", "archive:",
+    ]
 
     /// The tools, their argument names, the `enum` values of their schemas, and each command word.
     static let words: Set<String> = {

@@ -166,6 +166,24 @@ struct ImportCommandTests {
         #expect(after == before, "a refusal changes no byte and adds no file: \(after.keys.sorted())")
     }
 
+    /// A pool path at `<stem>.flac` under another ID is the file of that entry (decision 0072), so
+    /// the import of `<stem>.wav` takes a free stem. Fail value: the import picks `voice.wav` and
+    /// `addFile` refuses it.
+    @Test func anImportSkipsAStemWhoseFLACNameAPoolPathHas() async throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("T", name: "Host", layout: .mono)
+        try session.addFile(AudioFile(id: "f1", path: "voice.flac", layout: .mono, length: 10))
+        let package = try TemporaryPackage(session)
+        let source = package.folder.appending(path: "voice.wav")
+        try Self.write(source, .wav(.bits16), Self.quiet)
+
+        let result = try await package.run("import", "PKG", source.path, "--track", "T")
+
+        #expect(result == CLIResult(status: 0, stdout: "voice 2\n", stderr: ""), "import: \(result)")
+        let read = try package.read()
+        #expect(read.files["voice 2"]?.path == "voice 2.wav" && read.files["f1"]?.path == "voice.flac")
+    }
+
     /// A frame or a length out of its range exits 64; a range or fades past
     /// the made WAV exit 1. Each refusal keeps every byte.
     @Test func aShapeOutOfRangeChangesNothing() async throws {

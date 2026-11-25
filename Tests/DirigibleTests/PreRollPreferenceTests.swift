@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -50,6 +52,28 @@ import Testing
             if label.contains("%") || label.contains(":") { withValue.append("\(language): \(label)") }
         }
         #expect(withValue == [])
+    }
+
+    /// The value "3 s" of the Pre-roll row starts in the control column of Settings, where the Language
+    /// pop-up starts. A value left of that column reads as part of the label.
+    @Test func theSettingsValueStartsInTheControlColumn() throws {
+        let view = SettingsView(defaults: nil, domain: nil, app: app())
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.contentView?.layoutSubtreeIfNeeded()
+        let content = try #require(window.contentView)
+        func frame(_ view: NSView) -> NSRect { view.convert(view.bounds, to: nil) }
+        func all(_ view: NSView) -> [NSView] { view.subviews + view.subviews.flatMap(all) }
+        let views = all(content)
+        let popUp = try #require(views.first { $0 is NSPopUpButton }, "the Language pop-up")
+        let stepper = try #require(views.first { $0 is NSStepper }, "the stepper")
+        // The row is the views at the height of the stepper: the label, the value, and the stepper.
+        let row = content.subviews.filter { abs(frame($0).midY - frame(stepper).midY) < 8 }
+            .sorted { frame($0).minX < frame($1).minX }
+        #expect(row.count == 3, "the label, the value, and the stepper: \(row.map(frame))")
+        let value = try #require(row.dropFirst().first)
+        let column = popUp.convert(popUp.alignmentRect(forFrame: popUp.bounds), to: nil).minX
+        let start = frame(value).minX
+        #expect(abs(start - column) < 4, "the value starts at \(start), the column at \(column)")
     }
 
     @Test func theLengthTextUsesTheNumberFormatOfTheLocale() {

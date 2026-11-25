@@ -42,11 +42,13 @@ struct PreRollSettingsView: View {
     var body: some View {
         let shown = preRollLengthText(seconds: seconds)
         LabeledContent(L10n.settingsPreRoll.key) {
-            Stepper(value: $seconds, in: PreRollSetting.range) {
+            HStack {
                 Text(verbatim: shown).monospacedDigit()
+                Stepper(value: $seconds, in: PreRollSetting.range) { EmptyView() }
+                    .labelsHidden()
+                    .accessibilityLabel(Text(L10n.settingsPreRoll.key))
+                    .accessibilityValue(Text(verbatim: shown))
             }
-            .accessibilityLabel(Text(L10n.settingsPreRoll.key))
-            .accessibilityValue(Text(verbatim: shown))
         }
         .onChange(of: seconds) { _, new in app.preRollSeconds = new }
     }

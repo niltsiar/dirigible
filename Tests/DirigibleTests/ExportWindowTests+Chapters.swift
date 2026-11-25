@@ -172,7 +172,7 @@ extension ExportWindowTests {
         #expect(L10n.message(for: error) == key)
         let texts = [
             "en": "The chapter image show-1.jpg exists beside this name. Move it, or choose another name.",
-            "es": "La imagen de capítulo show-1.jpg ya existe junto a este nombre. Muévala o elija otro nombre.",
+            "es": "La imagen de capítulo show-1.jpg ya existe junto a este nombre. Muévela o elige otro nombre.",
         ]
         for (language, text) in texts {
             let format = try #require(try stringsTable(language)[key], "\(language)")
@@ -260,8 +260,8 @@ extension ExportWindowTests {
                 + "iCloud, or it does not open. In Markers > Marker Info, choose the image again or remove it. Then "
                 + "export again.",
             "es": "La imagen del capítulo «Talk» en 0:00:04.000 no está en la sesión, no está descargada de iCloud o "
-                + "no se puede abrir. En Marcadores > Información del marcador, elija la imagen de nuevo o quítela. "
-                + "Después exporte de nuevo.",
+                + "no se puede abrir. En Marcadores > Información del marcador, elige la imagen de nuevo o quítala. "
+                + "Después exporta de nuevo.",
         ]
         for (language, text) in texts {
             let format = try #require(try stringsTable(language)[L10n.errorExportChapterImage.rawValue], "\(language)")

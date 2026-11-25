@@ -174,7 +174,7 @@ struct LocalizationTests {
     @Test func theMP3ChapterLimitSaysAbout49Point7Days() throws {
         let texts = [
             "en": "An MP3 file with chapters is at most about 49.7 days long. Export a smaller selection.",
-            "es": "Un archivo MP3 con capítulos dura como máximo unos 49,7 días. Exporte una selección más pequeña.",
+            "es": "Un archivo MP3 con capítulos dura como máximo unos 49,7 días. Exporta una selección más pequeña.",
         ]
         for (language, text) in texts {
             #expect(try stringsTable(language)[L10n.errorExportChaptersTooLong.rawValue] == text, "\(language)")
@@ -256,9 +256,9 @@ struct LocalizationTests {
 private let resourcesFolder = URL(filePath: #filePath).deletingLastPathComponent()
     .appending(path: "../../Support/Resources").standardized
 
-/// The `Localizable.strings` table of `language` in `Support/Resources`.
-func stringsTable(_ language: String) throws -> [String: String] {
-    let data = try Data(contentsOf: resourcesFolder.appending(path: "\(language).lproj/Localizable.strings"))
+/// The `<file>.strings` table of `language` in `Support/Resources`.
+func stringsTable(_ language: String, file: String = "Localizable") throws -> [String: String] {
+    let data = try Data(contentsOf: resourcesFolder.appending(path: "\(language).lproj/\(file).strings"))
     return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String])
 }
 

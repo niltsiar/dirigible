@@ -107,7 +107,7 @@ A pre-roll is a short play of the session before a take starts. You hear what co
 
 1. Put on headphones. With speakers, the microphone records the sound of the pre-roll.
 2. Put the playhead at the place where the take must start. Arm the tracks that you record.
-3. Press P, or choose **Record > Record with Pre-roll**. The window subtitle starts with **Pre-roll**, and a red line shows at the start place of the take, on the lanes and in the time ruler.
+3. Press P, or choose **Record > Record with Pre-roll**. The window subtitle shows **Pre-roll** after the sample rate, and a red line shows at the start place of the take, on the lanes and in the time ruler.
 4. Dirigible plays the session from the pre-roll length before the red line. When the play reaches the red line, the take starts, and the subtitle shows its other text again. Speak at the red line.
 5. Choose **Transport > Stop** (Command-Period) as for any take.
 
@@ -383,7 +383,7 @@ The Drag Mode sets what a drag of a clip does to the clips under it. Choose **Ed
 - **Crossfade** (**Fundido cruzado**) is as Overwrite, and each join with a clip that the moved clip covered gets a crossfade of the covered length. The audio that the files have limits its length.
 - **Shuffle** moves the clip as a ripple. The gap at the old place closes, and the clips at the new place move to the right to make room. The clip drops at the edge of a clip, never in the middle of one, and the yellow line shows that edge. A drag of the edge of a clip is a ripple trim of its own track. Under a pending or split take, a Shuffle drag beeps and changes nothing. The markers move by the ripple rule. A Shuffle moves only the track of the clip and the track where you drop it, so the other tracks stay, also a track with Follow in Ripples.
 
-When the mode is not Overwrite, the subtitle of the window shows **Drag Mode: Shuffle** (or the mode in use) before the sample rate. At Overwrite it shows nothing.
+When the mode is not Overwrite, the subtitle of the window shows **Shuffle drag mode** (or the mode in use) after the sample rate. It shows the mode only when no pre-roll runs, no archive state shows, and no record time shows. At Overwrite it shows nothing.
 
 A drag of a set of clips in Shuffle mode overwrites, as in Overwrite mode. In the other two modes, a set of clips follows the mode. The nudge keys (Command-Left Arrow, Command-Right Arrow) and the slip keys always overwrite, in every mode. Each drag is one step for **Undo**.
 
@@ -958,7 +958,7 @@ If a device goes away during a take, its tracks show **Device lost**. The other 
 
 ### When the disk is almost full
 
-- When a track is armed and less than 3 hours of record time is left on the disk, the window subtitle shows it, for example "Record time left: 2 hr, 59 min", and a banner shows.
+- When a track is armed and less than 3 hours of record time is left on the disk, the window subtitle shows it after the sample rate, for example "2 hr, 59 min left", and a banner shows.
 - During a take, the subtitle shows the time under 3 hours, and the banner shows at less than 10 minutes.
 - Record does not start when less than 1 GB is free on the disk of the session.
 - If the disk becomes almost full during a take, Dirigible stops the take and keeps the audio.
@@ -1044,7 +1044,7 @@ An archived session keeps its clip files as FLAC, usually half the size of the W
 2. Click **Archive**. A sheet shows "Archiving file 2 of 40" and a bar. **Cancel** or Esc stops after the file in hand.
 3. A banner gives the disk space that the archive freed.
 
-While the session is archived, a banner says "This session is archived as FLAC. An edit unarchives it first.", and the window subtitle ends with "Archived". After a stop, it ends with "Partly archived: 28 of 40 files are FLAC". The same menu item reads **Unarchive Session** (**Desarchivar sesión**).
+While the session is archived, a banner says "This session is archived as FLAC. An edit unarchives it first.", and the window subtitle shows "Archived" after the sample rate. After a stop, it shows "Partly archived: 28 of 40 files are FLAC". The same menu item reads **Unarchive Session** (**Desarchivar sesión**).
 
 An edit, Play, Record, an export, and **Remove Unused Files** on an archived session first convert the files back to WAV, with the same progress sheet. Then the edit runs once. Record starts no take: press Record again. **Cancel** in the sheet drops the edit, and the session stays archived. To convert the files without an edit, click **Unarchive** in the banner or choose **File > Unarchive Session**. When the disk has less free space than the unarchive needs, an alert gives both numbers, and no file changes.
 

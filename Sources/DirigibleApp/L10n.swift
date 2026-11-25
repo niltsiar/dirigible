@@ -451,7 +451,6 @@ enum L10n: String, CaseIterable {
     case toolbarPreRoll = "toolbar.pre.roll"
     case toolbarTooltipZoom = "toolbar.tooltip.zoom"
     case keySpace = "key.space"
-    case subtitleTracks = "subtitle.tracks"
     case subtitleRecordTime = "subtitle.record.time"
     case subtitlePreRoll = "subtitle.pre.roll"
     case bannerLowRecordTimeLeft = "banner.low.record.time.left"

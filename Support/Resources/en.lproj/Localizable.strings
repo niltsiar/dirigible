@@ -669,8 +669,7 @@
 "key.space" = "Space";
 
 /* Subtitle and banners (decision 0023) */
-"subtitle.tracks" = "Tracks:";
-"subtitle.record.time" = "Record time left:";
+"subtitle.record.time" = "%@ left";
 "subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Less than %@ of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones to keep the guest's voice out of your microphone.";
@@ -911,7 +910,7 @@
 "menu.edit.drag.mode.no.overlap" = "No Overlap";
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
-"timeline.drag.mode.cue" = "Drag Mode: %@";
+"timeline.drag.mode.cue" = "%@ drag mode";
 "menu.view.index.show" = "Show Session Index";
 "menu.view.index.hide" = "Hide Session Index";
 "index.pane.segment.index" = "Index";

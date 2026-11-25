@@ -669,8 +669,7 @@
 "key.space" = "Espaço";
 
 /* Subtitle and banners (decision 0023) */
-"subtitle.tracks" = "Faixas:";
-"subtitle.record.time" = "Tempo de gravação restante:";
+"subtitle.record.time" = "%@ restantes";
 "subtitle.pre.roll" = "Pré-roll";
 "banner.low.record.time.left" = "Restam menos de %@ de tempo de gravação neste disco. Liberte espaço no disco antes de gravar.";
 "banner.use.headphones" = "Utilize auscultadores para que a voz do convidado não entre no seu microfone.";
@@ -911,7 +910,7 @@
 "menu.edit.drag.mode.no.overlap" = "Sem sobreposição";
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
-"timeline.drag.mode.cue" = "Modo de arrastamento: %@";
+"timeline.drag.mode.cue" = "Modo de arrastamento %@";
 "menu.view.index.show" = "Mostrar índice da sessão";
 "menu.view.index.hide" = "Ocultar índice da sessão";
 "index.pane.segment.index" = "Índice";

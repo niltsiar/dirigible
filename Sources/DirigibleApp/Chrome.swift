@@ -274,8 +274,8 @@ struct ChromeState: Equatable {
         preRolling = studio.preRollFrame != nil
         let archive = model.archiveCounts(studio)
         subtitle = subtitleText(
-            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: subtitleLeft,
-            preRoll: preRolling, dragMode: model.dragMode, archive: archive)
+            rate: studio.session.sampleRate, recordTimeLeft: subtitleLeft, preRoll: preRolling,
+            dragMode: model.dragMode, archive: archive)
         var banners: [WindowBanner] = []
         if archive != nil { banners.append(.archived) }
         if let stop = studio.playbackStop { banners.append(.playbackStopped(stop)) }
@@ -344,33 +344,34 @@ func lowRecordTimeText(minutes: Int, locale: Locale = .current, text: (L10n) -> 
         Duration.seconds(minutes * 60).formatted(recordTimeStyle(locale)))
 }
 
-/// The window subtitle: "48 kHz · Tracks: 3 · Record time left: 2 hr, 10 min", with the time left
-/// rounded down to the minute. No plural form (0010); Foundation gives the units of the time.
-/// During the pre-roll of a take it starts with "Pre-roll". Outside Overwrite, the cue "Drag Mode:
-/// Shuffle" comes next, before the rate. An archived session ends with "Archived" or "Partly
-/// archived: 28 of 40 files are FLAC". `text` gives the value of a key.
+/// The window subtitle: the rate and at most one more part, so it has one middle dot at most. The
+/// part is "Pre-roll" during the pre-roll of a take, else "Archived" or "Partly archived: 28 of 40
+/// files are FLAC", else the record time left ("2 hr, 10 min left", rounded down to the minute), else
+/// the drag mode when it is not Overwrite ("Shuffle drag mode"). No plural form (0010); Foundation
+/// gives the units of the time. `text` gives the value of a key.
 func subtitleText(
-    rate: Int, tracks: Int, recordTimeLeft: Duration?, preRoll: Bool = false, dragMode: DragMode = .overwrite,
+    rate: Int, recordTimeLeft: Duration?, preRoll: Bool = false, dragMode: DragMode = .overwrite,
     archive: ArchiveCounts? = nil, locale: Locale = .current,
     text: (L10n) -> String = { $0.text }
 ) -> String {
     let kHz = (Double(rate) / 1000).formatted(.number.locale(locale))
-    var parts = ["\(kHz) kHz", "\(text(.subtitleTracks)) \(tracks)"]
-    if let archive {
-        parts.append(
+    let part: String? =
+        if preRoll {
+            text(.subtitlePreRoll)
+        } else if let archive {
             archive.flac == archive.total
                 ? text(.subtitleArchived)
-                : String(format: text(.subtitleArchivedPart), locale: locale, archive.flac, archive.total))
-    }
-    if dragMode != .overwrite {
-        parts.insert(String(format: text(.timelineDragModeCue), locale: locale, text(dragMode.title)), at: 0)
-    }
-    if preRoll { parts.insert(text(.subtitlePreRoll), at: 0) }
-    if let recordTimeLeft {
-        let minutes = Duration.seconds(Int(recordTimeLeft / .seconds(60)) * 60)
-        parts.append("\(text(.subtitleRecordTime)) \(minutes.formatted(recordTimeStyle(locale)))")
-    }
-    return parts.joined(separator: " · ")
+                : String(format: text(.subtitleArchivedPart), locale: locale, archive.flac, archive.total)
+        } else if let recordTimeLeft {
+            String(
+                format: text(.subtitleRecordTime), locale: locale,
+                Duration.seconds(Int(recordTimeLeft / .seconds(60)) * 60).formatted(recordTimeStyle(locale)))
+        } else if dragMode != .overwrite {
+            String(format: text(.timelineDragModeCue), locale: locale, text(dragMode.title))
+        } else {
+            nil
+        }
+    return ["\(kHz) kHz", part].compactMap { $0 }.joined(separator: " · ")
 }
 
 /// The trailing title bar mark of a connected agent (ui-panel.md): the `sparkles` symbol and

@@ -99,7 +99,7 @@ import os
         let (model, studio) = try await open(clock: clock)
         let status = L10n.subtitlePreRoll.text
 
-        #expect(ChromeState(model: model).subtitle.hasPrefix(status + " · "), "before T")
+        #expect(ChromeState(model: model).subtitle.hasSuffix(" · " + status), "before T")
         clock.value = Self.anchor
         #expect(!ChromeState(model: model).subtitle.contains(status), "at T")
         await close(model, studio)
@@ -109,8 +109,8 @@ import os
         let english = { (key: L10n) in key == .subtitlePreRoll ? "Pre-roll" : "x" }
         #expect(
             subtitleText(
-                rate: 48_000, tracks: 1, recordTimeLeft: nil, preRoll: true, locale: Locale(identifier: "en_US"),
-                text: english) == "Pre-roll · 48 kHz · x 1")
+                rate: 48_000, recordTimeLeft: nil, preRoll: true, locale: Locale(identifier: "en_US"),
+                text: english) == "48 kHz · Pre-roll")
     }
 
     /// VoiceOver hears "Pre-roll" once at the press, not at each loop turn.

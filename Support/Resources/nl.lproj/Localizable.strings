@@ -669,8 +669,7 @@
 "key.space" = "Spatie";
 
 /* Subtitle and banners (decision 0023) */
-"subtitle.tracks" = "Sporen:";
-"subtitle.record.time" = "Resterende opnametijd:";
+"subtitle.record.time" = "%@ resterend";
 "subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Er is minder dan %@ opnametijd over op deze schijf. Maak schijfruimte vrij voordat je opneemt.";
 "banner.use.headphones" = "Gebruik een koptelefoon, zodat de stem van de gast niet in je microfoon komt.";
@@ -911,7 +910,7 @@
 "menu.edit.drag.mode.no.overlap" = "Geen overlap";
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
-"timeline.drag.mode.cue" = "Sleepmodus: %@";
+"timeline.drag.mode.cue" = "Sleepmodus %@";
 "menu.view.index.show" = "Toon sessie-index";
 "menu.view.index.hide" = "Verberg sessie-index";
 "index.pane.segment.index" = "Index";

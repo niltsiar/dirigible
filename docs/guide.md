@@ -1057,7 +1057,7 @@ Dirigible opens an archived session, draws its waveforms, and checks its media w
 - The Favorites store is never archived.
 - A Dirigible of an older version shows "made by a newer version of Dirigible" for an archived session and changes nothing in it. Unarchive the session first.
 
-In Terminal, `dirigible file archive Demo.dirigible` and `dirigible file unarchive Demo.dirigible` do the same. They write the progress to the error output and the freed and written bytes to the output. Another `dirigible` command that changes the session, or that reads its audio for an export, converts the files back first. `dirigible info` shows the line `archive:` for an archived session. An AI agent uses the tools `file_archive` and `file_unarchive`.
+In Terminal, `dirigible file archive Demo.dirigible` and `dirigible file unarchive Demo.dirigible` do the same. They write the progress to the error output and the number of converted files to the output. The archive also gives the freed, written, and net bytes. Another `dirigible` command that changes the session, or that reads its audio (an export, a render, stems, loudness, silences, a meter, or a pause search), converts the files back first. `dirigible info` shows the line `archive:` for an archived session. An AI agent uses the tools `file_archive` and `file_unarchive`.
 
 ### When a session does not open
 

@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Accepted: 2026-11-22, after the plan gates (3 rounds) of run `2026-10-28-import-session`.
 - Amends: 0002 (Folders: `Import/` holds the session import), 0011 (CLI parity: `import-session`), 0040 (`ImportRun.Kind.session`), 0042 (a second caller of `pasteClipboard`), 0049 (`import_session` is a long tool with progress and cancel), 0079 (`openChecked` is in `Import/CheckedOpen.swift`, shared with the session import).
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). The check of the source files (`checkFiles`) and the copy open each pool file of the source through `poolFileName`, with `openChecked` and no link at any component. A file that resolves to a FLAC goes through the conversion path, so the target gets a WAV and has no `archive` attribute. The source package does not change and needs no unarchive; its files are read with no lock, as before. A source file that changes form before the copy pass gives "source changed".
 
 ## Context
 

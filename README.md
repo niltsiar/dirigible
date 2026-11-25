@@ -21,6 +21,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Save a zip of the logs and crash reports of Dirigible with **Help > Report a Problem...**. The zip has no audio, and Dirigible sends nothing.
 - Go back to an earlier state of the session with **File > Revert To**. Dirigible keeps backups of the session, and Undo reverses a revert.
 - Make a session smaller after many retakes with **File > Remove Unused Files...**. It shows the list and the size first, and moves the files to the Trash.
+- Save disk space on a finished session with **File > Archive Session...**. Dirigible converts the clip files to FLAC with the same samples, usually to half the size. An edit, Play, or an export converts them back first, and **File > Unarchive Session** does it alone.
 - Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder, also on an empty session. Dirigible copies each file into the session at the session sample rate and levels it.
 - Merge the session of another Dirigible into the open session with **File > Import Session...**, for example two recordings of one conversation. Each track of the other session comes as a new track, with its gain, mute, and clips, and Undo reverses it.
 - Save a session as a template with **File > Save as Template...**, then start each new episode from it in the start window.

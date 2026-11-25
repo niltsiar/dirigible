@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-11-03
 - Amends: 0004 (Finalize at stop: a CAF goes after its WAV passes the gate; Disk and sleep: the reason of the 7 bytes), 0012 (sidecar record kinds 3 and 4; a WAV-backed unplaced segment), 0021 (a placement from the WAV), 0047 (Remove Unused Files never lists the WAV of a removed CAF as a stray WAV).
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). The archive holds the sweep: it waits for the sweep job of each studio and holds it while it runs. `wavBackedSegments`, `soleCopyWAVs`, `rawFiles`, and `rawGain` read the clip file through `poolFileName`, so the pool path stays `<stem>.wav` and the scan keys do not change. While a clip resolves to its FLAC, `rawVerdict` gives `.archived` and keeps the CAF, because the length in the header of a truncated FLAC passes G1. The CAF goes after the unarchive and a new sweep.
 
 ## Context
 
@@ -46,7 +47,7 @@ A segment that fails a clause keeps its CAF. `dirigible info` writes one line fo
 - An edit during the sweep keeps the CAF: the turn checks the gate again on the saved session. A segment whose CAF is gone, and whose clips an edit after the removal deletes, keeps its WAV under an unused pool entry, and it is not an unplaced segment while that entry exists. Undo in the same window brings the clips back. After a close and an open, a backup that names the clip keeps it for a revert; with no holder, Remove Unused Files moves the WAV and the sidecar to the Trash, as it moves the WAV, the CAF, and the sidecar of a CAF-backed segment. So no prune leaves a segment that blocks a ripple.
 - A take in one studio holds the sweep of every other studio. A held job runs again at the next open, take end, or placement of its own studio, so its CAFs stay until then.
 - An older build lists the WAV of a removed take that a later undo made unplaced as a stray WAV. Its Remove Unused Files moves that WAV to the Trash, not out of the disk.
-- 0222 (FLAC archive) can rely on this: a placed segment that passed the gate has only its WAV; a kept CAF is float32 and stays; a WAV-backed unplaced segment is a stem WAV and its sidecar.
+- 0072 (the session archive) relies on this: a placed segment that passed the gate has only its WAV, or its FLAC in an archived session; a kept CAF is float32 and stays; a WAV-backed unplaced segment is a stem WAV and its sidecar, and the archive converts it as a pool file.
 
 ## Alternatives considered
 

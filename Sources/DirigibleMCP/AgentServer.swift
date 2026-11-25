@@ -170,10 +170,37 @@ package final class AgentServer {
         return reply
     }
 
+    /// Runs the call. On an archived window (decision 0072) it runs `Studio.unarchive`, with
+    /// `report` as its progress, then runs the call once more.
     private func reply(to call: AgentCall, generation: Int, report: @escaping @Sendable (Double) -> Void) async
         -> AgentReply
     {
-        guard let target = targets().first(where: { $0.studio.url.path == call.identity.path }) else { return .notOpen }
+        guard let target = openTarget(of: call) else { return .notOpen }
+        let first = await dispatch(call, target: target, generation: generation, report: report)
+        guard first == .archived else { return first }
+        do throws(StudioError) {
+            _ = try await target.studio.unarchive { report($0) }
+        } catch .busy {
+            return .result(text: (target.busy ?? .task).message(package: call.path), isError: true)
+        } catch .archive(.cancelled) where Task.isCancelled {
+            let stopped = listener == nil || self.generation != generation
+            return .result(text: stopped ? serverStopMessage(call.work) : cancelledMessage, isError: true)
+        } catch {
+            return .result(text: error.message(package: call.path), isError: true)
+        }
+        guard let again = openTarget(of: call) else { return .notOpen }
+        let second = await dispatch(call, target: again, generation: generation, report: report)
+        guard second == .archived else { return second }
+        return .result(text: StudioError.archived.message(package: call.path), isError: true)
+    }
+
+    private func openTarget(of call: AgentCall) -> AgentTarget? {
+        targets().first { $0.studio.url.path == call.identity.path }
+    }
+
+    private func dispatch(
+        _ call: AgentCall, target: AgentTarget, generation: Int, report: @escaping @Sendable (Double) -> Void
+    ) async -> AgentReply {
         if case .record(let request) = call.work { return await liveRecord(request, call, target: target) }
         if case .transport(let work) = call.work { return await liveTransport(work, call, target: target) }
         if case .info(let tracks, let range, let compact) = call.work {

@@ -5,7 +5,20 @@ import Foundation
 /// The text of an MCP tool error result (`isError: true`).
 package struct ToolError: Error, Sendable {
     package let message: String
+    /// True for `StudioError.archived` of a live call: `AgentServer` unarchives the window and runs
+    /// the call again (decision 0072).
+    var archived = false
     package init(_ message: String) { self.message = message }
+
+    /// The error of a refused live studio call.
+    static func refusal(_ error: StudioError, package: String) -> ToolError {
+        var refusal = ToolError(error.message(package: package))
+        refusal.archived = error == .archived
+        return refusal
+    }
+
+    /// The reply of a live call that failed with this error.
+    var reply: AgentReply { archived ? .archived : .result(text: message, isError: true) }
 }
 
 /// The edit of one MCP tool call. It gives the new IDs, in the order that the command prints them.

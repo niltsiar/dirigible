@@ -47,7 +47,7 @@ func liveExport(
     } catch .busy {
         throw ToolError((exportBusy(studio) ?? .task).message(package: path))
     } catch {
-        throw ToolError(error.message(package: path))
+        throw ToolError.refusal(error, package: path)
     }
     return try work.text(of: result, session: session, source: source)
 }
@@ -88,12 +88,12 @@ func liveStems(
         } catch .busy {
             throw ToolError((exportBusy(studio) ?? .task).message(package: path))
         } catch {
-            throw ToolError(error.message(package: path))
+            throw ToolError.refusal(error, package: path)
         }
         let (stdout, stderr) = try work.lines(of: result, session: session, source: source)
         return .result(text: (stdout + stderr).joined(separator: "\n"), isError: false)
     } catch {
-        return .result(text: error.message, isError: true)
+        return error.reply
     }
 }
 
@@ -123,7 +123,7 @@ private func liveSet(
     } catch .busy {
         throw ToolError((exportBusy(studio) ?? .task).message(package: path))
     } catch {
-        throw ToolError(error.message(package: path))
+        throw ToolError.refusal(error, package: path)
     }
     let old = await oldFiles(work, besides: result.files)
     do throws(SetFaults) {
@@ -184,7 +184,7 @@ private func livePresets(
     } catch .busy {
         throw ToolError((exportBusy(studio) ?? .task).message(package: path))
     } catch {
-        throw ToolError(error.message(package: path))
+        throw ToolError.refusal(error, package: path)
     }
     do throws(SetFaults) {
         let (stdout, stderr) = try work.presetLines(of: files, list: presets, session: session, source: source)

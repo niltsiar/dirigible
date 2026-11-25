@@ -38,6 +38,8 @@ func liveSync(
         return .result(text: text, isError: true)
     } catch .studio(.busy) {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch .studio(.archived) {
+        return .archived
     } catch {
         return .result(text: error.message(package: call.path), isError: true)
     }

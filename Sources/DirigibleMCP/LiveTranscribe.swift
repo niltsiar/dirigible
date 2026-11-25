@@ -28,7 +28,7 @@ func liveTranscribe(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 

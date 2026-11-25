@@ -81,6 +81,7 @@ package final class AgentBridge {
     )? {
         switch call(tool: tool, arguments: arguments, client: client, control: control) {
         case .reply(.result(let text, let isError)): (text, isError)
+        case .reply(.archived): (archivedReplyText, true)
         case .lost: (lostMessage(tool: tool), true)
         case .limit: (limitMessage(tool: tool, seconds: Int((timeout / .seconds(1)).rounded(.up))), true)
         case .reply(.notOpen), .noApp: nil

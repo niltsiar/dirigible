@@ -139,6 +139,7 @@ extension L10n {
         case .favoritesYielded: return errorFavoritesYielded.text
         case .archive(let fault): return message(for: fault)
         case .archived: return errorArchived.text
+        case .loudnessRead(let code): return errorLoudnessRead.format(Int(code))
         }
     }
 

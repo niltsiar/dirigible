@@ -6,11 +6,13 @@ extension Studio {
     /// The loudness of each clip of `clips` in the session of now, for an agent `loudness`
     /// (decision 0049): an edit does not wait for its autosave, so the files can lag the window.
     /// It measures on a utility GCD thread, in the package that the lock holds now. A cancel of
-    /// the caller stops it at the next block: then it throws ECANCELED. `progress` gets the
-    /// fraction of all clips on the main actor.
+    /// the caller stops it at the next block: then it throws `.loudnessRead(ECANCELED)`. An
+    /// archived studio throws `.archived` (decision 0072). `progress` gets the fraction of all
+    /// clips on the main actor.
     public func measureLoudness(
         _ clips: [Clip], progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
-    ) async throws(POSIXError) -> [(loudness: Loudness, fault: MediaFault?)] {
+    ) async throws(StudioError) -> [(loudness: Loudness, fault: MediaFault?)] {
+        try checkReadable(.export)
         let (session, lock, step) = (session, lock, environment.loudnessBlock)
         let cancelled = OSAllocatedUnfairLock(initialState: false)
         let hop: @Sendable (Double) -> Void = { fraction in Task { @MainActor in progress(fraction) } }
@@ -36,6 +38,6 @@ extension Studio {
         } onCancel: {
             cancelled.withLock { $0 = true }
         }
-        return try result.get()
+        do throws(POSIXError) { return try result.get() } catch { throw .loudnessRead(error.code.rawValue) }
     }
 }

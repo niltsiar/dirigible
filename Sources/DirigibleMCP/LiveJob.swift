@@ -18,11 +18,13 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         do throws(SessionError) { clips = try loudnessClips(ids, in: studio.session) } catch {
             return .result(text: error.message, isError: true)
         }
-        do throws(POSIXError) {
+        do throws(StudioError) {
             let measured = try await studio.measureLoudness(clips, progress: report)
             return .result(text: zip(clips, measured).map(loudnessLine).joined(separator: "\n"), isError: false)
+        } catch .loudnessRead(ECANCELED) {
+            return .result(text: cancelledMessage, isError: true)
         } catch {
-            return .result(text: error.code == .ECANCELED ? cancelledMessage : audioReadMessage(error), isError: true)
+            return .refusal(error, package: call.path)
         }
     case .export(let work):
         // A running export shows its sheet too: its cause comes first.
@@ -34,7 +36,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
                     work, studio: studio, path: call.path, sheetCause: target.sheetCause, report: report),
                 isError: false)
         } catch {
-            return .result(text: error.message, isError: true)
+            return error.reply
         }
     case .level(let work):
         return await liveLevel(work, studio: studio, call: call, report: report)
@@ -105,7 +107,7 @@ private func liveLevel(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -133,7 +135,7 @@ private func liveDuck(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -162,7 +164,7 @@ private func liveRide(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -187,7 +189,7 @@ private func liveMatchVoice(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -211,7 +213,7 @@ private func liveRead(
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
     switch result {
     case .success(let output): return .result(text: output.text, isError: false)
@@ -243,7 +245,7 @@ private func liveImport(
         let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
         return .result(text: busy.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -270,7 +272,7 @@ private func liveSplit(
         let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
         return .result(text: busy.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -301,7 +303,7 @@ private func liveDenoise(
         let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
         return .result(text: busy.message(package: call.path), isError: true)
     } catch {
-        return .result(text: error.message(package: call.path), isError: true)
+        return .refusal(error, package: call.path)
     }
 }
 
@@ -343,48 +345,6 @@ private func liveTranscriptExport(_ work: TranscriptExportWork, studio: Studio) 
 private let noClip = "No clip was added."
 let noTrack = "No track was added."
 private let noChange = "No clip changed."
-
-/// The text of an export, an import, or a split that the app stopped: the agent must not try again before
-/// it asks the user.
-func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file was written.") -> String {
-    switch stop {
-    case .user: "The user cancelled the \(noun) in Dirigible. \(nothing)"
-    case .take: "A take started in Dirigible, so the \(noun) stopped. \(nothing)"
-    case .close, nil: "The session window closed, so the \(noun) stopped. \(nothing)"
-    }
-}
-
-/// The text of a long call that a stop of the agent server ended: the user turned the server off,
-/// or quits.
-func serverStopMessage(_ work: ToolWork) -> String {
-    switch work {
-    case .export(let export) where export.split != nil || !export.presets.isEmpty:
-        "Dirigible stopped its agent server, so the export stopped. The files that were written before the stop "
-            + "stay in \(export.folder.path)."
-    case .export(let export):
-        "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
-    case .stems: "Dirigible stopped its agent server, so the stem export stopped. No stem was written."
-    case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
-    case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
-    case .ride: "Dirigible stopped its agent server, so the level over time stopped. No ride changed."
-    case .sync: "Dirigible stopped its agent server, so the sync stopped. No clip moved."
-    case .matchVoice: "Dirigible stopped its agent server, so the voice match stopped. No track changed."
-    case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
-    case .importSession: "Dirigible stopped its agent server, so the session import stopped. No track was added."
-    case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
-    case .clipRender(let render): "Dirigible stopped its agent server, so the \(render.noun) stopped. No clip changed."
-    case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
-    // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
-    case .read: "Dirigible stopped its agent server, so the read stopped."
-    case .transcribe: "Dirigible stopped its agent server, so the transcription stopped. No words were added."
-    case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .favorite, .backups, .bins,
-        .revert, .episode, .marker,
-        .episodeInfo,
-        .prune, .archive, .record, .transport,
-        .words, .takeMap, .batch:
-        "Dirigible stopped its agent server, so the call stopped."
-    }
-}
 
 /// The busy cause of an export that `Studio.export` refuses: a running export or a take that is
 /// not finalized.

@@ -4,8 +4,9 @@ import Foundation
 /// The disk rule of a take (decision 0004): the watch of the free space and the record time.
 extension Studio {
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
-    /// the take plus 1 GB. Before the stop, it ends the exports of the other studios to the
-    /// volume of the package and checks again. The reads run off the main actor.
+    /// the take plus 1 GB. Before the stop, it ends the exports, the imports, and the archive
+    /// jobs of the other studios on the volume of the package and checks again. The reads run
+    /// off the main actor.
     /// It also sets `recordTimeLeft` of the `channels` of the take for the window subtitle, and
     /// writes `disk threshold` once at each fall of the free space under a `diskThresholds` value.
     func watchDisk(channels: Int) -> Task<Void, Never> {

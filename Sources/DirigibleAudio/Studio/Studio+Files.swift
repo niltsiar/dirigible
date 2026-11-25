@@ -12,7 +12,8 @@ extension Studio {
 
     /// The clip files that no clip uses (decision 0047), read off the main actor. The clips of
     /// the undo and redo entries, and of `clipboard` when it is of this package, keep their files.
-    /// Throws `.busy` while a take, a finalize, a placement, a level, or an import runs, and
+    /// Throws `.busy` while a take, a finalize, a placement, a level, or an import runs,
+    /// `.archived` on an archived studio (the scan runs after the unarchive, decision 0072), and
     /// `.unusedFiles` when the scan cannot read the package or a backup.
     public func unusedFiles(clipboard: Clipboard? = nil) async throws(StudioError) -> UnusedFiles {
         try checkIdle()
@@ -23,10 +24,10 @@ extension Studio {
     /// Moves to the Trash the files of `confirmed` that a new scan in this turn of the write chain
     /// still lists, so an edit after the list keeps a file that it uses (decision 0047). It saves,
     /// then removes their pool entries from the session and from each undo and redo entry with no
-    /// new entry, and only then moves the files. Throws `.busy` as `unusedFiles` does, also for a
-    /// take that starts during the scan, and while Save as Template copies the files (decision
-    /// 0079). A failed save moves no file, changes no session, and sets `saveError` as a failed
-    /// autosave does. It reads `clipboard` in its turn.
+    /// new entry, and only then moves the files. Throws `.busy` and `.archived` as `unusedFiles`
+    /// does, `.busy` also for a take that starts during the scan, and while Save as Template copies
+    /// the files (decision 0079). A failed save moves no file, changes no session, and sets
+    /// `saveError` as a failed autosave does. It reads `clipboard` in its turn.
     public func removeUnusedFiles(_ confirmed: UnusedFiles, clipboard: @autoclosure () -> Clipboard? = nil)
         async throws(StudioError) -> PruneReport
     {

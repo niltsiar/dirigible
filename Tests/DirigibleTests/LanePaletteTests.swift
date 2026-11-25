@@ -22,11 +22,20 @@ struct LanePaletteTests {
     }
 
     /// Each channel goes 30 % toward the accent, rounded to the nearest: 1E1F22 with 007AFF gives
-    /// 153A64. The light band stays half as bright.
+    /// 153A64.
     @Test func theSelectionBlendsTowardTheAccent() {
         #expect(LanePalette.dark(accent: 0xFF00_7AFF).selected(0xFF1E_1F22) == 0xFF15_3A64, "selection blend")
         #expect(LanePalette.dark(accent: 0xFFFF_FFFF).selected(0xFF00_0000) == 0xFF4D_4D4D, "selection blend")
-        #expect(LanePalette.light.selected(0xFFE8_ECF2) == 0xFF74_7679, "selection blend: light halves")
+    }
+
+    /// The light band blends toward the accent as the dark band does, so a light lane stays light
+    /// and keeps its hue: E8ECF2 with 007AFF gives A2CAF6. A band that halves the lane gives the
+    /// slate gray 747679.
+    @Test func aLightRangeBandBlendsTowardTheAccent() {
+        for (accent, expected) in [(UInt32(0xFF00_7AFF), UInt32(0xFFA2_CAF6)), (0xFFFF_2D55, 0xFFEF_B3C3)] {
+            let band = LanePalette.light(accent: accent).selected(0xFFE8_ECF2)
+            #expect(band == expected, "light band \(String(band, radix: 16)) with accent \(String(accent, radix: 16))")
+        }
     }
 
     /// WCAG 2 contrast of the label on the clip: 7:1 or more in both palettes and their live

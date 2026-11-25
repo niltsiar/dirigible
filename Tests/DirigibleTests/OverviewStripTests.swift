@@ -82,7 +82,7 @@ import Testing
         let extent = Viewport.extent(end: studio.session.end, rate: 48_000)
         func x(_ frame: Int) -> Double { Double(frame) / extent * strip.bounds.width }
         var shot = try await Shot(window, strip)
-        let palette = LanePalette.light
+        let palette = strip.palette.lanes
         shot.expect(x(48_000), row: clipRow, palette.rms, "the clip rows use the waveform color")
         shot.expect(x(48_000), row: gapRow, palette.lane, "a 1 px gap between the rows")
         shot.expect(

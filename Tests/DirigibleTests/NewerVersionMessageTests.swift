@@ -46,7 +46,7 @@ struct NewerVersionMessageTests {
         for (language, text) in [
             (
                 "en",
-                "The file Capture/take1.anchor of the take cannot be read (error 13). The recorded audio stays in Capture/."
+                "The file Capture/take1.anchor of the take can't be read (error 13). The recorded audio stays in Capture/."
             ),
             (
                 "es",

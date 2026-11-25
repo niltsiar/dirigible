@@ -264,35 +264,35 @@ import Testing
         let cases: [(StudioError, L10n, [any CVarArg], String, String)] = [
             (
                 .audioImport(.notAudio(file: "Talk.m4p")), .errorImportNotAudio, ["Talk.m4p"],
-                "Dirigible cannot import “Talk.m4p”. Dirigible cannot read the audio in this file. Use a WAV, AIFF, FLAC, MP3, or M4A file.",
-                "Dirigible no puede importar «Talk.m4p». Dirigible no puede leer el audio de este archivo. Usa un archivo WAV, AIFF, FLAC, MP3 o M4A."
+                "“Talk.m4p” can't be imported. The audio in this file can't be read. Use a WAV, AIFF, FLAC, MP3, or M4A file.",
+                "«Talk.m4p» no se puede importar. No se puede leer el audio de este archivo. Usa un archivo WAV, AIFF, FLAC, MP3 o M4A."
             ),
             (
                 .audioImport(.notDownloaded(file: "Talk.mp3")), .errorImportNotDownloaded, ["Talk.mp3"],
-                "Dirigible cannot import “Talk.mp3”. The file is not on this Mac. Download the file first.",
-                "Dirigible no puede importar «Talk.mp3». El archivo no está en este Mac. Descarga primero el archivo."
+                "“Talk.mp3” can't be imported. The file isn't on this Mac. Download the file first.",
+                "«Talk.mp3» no se puede importar. El archivo no está en este Mac. Descarga primero el archivo."
             ),
             (
                 .audioImport(.tooManyChannels(file: "Talk.wav", channels: 6)), .errorImportChannels, ["Talk.wav", 6],
-                "Dirigible cannot import “Talk.wav”. The file has 6 channels. Dirigible imports only mono and stereo files. Split the file into mono or stereo files.",
-                "Dirigible no puede importar «Talk.wav». El archivo tiene 6 canales. Dirigible solo importa archivos mono y estéreo. Divide el archivo en archivos mono o estéreo."
+                "“Talk.wav” can't be imported. The file has 6 channels. Dirigible imports only mono and stereo files. Split the file into mono or stereo files.",
+                "«Talk.wav» no se puede importar. El archivo tiene 6 canales. Dirigible solo importa archivos mono y estéreo. Divide el archivo en archivos mono o estéreo."
             ),
             (
                 .audioImport(.space(file: "Talk.mp3", needed: 2, free: 1)), .errorImportSpace,
                 ["Talk.mp3", "2 GB", "1 GB"],
-                "Dirigible cannot import “Talk.mp3”. The import needs 2 GB of free disk space, and the disk has 1 GB. Free some disk space and try again.",
-                "Dirigible no puede importar «Talk.mp3». La importación necesita 2 GB de espacio libre, y el disco tiene 1 GB. Libera espacio en el disco y vuelve a intentarlo."
+                "“Talk.mp3” can't be imported. The import needs 2 GB of free disk space, and the disk has 1 GB. Free some disk space and try again.",
+                "«Talk.mp3» no se puede importar. La importación necesita 2 GB de espacio libre, y el disco tiene 1 GB. Libera espacio en el disco y vuelve a intentarlo."
             ),
             (
                 .audioImport(.unreadable(file: "Talk.mp3", errno: EIO)), .errorImportUnreadable, ["Talk.mp3", 5],
-                "Dirigible cannot import “Talk.mp3”. The file did not read (error 5). Copy the file to this Mac and try again.",
-                "Dirigible no puede importar «Talk.mp3». El archivo no se pudo leer (error 5). Copia el archivo a este Mac y vuelve a intentarlo."
+                "“Talk.mp3” can't be imported. The file couldn't be read (error 5). Copy the file to this Mac and try again.",
+                "«Talk.mp3» no se puede importar. El archivo no se pudo leer (error 5). Copia el archivo a este Mac y vuelve a intentarlo."
             ),
             (
                 .audioImport(.write(file: "Talk.mp3", .writeFailed(file: "Clips/Talk.wav", status: 28))),
                 .errorImportWrite, ["Talk.mp3", 28],
-                "Dirigible cannot import “Talk.mp3”. Dirigible cannot write to the Clips folder of the session (error 28). Check the disk and try again.",
-                "Dirigible no puede importar «Talk.mp3». Dirigible no puede escribir en la carpeta Clips de la sesión (error 28). Comprueba el disco y vuelve a intentarlo."
+                "“Talk.mp3” can't be imported. The Clips folder of the session can't be written to (error 28). Check the disk and try again.",
+                "«Talk.mp3» no se puede importar. No se puede escribir en la carpeta Clips de la sesión (error 28). Comprueba el disco y vuelve a intentarlo."
             ),
             (
                 .importYielded(file: "Talk.mp3"), .errorImportYielded, ["Talk.mp3"],

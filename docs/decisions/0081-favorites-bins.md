@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-11-23
 - Amends: 0002 (the locked read-edit-save step is in `DirigibleAudio`), 0003 (`<bins>` from version 21), 0024 (a bin clip holds a `Clips/` WAV), 0060 (a bin clip finds its ride list by value), 0042 (one file copier with two callers; a lane with no target track gets a new last track), 0018 and 0038 (Paste and Insert add tracks for lanes past the last track), 0023 (the Bins segment of the leading pane), 0011 (`dirigible bin` and `dirigible favorites`).
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). A favorite add from an archived package, and a paste out of an archived package, write WAVs: a source file that resolves to a FLAC takes the conversion path. The source does not change and is read with no lock; the copy opens the other name of `poolFileName` once on ENOENT in its first pass, and gives "source changed" when its second pass finds another form. The store is never archived: the archive refuses its path (`Favorites.backups(for:)` says `.store`) with the Favorites store text, in the CLI, the MCP tools, and the app. A store that is archived anyway, for example under another store path, unarchives in its first write with no backup. `dirigible bin` and its `bin_*` tools keep working on any package path, also an archived one, and unarchive first.
 
 ## Context
 

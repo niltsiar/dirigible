@@ -23,6 +23,7 @@
 - Amended: 2026-11-21, run `2026-10-28-presets-templates` (see 0079). `session_create` takes the argument `template`, with `sample_rate` optional: the tool description carries both arguments, and the core and the recipes do not change. The skill table names it with `dirigible create`, which takes `--template`.
 - Amended: 2026-11-22, run `2026-10-28-presets-templates` (see 0080). `preset_set` and `preset_remove` are in the tool list and the skill only: the core and the recipes do not change, because they have no room. The skill table names them with `dirigible preset set` and `dirigible preset remove`, and one skill line (`AgentManual.presetLine`) gives the `preset` argument of `export`, the form of `out`, and the rule that a session preset hides a built-in of its name. A test of `AgentManualTests` fails when the line drops.
 - Amended: 2026-10-22, run `2026-10-22-take-sync` (see 0061). The `cut-from-transcript` recipe takes a transcript of the original take: give `take`, and time 0 is its record start. It also takes an SRT file.
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). `file_archive` and `file_unarchive` are in the tool list and the skill only: the core and the recipes do not change, because they have no room. The skill table names them with `dirigible file archive` and `dirigible file unarchive`, and one skill line (`AgentManual.archiveLine`) gives what the tools do, the `archive` key of `session_info`, the damaged FLAC error, and the rule that the Favorites store is never archived.
 
 ## Context
 

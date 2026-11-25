@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Amends: 0003 (a package can be the source of a new package), 0027 (the app also makes `Templates/` in its default folder; the start window has a Template pop-up; a name with a template has 193 UTF-8 bytes at most), 0042 (the template copy uses its file steps, with a regular-file check in front), 0056 (a copy of a whole package is not a new clip file), 0011 (`dirigible create --template`), 0041 (the `template` argument of the `session_create` tool).
 - Amended: 2026-11-22, run `2026-10-28-import-session` (see 0075). `openChecked`, the `openat` and `fstat` check of the first pass, is in `DirigibleAudio/Import/CheckedOpen.swift`, shared with the session import.
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). `TemplateCopy` resolves each `Clips/` path of the source through `poolFileName` and converts a FLAC, so a copy of an archived session, for Save as Template or for a new session, holds WAVs. `newEpisode()` also sets `archive` to nil, so the copy is a working session. The source does not change, so Save as Template runs on an archived window with no unarchive.
 
 ## Context
 

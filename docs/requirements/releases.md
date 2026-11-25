@@ -229,6 +229,7 @@ Goal: export stems, organize the work with presets, templates, favorites, and bi
 
 | Requirement | What Release 7 gives |
 |---|---|
+| R6 | Session archive (F132). |
 | R7 | Import Session (F151). |
 | R10 | Export presets and templates, favorites, and clipboard bins (F63, F23, F22). |
 | R11 | Stem export and export presets (F73, F57). |
@@ -237,6 +238,7 @@ Goal: export stems, organize the work with presets, templates, favorites, and bi
 2. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
 3. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
 4. **Import Session (F151).** Merge another Dirigible package into the open session (Hindenburg PRO has Import Session Into Session). The use case: two people record apart, with no link between the apps. One of them sends the full package for the edit. A recording from another app, such as Audacity, uses Import Audio and Sync by waveform. The merge adds one track for each imported track, with its name, and the markers as an option. It copies the files with the copy function of the paste across packages (0042: new file IDs, `NewClipFiles`). It gets a `dirigible` command (0011, CLI parity). The other package has no clock in common with this one, so the import keeps the positions of its own timeline, plus an offset: a rough start. The package has one timebase, so all its tracks align with the same drift fit of Sync by waveform (Release 6). The drift fit pairs two tracks that hold one voice, for example the microphone track of one package and the call track of the other. Until the drift fit, the import keeps the source positions plus the offset.
+5. **Session archive (F132).** File > Archive Session... converts each 24-bit clip WAV to FLAC with the same samples, usually to half the size, and Unarchive Session converts them back. `session.xml` is version 22 with `archive="flac"` while the session is archived, so an older build refuses it. An edit, Play, an export, and Record unarchive first, with a progress sheet. It gets `dirigible file archive` and `dirigible file unarchive` and the tools `file_archive` and `file_unarchive` (0011, CLI parity). Decision 0072. Research: `archive.md`.
 
 ## Versions
 

@@ -26,6 +26,7 @@
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). A `<file>` can hold one `<origin source offset gain>` element, with one element for each effect of the render in chain order.
 - Amended: 2026-11-22, run `2026-10-28-presets-templates` (see 0080). From version 20, the root can hold one `<exportPresets>` element after `<transcripts>`, with one `<preset name format rate channels>` for each session preset in list order: `bits` for WAV and FLAC, `bitRate` for AAC and MP3, and `loudness` only with a target. A session with no preset writes no element.
 - Amended: 2026-11-22, run `2026-10-28-favorites-bins` (F22). From version 21, the root can hold one `<bins>` element after `<exportPresets>` and before `<recording>`: one `<bin id name>` for each bin in list order, with one `<item id name kind length>` for each item, with one `<lane source name layout>` for each lane, with the `<clip>` elements of a track clip. `kind` is `range` or `clips`. The reader checks each bin clip as a track clip. A session with no bin writes no element.
+- Amended: 2026-11-25, run `2026-11-04-flac-archive` (see 0072). From version 22, the root can hold `archive="flac"`: the clip files of the session are FLAC, each at the name `<stem>.flac` of its pool path `<stem>.wav`. A working session writes no attribute.
 
 ## Context
 
@@ -37,7 +38,7 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 
 **Layout.** A session is a document package, `<Name>.dirigible/` (`LSTypeIsPackage`), with `session.xml` and a `Clips/` folder inside. Finder moves and copies the XML and its clips as one item. A clip refers to its file by a path relative to `Clips/`. (Amended by 0043: `Backups/` holds copies of `session.xml`.)
 
-**Clip files.** 24-bit WAV at the session sample rate. Capture writes CAF first and converts at stop (0004). FLAC is a later preference, because it seeks slowly.
+**Clip files.** 24-bit WAV at the session sample rate. Capture writes CAF first and converts at stop (0004). FLAC is not the working form, because it seeks slowly. An archived session stores each clip as FLAC (0072).
 
 **Schema, version 1.** Our own XML, namespace `https://github.com/niltsiar/dirigible/session`.
 
@@ -81,4 +82,4 @@ R5 asks for an XML file that describes the tracks and the clips. R6 asks for cli
 - **A session file with a sibling clips folder** (like Hindenburg). Rejected by the plan gate: a user who moves only the XML file loses the audio.
 - **An open format as the native file.** Rejected for the reasons in the context. Each can still be an export target.
 - **Positions in decimal seconds** (like `.nhsx`). Rejected: not sample-exact.
-- **FLAC clips by default.** Rejected for Release 1: seeking is too slow for scrubbing.
+- **FLAC clips by default.** Rejected for Release 1: seeking is too slow for scrubbing. The archive of 0072 uses FLAC only for a session at rest, and play reads it in place only when the gate of 0072 passes.

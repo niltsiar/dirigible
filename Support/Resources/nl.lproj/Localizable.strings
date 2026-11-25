@@ -133,7 +133,7 @@
 "error.segment.newer" = "De audio %@ is gemaakt met een nieuwere versie van Dirigible. Werk Dirigible bij om de audio te plaatsen.";
 "error.segment.newer.anchor" = "Het bestand met tijdgegevens van de audio %@ is gemaakt met een nieuwere versie van Dirigible. Selecteer één spoor en kies dan 'Plaats bij afspeelkop op geselecteerd spoor'.";
 "error.segment.bad.audio" = "De audio %@ is beschadigd en kan niet worden omgezet.";
-"alert.place.no.clip" = "De audio %@ eindigt vóór de afspeelkop van de opname en heeft dus geen clip. Het bestand blijft in de pool.";
+"alert.place.no.clip" = "De audio %@ eindigt vóór de afspeelkop van de opname en blijft zonder clip in de pool.";
 "error.segment.no.alignment" = "Het opnametijdstip van de audio %@ is niet bekend. Selecteer één spoor en kies dan 'Plaats bij afspeelkop op geselecteerd spoor'.";
 "error.segment.wav.in.use" = "Een ander bestand van de sessie gebruikt de clipnaam van de audio %@.";
 "error.export.exists" = "Er bestaat al een onderdeel met deze naam. De export heeft het niet vervangen.";
@@ -317,7 +317,7 @@
 "alert.close.unsaved" = "De laatste wijzigingen konden niet worden bewaard. Toch sluiten?";
 "alert.close.unsaved.confirm" = "Sluit";
 "alert.track.remove" = "De sporen en hun clips verwijderen?";
-"alert.unused.none" = "Geen ongebruikte bestanden";
+"alert.unused.none" = "Er zijn geen ongebruikte bestanden.";
 "alert.track.remove.confirm" = "Verwijder";
 "alert.quit.recording" = "De opname en Dirigible stoppen?";
 "alert.quit.recording.confirm" = "Stop beide";
@@ -563,15 +563,15 @@
 "undo.agent.unnamed" = "Herstel wijziging van agent";
 "banner.consent.expired" = "Het opnameverzoek van een AI-agent die zichzelf '%@' noemt, is verlopen.";
 "banner.consent.expired.unnamed" = "Het opnameverzoek van een AI-agent is verlopen.";
-"consent.title" = "Een AI-agent wil opnemen";
+"consent.title" = "Een AI-agent laten opnemen?";
 "consent.agent.line" = "De agent zegt dat hij '%@' is.";
-"consent.app.tracks" = "Deze take neemt %@ op. Mensen in het gesprek krijgen geen melding van Dirigible.";
-"consent.message" = "Een take van %1$@ op %2$@, vanaf %3$@. Er wordt niets opgenomen tot je op 'Neem op' klikt. Dit verzoek verloopt over %4$lld s.";
+"consent.app.tracks" = "Deze take neemt %@ op, en mensen in het gesprek krijgen geen melding.";
+"consent.message" = "Een take van %1$@ op %2$@, vanaf %3$@, met %4$lld s om te antwoorden.";
 "consent.record.over" = "De opname vervangt audio op %1$@ na %2$@.";
 "consent.pre.roll.line" = "Begint met opnemen op %1$@, na een pre-roll van %2$@.";
 "consent.dont.record" = "Neem niet op";
 "consent.grant" = "Niet meer vragen tot dit venster sluit";
-"consent.grant.help" = "Stopt als je dit venster sluit, %1$@ na je klik, na in totaal %2$@ aan takes zonder te vragen of als de agent opnieuw verbinding maakt. De take van je klik telt niet mee.";
+"consent.grant.help" = "Stopt als je dit venster sluit, %1$@ na je klik, na %2$@ aan latere takes of als de agent opnieuw verbinding maakt.";
 "redo.agent.unnamed" = "Wijziging van agent opnieuw";
 "marker.default.name" = "Markering %lld";
 "chapter.default.name" = "Hoofdstuk %lld";
@@ -648,13 +648,13 @@
 "sheet.take.time.field" = "Taketijd";
 "sheet.take.time.format" = "Typ de tijd vanaf het begin van de opname van de take als H:MM:SS.mmm (of H:MM:SS,mmm), M:SS of seconden.";
 "sheet.take.time.removed" = "Geen clip speelt deze tijd van take %lld af: een bewerking heeft hem verwijderd, of de take heeft daar geen audio. Typ een andere tijd.";
-"alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen. Ze worden als stilte geëxporteerd:\n%@";
+"alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen en worden als stilte geëxporteerd:\n%@";
 "alert.export.confirm" = "Exporteer";
-"alert.exported" = "De export is klaar. Deze bestanden ontbraken of konden niet worden gelezen, en ze zijn als stilte geëxporteerd:\n%@";
-"alert.exported.loudness" = "Exportresultaat: %@.";
+"alert.exported" = "Sommige ontbrekende of onleesbare bestanden zijn als stilte geëxporteerd:\n%@";
+"alert.exported.loudness" = "De export heeft %@.";
 "alert.exported.parts" = "De stilte zit in deze geëxporteerde bestanden:\n%@";
-"alert.import.chain" = "Dirigible heeft niet alle bestanden geïmporteerd:\n%@";
-"alert.import.not.imported" = "Het importeren is gestopt. Dirigible heeft deze bestanden niet geïmporteerd:\n%@";
+"alert.import.chain" = "Sommige bestanden zijn niet geïmporteerd:\n%@";
+"alert.import.not.imported" = "Het importeren stopte voordat deze bestanden aan de beurt waren:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Niveaus";
@@ -712,10 +712,10 @@
 "transcript.gotoword" = "Ga naar woord";
 "transcript.selected" = "Geselecteerde woorden: %lld";
 "panel.transcript.track" = "Spoor:";
-"alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden. De sessie is niet gewijzigd.";
-"alert.transcript.take" = "Het transcript is niet geïmporteerd, omdat een take begon.";
-"alert.transcript.unreadable" = "%@ kon niet worden gelezen. %@ De sessie is niet gewijzigd.";
-"alert.transcript.busy" = "Het transcript is niet geïmporteerd, omdat de sessie bezig was.";
+"alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden.";
+"alert.transcript.take" = "Het transcript is niet geïmporteerd terwijl een take bezig was.";
+"alert.transcript.unreadable" = "%@ kon niet worden gelezen. %@";
+"alert.transcript.busy" = "Het transcript is niet geïmporteerd terwijl de sessie bezig was.";
 "banner.transcript.skipped" = "%lld woorden hebben geen clip.";
 "banner.transcript.skipped.one" = "1 woord heeft geen clip.";
 "banner.transcript.untimed" = "%lld woorden hebben geen tijd.";
@@ -735,7 +735,7 @@
 "start.name.error.character" = "Een naam mag geen '/' of ':' bevatten.";
 "start.name.error.dot" = "Een naam mag niet met een punt beginnen.";
 "start.name.error.long" = "De naam is te lang.";
-"start.folder" = "Bewaard in: %@";
+"start.folder" = "Bewaard in %@";
 "start.change" = "Wijzig…";
 "start.folder.choose" = "Kies";
 "start.create" = "Maak aan";
@@ -875,8 +875,8 @@
 "panel.export.line.one" = "Schrijft 1 bestand: %1$@. %2$@ blijft ongewijzigd.";
 "panel.export.loudness.note" = "Elk bestand krijgt zijn eigen luidheidsversterking.";
 "sheet.export.file" = "Bestand %1$lld van %2$lld wordt geëxporteerd: %3$@";
-"alert.export.replace.one" = "1 bestand bestaat al in %@. Wil je het vervangen?";
-"alert.export.replace.many" = "%1$lld bestanden bestaan al in %2$@. Wil je ze vervangen?";
+"alert.export.replace.one" = "Wil je het bestaande bestand in %@ vervangen?";
+"alert.export.replace.many" = "Wil je de %1$lld bestaande bestanden in %2$@ vervangen?";
 "alert.export.replace.confirm" = "Vervang";
 "alert.export.more" = "en %lld meer";
 "announce.export.set.done" = "%1$lld bestanden geëxporteerd naar %2$@.";
@@ -899,7 +899,7 @@
 "track.follow.help" = "“Meeschuiven bij ripple” staat aan. Zet het uit in het menu Spoor.";
 "track.follow.turn.off" = "Zet “Meeschuiven bij ripple” uit";
 "alert.follow.overlap.title" = "Een clip zou een andere clip bedekken.";
-"alert.follow.overlap.body" = "De clip op %1$@ bij %2$@ schuift mee bij ripple. Verplaats de clip of zet “Meeschuiven bij ripple” uit.";
+"alert.follow.overlap.body" = "Verplaats de clip op %1$@ bij %2$@ of zet \U201CMeeschuiven bij ripple\U201D uit.";
 "error.ripple.follow.only" = "Elk spoor schuift mee bij ripple, dus er zou niets worden geknipt. Zet “Meeschuiven bij ripple” uit op het spoor om te knippen.";
 
 /* Edit > Find in Session Index */

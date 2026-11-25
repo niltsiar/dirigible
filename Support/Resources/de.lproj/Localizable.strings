@@ -133,7 +133,7 @@
 "error.segment.newer" = "Das Audio %@ wurde mit einer neueren Version von Dirigible erstellt. Aktualisiere Dirigible, um es zu platzieren.";
 "error.segment.newer.anchor" = "Die Timing-Datei des Audios %@ wurde mit einer neueren Version von Dirigible erstellt. Wähle eine Spur aus und verwende dann „An Abspielposition auf ausgewählter Spur platzieren“.";
 "error.segment.bad.audio" = "Das Audio %@ ist beschädigt und kann nicht konvertiert werden.";
-"alert.place.no.clip" = "Das Audio %@ endet vor der Abspielposition der Aufnahme und hat daher keinen Clip. Seine Datei bleibt im Pool.";
+"alert.place.no.clip" = "Das Audio %@ endet vor der Abspielposition der Aufnahme und bleibt ohne Clip im Pool.";
 "error.segment.no.alignment" = "Die Aufnahmezeit des Audios %@ ist nicht bekannt. Wähle eine Spur aus und verwende dann „An Abspielposition auf ausgewählter Spur platzieren“.";
 "error.segment.wav.in.use" = "Eine andere Datei der Session verwendet den Clip-Namen des Audios %@.";
 "error.export.exists" = "Ein Objekt mit diesem Namen existiert bereits. Der Export hat es nicht ersetzt.";
@@ -317,7 +317,7 @@
 "alert.close.unsaved" = "Die letzten Änderungen konnten nicht gesichert werden. Trotzdem schließen?";
 "alert.close.unsaved.confirm" = "Schließen";
 "alert.track.remove" = "Die Spuren und ihre Clips entfernen?";
-"alert.unused.none" = "Keine nicht verwendeten Dateien";
+"alert.unused.none" = "Es gibt keine ungenutzten Dateien.";
 "alert.track.remove.confirm" = "Entfernen";
 "alert.quit.recording" = "Aufnahme stoppen und beenden?";
 "alert.quit.recording.confirm" = "Stoppen und beenden";
@@ -563,15 +563,15 @@
 "undo.agent.unnamed" = "Agenten-Bearbeitung widerrufen";
 "banner.consent.expired" = "Die Aufnahmeanfrage eines KI-Agenten, der sich \U201E%@\U201C nennt, ist abgelaufen.";
 "banner.consent.expired.unnamed" = "Die Aufnahmeanfrage eines KI-Agenten ist abgelaufen.";
-"consent.title" = "Ein KI-Agent möchte aufnehmen";
+"consent.title" = "Darf ein KI-Agent aufnehmen?";
 "consent.agent.line" = "Er sagt, er sei „%@“.";
-"consent.app.tracks" = "Dieser Take nimmt %@ auf. Personen im Anruf erhalten von Dirigible keinen Hinweis.";
-"consent.message" = "Ein Take von %1$@ auf %2$@, ab %3$@. Nichts wird aufgenommen, bis du auf „Aufnehmen“ klickst. Diese Anfrage endet in %4$lld s.";
+"consent.app.tracks" = "Dieser Take nimmt %@ auf, und Personen im Anruf werden nicht benachrichtigt.";
+"consent.message" = "Ein Take von %1$@ auf %2$@, ab %3$@, mit %4$lld s zum Antworten.";
 "consent.record.over" = "Die Aufnahme ersetzt Audio auf %1$@ nach %2$@.";
 "consent.pre.roll.line" = "Startet die Aufnahme bei %1$@ nach %2$@ Vorlauf.";
 "consent.dont.record" = "Nicht aufnehmen";
 "consent.grant" = "Nicht erneut fragen, bis ich dieses Fenster schließe";
-"consent.grant.help" = "Endet, wenn du dieses Fenster schließt, %1$@ nach deinem Klick, nach insgesamt %2$@ Aufnahme ohne Abfrage oder wenn der Agent sich neu verbindet. Der Take deines Klicks zählt nicht.";
+"consent.grant.help" = "Endet, wenn du dieses Fenster schließt, %1$@ nach deinem Klick, nach %2$@ späterer Takes oder wenn der Agent sich neu verbindet.";
 "redo.agent.unnamed" = "Agenten-Bearbeitung wiederholen";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Kapitel %lld";
@@ -650,11 +650,11 @@
 "sheet.take.time.removed" = "Kein Clip spielt diese Zeit von Take %lld ab: Eine Bearbeitung hat sie entfernt, oder der Take hat dort kein Audio. Gib eine andere Zeit ein.";
 "alert.export.missing" = "Diese Dateien fehlen oder sind nicht lesbar und werden als Stille exportiert:\n%@";
 "alert.export.confirm" = "Exportieren";
-"alert.exported" = "Der Export ist fertig. Diese Dateien fehlten oder waren nicht lesbar und wurden als Stille exportiert:\n%@";
-"alert.exported.loudness" = "Exportergebnis: %@.";
+"alert.exported" = "Einige fehlende oder nicht lesbare Dateien wurden als Stille exportiert:\n%@";
+"alert.exported.loudness" = "Der Export hat %@.";
 "alert.exported.parts" = "Die Stille steckt in diesen exportierten Dateien:\n%@";
-"alert.import.chain" = "Dirigible hat nicht alle Dateien importiert:\n%@";
-"alert.import.not.imported" = "Der Import wurde gestoppt. Dirigible hat diese Dateien nicht importiert:\n%@";
+"alert.import.chain" = "Einige Dateien wurden nicht importiert:\n%@";
+"alert.import.not.imported" = "Der Import hielt an, bevor diese Dateien erreicht wurden:\n%@";
 
 /* Toolbar (decision 0023): the short labels that differ from the menu text */
 "toolbar.monitor" = "Eingangspegel";
@@ -712,10 +712,10 @@
 "transcript.gotoword" = "Zum Wort gehen";
 "transcript.selected" = "Ausgewählte Wörter: %lld";
 "panel.transcript.track" = "Spur:";
-"alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern. Die Sitzung wurde nicht geändert.";
-"alert.transcript.take" = "Das Transkript wurde nicht importiert, weil ein Take gestartet ist.";
-"alert.transcript.unreadable" = "%@ konnte nicht gelesen werden. %@ Die Sitzung wurde nicht geändert.";
-"alert.transcript.busy" = "Das Transkript wurde nicht importiert, weil die Sitzung beschäftigt war.";
+"alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern.";
+"alert.transcript.take" = "Das Transkript wurde nicht importiert, während ein Take lief.";
+"alert.transcript.unreadable" = "%@ konnte nicht gelesen werden. %@";
+"alert.transcript.busy" = "Das Transkript wurde nicht importiert, während die Sitzung beschäftigt war.";
 "banner.transcript.skipped" = "%lld Wörter haben keinen Clip.";
 "banner.transcript.skipped.one" = "1 Wort hat keinen Clip.";
 "banner.transcript.untimed" = "%lld Wörter haben keine Zeit.";
@@ -735,7 +735,7 @@
 "start.name.error.character" = "Ein Name darf kein „/“ und kein „:“ enthalten.";
 "start.name.error.dot" = "Ein Name darf nicht mit einem Punkt beginnen.";
 "start.name.error.long" = "Der Name ist zu lang.";
-"start.folder" = "Speicherort: %@";
+"start.folder" = "Gespeichert in %@";
 "start.change" = "Ändern …";
 "start.folder.choose" = "Auswählen";
 "start.create" = "Erstellen";
@@ -875,8 +875,8 @@
 "panel.export.line.one" = "Schreibt 1 Datei: %1$@. %2$@ bleibt unverändert.";
 "panel.export.loudness.note" = "Jede Datei erhält ihre eigene Loudness-Anpassung.";
 "sheet.export.file" = "Datei %1$lld von %2$lld wird exportiert: %3$@";
-"alert.export.replace.one" = "In %@ existiert bereits 1 Datei. Ersetzen?";
-"alert.export.replace.many" = "In %2$@ existieren bereits %1$lld Dateien. Ersetzen?";
+"alert.export.replace.one" = "Die vorhandene Datei in %@ ersetzen?";
+"alert.export.replace.many" = "Die %1$lld vorhandenen Dateien in %2$@ ersetzen?";
 "alert.export.replace.confirm" = "Ersetzen";
 "alert.export.more" = "und %lld weitere";
 "announce.export.set.done" = "%1$lld Dateien wurden nach %2$@ exportiert.";
@@ -899,7 +899,7 @@
 "track.follow.help" = "„Beim Ripple mitwandern“ ist an. Schalte es im Menü „Spur“ aus.";
 "track.follow.turn.off" = "„Beim Ripple mitwandern“ ausschalten";
 "alert.follow.overlap.title" = "Ein Clip würde einen anderen Clip überdecken.";
-"alert.follow.overlap.body" = "Der Clip auf %1$@ bei %2$@ wandert beim Ripple mit. Verschiebe ihn oder schalte „Beim Ripple mitwandern“ aus.";
+"alert.follow.overlap.body" = "Verschiebe den Clip auf %1$@ bei %2$@ oder schalte \U201EBeim Ripple mitwandern\U201C aus.";
 "error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit, daher würde nichts geschnitten. Schalte „Beim Ripple mitwandern“ auf der Spur aus, um zu schneiden.";
 
 /* Edit > Find in Session Index */

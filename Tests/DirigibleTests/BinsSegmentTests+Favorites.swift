@@ -136,7 +136,7 @@ extension BinsSegmentTests {
         f.model.confirmRemoveFavorite(.item(f.sting))
         await until("the store drops Sting") { f.app.favorites.bins.allSatisfy(\.items.isEmpty) }
         #expect(try Session(contentsOf: f.store).bins.flatMap(\.items).isEmpty, "Remove kept the favorite")
-        #expect(f.model.leadingPane.selectedBinItem == nil, "the pane keeps the removed favorite")
+        await until("the pane drops the removed favorite") { f.model.leadingPane.selectedBinItem == nil }
 
         _ = try await f.app.favorites.edit { session throws(SessionError) in try session.addBin(named: "Jingles") }
         let jingles = try #require(f.app.favorites.bins.last)

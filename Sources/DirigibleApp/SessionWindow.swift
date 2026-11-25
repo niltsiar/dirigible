@@ -173,6 +173,11 @@ import SwiftUI
     var unusedFiles: UnusedFiles?
     /// The last Remove Unused Files, for its banners at its session revision.
     var pruneReport: PruneReportShown?
+    /// The last archive or unarchive of the window, for its banners (decision 0072).
+    var archiveShown: ArchiveShown?
+    /// The file count of the running package job, for the progress sheet title.
+    var archiveFileCount = 0
+    @ObservationIgnored var archiveCountsCache: (revision: Int, counts: ArchiveCounts)?
     @ObservationIgnored var levelPresses = 0
     /// The number of ducks of this window, for the key of the duck banner.
     @ObservationIgnored var duckPresses = 0

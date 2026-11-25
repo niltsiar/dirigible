@@ -1037,6 +1037,18 @@ Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the 
 
 During a take, an import, Auto Level, or a duck, the command is off. With no file to remove, an alert says so.
 
+### Archive a session as FLAC
+
+An archived session keeps its clip files as FLAC, usually half the size of the WAV files. The audio and the edits stay the same.
+
+1. Choose **File > Archive Session** (**Archivar sesión**). A sheet gives the number of clip files, their size, and the free disk space that an edit needs later to convert them back to WAV.
+2. Click **Archive**. A sheet shows "Archiving file 2 of 40" and a bar. **Cancel** or Esc stops after the file in hand.
+3. A banner gives the disk space that the archive freed.
+
+While the session is archived, a banner says "This session is archived as FLAC. An edit unarchives it first.", and the window subtitle ends with "Archived". After a stop, it ends with "Partly archived: 28 of 40 files are FLAC". The same menu item reads **Unarchive Session** (**Desarchivar sesión**).
+
+An edit, Play, Record, an export, and **Remove Unused Files** on an archived session first convert the files back to WAV, with the same progress sheet. Then the edit runs once. Record starts no take: press Record again. **Cancel** in the sheet drops the edit, and the session stays archived. To convert the files without an edit, click **Unarchive** in the banner or choose **File > Unarchive Session**. When the disk has less free space than the unarchive needs, an alert gives both numbers, and no file changes.
+
 ### When a session does not open
 
 If the window of a session shows "The session file is damaged." ("El archivo de la sesión está dañado.") and **Try Again**, Dirigible cannot read the file `session.xml` in the session package. `dirigible backup revert` also reads `session.xml` first, so it does not help. Put the newest backup in place of `session.xml`. This is the only case where you change a file inside the package:
@@ -1439,6 +1451,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Revert To** | **Volver a** | None |
 | **No Backups** (in **Revert To**, when the session has no backup) | **No hay copias de seguridad** | None |
 | **Remove Unused Files** | **Eliminar archivos sin usar** | None |
+| **Archive Session** or **Unarchive Session** | **Archivar sesión** or **Desarchivar sesión** | None |
 
 ### Edit
 

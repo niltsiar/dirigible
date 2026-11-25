@@ -112,6 +112,7 @@ extension AppDelegate {
     private static let needsWindow: Set<TimelineCommand> = [.addMarker, .addChapter, .replace, .fill]
 
     /// File > Remove Unused Files… is on while the key session window takes an edit (decision 0047).
+    /// Also the state of the archive item, Archive Session... or Unarchive Session (decision 0072).
     var canRemoveUnusedFiles: Bool { key?.canEdit == true }
 
     /// The state of a timeline menu item (`SessionWindow.isOn`). With no key session window (a sheet

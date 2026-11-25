@@ -82,6 +82,10 @@ struct WindowBanners: View {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerExportSetShow.key) { model.showInFinder(files) }
                 }
+            } else if case .archived = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerArchiveUnarchive.key) { model.unarchive() }.disabled(!model.canEdit)
+                }
             } else if case .transcriptionStopped = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.transcribeAgain.key) { model.transcribeAgain() }.disabled(!model.canTranscribe)

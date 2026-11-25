@@ -88,7 +88,7 @@ extension SessionWindow {
         await runPackageJob(.archive, studio, then: nil)
     }
 
-    /// Runs the unarchive with the progress sheet, then `command` once (U11). The window keeps only
+    /// Runs the unarchive with the progress sheet, then `command` once. The window keeps only
     /// the command: each replayed command reads the session and the disk again. A Cancel, a fault,
     /// or a disk refusal drops the command.
     func unarchiveFirst(then command: (@MainActor () -> Void)?) {
@@ -145,7 +145,7 @@ extension SessionWindow {
     }
 }
 
-/// The progress sheet of a package job (U10): "Archiving file 12 of 40", one bar, and Cancel, with
+/// The progress sheet of a package job: "Archiving file 12 of 40", one bar, and Cancel, with
 /// no Record. Esc gives Cancel.
 struct ArchiveSheet: View {
     let model: SessionWindow

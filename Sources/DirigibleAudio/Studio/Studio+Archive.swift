@@ -40,21 +40,6 @@ final class ArchiveFlags: Sendable {
     }
 }
 
-/// A read that the C18 gate of decision 0072 rules on: a play reads in time, an export reads the
-/// whole session.
-public enum ArchiveRead: Hashable, Sendable {
-    case play, export
-
-    /// True when the read runs on the FLAC files in place. Both parts of C18 missed (`PLAY miss`,
-    /// `EXPORT miss`), so each read on an archived studio unarchives first.
-    var readsInPlace: Bool {
-        switch self {
-        case .play: false
-        case .export: false
-        }
-    }
-}
-
 extension Studio {
     /// True while the session has the archive attribute (`needsUnarchive`): from the first save of
     /// an archive to the last save of an unarchive, also in a mixed state after a stop.
@@ -71,9 +56,10 @@ extension Studio {
         guard isIdle, !settling else { throw .busy }
     }
 
-    /// Throws `.archived` on an archived studio when the C18 part of `read` missed.
-    func checkReadable(_ read: ArchiveRead) throws(StudioError) {
-        guard read.readsInPlace || !isArchived else { throw .archived }
+    /// Throws `.archived` on an archived studio: a play and an export read the FLAC files too slowly
+    /// in place, so each unarchives first (decision 0072).
+    func checkReadable() throws(StudioError) {
+        guard !isArchived else { throw .archived }
     }
 
     /// Converts each pool WAV to FLAC with `archivePackage` (decision 0072). The job runs off the
@@ -184,7 +170,7 @@ extension Studio {
 }
 
 /// One package job on a utility GCD thread, in the package that `lock` holds now (decision 0072).
-/// Both saves write `session.xml` with no backup (U19). `written` is the path of the last save.
+/// Both saves write `session.xml` with no backup. `written` is the path of the last save.
 @concurrent nonisolated func convertPackage(
     _ kind: ArchiveRun.Kind, _ session: Session, lock: PackageLock, cache: URL?, environment: CaptureEnvironment,
     flags: ArchiveFlags, progress: @escaping @Sendable (Double) -> Void

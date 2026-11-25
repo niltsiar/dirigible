@@ -41,7 +41,7 @@ extension Studio {
     /// Stopped, it sends nothing. A track with no match throws `noMatch`.
     public func previewMatchAmount(_ amount: VoiceMatch.Amount, track: TrackID) throws(StudioError) {
         try checkNotBusy()
-        try checkReadable(.play)
+        try checkReadable()
         var checked = session
         do { try checked.setMatchAmount(amount, tracks: [track]) } catch { throw .session(error) }
         guard play.playback != .stopped else { return }

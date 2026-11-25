@@ -57,7 +57,7 @@ extension Studio {
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportResult {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         exportNumber += 1
         exportStop = nil
@@ -239,7 +239,7 @@ extension Studio {
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportPartsResult {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let session = session
         let targets = exportPartTargets(
@@ -279,7 +279,7 @@ extension Studio {
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> StemsResult {
         try checkNotBusy()
-        try checkReadable(.export)
+        try checkReadable()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         guard folder.lastPathComponent.utf8.count <= stemFolderNameLimit else {
             throw .exportStems(.folderNameTooLong)

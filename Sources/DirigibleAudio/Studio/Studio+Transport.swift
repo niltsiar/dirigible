@@ -265,7 +265,7 @@ extension Studio {
     /// it sends nothing, so the next play starts from the session.
     public func previewGain(_ gain: Gain, track: TrackID) throws(StudioError) {
         try checkNotBusy()
-        try checkReadable(.play)
+        try checkReadable()
         guard play.playback != .stopped else { return }
         var checked = session
         do { try checked.setGain(gain, track: track) } catch { throw .session(error) }

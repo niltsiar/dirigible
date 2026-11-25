@@ -170,8 +170,8 @@ public enum StudioError: Error, Hashable, Sendable {
     case favoritesYielded
     /// The unarchive step of a write into an archived Favorites store failed (decision 0072).
     case archive(ArchiveFault)
-    /// The session is archived as FLAC: a write job or a read that C18 gates unarchives first
-    /// (decision 0072).
+    /// The session is archived as FLAC: a write job or a play or an export read unarchives
+    /// first (decision 0072).
     case archived
     /// An agent loudness measure could not read an audio file, with its errno: ECANCELED for a
     /// cancel of the caller (decision 0049).

@@ -116,9 +116,9 @@ extension SessionWindow {
     func archiveCounts(_ studio: Studio) -> ArchiveCounts? {
         guard studio.isArchived, studio.archiveRun == nil else { return nil }
         if let cached = archiveCountsCache, cached.revision == studio.sessionRevision { return cached.counts }
-        let files = studio.session.files.values
-        let flac = files.count { poolFileName($0, in: studio.url).form == .flac }
-        let counts = ArchiveCounts(flac: flac, total: files.count)
+        let paths = Set(studio.session.files.values.map(\.path))
+        let flac = paths.count { poolFileName(path: $0, in: studio.url).form == .flac }
+        let counts = ArchiveCounts(flac: flac, total: paths.count)
         archiveCountsCache = (studio.sessionRevision, counts)
         return counts
     }

@@ -29,8 +29,9 @@ package struct ArchiveState: Encodable, Sendable {
     package init?(_ session: Session, in package: URL) {
         guard let archive = session.archive else { return nil }
         form = archive.rawValue
-        flacFiles = session.files.values.count { poolFileName($0, in: package).form == .flac }
-        kept = session.files.count - flacFiles
+        let paths = Set(session.files.values.map(\.path))
+        flacFiles = paths.count { poolFileName(path: $0, in: package).form == .flac }
+        kept = paths.count - flacFiles
     }
 
     var text: String { "archive: \(form), \(flacFiles) files in FLAC, \(kept) kept" }

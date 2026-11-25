@@ -256,8 +256,8 @@ extension ExportWindowTests {
         #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
         #expect(L10n.message(for: error) == L10n.errorExportChapterImage.rawValue)
         let texts = [
-            "en": "The image of the chapter “Talk” at 0:00:04.000 is not in the session, it is not downloaded from "
-                + "iCloud, or it does not open. In Markers > Marker Info, choose the image again or remove it. Then "
+            "en": "The image of the chapter “Talk” at 0:00:04.000 isn't in the session, isn't downloaded from "
+                + "iCloud, or doesn't open. In Markers > Marker Info, choose the image again or remove it. Then "
                 + "export again.",
             "es": "La imagen del capítulo «Talk» en 0:00:04.000 no está en la sesión, no está descargada de iCloud o "
                 + "no se puede abrir. En Marcadores > Información del marcador, elige la imagen de nuevo o quítala. "

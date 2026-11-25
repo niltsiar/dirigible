@@ -192,9 +192,9 @@ import Testing
         try await HeaderStateLineTests().withStrings("en") {
             #expect(
                 L10n.message(for: .source(.unsafeItem("Clips/a.wav")), source: "Guest")
-                    == "Dirigible did not import the session \u{201C}Guest\u{201D}. \u{201C}Clips/a.wav\u{201D} in this "
-                    + "package is a link, a special file, or an item of the wrong kind, so Dirigible does not open the "
-                    + "package. Replace that item with a plain file or folder, or remove it.")
+                    == "Dirigible did not import the session \u{201C}Guest\u{201D}. The package can't be "
+                    + "opened. \u{201C}Clips/a.wav\u{201D} is a link, a special file, or an item of the wrong kind. "
+                    + "Replace that item with a plain file or folder, or remove it.")
             #expect(
                 L10n.message(for: .source(.unsupportedVersion(99)), source: "Guest")
                     == "Dirigible did not import the session \u{201C}Guest\u{201D}. "

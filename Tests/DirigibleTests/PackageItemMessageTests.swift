@@ -13,7 +13,7 @@ struct PackageItemMessageTests {
         let error = StudioError.file(.unreadableItem("Capture", errno: EACCES))
         #expect(L10n.message(for: error) == L10n.errorFileItemRead.rawValue)
         for (language, text) in [
-            ("en", "\u{201C}Capture\u{201D} in this package cannot be read (error 13)."),
+            ("en", "\u{201C}Capture\u{201D} in this package couldn't be read (error 13)."),
             ("es", "No se puede leer \u{AB}Capture\u{BB} de este paquete (error 13)."),
         ] {
             let format = try #require(try stringsTable(language)[L10n.errorFileItemRead.rawValue])
@@ -29,14 +29,13 @@ struct PackageItemMessageTests {
         for (language, text) in [
             (
                 "en",
-                "\u{201C}Clips\u{201D} in this package is a link, a special file, or an item of the wrong kind, so "
-                    + "Dirigible does not open the package. Replace that item with a plain file or folder, or remove it."
+                "The package can't be opened. \u{201C}Clips\u{201D} is a link, a special file, or an item of the "
+                    + "wrong kind. Replace that item with a plain file or folder, or remove it."
             ),
             (
                 "es",
-                "\u{AB}Clips\u{BB} de este paquete es un enlace, un archivo especial o un elemento de un tipo incorrecto, "
-                    + "así que Dirigible no abre el paquete. Sustituye ese elemento por un archivo o una carpeta "
-                    + "normal, o elimínalo."
+                "No se puede abrir el paquete. \u{AB}Clips\u{BB} es un enlace, un archivo especial o un elemento de un "
+                    + "tipo incorrecto. Sustituye ese elemento por un archivo o una carpeta normal, o elimínalo."
             ),
         ] {
             let format = try #require(try stringsTable(language)[L10n.errorFileItem.rawValue])

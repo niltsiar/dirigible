@@ -150,7 +150,7 @@ struct AppBundleTests {
             // Beta fixes criterion V5.
             ("menu.app.about", "About Dirigible", "Acerca de Dirigible"),
             (
-                "error.export.rate", "This format cannot be exported at %lld Hz. Select 44.1 kHz or 48 kHz.",
+                "error.export.rate", "This format can't be exported at %lld Hz. Select 44.1 kHz or 48 kHz.",
                 "Este formato no se puede exportar a %lld Hz. Elige 44,1 kHz o 48 kHz."
             ),
         ]

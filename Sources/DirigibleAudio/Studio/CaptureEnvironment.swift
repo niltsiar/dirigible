@@ -110,6 +110,9 @@ struct CaptureEnvironment: Sendable {
     /// A step on the import thread at each cancel check (decision 0040). Tests record the thread
     /// with it, or hold or slow the import.
     var importStep: @Sendable () -> Void = {}
+    /// A step on the thread of a package job at each block check of a clip file (decision 0072).
+    /// Tests hold the job inside a file with it.
+    var archiveBlock: @Sendable () -> Void = {}
     /// A step after the work of a file import or of an add to Favorites returns, before its run
     /// reads the cancel flag (decision 0049). Tests cancel there.
     var importWorkDone: @Sendable () async -> Void = {}

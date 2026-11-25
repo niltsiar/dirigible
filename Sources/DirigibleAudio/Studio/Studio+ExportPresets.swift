@@ -19,7 +19,8 @@ extension Studio {
         replacing: [URL: ConfirmedFile], introTitle: String = "Intro",
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> [ExportedPreset] {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let targets: [ExportPresetTarget]
         do throws(ExportPresetsError) {

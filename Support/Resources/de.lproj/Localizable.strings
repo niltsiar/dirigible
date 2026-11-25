@@ -1106,3 +1106,4 @@
 "error.archive.clip" = "Dirigible kann die Audiodatei %@ nicht umwandeln (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
 "error.archive.clip.other" = "Dirigible kann die Audiodatei %@ nicht umwandeln. Prüfe den Ordner Clips der Session und versuche es erneut.";
 "error.archive.store" = "Der Favoritenspeicher wird nie archiviert.";
+"error.studio.archived" = "Diese Session ist als FLAC archiviert. Hebe die Archivierung zuerst auf.";

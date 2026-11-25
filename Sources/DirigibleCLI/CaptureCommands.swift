@@ -184,7 +184,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
         .duckRead, .rideCancelled, .rideRead, .rideFault, .silencesCancelled, .silencesRead, .silencesFaults,
         .writerDidNotStop, .matchCancelled, .matchRead, .matchFault, .syncFile, .syncRead, .syncCancelled,
-        .favoritesLocked, .favoritesDamaged, .favoritesFile, .favoritesCopy, .favoritesYielded, .archive:
+        .favoritesLocked, .favoritesDamaged, .favoritesFile, .favoritesCopy, .favoritesYielded, .archive, .archived:
         packageError
     }
 }

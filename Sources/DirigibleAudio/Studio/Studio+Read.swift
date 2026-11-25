@@ -48,7 +48,8 @@ extension Studio {
                 _ isCancelled: @escaping @Sendable () -> Bool
             ) -> Success
     ) async throws(StudioError) -> Success {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         let (session, lock, step, run) = (session, lock, environment.loudnessBlock, ReadRun())
         readRuns.append(run)
         defer { endRead(run) }

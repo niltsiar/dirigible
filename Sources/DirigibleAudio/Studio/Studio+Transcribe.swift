@@ -189,7 +189,7 @@ extension Studio {
     /// records, and while another studio records, has a pending take, or starts a take. No hash
     /// and no helper of a model file starts then.
     public func checkModelFileIdle() throws(StudioError) {
-        try checkIdle()
+        try checkNotBusy()
         guard session.recording == nil,
             !otherStudios().contains(where: { $0.session.recording != nil || $0.isStarting })
         else { throw .busy }

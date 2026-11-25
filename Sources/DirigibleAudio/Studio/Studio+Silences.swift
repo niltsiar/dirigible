@@ -40,7 +40,8 @@ extension Studio {
         tracks: Set<TrackID>?, range: Range<Frames>?, threshold: Gain, minLength: Frames,
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> SilenceScan {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         if let unknown = tracks?.first(where: { session.track($0) == nil }) { throw .session(.unknownTrack(unknown)) }
         return try await runReadJob(
             .findingSilences, cancelled: .silencesCancelled, agent: nil, progress: progress,

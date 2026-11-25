@@ -56,7 +56,8 @@ extension Studio {
         _ source: ExportSource, _ options: ExportOptions, to url: URL, replacing: ConfirmedFile?,
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportResult {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         exportNumber += 1
         exportStop = nil
@@ -104,14 +105,17 @@ extension Studio {
         if exportJob?.number == job.number { exportJob = nil }
     }
 
-    /// `endExport` and `endReads` of this studio, `endExport`, `endImport`, and `endReads` of each
-    /// other studio, and the end of each job of `copyJobs`, for a take start (`prepareTake`, off
-    /// the main actor): capture comes first across windows (decisions 0019, 0040, 0062, and 0079).
-    /// Nil when no export, import, read, or copy runs: then the start needs no main-actor turn for
-    /// it. An export, an import, a read, or a copy that starts during the take start runs on; the
-    /// disk check of the take watches the export, the import, and the copy.
+    /// `endExport` and `endReads` of this studio, `endExport`, `endImport`, `stopArchive`, and
+    /// `endReads` of each other studio, and the end of each job of `copyJobs`, for a take start
+    /// (`prepareTake`, off the main actor): capture comes first across windows (decisions 0019,
+    /// 0040, 0062, 0072, and 0079). Nil when no export, import, package job, read, or copy runs:
+    /// then the start needs no main-actor turn for it. An export, an import, a read, or a copy that
+    /// starts during the take start runs on; the disk check of the take watches the export, the
+    /// import, the package job, and the copy.
     func exportEnd() -> (@MainActor @Sendable () async -> Void)? {
-        let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil || !$0.readRuns.isEmpty }
+        let others = otherStudios().filter {
+            $0.exportJob != nil || $0.importRun != nil || $0.archiveRun != nil || !$0.readRuns.isEmpty
+        }
         let copies = copyJobs?.jobs ?? []
         guard exportJob != nil || !readRuns.isEmpty || !others.isEmpty || !copies.isEmpty else { return nil }
         return { [weak self] in
@@ -121,6 +125,7 @@ extension Studio {
                 studio.endReads(.take)
                 await studio.endExport(.take, yielding: true)
                 studio.endImport(.take)
+                studio.stopArchive(.take)
             }
             for job in copies { await job.end() }
         }
@@ -147,6 +152,9 @@ extension Studio {
             }
             if studio.importRun != nil, await onVolume(studio.url, of: lock) {
                 if studio.endImport(.take) { ended = true }
+            }
+            if studio.archiveRun != nil, await onVolume(studio.url, of: lock) {
+                if studio.stopArchive(.take) { ended = true }
             }
         }
         return ended
@@ -230,7 +238,8 @@ extension Studio {
         replacing: [URL: ConfirmedFile],
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportPartsResult {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let session = session
         let targets = exportPartTargets(
@@ -269,7 +278,8 @@ extension Studio {
         by grouping: StemGrouping, source: ExportSource, titles: StemTitles, options: StemOptions, folder: URL,
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> StemsResult {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.export)
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         guard folder.lastPathComponent.utf8.count <= stemFolderNameLimit else {
             throw .exportStems(.folderNameTooLong)

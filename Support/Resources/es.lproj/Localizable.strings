@@ -1106,3 +1106,4 @@
 "error.archive.clip" = "Dirigible no puede convertir el archivo de audio %@ (error %lld). Comprueba el disco e inténtalo de nuevo.";
 "error.archive.clip.other" = "Dirigible no puede convertir el archivo de audio %@. Comprueba la carpeta Clips de la sesión e inténtalo de nuevo.";
 "error.archive.store" = "El almacén de Favoritos nunca se archiva.";
+"error.studio.archived" = "Esta sesión está archivada como FLAC. Desarchívala primero.";

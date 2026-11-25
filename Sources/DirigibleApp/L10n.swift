@@ -1083,6 +1083,7 @@ enum L10n: String, CaseIterable {
     case errorArchiveClip = "error.archive.clip"
     case errorArchiveClipOther = "error.archive.clip.other"
     case errorArchiveStore = "error.archive.store"
+    case errorArchived = "error.studio.archived"
     case favoritesTitle = "favorites.title"
     case favoritesEmpty = "favorites.empty"
     case favoritesEmptyHint = "favorites.empty.hint"

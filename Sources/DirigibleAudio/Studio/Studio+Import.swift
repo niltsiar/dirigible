@@ -130,7 +130,9 @@ extension Studio {
                 (Session, Value, made: [URL]), StudioError
             >
     ) async throws(StudioError) -> Value {
-        try checkIdle()
+        // An add to Favorites copies out of the window and writes WAVs; each other kind writes the
+        // window and fails closed on an archived session (decision 0072).
+        if kind == .favorite { try checkNotBusy() } else { try checkIdle() }
         if ripple { try checkRipple() }
         guard pendingTake == nil, !settling else { throw .busy }
         let stopped = endPlayForTake()

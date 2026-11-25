@@ -26,7 +26,8 @@ extension Studio {
     public func startEffectPreview(_ request: ClipRenderRequest, of clip: ClipID, among clips: [ClipID], listen: Listen)
         async throws(StudioError)
     {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.play)
         let session = session
         let window: PreviewWindow
         do throws(SessionError) {

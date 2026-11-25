@@ -92,7 +92,8 @@ extension Studio {
     public func saveTemplate(
         to url: URL, progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) {
-        try checkIdle()
+        // A copy out of an archived window writes WAVs and changes no file of it (decision 0072).
+        try checkNotBusy()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let episode: NewEpisode
         do { episode = try session.newEpisode() } catch { throw .session(error) }

@@ -24,5 +24,7 @@ extension Studio {
         case syncing
         /// An import converts a file and saves the session (decision 0040).
         case importing(ImportRun)
+        /// An archive or an unarchive converts the clip files (decision 0072).
+        case archiving(ArchiveRun)
     }
 }

@@ -40,7 +40,8 @@ extension Studio {
     /// of the match slider. The mouse-up makes the one edit, then `endPreview` ends the preview.
     /// Stopped, it sends nothing. A track with no match throws `noMatch`.
     public func previewMatchAmount(_ amount: VoiceMatch.Amount, track: TrackID) throws(StudioError) {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.play)
         var checked = session
         do { try checked.setMatchAmount(amount, tracks: [track]) } catch { throw .session(error) }
         guard play.playback != .stopped else { return }

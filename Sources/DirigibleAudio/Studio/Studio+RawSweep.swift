@@ -26,10 +26,11 @@ extension Studio {
     }
 
     /// True while a take starts, records, or finalizes in this studio or in a studio of
-    /// `otherStudios`, while this studio has a pending take, or while it settles: then the job
-    /// removes no CAF and ends at its next step. A pending take of another studio records nothing.
+    /// `otherStudios`, while this studio has a pending take, runs a package job (decision 0072), or
+    /// settles: then the job removes no CAF and ends at its next step. A pending take of another
+    /// studio records nothing.
     var rawSweepHeld: Bool {
-        settling || isStarting || session.recording != nil
+        settling || isStarting || session.recording != nil || archiveRun != nil
             || otherStudios().contains { $0.isStarting || $0.session.recording != nil && $0.pendingTake == nil }
     }
 

@@ -63,7 +63,8 @@ let package = Package(
             exclude: ["Fixtures"]),
         .testTarget(
             name: "DirigibleCLITests",
-            dependencies: ["DirigibleCLI", "DirigibleMCP", "DirigibleCore", "DirigibleAudio"]),
+            dependencies: ["DirigibleCLI", "DirigibleMCP", "DirigibleCore", "DirigibleAudio"],
+            exclude: ["Fixtures"]),
         .testTarget(name: "DirigibleMCPTests", dependencies: ["DirigibleMCP", "DirigibleAudio", "DirigibleCore"]),
         .testTarget(name: "DirigibleTimelineTests", dependencies: ["DirigibleTimeline", "DirigibleCore"]),
         .testTarget(

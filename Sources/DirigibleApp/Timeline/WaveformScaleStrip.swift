@@ -21,8 +21,9 @@ final class WaveformScaleStrip: NSView {
     /// The lane height from which the ticks have labels.
     static let labelsFrom = 48.0
     private static let tick = 4.0
-    static let labelSize = 8.0
-    static let labelFloor = 7.0
+    /// The label size: the macOS minimum for text (F112).
+    static let labelSize = 10.0
+    /// The vertical room of a label: the digits of `labelSize` and a gap. The line box of the text is taller.
     static let labelHeight = 10.0
     /// The width of a label: the strip width less the edge pixel, the tick, and a 1 pt gap.
     static let labelRoom = width - 1 - tick - 1
@@ -69,13 +70,14 @@ final class WaveformScaleStrip: NSView {
         return levels.map { ($0, laneHeight * -$0 / range.dB) }
     }
 
-    /// The ticks that carry a label in a lane: none under `labelsFrom`; from the top, a tick whose
-    /// label, as drawn inside the lane, would touch the one above does not show it. -R dB keeps its
-    /// label at the lane bottom.
+    /// The ticks that carry a label in a lane: none under `labelsFrom`; a tick whose label is wider
+    /// than `labelRoom` at `labelSize` shows none; from the top, a tick whose label, as drawn inside
+    /// the lane, would touch the one above does not show it. -R dB keeps its label at the lane
+    /// bottom, when it fits.
     static func labelled(range: WaveformRange, laneHeight: Double) -> [(dB: Double, y: Double)] {
         guard laneHeight >= labelsFrom else { return [] }
         var shown: [(dB: Double, y: Double)] = []
-        for tick in ticks(range: range, laneHeight: laneHeight) {
+        for tick in ticks(range: range, laneHeight: laneHeight) where fits(dB: tick.dB) {
             let last = tick.dB == -range.dB
             if let above = shown.last,
                 labelCenter(y: tick.y, laneHeight: laneHeight) - labelCenter(y: above.y, laneHeight: laneHeight)
@@ -91,18 +93,16 @@ final class WaveformScaleStrip: NSView {
     /// The label of a tick: the dB under full scale, with no minus sign, so "145" fits the strip.
     static func labelText(dB: Double) -> String { String(Int(-dB)) }
 
-    /// The one font of the labels of `range`: `labelSize`, else the largest size in steps of 0.25 pt
-    /// at which the widest label fits `labelRoom`, and not under `labelFloor`. The glyph widths do
-    /// not scale in line with the size, so it measures.
-    static func labelFont(range: WaveformRange) -> NSFont {
-        let texts = ticks(range: range, laneHeight: 1).map { labelText(dB: $0.dB) }
-        func fits(_ font: NSFont) -> Bool {
-            texts.allSatisfy { NSAttributedString(string: $0, attributes: [.font: font]).size().width <= labelRoom }
-        }
-        var font = NSFont.systemFont(ofSize: labelSize)
-        while font.pointSize > labelFloor, !fits(font) { font = NSFont.systemFont(ofSize: font.pointSize - 0.25) }
-        return font
+    private static let font = NSFont.systemFont(ofSize: labelSize)
+
+    /// Whether the label of a tick is not wider than `labelRoom`. The glyph widths do not scale in
+    /// line with the size, so it measures.
+    static func fits(dB: Double) -> Bool {
+        NSAttributedString(string: labelText(dB: dB), attributes: [.font: font]).size().width <= labelRoom
     }
+
+    /// The one font of the labels: `labelSize` at each range.
+    static func labelFont(range: WaveformRange) -> NSFont { font }
 
     /// The y of a label center in its lane: the tick y, kept inside the lane.
     static func labelCenter(y: Double, laneHeight: Double) -> Double {

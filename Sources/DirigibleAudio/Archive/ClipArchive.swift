@@ -25,7 +25,8 @@ public enum ClipArchiveFault: Error, Hashable, Sendable {
     case notArchivable(path: String)
     /// A file at the target name holds other audio.
     case nameTaken(path: String)
-    /// A decode fault of the source or of the new file, or frames or an MD5 that differ.
+    /// A decode fault of the source or of the new file, frames or an MD5 that differ, or a source
+    /// with fewer frames than its pool entry.
     case mismatch(path: String)
     /// The errno of a write, a flush, a rename, or an unlink, or the OSStatus of the codec.
     case write(file: String, errno: Int32)
@@ -58,11 +59,10 @@ func archiveClip(
     if exists(flac) {
         guard
             let source = try readPacked(wav, name: file.path, rate: rate, channels: channels, isCancelled: isCancelled),
-            let same = try isFLAC(
-                flac, of: source, frames: frames, name: flacPath, rate: rate, isCancelled: isCancelled)
+            let same = try isFLAC(flac, of: source, name: flacPath, rate: rate, isCancelled: isCancelled)
         else { return false }
-        guard same, source.frames == frames else { throw .nameTaken(path: flacPath) }
-        return try remove(wav, name: file.path, keeping: flac, frames: frames, after: after)
+        guard same, source.frames >= frames else { throw .nameTaken(path: flacPath) }
+        return try remove(wav, name: file.path, keeping: flac, frames: source.frames, after: after)
     }
 
     let temporary = flac.deletingLastPathComponent().appending(
@@ -87,12 +87,12 @@ func archiveClip(
     guard after(.flushed, temporary) else { return false }
     let same: Bool?
     do {
-        same = try isFLAC(temporary, of: source, frames: frames, name: file.path, rate: rate, isCancelled: isCancelled)
+        same = try isFLAC(temporary, of: source, name: file.path, rate: rate, isCancelled: isCancelled)
     } catch {
         unlink(temporary.path)
         throw error
     }
-    guard same == true, source.frames == frames else {
+    guard same == true, source.frames >= frames else {
         unlink(temporary.path)
         if same == nil { return false }
         throw .mismatch(path: file.path)
@@ -100,7 +100,7 @@ func archiveClip(
     guard after(.verified, temporary) else { return false }
     try rename(temporary, to: flac, name: flacPath)
     guard after(.renamed, flac) else { return false }
-    return try remove(wav, name: file.path, keeping: flac, frames: frames, after: after)
+    return try remove(wav, name: file.path, keeping: flac, frames: source.frames, after: after)
 }
 
 /// FLAC to WAV with `ClipWriter`, the writer of each clip WAV (the header of a Dirigible clip):
@@ -121,7 +121,7 @@ func unarchiveClip(
         if exists(wav) { return true }
         throw .read(file: flacPath, errno: ENOENT)
     }
-    guard let info = try streamInfo(of: flac, name: flacPath), info.bits == 24, info.frames == frames,
+    guard let info = try streamInfo(of: flac, name: flacPath), info.bits == 24, info.frames >= frames,
         info.md5 != Data(count: 16)
     else { throw .mismatch(path: flacPath) }
 
@@ -129,10 +129,10 @@ func unarchiveClip(
         guard
             let source = try readPacked(wav, name: file.path, rate: rate, channels: channels, isCancelled: isCancelled)
         else { return false }
-        guard source == (info.md5, frames), isArchivable(wav, rate: rate, channels: channels) else {
+        guard source == (info.md5, info.frames), isArchivable(wav, rate: rate, channels: channels) else {
             throw .nameTaken(path: file.path)
         }
-        return try remove(flac, name: flacPath, keeping: wav, frames: frames, after: after)
+        return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, after: after)
     }
 
     let temporary = wav.deletingLastPathComponent().appending(
@@ -155,7 +155,8 @@ func unarchiveClip(
         unlink(temporary.path)
         throw error
     }
-    guard let written, written == (info.md5, frames), isArchivable(temporary, rate: rate, channels: channels) else {
+    guard let written, written == (info.md5, info.frames), isArchivable(temporary, rate: rate, channels: channels)
+    else {
         unlink(temporary.path)
         if written == nil { return false }
         throw .mismatch(path: flacPath)
@@ -163,7 +164,7 @@ func unarchiveClip(
     guard after(.verified, temporary) else { return false }
     try rename(temporary, to: wav, name: file.path)
     guard after(.renamed, wav) else { return false }
-    return try remove(flac, name: flacPath, keeping: wav, frames: frames, after: after)
+    return try remove(flac, name: flacPath, keeping: wav, frames: info.frames, after: after)
 }
 
 /// The frames of each read and write block.
@@ -196,10 +197,10 @@ private func isArchivable(_ url: URL, rate: Int, channels: Int) -> Bool {
         && format.mChannelsPerFrame == UInt32(channels) && format.mSampleRate == Double(rate)
 }
 
-/// True when `url` is a FLAC whose STREAMINFO and full decode give the frames and the MD5 of
-/// `source`, and whose length on open is `frames`. Nil after a stop.
+/// True when `url` is a FLAC whose STREAMINFO, full decode, and length on open give the frames and
+/// the MD5 of `source`. Nil after a stop.
 private func isFLAC(
-    _ url: URL, of source: (md5: Data, frames: Int), frames: Int, name: String, rate: Int, isCancelled: () -> Bool
+    _ url: URL, of source: (md5: Data, frames: Int), name: String, rate: Int, isCancelled: () -> Bool
 ) throws(ClipArchiveFault) -> Bool? {
     guard let info = try streamInfo(of: url, name: name), info.bits == 24, info.frames == source.frames,
         info.md5 == source.md5
@@ -214,7 +215,7 @@ private func isFLAC(
         return false
     }
     guard let decoded else { return nil }
-    return decoded == source && (try? AVAudioFile(forReading: url).length) == AVAudioFramePosition(frames)
+    return decoded == source && (try? AVAudioFile(forReading: url).length) == AVAudioFramePosition(source.frames)
 }
 
 /// The bits per sample, the frame count, and the MD5 of the STREAMINFO block at the start of a FLAC

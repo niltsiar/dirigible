@@ -225,7 +225,8 @@ extension SessionWindow {
 
     /// Runs the export. A fault shows its alert, and a cancel shows nothing. A finish with a file
     /// that rendered as silence shows one alert with the files and the loudness report. A clean
-    /// finish with a target shows the report in a banner, so no modal alert takes the Record key.
+    /// finish with a target and a gain over the limit shows the report in a banner, so no modal alert
+    /// takes the Record key. A finish with a usual gain shows no banner: VoiceOver hears the report.
     /// A refused Record shows in the sheet until the end.
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         recordRefusal = nil
@@ -240,8 +241,13 @@ extension SessionWindow {
                 result.droppedChapters, imagesOmitted: result.chapterImagesOmitted, titleMissing: titleMissing,
                 file: target.url.lastPathComponent, revision: revision)
             if result.faults.isEmpty {
-                exportReport = result.loudness.map {
-                    ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: revision)
+                if let report = result.loudness {
+                    let file = target.url.lastPathComponent
+                    if report.exceedsLevelLimit {
+                        exportReport = ExportReportShown(report: report, file: file, revision: revision)
+                    } else {
+                        chrome?.announce(L10n.bannerExportReport.format(file, L10n.message(for: report)), .medium)
+                    }
                 }
             } else {
                 alert = .exported(paths(of: result.faults, in: studio.session), result.loudness)

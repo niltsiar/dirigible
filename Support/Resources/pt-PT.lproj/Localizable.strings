@@ -879,8 +879,8 @@
 "alert.export.replace.many" = "Já existem %1$lld ficheiros em %2$@. Pretende substituí-los?";
 "alert.export.replace.confirm" = "Substituir";
 "alert.export.more" = "e mais %lld";
-"banner.export.set.done" = "%1$lld ficheiros exportados para %2$@.";
-"banner.export.set.loudness" = "A intensidade vai de %1$@ a %2$@ LUFS.";
+"announce.export.set.done" = "%1$lld ficheiros exportados para %2$@.";
+"announce.export.set.loudness" = "A intensidade vai de %1$@ a %2$@ LUFS.";
 "banner.export.set.stopped" = "Interrompido após exportar %1$lld de %2$lld ficheiros.";
 "banner.export.set.old.one" = "O Dirigible não elimina o ficheiro anterior %@ com este prefixo.";
 "banner.export.set.old.many" = "O Dirigible não elimina %1$lld ficheiros anteriores com este prefixo, incluindo %2$@.";
@@ -959,8 +959,8 @@
 "sheet.sync.span" = "Procura %@ antes e depois do clipe.";
 "sheet.sync.no.call" = "Sem faixa de chamada: é escolhida a primeira faixa com áudio.";
 "sheet.sync.apply" = "Sincronizar";
-"banner.sync.earlier" = "O clipe foi adiantado %@.";
-"banner.sync.later" = "O clipe foi atrasado %@.";
+"announce.sync.earlier" = "O clipe foi adiantado %@.";
+"announce.sync.later" = "O clipe foi atrasado %@.";
 "banner.sync.already" = "O clipe já está sincronizado.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
@@ -974,8 +974,8 @@
 "banner.sync.undo" = "Desfazer";
 "sheet.sync.drift" = "Corrigir deriva";
 "sheet.sync.drift.take" = "Uma gravação usa o relógio da sessão.";
-"banner.drift.corrected" = "Deriva de %lld ms ao longo do clipe corrigida.";
-"banner.drift.split" = "Clipe dividido em %@ (a gravação fez uma pausa de %@).";
+"announce.drift.corrected" = "Deriva de %lld ms ao longo do clipe corrigida.";
+"announce.drift.split" = "Clipe dividido em %@ (a gravação fez uma pausa de %@).";
 "banner.drift.not.corrected" = "A deriva não foi corrigida.";
 "banner.drift.cause.too.short" = "O clipe tem menos de 5 min.";
 "banner.drift.cause.rendered" = "O clipe reproduz áudio processado e precisa primeiro do áudio original restaurado.";

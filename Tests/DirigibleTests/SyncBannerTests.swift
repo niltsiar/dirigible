@@ -30,7 +30,13 @@ import Testing
         SyncMoved(lag: Frames(lag), drift: drift, headCut: Frames(headCut), replaced: replaced, rate: 48_000)
     }
 
-    func text(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
+    func bannerText(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
+
+    /// The result sentences, then the sentences to check: the whole text of a sync.
+    func text(_ moved: SyncMoved) -> String {
+        let done = moved.doneText(text: englishText, locale: Self.us)
+        return moved.needsCheck ? done + " " + bannerText(moved) : done
+    }
 
     /// C20: the first sentence says "earlier" or "later" with a duration and no sign.
     @Test func theFirstSentenceSaysEarlierOrLater() {
@@ -93,7 +99,65 @@ import Testing
         await model.close()
     }
 
-    /// C20: the banner is info with Undo, it stays through a selection change and a play, and an edit
+    /// C9 (k): a sync that moves the clip and has nothing to check shows no banner, because the clip is in
+    /// its new place. VoiceOver hears the move once.
+    @Test func aPlainSyncMoveShowsNoBannerAndIsAnnounced() async throws {
+        let (model, studio) = try await open()
+        let chrome = try #require(model.chrome)
+        var heard: [String] = []
+        chrome.announce = { text, _ in heard.append(text) }
+        var draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        draft.correctsDrift = false
+
+        await model.sync(draft)
+
+        #expect(studio.session.clip("C")?.clip.start == 960_000 && model.alert == nil, "the clip did not move")
+        #expect(model.syncReport == nil, "a plain move has a banner: \(String(describing: model.syncReport))")
+        #expect(ChromeState.reportBanners(model, studio).isEmpty)
+        #expect(
+            heard.count == 1 && heard.first?.hasPrefix(leadText("announce.sync.later")) == true,
+            "VoiceOver hears the move: \(heard)")
+        await model.close()
+    }
+
+    /// C9 (k): a sync that replaces audio of another clip shows a warning banner with Undo. The banner
+    /// holds the sentence to check and not the move.
+    @Test func aSyncThatReplacesAudioShowsTheWarningWithUndo() async throws {
+        let url = try await syncWindowPackage(in: folder.url, neighbor: true)
+        let (model, studio, _, _) = try await openLanes(app, url)
+        var draft = try #require(SyncDraft(clip: "C", in: studio.session))
+        draft.correctsDrift = false
+
+        await model.sync(draft)
+
+        let banner = try #require(model.syncReport?.banner, "no banner")
+        guard case .syncMoved(let moved, let revision?, _) = banner else {
+            Issue.record("no banner with Undo: \(banner)")
+            return
+        }
+        #expect(banner.kind == .warning, "\(banner.kind)")
+        #expect(bannerText(moved) == "The move replaced audio of r.", "\(bannerText(moved))")
+        #expect(model.canUndoAgentEdit(revision: revision))
+        await model.close()
+    }
+
+    /// C9 (k): the banner of a head cut, and of a drift that was not corrected, is a warning that holds
+    /// only the sentences to check.
+    @Test func theBannerHoldsOnlyTheSentencesToCheck() {
+        let cut = moved(lag: -163_200, headCut: 288_000)
+        #expect(WindowBanner.syncMoved(cut, revision: 3, press: 1).kind == .warning)
+        #expect(
+            bannerText(cut) == "Cut 6.0 s from the start of the clip to keep it inside the session.",
+            "\(bannerText(cut))")
+        let drift = driftMoved(.notCorrected(.takeFile))
+        #expect(WindowBanner.syncMoved(drift, revision: 3, press: 1).kind == .warning)
+        #expect(
+            bannerText(drift) == "The drift wasn't corrected. A take records on the session clock.",
+            "\(bannerText(drift))")
+        #expect(WindowBanner.syncMoved(moved(lag: -163_200), revision: 3, press: 1).kind == .info)
+    }
+
+    /// C20: the banner is a warning with Undo, it stays through a selection change and a play, and an edit
     /// hides it. The key has its press number, so VoiceOver reads each result.
     @Test func theResultStaysUntilClosedOrTheNextEdit() async throws {
         let (model, studio) = try await open()
@@ -108,7 +172,7 @@ import Testing
             return
         }
         #expect(result.lag == 720_000 && revision == studio.sessionRevision)
-        #expect(banner.kind == .info && banner.announcement == .medium)
+        #expect(banner.kind == .warning && banner.announcement == .medium)
         #expect(ChromeState.reportBanners(model, studio) == [banner])
         model.timeline.selection = .none
         await studio.perform(.seek(.frame(96_000)))
@@ -138,8 +202,8 @@ import Testing
         await model.close()
     }
 
-    /// C20: a second sync finds lag 0 and changes nothing. Its banner says that the clip is already in
-    /// sync and has no Undo, and one undo still puts back the first sync.
+    /// C20: a second sync with Correct drift off finds lag 0 and changes nothing. Its banner says that the
+    /// clip is already in sync and has no Undo, and one undo still puts back the first sync.
     @Test func aSyncThatMovesNothingHasNoUndo() async throws {
         let (model, studio) = try await open()
         let before = studio.session
@@ -148,7 +212,9 @@ import Testing
         let (synced, revision) = (studio.session, studio.sessionRevision)
         #expect(synced.clip("C")?.clip.start == 960_000 && studio.canUndo)
 
-        await model.sync(draft)
+        var again = draft
+        again.correctsDrift = false
+        await model.sync(again)
 
         let banner = try #require(model.syncReport?.banner, "no banner after the second sync")
         guard case .syncMoved(let result, let shown, _) = banner else {

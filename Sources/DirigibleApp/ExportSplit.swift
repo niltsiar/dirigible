@@ -122,14 +122,18 @@ struct ExportSetShown: Equatable {
 
     var stopped: Bool { files.count < count }
 
-    /// The banners of the set. A stop gives only the count banner.
+    /// What VoiceOver hears when the set ends. Nil after a stop: its banner says the count.
+    var doneText: String? {
+        guard !stopped else { return nil }
+        let outputs = loudness.compactMap { $0.output?.value }
+        return exportSetDoneText(files, outputs.min(), outputs.max())
+    }
+
+    /// The banners of the set. A stop gives only the count banner. A finished set gives a banner only
+    /// for the older files of the prefix that stay, and for each file with a gain over the limit.
     var banners: [WindowBanner] {
         guard !stopped else { return [.exportSetStopped(written: files.count, count: count)] }
-        let outputs = loudness.compactMap { $0.output?.value }
-        var banners: [WindowBanner] = [
-            .exportSetDone(
-                files: files, low: outputs.min(), high: outputs.max(), old: old)
-        ]
+        var banners: [WindowBanner] = old.isEmpty ? [] : [.exportSetDone(files: files, old: old)]
         for (url, report) in zip(files, loudness) where report.exceedsLevelLimit {
             banners.append(.exportReport(report, file: url.lastPathComponent))
         }

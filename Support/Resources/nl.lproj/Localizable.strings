@@ -879,8 +879,8 @@
 "alert.export.replace.many" = "%1$lld bestanden bestaan al in %2$@. Wil je ze vervangen?";
 "alert.export.replace.confirm" = "Vervang";
 "alert.export.more" = "en %lld meer";
-"banner.export.set.done" = "%1$lld bestanden geëxporteerd naar %2$@.";
-"banner.export.set.loudness" = "De luidheid loopt van %1$@ tot %2$@ LUFS.";
+"announce.export.set.done" = "%1$lld bestanden geëxporteerd naar %2$@.";
+"announce.export.set.loudness" = "De luidheid loopt van %1$@ tot %2$@ LUFS.";
 "banner.export.set.stopped" = "Gestopt na het exporteren van %1$lld van %2$lld bestanden.";
 "banner.export.set.old.one" = "Dirigible verwijdert het oudere bestand %@ met dit voorvoegsel niet.";
 "banner.export.set.old.many" = "Dirigible verwijdert %1$lld oudere bestanden met dit voorvoegsel niet, waaronder %2$@.";
@@ -959,8 +959,8 @@
 "sheet.sync.span" = "Zoekt %@ voor en na de clip.";
 "sheet.sync.no.call" = "Geen gesprekspoor: het eerste spoor met audio wordt gekozen.";
 "sheet.sync.apply" = "Synchroniseer";
-"banner.sync.earlier" = "De clip is %@ eerder gezet.";
-"banner.sync.later" = "De clip is %@ later gezet.";
+"announce.sync.earlier" = "De clip is %@ eerder gezet.";
+"announce.sync.later" = "De clip is %@ later gezet.";
 "banner.sync.already" = "De clip is al gesynchroniseerd.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
@@ -974,8 +974,8 @@
 "banner.sync.undo" = "Herstel";
 "sheet.sync.drift" = "Drift corrigeren";
 "sheet.sync.drift.take" = "Een opname neemt op met de sessieklok.";
-"banner.drift.corrected" = "Een drift van %lld ms over de clip is gecorrigeerd.";
-"banner.drift.split" = "Clip gesplitst bij %@ (de opname pauzeerde %@).";
+"announce.drift.corrected" = "Een drift van %lld ms over de clip is gecorrigeerd.";
+"announce.drift.split" = "Clip gesplitst bij %@ (de opname pauzeerde %@).";
 "banner.drift.not.corrected" = "De drift is niet gecorrigeerd.";
 "banner.drift.cause.too.short" = "De clip is korter dan 5 min.";
 "banner.drift.cause.rendered" = "De clip speelt gerenderde audio af en moet eerst zijn originele audio terugkrijgen.";

@@ -8,8 +8,8 @@ import Testing
 
 /// Code gate 1 of run 2026-10-28-chapter-export-files: where a set result reaches the user.
 extension ExportWindowTests {
-    /// Item 1: a set whose media is missing keeps its files, its loudness reports, and its done
-    /// banner, and the alert names each part file with faults.
+    /// Item 1: a set whose media is missing keeps its files and its loudness reports, and the alert names
+    /// each part file with faults. A set with no older file has no done banner.
     @Test func aSetWithFaultsKeepsTheDoneBannerAndNamesEachFaultyPart() async throws {
         let (model, studio, _) = try await window(audio: false)
         try threeChapters(studio)
@@ -19,13 +19,10 @@ extension ExportWindowTests {
         let parts = ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"]
         #expect(try setFiles() == parts)
         #expect(model.alert == .exportedSet(media: ["f1.wav"], parts: parts))
-        let shown = try #require(model.exportSet, "a set with faults has no done banner")
+        let shown = try #require(model.exportSet, "a set with faults has no result")
         #expect(shown.files.map(\.lastPathComponent) == parts && shown.loudness.count == 3)
-        guard case .exportSetDone(let files, _, _, _)? = ChromeState.reportBanners(model, studio).first else {
-            Issue.record("No done banner: \(ChromeState.reportBanners(model, studio))")
-            return
-        }
-        #expect(files.count == 3)
+        #expect(shown.files.count == 3)
+        #expect(!ChromeState.reportBanners(model, studio).contains { $0.key == "exportSetDone" })
         await model.close()
     }
 
@@ -124,7 +121,7 @@ extension ExportWindowTests {
     }
 
     /// Item 9: the rows of one window use the key as their identity, so a set with two level warnings and
-    /// warnings of two parts has one key for each banner.
+    /// warnings of two parts has one key for each banner. A set with no older file has no done banner.
     @Test func eachBannerOfASetHasItsOwnKey() throws {
         func report(gain: Double) throws -> LoudnessReport {
             LoudnessReport(
@@ -143,7 +140,7 @@ extension ExportWindowTests {
 
         let keys = shown.banners.map(\.key)
 
-        #expect(keys.count == 9 && Set(keys).count == 9, "\(keys)")
+        #expect(keys.count == 8 && Set(keys).count == 8, "\(keys)")
     }
 
     /// Item 10: a number of a banner uses the decimal separator of the current locale.

@@ -879,8 +879,8 @@
 "alert.export.replace.many" = "%1$lld arquivos já existem em %2$@. Deseja substituí-los?";
 "alert.export.replace.confirm" = "Substituir";
 "alert.export.more" = "e mais %lld";
-"banner.export.set.done" = "%1$lld arquivos exportados para %2$@.";
-"banner.export.set.loudness" = "O loudness vai de %1$@ a %2$@ LUFS.";
+"announce.export.set.done" = "%1$lld arquivos exportados para %2$@.";
+"announce.export.set.loudness" = "O loudness vai de %1$@ a %2$@ LUFS.";
 "banner.export.set.stopped" = "Interrompido após exportar %1$lld de %2$lld arquivos.";
 "banner.export.set.old.one" = "O Dirigible não exclui o arquivo anterior %@ com este prefixo.";
 "banner.export.set.old.many" = "O Dirigible não exclui %1$lld arquivos anteriores com este prefixo, incluindo %2$@.";
@@ -959,8 +959,8 @@
 "sheet.sync.span" = "Procura %@ antes e depois do clipe.";
 "sheet.sync.no.call" = "Nenhuma pista de chamada: a primeira pista com áudio é escolhida.";
 "sheet.sync.apply" = "Sincronizar";
-"banner.sync.earlier" = "O clipe foi adiantado em %@.";
-"banner.sync.later" = "O clipe foi atrasado em %@.";
+"announce.sync.earlier" = "O clipe foi adiantado em %@.";
+"announce.sync.later" = "O clipe foi atrasado em %@.";
 "banner.sync.already" = "O clipe já está sincronizado.";
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
@@ -974,8 +974,8 @@
 "banner.sync.undo" = "Desfazer";
 "sheet.sync.drift" = "Corrigir deriva";
 "sheet.sync.drift.take" = "Uma gravação usa o relógio da sessão.";
-"banner.drift.corrected" = "Deriva de %lld ms ao longo do clipe corrigida.";
-"banner.drift.split" = "Clipe dividido em %@ (a gravação pausou %@).";
+"announce.drift.corrected" = "Deriva de %lld ms ao longo do clipe corrigida.";
+"announce.drift.split" = "Clipe dividido em %@ (a gravação pausou %@).";
 "banner.drift.not.corrected" = "A deriva não foi corrigida.";
 "banner.drift.cause.too.short" = "O clipe tem menos de 5 min.";
 "banner.drift.cause.rendered" = "O clipe toca áudio renderizado e precisa antes do áudio original restaurado.";

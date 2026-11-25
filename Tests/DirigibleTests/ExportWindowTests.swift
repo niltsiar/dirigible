@@ -45,12 +45,13 @@ import os
     }
 
     /// A window of a package in `folder` (default: the test folder) with track `t1` on channel 1
-    /// of `duo` (the counting HAL), and a clip of `f1`: 10 s of silence, or a missing file with
-    /// `audio: false`.
-    func window(audio: Bool = true, in folder: URL? = nil, app: AppDelegate? = nil) async throws -> (
-        SessionWindow, Studio, NSWindow
-    ) {
-        let package = try await timelinePackage(in: folder ?? self.folder.url, tracks: 1, seconds: 10, audio: audio)
+    /// of `duo` (the counting HAL), and a clip of `f1`: 10 s of silence, 10 s of noise with `noise`, or
+    /// a missing file with `audio: false`.
+    func window(audio: Bool = true, noise: Bool = false, in folder: URL? = nil, app: AppDelegate? = nil)
+        async throws -> (SessionWindow, Studio, NSWindow)
+    {
+        let package = try await timelinePackage(
+            in: folder ?? self.folder.url, tracks: 1, seconds: 10, audio: audio, noise: noise)
         let model = await (app ?? self.app).open(package)
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment

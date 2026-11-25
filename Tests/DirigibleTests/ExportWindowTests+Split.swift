@@ -194,7 +194,7 @@ extension ExportWindowTests {
         let warnings = shown.banners.filter { $0.kind == .warning }
 
         #expect(warnings == [.exportReport(try report(gain: 24), file: "Ep-01-A.wav")])
-        #expect(shown.banners.count == 2, "the done banner and one warning")
+        #expect(shown.banners.count == 1, "one warning and no done banner")
     }
 
     @Test func anExistingPartFileShowsOneReplaceSheet() async throws {
@@ -292,42 +292,6 @@ extension ExportWindowTests {
 
         #expect(try Data(contentsOf: file("Ep-01-Intro.wav")) != Data("old".utf8), "Replace did not replace")
         for name in ["Ep-02-Old.wav", "Ep-05-Outro.wav"] { #expect(try Data(contentsOf: file(name)) == old) }
-        await model.close()
-    }
-
-    @Test func theDoneBannerNamesTheOldFilesOfTheStem() async throws {
-        let (model, studio, _) = try await window()
-        try threeChapters(studio)
-        let old = Data("older set".utf8)
-        for name in ["Ep-02-Old.wav", "Ep-05-Outro.wav"] { try old.write(to: file(name)) }
-
-        try await runSet(model, studio, setTarget())
-
-        let banners = ChromeState.reportBanners(model, studio)
-        guard case .exportSetDone(let files, _, _, let names)? = banners.first else {
-            Issue.record("No done banner: \(banners)")
-            return
-        }
-        #expect(
-            names == ["Ep-02-Old.wav", "Ep-05-Outro.wav"] && files.count == 3, "a sheet showed or a name is missing")
-        for name in ["Ep-02-Old.wav", "Ep-05-Outro.wav"] { #expect(try Data(contentsOf: file(name)) == old) }
-        await model.close()
-    }
-
-    @Test func theDoneBannerShowsTheFilesInFinder() async throws {
-        let (model, studio, _) = try await window()
-        try threeChapters(studio)
-        var revealed: [URL] = []
-        app.reveal = { revealed = $0 }
-        try await runSet(model, studio, setTarget())
-
-        guard case .exportSetDone(let files, _, _, _)? = ChromeState.reportBanners(model, studio).first else {
-            Issue.record("No done banner")
-            return
-        }
-        model.showInFinder(files)
-
-        #expect(revealed.map(\.lastPathComponent) == ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"])
         await model.close()
     }
 

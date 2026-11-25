@@ -102,6 +102,34 @@ struct LiveArchiveTests {
         await studio.settle()
     }
 
+    /// A live `record` gets the archived refusal of the window, so the server unarchives and asks
+    /// the window once more, which starts the take.
+    @Test func aLiveRecordOnAnArchivedWindowUnarchivesFirst() async throws {
+        let studio = try await archived()
+        var archivedAtCall: [Bool] = []
+        let started = RecordAnswer.started(take: 1, tracks: ["t1"], seconds: 1)
+        let folder = try SocketFolder()
+        let server = AgentServer(socket: folder.socket) {
+            [
+                AgentTarget(
+                    studio: studio,
+                    record: { _, _, _ in
+                        archivedAtCall.append(studio.isArchived)
+                        return studio.isArchived ? .refused(.archived) : started
+                    })
+            ]
+        }
+        server.start()
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "record", ["package": package.path, "seconds": 1, "arm": ["t1"]])
+
+        #expect(archivedAtCall == [true, false], "\(archivedAtCall)")
+        #expect(outcome == .reply(started.reply(package: package.path)), "\(outcome)")
+        try expectUnarchived(studio)
+        await studio.settle()
+    }
+
     /// A live call during a running archive job gets the busy text and starts no unarchive.
     @Test func aLiveEditDuringAnArchiveJobIsBusy() async throws {
         let studio = try await package.open()

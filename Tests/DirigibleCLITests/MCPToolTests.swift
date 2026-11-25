@@ -372,7 +372,7 @@ struct MCPToolTests {
             toolCall(1, "record", ["package": package.path, "seconds": 1, "arm": ["a"]])
         ])
         let expected =
-            "To record, open \(package.path) in Dirigible and turn on Let Agents Edit Open Sessions in Settings. "
+            "To record, open \(package.path) in Dirigible and turn on Let agents edit open sessions in Settings. "
             + "A take needs the consent of the user in the app."
         #expect(toolResult(answer(answers, id: 1)) == (expected, true))
         #expect(try package.xml() == before)

@@ -89,14 +89,16 @@ struct InspectorView: View {
                     row(.gain, L10n.inspectorGain, L10n.inspectorDecibels, inspection)
                     row(.fadeIn, L10n.inspectorFadeIn, L10n.inspectorMilliseconds, inspection)
                     row(.fadeOut, L10n.inspectorFadeOut, L10n.inspectorMilliseconds, inspection)
+                    PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: true)
                 }
                 .disabled(!model.canEdit)
-                PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: true)
                 effectsRow(inspection)
                 Spacer()
             } else {
                 // A selected track with no range has no clip fields, but Add Gain Point acts on it.
-                PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: false)
+                Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
+                    PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: false)
+                }
                 Spacer()
                 Text(L10n.inspectorNone.key).font(.title3).foregroundStyle(.tertiary).frame(maxWidth: .infinity)
                 Spacer()
@@ -142,7 +144,7 @@ struct InspectorView: View {
         }
     }
 
-    /// The header: the clip name for one clip, "Clips: N" for many, and "Clip" with no clip.
+    /// The header: the clip name for one clip, "N clips" for many, and "Clip" with no clip.
     static func title(_ inspection: ClipInspection?) -> String {
         guard let inspection else { return L10n.inspectorClip.text }
         return inspection.name ?? L10n.inspectorClips.format(inspection.clips.count)

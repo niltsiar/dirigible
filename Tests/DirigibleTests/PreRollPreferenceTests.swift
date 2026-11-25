@@ -4,7 +4,7 @@ import Testing
 @testable import DirigibleApp
 
 /// Criterion P10 (run 2026-10-28-pre-roll): the pre-roll length is an app preference of 1 to 10 whole
-/// seconds, default 3, and Settings shows it as "Pre-roll: 3 s".
+/// seconds, default 3, and Settings shows it as "3 s" next to the label "Pre-roll".
 @MainActor struct PreRollPreferenceTests {
     let defaults: UserDefaults
 
@@ -42,12 +42,14 @@ import Testing
         #expect(self.app().preRollSeconds == 4, "the next launch reads the pick")
     }
 
-    /// The row text for 3 s is "Pre-roll: 3 s" in English and in Spanish, with the unit.
-    @Test(arguments: ["en", "es"])
-    func settingsRowShowsTheLengthWithItsUnit(language: String) throws {
-        let table = try stringsTable(language)
-        let text = preRollRowText(seconds: 3, locale: Locale(identifier: language)) { table[$0.rawValue] ?? "" }
-        #expect(text == "Pre-roll: 3 s", "\(language): \(text)")
+    /// The Settings label holds no value: the length with its unit is in the control column.
+    @Test func theSettingsLabelHoldsNoValue() throws {
+        var withValue: [String] = []
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let label = try #require(stringsTable(language)[L10n.settingsPreRoll.rawValue], "\(language)")
+            if label.contains("%") || label.contains(":") { withValue.append("\(language): \(label)") }
+        }
+        #expect(withValue == [])
     }
 
     @Test func theLengthTextUsesTheNumberFormatOfTheLocale() {

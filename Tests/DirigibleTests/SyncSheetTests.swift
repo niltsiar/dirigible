@@ -212,7 +212,7 @@ import Testing
         let draft = try #require(SyncDraft(clip: "C", in: plainStudio.session))
         #expect(
             draft.noCallLine(in: plainStudio.session, text: englishText)
-                == "No call track: the first track with audio is chosen.")
+                == "With no track that records an app, the first track with audio is the reference.")
         await plain.close()
 
         let (call, callStudio, _) = try await open { session in

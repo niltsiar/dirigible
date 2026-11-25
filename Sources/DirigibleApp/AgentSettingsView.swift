@@ -56,20 +56,22 @@ struct AgentSettingsView: View {
         if commands.isEmpty {
             Text(L10n.settingsAgentsMoveFirst.key).settingsHelp()
         } else {
-            Menu {
-                ForEach(commands, id: \.title) { item in Button(item.title) { copy(item.text) } }
-            } label: {
-                // A fixed width, so the label change after a copy does not move the layout.
-                Group {
-                    if copied {
-                        Label(L10n.settingsAgentsCopied.key, systemImage: "checkmark")
-                    } else {
-                        Text(L10n.settingsAgentsCopy.key)
+            LabeledContent(L10n.settingsAgentsSetup.key) {
+                Menu {
+                    ForEach(commands, id: \.title) { item in Button(item.title) { copy(item.text) } }
+                } label: {
+                    // A fixed width, so the label change after a copy does not move the layout.
+                    Group {
+                        if copied {
+                            Label(L10n.settingsAgentsCopied.key, systemImage: "checkmark")
+                        } else {
+                            Text(L10n.settingsAgentsCopy.key)
+                        }
                     }
+                    .frame(width: 220)
                 }
-                .frame(width: 220)
+                .fixedSize()
             }
-            .fixedSize()
             Text(L10n.settingsAgentsCopyHint.key).settingsHelp()
         }
     }

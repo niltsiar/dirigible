@@ -153,7 +153,7 @@ package enum RecordAnswer: Equatable, Sendable {
 
 /// The refusal of `record` on package files: only the app can ask the user.
 func recordOnFilesMessage(_ package: String) -> String {
-    "To record, open \(package) in Dirigible and turn on Let Agents Edit Open Sessions in Settings. "
+    "To record, open \(package) in Dirigible and turn on Let agents edit open sessions in Settings. "
         + "A take needs the consent of the user in the app."
 }
 
@@ -190,7 +190,7 @@ let recordTools = [
             + "or less for the answer, and gives the take number when the take starts. The take stops after seconds, "
             + "or earlier when the user clicks Stop: read session_info, and the take ended when recording is gone. "
             + RecordRequest.lengthRule + " " + RecordRequest.loudnessRule + " The "
-            + "package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool records on package files. "
+            + "package must be open in Dirigible, with Let agents edit open sessions on. No tool records on package files. "
             + "A window grant: when the user turns on Don't ask again until I close this window and clicks Record, later "
             + "record calls of the same connection on the same tracks start with no sheet. A grant ends "
             + "\(RecordRequest.units(RecordRequest.grantLifetime.components.seconds / 3600, "hour")) after the click, "

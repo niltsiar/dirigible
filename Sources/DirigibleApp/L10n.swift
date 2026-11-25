@@ -198,6 +198,7 @@ enum L10n: String, CaseIterable {
     case settingsAgentsOff = "settings.agents.off"
     case settingsAgentsElsewhere = "settings.agents.elsewhere"
     case settingsAgentsFailed = "settings.agents.failed"
+    case settingsAgentsSetup = "settings.agents.setup"
     case settingsAgentsCopy = "settings.agents.copy"
     case settingsAgentsCopied = "settings.agents.copied"
     case settingsAgentsCopyHint = "settings.agents.copy.hint"

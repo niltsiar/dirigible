@@ -108,7 +108,7 @@ struct TransportCommandTests {
     @Test func noAppGivesTheFilesText() async throws {
         let result = try await dirigible(["transport", "locate", path, "10"])
 
-        let text = "To play, stop, or locate, open \(path) in Dirigible and turn on Let Agents Edit Open Sessions in "
+        let text = "To play, stop, or locate, open \(path) in Dirigible and turn on Let agents edit open sessions in "
         #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: " + text + "Settings.\n"), "\(result)")
     }
 

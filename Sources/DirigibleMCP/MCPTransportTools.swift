@@ -10,7 +10,7 @@ enum TransportWork: Hashable, Sendable {
 
 /// The refusal of a transport tool on package files: only the app has a playhead.
 func transportOnFilesMessage(_ package: String) -> String {
-    "To play, stop, or locate, open \(package) in Dirigible and turn on Let Agents Edit Open Sessions in Settings."
+    "To play, stop, or locate, open \(package) in Dirigible and turn on Let agents edit open sessions in Settings."
 }
 
 /// The refusal of `transport_stop` during a take (decision 0050 Limits).
@@ -83,7 +83,7 @@ private let locateAt = Param.required(
     .integer(minimum: 0))
 
 private let appOnly =
-    " The package must be open in Dirigible, with Let Agents Edit Open Sessions on. No tool plays on package files. "
+    " The package must be open in Dirigible, with Let agents edit open sessions on. No tool plays on package files. "
     + "The call changes no session and is no undo step. The reply is the state after the call."
 
 /// A timeline frame in `0...Frames.limit`, so no sum of the app can overflow.

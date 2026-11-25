@@ -22,6 +22,8 @@ extension InspectorTests {
         await studio.perform(.seek(.frame(20_000)))
         let fields = try await paneFields(window)
         await until("the field shows the envelope") { fields[3].stringValue == decibels(-8) }
+        let columns = fields.map { $0.convert($0.bounds, to: nil).minX.rounded() }
+        #expect(Set(columns).count == 1, "the four fields have one control column: \(columns)")
 
         try await type("-3", in: fields[3], window, model)
         press("\r", 36, window)
@@ -36,6 +38,7 @@ extension InspectorTests {
         await studio.perform(.seek(.frame(60_000)))
         await until("no clip plays the playhead: the field is off") { !fields[3].isEnabled }
         #expect(fields[3].stringValue.isEmpty)
+        #expect(fields[3].placeholderString == "\u{2013}", "an empty field shows a dash, not its label")
         await model.close()
     }
 

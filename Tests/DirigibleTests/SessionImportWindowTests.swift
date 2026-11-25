@@ -123,9 +123,9 @@ import Testing
         await model.close()
     }
 
-    /// C16: the result line shows in the banner place at the revision of the import and is posted
-    /// to VoiceOver; the next edit hides it.
-    @Test func theResultLineIsShownAndAnnounced() async throws {
+    /// C9: a plain import shows its new tracks in the window, so the result line has no banner and
+    /// VoiceOver hears it.
+    @Test func aPlainSessionImportShowsNoBanner() async throws {
         final class Dock { var announced: [String] = [] }
         let (model, studio) = try await open(tracks: 2)
         let dock = Dock()
@@ -135,8 +135,29 @@ import Testing
 
         let line = L10n.sessionImportLine(tracks: 3, muted: 0, leftOut: 0)
         let banners = ChromeState.reportBanners(model, studio)
-        #expect(banners.contains { $0 == .sessionImported(line, press: 1) }, "\(banners)")
-        #expect(dock.announced.contains(line), "\(dock.announced)")
+        #expect(!banners.contains { $0.text == line }, "\(banners)")
+        #expect(dock.announced.filter { $0 == line }.count == 1, "\(dock.announced)")
+        await model.close()
+    }
+
+    /// C9: an import that muted a call track shows the result line as a warning, announced once,
+    /// and the next edit hides it.
+    @Test func anImportWithAMutedCallTrackShowsTheWarning() async throws {
+        final class Dock { var announced: [String] = [] }
+        let (model, studio) = try await open(tracks: 2)
+        let dock = Dock()
+        model.chrome?.announce = { text, _ in dock.announced.append(text) }
+        let package = try await source()
+        var session = try Session(contentsOf: package)
+        try session.setRoute(Route.app(bundleID: "us.zoom.xos"), track: "t2")
+        try session.write(to: package)
+
+        await imported(model, from: package)
+
+        let line = L10n.sessionImportLine(tracks: 3, muted: 1, leftOut: 0)
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(banners.contains { $0 == .sessionImported(line, press: 1) && $0.kind == .warning }, "\(banners)")
+        #expect(dock.announced.filter { $0 == line }.count == 1, "\(dock.announced)")
         try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
         #expect(!ChromeState.reportBanners(model, studio).contains { $0.key.hasPrefix("sessionImported") })
         await model.close()

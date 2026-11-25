@@ -679,8 +679,8 @@
 "banner.level.changed" = "Modificati %lld clip.";
 "banner.level.changed.one" = "Modificato 1 clip.";
 "banner.level.changed.none" = "Nessun clip modificato.";
-"banner.unused.moved" = "Spostati %lld file nel Cestino (%@).";
-"banner.unused.moved.one" = "Spostato 1 file nel Cestino (%@).";
+"announce.unused.moved" = "Spostati %lld file nel Cestino (%@).";
+"announce.unused.moved.one" = "Spostato 1 file nel Cestino (%@).";
 "banner.unused.failed" = "Impossibile spostare %@ nel Cestino.";
 "banner.level.none" = "I clip sono già al livello obiettivo.";
 "banner.level.volume" = "Il volume della traccia non cambia il guadagno del clip.";

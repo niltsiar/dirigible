@@ -187,7 +187,7 @@ import Testing
                 .delete, event: key(.keyDown, "\u{7f}", code: 51, repeat: true, in: window), in: window)
         }
         #expect(studio.session == after && table.numberOfRows == 5, "a repeat removed a row")
-        #expect(model.timeline.selectedRows == [.clip("c")] && model.indexDeleted?.count == 1)
+        #expect(model.timeline.selectedRows == [.clip("c")])
         try studio.undo()
         #expect(studio.session == before && !studio.canUndo, "one Undo gives back the one press")
         await model.close()

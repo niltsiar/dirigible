@@ -51,10 +51,12 @@ extension RemoveUnusedFilesWindowTests {
         await model.close()
     }
 
-    /// Move to Trash counts the moved capture files in the banner: the stray, the WAV, the CAF,
+    /// Move to Trash counts the moved capture files in the announcement: the stray, the WAV, the CAF,
     /// and the sidecar.
-    @Test func movedBannerCountsTheCaptureFiles() async throws {
+    @Test func movedAnnouncementCountsTheCaptureFiles() async throws {
         let (model, studio, window, stem) = try await windowWithSegment()
+        var posts: [String] = []
+        model.chrome?.announce = { text, _ in posts.append(text) }
         let sheet = try await sheet(model, window)
         let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
 
@@ -67,8 +69,7 @@ extension RemoveUnusedFilesWindowTests {
             report.moved.map(\.item.path).filter { $0.hasPrefix("Capture/") } == [
                 "Capture/\(stem).caf", "Capture/\(stem).sidecar",
             ])
-        let banner = WindowBanner.unusedFilesMoved(count: 4, bytes: 91)
-        await until("the banner shows") { model.shown.banners.contains(banner) }
+        #expect(posts.contains(L10n.announceUnusedMoved.format(4, L10n.bytes(91))), "\(posts)")
         #expect(!FileManager.default.fileExists(atPath: studio.url.appending(path: "Capture/\(stem).caf").path))
         await model.close()
     }
@@ -90,6 +91,8 @@ extension RemoveUnusedFilesWindowTests {
         let failed = ["Capture/\(stem).caf"]
         #expect(report.failed.map(\.item.path) == failed)
         await until("the banner shows") { model.shown.banners.contains(.unusedFilesFailed(failed)) }
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(banners.map(\.key) == ["unusedFilesFailed"], "the moved files have no banner of their own: \(banners)")
         #expect(FileManager.default.fileExists(atPath: capture.appending(path: "\(stem).caf").path))
         #expect(FileManager.default.fileExists(atPath: capture.appending(path: "\(stem).sidecar").path))
         await model.close()

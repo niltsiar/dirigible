@@ -35,7 +35,7 @@ extension SessionWindow {
 
     /// Delete in the list (Backspace, Edit > Delete): each selected row goes in one edit, so one Undo
     /// gives them all back. The row after the last removed row is selected, with no seek, and the
-    /// window posts the count. A take or an import does nothing.
+    /// window posts the count, with no banner. A take or an import does nothing.
     func deleteIndexRows() {
         guard canEdit, let studio else { return }
         dropHiddenIndexRows()
@@ -49,9 +49,6 @@ extension SessionWindow {
         guard removeIndexRows(picks) else { return }
         let select = { [self] in timeline.selectRows(next.map { [$0] } ?? [], anchor: next, form: .indexSet) }
         if let source = leadingPane.table?.dataSource as? IndexTableSource { source.fromList(select) } else { select() }
-        indexDeletePresses += 1
-        indexDeleted = IndexDeletedShown(
-            count: picks.count, revision: studio.sessionRevision, press: indexDeletePresses)
         pane.announce(L10n.indexPostDeleted.format(picks.count))
     }
 

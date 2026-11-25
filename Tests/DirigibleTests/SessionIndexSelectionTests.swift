@@ -245,7 +245,7 @@ import Testing
         await model.close()
     }
 
-    @Test func deleteStatesTheCount() async throws {
+    @Test func anIndexDeleteShowsNoBannerAndIsAnnounced() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, _) = try await list()
         var posts: [String] = []
@@ -255,11 +255,9 @@ import Testing
         pressDelete(in: window)
         let text = L10n.indexPostDeleted.format(2)
         #expect(posts == [text], "the post states the count once, and the dropped anchor posts no second text")
-        func banner() -> WindowBanner? { model.shown.banners.first { $0.key.hasPrefix("rowsDeleted") } }
-        await until("the banner shows") { banner() != nil }
-        #expect(banner()?.text == text && banner()?.kind == .info)
-        try studio.undo()
-        await until("the banner goes with the Undo") { banner() == nil }
+        await until("the list shows 4 rows") { table.numberOfRows == 4 }
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.text == text }, "the list shows the delete, so no banner says it: \(banners)")
         await model.close()
     }
 
@@ -323,7 +321,7 @@ import Testing
         try windows.click(row: 3, table, in: window)
         let before = studio.session
         pressDelete(in: window)
-        #expect(studio.session == before && model.indexDeleted == nil, "Delete does nothing during a take")
+        #expect(studio.session == before, "Delete does nothing during a take")
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
         await model.close()

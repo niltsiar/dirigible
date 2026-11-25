@@ -91,8 +91,10 @@ import Testing
     }
 
     /// C13: Move to Trash moves the file, and a banner gives the count and the size.
-    @Test func confirmMovesAndShowsBanner() async throws {
+    @Test func filesMovedToTheTrashShowNoBannerAndAreAnnounced() async throws {
         let (model, studio, window) = try await window()
+        var posts: [String] = []
+        model.chrome?.announce = { text, _ in posts.append(text) }
         let sheet = try await sheet(model, window)
         let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
 
@@ -102,9 +104,10 @@ import Testing
         let report = try #require(model.pruneReport?.report)
         defer { for moved in report.moved { try? FileManager.default.removeItem(at: moved.trashURL) } }
         #expect(report.moved.map(\.item.path) == [stray] && !strayExists(studio))
-        let banner = WindowBanner.unusedFilesMoved(count: 1, bytes: 64)
-        await until("the banner shows") { model.shown.banners.contains(banner) }
-        #expect(banner.kind == .info && banner.text == L10n.bannerUnusedMovedOne.format(L10n.bytes(64)))
+        let text = L10n.announceUnusedMovedOne.format(L10n.bytes(64))
+        #expect(posts.filter { $0 == text }.count == 1, "VoiceOver hears the move once: \(posts)")
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(!banners.contains { $0.text == text }, "the sheet closed and the file left the list: \(banners)")
         await model.close()
     }
 

@@ -679,8 +679,8 @@
 "banner.level.changed" = "%lld Clips geändert.";
 "banner.level.changed.one" = "1 Clip geändert.";
 "banner.level.changed.none" = "Keine Clips geändert.";
-"banner.unused.moved" = "%lld Dateien in den Papierkorb gelegt (%@).";
-"banner.unused.moved.one" = "1 Datei in den Papierkorb gelegt (%@).";
+"announce.unused.moved" = "%lld Dateien in den Papierkorb gelegt (%@).";
+"announce.unused.moved.one" = "1 Datei in den Papierkorb gelegt (%@).";
 "banner.unused.failed" = "%@ konnte nicht in den Papierkorb gelegt werden.";
 "banner.level.none" = "Die Clips haben bereits den Zielpegel.";
 "banner.level.volume" = "Die Spurlautstärke ändert den Clip-Pegel nicht.";

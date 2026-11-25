@@ -17,14 +17,6 @@ struct LevelReportShown: Equatable {
     let press: Int
 }
 
-/// The rows that the last Delete in the index list removed, the session revision after it, and the
-/// number of its press, so each Delete gives a new banner key.
-struct IndexDeletedShown: Equatable {
-    let count: Int
-    let revision: Int
-    let press: Int
-}
-
 /// The result of the last Reduce Noise: the clips that moved, the treatment of the run, the
 /// session revision after it, and the number of its run, so each run gives a new banner key.
 struct DenoiseReportShown: Equatable {
@@ -102,8 +94,6 @@ enum WindowBanner: Equatable {
     case voiceMatchRefused(String, press: Int)
     /// What the last Import Transcript skipped or dropped. The press number makes a new key.
     case transcriptImported(String, press: Int)
-    /// The files that Remove Unused Files moved to the Trash: the count and the bytes (decision 0047).
-    case unusedFilesMoved(count: Int, bytes: Int64)
     /// The files that Remove Unused Files did not move: they stay in `Clips/`.
     case unusedFilesFailed([String])
     /// The session is archived as FLAC, with the Unarchive button (decision 0072).
@@ -136,9 +126,8 @@ enum WindowBanner: Equatable {
     case transcriptionStopped(TranscribeRequest, press: Int)
     /// A transcription job kept no word, so the track is unchanged.
     case noWordsFound(press: Int)
-    /// A Delete in the index list removed `count` rows. The window posts the same text itself.
-    case rowsDeleted(count: Int, press: Int)
-    /// The result line of File > Import Session (decision 0075, C16). The window posts the same text itself.
+    /// The result line of File > Import Session (decision 0075, C16) when it tells of a muted call track or a
+    /// marker that was left out. The window posts the same text itself.
     case sessionImported(String, press: Int)
 
     enum Kind: CaseIterable {
@@ -193,7 +182,6 @@ enum WindowBanner: Equatable {
         case .voiceMatched(_, let press): "voiceMatch.\(press)"
         case .voiceMatchRefused(_, let press): "voiceMatchRefused.\(press)"
         case .transcriptImported(_, let press): "transcriptImported.\(press)"
-        case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
         case .archived: "archived"
         case .archiveSaved: "archiveSaved"
@@ -206,7 +194,6 @@ enum WindowBanner: Equatable {
         case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
         case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
         case .noWordsFound(let press): "noWordsFound.\(press)"
-        case .rowsDeleted(_, let press): "rowsDeleted.\(press)"
         case .sessionImported(_, let press): "sessionImported.\(press)"
         }
     }
@@ -216,12 +203,11 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped:
+            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
-        case .archived, .archiveSaved, .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired,
-            .leveledOverTime, .noWordsFound,
-            .exportSetDone, .rowsDeleted, .voiceMatched, .syncMoved, .sessionImported:
+        case .archived, .archiveSaved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime,
+            .noWordsFound, .exportSetDone, .voiceMatched, .syncMoved:
             .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
@@ -256,8 +242,6 @@ enum WindowBanner: Equatable {
         case .leveledOverTime(let result, _): L10n.rideResult(result)
         case .voiceMatched(let result, _): L10n.matchResult(result)
         case .voiceMatchRefused(let text, _): text
-        case .unusedFilesMoved(1, let bytes): L10n.bannerUnusedMovedOne.format(L10n.bytes(bytes))
-        case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .archived: L10n.bannerArchived.text
         case .archiveSaved(let net) where net > 0:
@@ -276,7 +260,6 @@ enum WindowBanner: Equatable {
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
         case .transcriptionStopped: L10n.transcribeStopped.text
         case .noWordsFound: L10n.transcribeNoWords.text
-        case .rowsDeleted(let count, _): L10n.indexPostDeleted.format(count)
         case .sessionImported(let text, _): text
         }
     }
@@ -288,11 +271,11 @@ enum WindowBanner: Equatable {
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .stemsClipped,
             .stemsMixClipped, .stemsStopped, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .leveledOverTime, .voiceMatched, .voiceMatchRefused,
-            .transcriptImported, .unusedFilesMoved, .archived, .archiveSaved, .archiveDamaged,
-            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
+            .transcriptImported, .archived, .archiveSaved, .archiveDamaged, .unusedFilesFailed, .consentExpired,
+            .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound, .syncMoved, .syncNoMatch:
             .medium
-        case .rowsDeleted, .sessionImported: nil
+        case .sessionImported: nil
         }
     }
 }

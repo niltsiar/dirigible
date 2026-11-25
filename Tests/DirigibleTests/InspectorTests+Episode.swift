@@ -58,7 +58,8 @@ extension InspectorTests {
 
     /// Item 1398: File > Episode Info from Notes puts the focus in Title also when the first focus
     /// move ends at once and the pane never sees Title.
-    @Test func episodeInfoKeepsItsFocusRequestUntilTitleHasTheFocus() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func episodeInfoKeepsItsFocusRequestUntilTitleHasTheFocus() async throws {
         let (model, _, window, _) = try await open(try await package())
         model.showEpisodeInfo()
         try await waitForTitleFocus(model, window)

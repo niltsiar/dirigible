@@ -150,6 +150,7 @@ extension StudioError {
         case .favoritesCopy: "favoritesCopy"
         case .favoritesYielded: "favoritesYielded"
         case .archive: "archive"
+        case .archived: "archived"
         }
     }
 }

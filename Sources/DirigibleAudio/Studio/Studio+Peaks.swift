@@ -27,10 +27,11 @@ extension Studio {
     public var peaks: [FileID: PeakState] { peakLoad.states }
 
     /// Starts a pass over the pool, or marks the running pass to run once more. It does nothing
-    /// when the Studio has no cache folder or while `settle()` runs. The window calls it at
-    /// focus, because a WAV can change outside the app.
+    /// when the Studio has no cache folder, while `settle()` runs, or during a package job, which
+    /// renames the clip files (decision 0072). The window calls it at focus, because a WAV can
+    /// change outside the app.
     public func loadPeaks() {
-        guard let cache = peakLoad.cache, !settling else { return }
+        guard let cache = peakLoad.cache, !settling, archiveRun == nil else { return }
         guard peakLoad.pass == nil else {
             peakLoad.again = true
             return

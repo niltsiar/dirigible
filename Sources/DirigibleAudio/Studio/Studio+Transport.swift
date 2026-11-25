@@ -26,15 +26,19 @@ public enum PlaybackStop: Hashable, Sendable {
 }
 
 extension Studio {
-    /// True when no take, placement, level, duck, match, silence scan, sync, or import runs, and no take starts.
+    /// True when no take, placement, level, duck, match, silence scan, sync, import, or package job runs, and no
+    /// take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
     /// Edits and a new take wait during a take (0004), a placement (0021), a level (0031), a duck
-    /// (0060), a voice match (0074), a silence scan (0066), a sync (0076), or an import (0040). They also wait during `settle()`, so an agent edit that gets OK
+    /// (0060), a voice match (0074), a silence scan (0066), a sync (0076), an import (0040), or a package job (0072).
+    /// They also wait during `settle()`, so an agent edit that gets OK
     /// is on disk before its window closes (decision 0046). A take marker and its save run during a
-    /// take (F107).
+    /// take (F107). Each write job calls it, so a job that no list names refuses an archived session
+    /// with `.archived` after the busy test (decision 0072); a read calls `checkNotBusy()`.
     func checkIdle() throws(StudioError) {
-        guard isIdle, !settling else { throw .busy }
+        try checkNotBusy()
+        guard !isArchived else { throw .archived }
     }
 
     /// Refuses a ripple under a pending or split take (decision 0037).
@@ -46,8 +50,10 @@ extension Studio {
 extension Studio {
     /// Checks each pool file off the main actor (decision 0016). The window calls it at focus;
     /// `open`, a finalize, and a play from stopped check too. A package that left its volume
-    /// keeps the last state: the check cannot read it.
+    /// keeps the last state: the check cannot read it. It does not start during a package job,
+    /// which renames the clip files (decision 0072).
     public func checkMedia() async {
+        guard archiveRun == nil else { return }
         guard let faults = await mediaFaults(session, lock: lock, before: environment.beforeMediaCheck) else { return }
         missingMedia = faults
     }
@@ -258,7 +264,8 @@ extension Studio {
     /// fader (F94). The mouse-up makes the one edit, then `endPreview` ends the preview. Stopped,
     /// it sends nothing, so the next play starts from the session.
     public func previewGain(_ gain: Gain, track: TrackID) throws(StudioError) {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.play)
         guard play.playback != .stopped else { return }
         var checked = session
         do { try checked.setGain(gain, track: track) } catch { throw .session(error) }

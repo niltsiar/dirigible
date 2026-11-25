@@ -34,13 +34,15 @@ extension Studio {
     /// Plays forward at 1x at the window speed from `from` (else the playhead) and stops at `to`
     /// (else the session end).
     public func play(from: Frames?, to: Frames?) async throws(StudioError) -> TransportOutcome {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.play)
         return await playRange(from: from, to: to)
     }
 
     /// Moves the playhead to `frame`, as a click does. A play goes on from there in its shuttle.
     public func locate(_ frame: Frames) async throws(StudioError) -> TransportOutcome {
-        try checkIdle()
+        try checkNotBusy()
+        try checkReadable(.play)
         return await run(.seek(.frame(frame)))
     }
 

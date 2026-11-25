@@ -1106,3 +1106,4 @@
 "error.archive.clip" = "Dirigible cannot convert the audio file %@ (error %lld). Check the disk and try again.";
 "error.archive.clip.other" = "Dirigible cannot convert the audio file %@. Check the Clips folder of the session and try again.";
 "error.archive.store" = "The Favorites store is never archived.";
+"error.studio.archived" = "This session is archived as FLAC. Unarchive it first.";

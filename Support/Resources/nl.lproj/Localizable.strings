@@ -1106,3 +1106,4 @@
 "error.archive.clip" = "Dirigible kan het audiobestand %@ niet omzetten (fout %lld). Controleer de schijf en probeer het opnieuw.";
 "error.archive.clip.other" = "Dirigible kan het audiobestand %@ niet omzetten. Controleer de map Clips van de sessie en probeer het opnieuw.";
 "error.archive.store" = "De favorietenopslag wordt nooit gearchiveerd.";
+"error.studio.archived" = "Deze sessie is als FLAC gearchiveerd. Hef de archivering eerst op.";

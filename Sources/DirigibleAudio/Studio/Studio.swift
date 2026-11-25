@@ -169,6 +169,10 @@ import Observation
     /// The largest fraction of the running file import, 0 at the start of each run. The banner of
     /// an agent import shows it (decision 0049).
     public internal(set) var importProgress = 0.0
+    /// The largest fraction of the running archive or unarchive, 0 at the start of each job.
+    public internal(set) var archiveProgress = 0.0
+    /// Why the last archive or unarchive stopped before its end. Nil until a stop.
+    @ObservationIgnored public internal(set) var archiveStop: ExportStop?
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 
@@ -231,7 +235,7 @@ import Observation
         poolChanged(from: before, agent: agent)
     }
 
-    /// Ends a running import, export, and agent read (decisions 0040, 0019, and 0062), turns off every Listener,
+    /// Ends a running import, export, package job, and agent read (0040, 0019, 0072, 0062), turns off each Listener,
     /// releases every monitor device, stops a take that records, then waits for a start, a finalize, an import,
     /// a read of a package file, and every write in progress. With `saveError`, it writes the session once more; `saveError` stays
     /// only when that write fails too. Then it ends the peak pass (decision 0017) and the raw sweep job (0071). After
@@ -244,6 +248,7 @@ import Observation
         endReads(.close)
         await endListen()
         await endExport(.close)
+        await endArchive(.close)
         await readsEnded()
         await stopPlay()
         await endEffectPreview()
@@ -261,8 +266,9 @@ import Observation
             scheduleSave()
             await serialized {}
         }
-        // After the last write: the state that the user hands to the CLI or an agent (0043).
-        await serialized { if let list = await keepBackupAtClose(lock) { backups = list } }
+        // After the last write: the state that the user hands to the CLI or an agent (0043). An
+        // archived session keeps no backup: an older build never prunes its version (0072).
+        await serialized { if !isArchived, let list = await keepBackupAtClose(lock) { backups = list } }
         await stopPeaks()
         await stopRawSweep()
         settling = false

@@ -124,6 +124,21 @@ struct ArchiveStepTests {
         #expect(try fixture.contents(of: ["Clips/a.flac", "Clips/b.flac"]) == flacs)
     }
 
+    /// A body that opens no clip file and leaves the session equal, with the default
+    /// `writeUnchanged`, keeps each FLAC, the attribute, and `session.xml`, and adds no backup.
+    /// Fail value: the step converts each FLAC and saves the session.
+    @Test func anUnchangedEditKeepsEveryFLACAndSavesNothing() throws {
+        let file = try fixture.sessionFile()
+        let flacs = try fixture.contents(of: ["Clips/a.flac", "Clips/b.flac"])
+
+        try edit(touchesClips: false) { _, _ throws(SessionError) in }
+
+        try #require(try fixture.names() == ["a.flac", "b.flac"], "the step ran")
+        #expect(try fixture.contents(of: ["Clips/a.flac", "Clips/b.flac"]) == flacs)
+        #expect(try fixture.sessionFile() == file)
+        #expect(!FileManager.default.fileExists(atPath: fixture.url(backupsFolderName).path), "no backup")
+    }
+
     /// An edit of a package that a body sees after the step: each pool file is a WAV while the body
     /// runs, and a fault of the body leaves the package unarchived with the facts of before.
     @Test func aClipBodyRunsAfterTheStep() throws {

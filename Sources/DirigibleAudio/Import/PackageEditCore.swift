@@ -28,9 +28,9 @@ package enum EditFailure<Body: Error>: Error {
 /// files of a crashed save (after the read, so a newer package does not change: decision 0024
 /// P4), refuses a pending take, removes the raw CAF of each segment with a finalize record
 /// (decision 0071; a fault goes to `log()`), refuses a split take when `ripple` is true, applies
-/// `body`, and saves. With `writeUnchanged` false, it does not save a session that `body` did not
-/// change. The lock is held until the save ends. An archived package unarchives first
-/// (`unarchiveForWrite`, decision 0072): after `body` and before the save when `touchesClips` is
+/// `body`, and saves. With `writeUnchanged` false, or on an archived package, it does not save a
+/// session that `body` did not change. The lock is held until the save ends. An archived package
+/// unarchives first (`unarchiveForWrite`, decision 0072): after `body` and before the save when `touchesClips` is
 /// false, and before `body` when `body` opens or writes a clip file or copies `session.xml` to
 /// `Backups/`. `session.xml` does not change when a step fails, except after a fault of a
 /// `touchesClips` body: the package then stays unarchived with the session facts of before. A save
@@ -75,7 +75,9 @@ package func editPackageCore<Result, Failure: Error>(
         } catch {
             throw .body(error)
         }
-        if !writeUnchanged && session == before { return result }
+        // A save of an unchanged archived session would unarchive it, and a due backup would hold
+        // the archived file.
+        if session == before, !writeUnchanged || needsUnarchive(before) { return result }
         if !touchesClips { try unarchive() }
         do throws(SessionFileError) {
             // The package that the lock holds, also after a rename (decision 0014).

@@ -43,6 +43,35 @@ extension LocalizationTests {
         #expect(errorProblems(voice) == [])
     }
 
+    /// Every English text, not only the message and error texts, has no uncontracted negation, no count
+    /// after a colon, no "because", and no app name as the subject of a verb. A fact after a colon is for
+    /// a label and its value, and `labelColonKeys` lists those keys.
+    @Test func everyTextUsesContractionsAndNoCountAfterAColon() throws {
+        let english = try stringsTable("en")
+        #expect(english.count >= 1000, "the table has \(english.count) values")
+        #expect(textProblems(english, labelKeys: labelColonKeys) == [])
+        #expect(labelColonKeys.count <= 5, "\(labelColonKeys.count) keys may have a fact after a colon")
+        let stale = labelColonKeys.filter { !hasFactAfterColon(english[$0] ?? "") }
+        #expect(stale.isEmpty, "keys with no fact after a colon: \(stale.sorted())")
+    }
+
+    @Test func textCheckerFindsEachTellAndKeepsTheVoice() {
+        let tells = [
+            "a": "Words selected: %lld", "b": "Option-click: all tracks.", "c": "Stopped because the disk is full.",
+            "d": "Dirigible sends nothing.", "e": "The file is not saved.",
+        ]
+        #expect(
+            textProblems(tells, labelKeys: []) == [
+                "a: a count after a colon", "a: a fact after a colon", "b: a fact after a colon", "c: because",
+                "d: the app name as the subject", "e: an uncontracted negation",
+            ])
+        let voice = [
+            "a": "%lld words selected", "b": "Option-click to apply to all tracks.", "c": "Files: %lld (%@)",
+            "d": "The report goes nowhere on its own.",
+        ]
+        #expect(textProblems(voice, labelKeys: ["c"]) == [])
+    }
+
     @Test func sentenceCounterFindsASecondSentenceAndKeepsOneSentence() {
         let values = [
             "alert.a": "The clip moved. Undo it.", "alert.b": "Replace the file in %@?",
@@ -176,6 +205,34 @@ private func voiceProblems(_ values: [String: String], nameLists: Set<String>) -
 
 private func hasUncontractedNegation(_ value: String) -> Bool {
     value.firstMatch(of: /\b(?:cannot|does not|did not|do not|is not|are not|could not)\b/) != nil
+}
+
+/// A letter, a colon, a space, and a letter or a format specifier: a fact after a colon.
+private func hasFactAfterColon(_ value: String) -> Bool {
+    value.firstMatch(of: /[a-z]: [a-z%]/) != nil
+}
+
+/// The keys of a label and its value (a count and a size, or a list of names), which keep a colon.
+private let labelColonKeys: Set = [
+    "media.missing", "banner.export.chapter.dropped", "alert.quit.unsaved", "sheet.unused.total",
+    "sheet.unused.kept",
+]
+
+/// One line for each tell of a text: `<key>: <tell>`, sorted by key.
+private func textProblems(_ values: [String: String], labelKeys: Set<String>) -> [String] {
+    var problems: [String] = []
+    for (key, value) in values.sorted(by: { $0.key < $1.key }) {
+        if value.firstMatch(of: /: %(?:lld|d|@)\.?$/) != nil { problems.append("\(key): a count after a colon") }
+        if hasUncontractedNegation(value) { problems.append("\(key): an uncontracted negation") }
+        if value.firstMatch(of: /\bbecause\b/) != nil { problems.append("\(key): because") }
+        if value.firstMatch(of: /Dirigible (?:cannot|can|could|did|does|sends|keeps)(?![A-Za-z])/) != nil {
+            problems.append("\(key): the app name as the subject")
+        }
+        if hasFactAfterColon(value), !labelKeys.contains(key) {
+            problems.append("\(key): a fact after a colon")
+        }
+    }
+    return problems
 }
 
 /// One line for each tell of an error text: `<key>: <tell>`, sorted by key.

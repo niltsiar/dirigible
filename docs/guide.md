@@ -138,7 +138,7 @@ The headphones button (the Monitor button, after the arm button) in the track he
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.
 - When the output is the built-in speakers, the monitor plays no sound, so the microphone does not pick up the monitor. The window shows the banner "Use headphones to hear the monitor." Plug in headphones, and the sound comes back. Dirigible does not detect external speakers. With speakers, turn the monitor off.
 - When the monitor cannot play, the track header shows "No monitor sound". Hold the pointer over it to see the full text: "No monitor sound. Turn Monitor Track off and on." A header that is lower than 80 pt shows a speaker symbol with a slash.
-- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The full text says why: "No monitor sound: the output can feed this input. Choose another output."
+- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The full text says why: "No monitor sound. The output can feed this input. Choose another output."
 - You hear your voice a short time late: about 100 ms from the built-in microphone. Bluetooth headphones add more.
 - The monitor is off when a session opens. Dirigible does not save it.
 
@@ -472,7 +472,7 @@ The mouse is not the only way to reach the gain points. These steps work with th
 - **Transport > Previous Gain Point** (Option-;) and **Transport > Next Gain Point** (Option-') move the playhead to the nearest point before or after it. With no point there, you hear a beep. When the cursor is in a text field, the field gets these keys and types their character.
 - The inspector field **Gain at playhead**, under **Fade out**, shows the gain of the points at the playhead in dB, on top of the clip gain. With clips that have different values, it shows "Mixed". Type a value and press Return to set a point there, from -60 to +20 dB, in steps of 0.1 dB. The field is off when no clip of the selected tracks plays the playhead.
 
-Each add and each typed value is one step in the undo history, and VoiceOver says what changed, for example "Gain point added: -8.0 dB". Move to a point with the keys, and VoiceOver says its gain.
+Each add and each typed value is one step in the undo history, and VoiceOver says what changed, for example "Gain point added at -8.0 dB". Move to a point with the keys, and VoiceOver says its gain.
 
 Drag the left edge of the inspector to make it wider or narrower, from 240 to 400 pt. In a narrow window, the inspector can be narrower than the width that you set, because the timeline keeps its minimum width. A line in the accent color shows the new edge, and the inspector takes the width when you release the mouse button. New windows keep the width. Double-click the edge to go back to the standard width.
 
@@ -489,7 +489,7 @@ Dirigible can write the words of a track for you. It runs whisper.cpp on this Ma
 - When an agent starts a job while the sheet is open, the sheet button shows an alert that tells you to wait, and no words are added.
 - When the track has words, the button reads **Replace**, and a line in the sheet gives the count of words. The new words replace the old words in one step, so one **Edit > Undo** brings the old words back.
 - When the job finds no word, a banner says "No words found. The track is unchanged." and the old words stay.
-- When a take starts, the banner says "Transcription stopped because recording started." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
+- When a take starts, the banner says "Transcription stopped. Recording started." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
 - In fast speech with less than 0.2 s of silence between words, the end of a word can be up to 0.42 s off (0.095 s on average). A cut at that word can keep or lose a part of it.
 - Sometimes whisper skips the speech of a long passage and gives only a few words for it. Dirigible finds a segment with 5 s of speech or more and less than one word per second, and transcribes that passage again. It keeps the new words only when they are more and pass its checks. Else the first words stay.
 - Rarely, whisper gives a word no length. Dirigible then takes the end of that word from the sound level, at most 1.0 s after its start. A cut at that word can keep or lose up to 1.0 s of audio.
@@ -708,7 +708,7 @@ Use this to put the tracks of another Dirigible session into the open session, f
 - Dirigible adds one track for each track of the other session, after the last track, and selects the new tracks. Each clip keeps its position in the other session.
 - When the open session has a track with the same name, the new track gets the name of the other session in parentheses, for example "Host (Interview at the remote studio)". A long name is shortened in the middle, so you see both ends.
 - A track that records a call app is muted, because it repeats the voice of the other side.
-- The new tracks show the result, and VoiceOver reads "Added 2 tracks at their recorded positions." When the import mutes a call track, a warning banner says so. When a marker lands after the end of the timeline, Dirigible leaves it out, and the warning banner gives the count, for example "1 marker is left out: its position is after the end of the timeline."
+- The new tracks show the result, and VoiceOver reads "Added 2 tracks at their recorded positions." When the import mutes a call track, a warning banner says so. When a marker lands after the end of the timeline, Dirigible leaves it out, and the warning banner gives the count, for example "1 marker is left out. Its position is after the end of the timeline."
 - The import is one step: **Edit > Undo Import Session** removes all the new tracks.
 - You cannot import the open session into itself: an alert tells you to choose a different session.
 - When the other session moved or an audio file of it is missing, the import changes nothing, and an alert tells you to check that session and import it again.
@@ -750,7 +750,7 @@ Reduce Noise takes background noise out of a clip, and Remove hum takes out main
 
 Repair Sound makes three repairs on a clip: it repairs clipped peaks, it reduces rumble, and it softens harsh "s" sounds. In the app, select clips, a range, or a track, then choose **Tools > Repair Sound...** (**Reparar sonido**). The command is also in the menu of a right-click on a clip. It has no key. It is off when no clip is selected, during a take, and while an import, a paste, a split, or a render runs. It takes clips of tracks with any role. In Terminal, `dirigible clip repair <package> <clip>...` makes the same repairs, and an agent uses the tool `clip_repair`.
 
-![The sheet Repair Sound: 1 clip, with the check boxes Repair clipped peaks, Reduce rumble at 80 Hz, and Soften "s" sounds at 10 dB, the open group More with a frequency of 6000 Hz, the buttons Preview, Result, and Removed Sound, and the buttons Cancel and Repair.](images/screenshot-repair-sound.png)
+![The sheet Repair Sound for 1 clip, with the check boxes Repair clipped peaks, Reduce rumble at 80 Hz, and Soften "s" sounds at 10 dB, the open group More with a frequency of 6000 Hz, the buttons Preview, Result, and Removed Sound, and the buttons Cancel and Repair.](images/screenshot-repair-sound.png)
 
 - The sheet title shows the number of clips. The sheet has one check box for each repair, in the order that Dirigible applies them: **Repair clipped peaks**, **Reduce rumble**, and **Soften "s" sounds**. Each box starts off. Each repair has one line under its name. **Reduce rumble** has a slider for the cutoff, from 20 Hz to 300 Hz, and **Soften "s" sounds** has a slider for the largest cut, from 1 dB to 40 dB. The group **More** is closed at first. It holds the frequency of the "s" cut, from 2000 Hz up to 16000 Hz. After the first use, the sliders start at the values of your last Repair.
 - The frequency slider stops under 0.45 times the sample rate of the session, so the render never refuses a value of the sheet. A session at 22050 Hz stops at 9922 Hz. A session of 4444 Hz or less takes no "s" cut, and the sheet says which sample rate it needs.
@@ -850,12 +850,12 @@ With a **Loudness** target, Dirigible measures the mix and sets one gain. A limi
 With **Files** set to **One for Each Chapter** or **One for Each Marker**, Dirigible writes one file for each part of the export range, in one run, in the folder of the panel. **One for Each Marker** splits at every marker, chapters included. An item is off, with a help tag, when the source has no point of its kind.
 
 - The name field of the panel then reads **Prefix:** and the button reads **Export**. A file is called `<Prefix>-<NN>-<title>.<ext>`, for example `Episode 12-01-Intro.mp3`. A title loses each character that macOS, exFAT, FAT32, or SMB refuse (`/ \ : * ? " < > |` and the control characters): each becomes `-`. With more than 99 parts, the number has 3 digits.
-- A line under the pop-ups shows the count, the first file, and the file that does not change: "Writes 5 files: Episode 12-01-Intro.mp3 and more. Episode 12.mp3 does not change." Dirigible never writes the file with the prefix as its only name. The panel has no type in this mode, so it does not ask to replace that file. If you type the extension yourself, it may ask.
+- A line under the pop-ups shows the count, the first file, and the file that does not change: "Writes 5 files, starting with Episode 12-01-Intro.mp3. Episode 12.mp3 doesn't change." Dirigible never writes the file with the prefix as its only name. The panel has no type in this mode, so it does not ask to replace that file. If you type the extension yourself, it may ask.
 - The audio before the first point is a part with the number 00. It has the name of the last point before the range, else the episode title, else the show name, else **Intro**. A point less than half a millisecond after the start of the range has its part start at the range start, so the set has no part 00.
 - A point at the same millisecond as the point before it, or as the end of the range, has no file of its own. Its audio is in the part before it, and a banner names the point.
 - Each file gets its own loudness gain, so each part has the target level. The note "Each file gets its own loudness gain." shows when **Loudness** is not **Off**. A file with a gain of more than 20 dB gets a warning that names it. An MP3 or AAC (.m4a) part gets the part title as its title tag.
 - When files already have the names of the set, one sheet lists the first five of them. **Cancel** is the default button. **Replace** replaces only the listed files. The sheet and a warning banner also name the older files of the same prefix that this set does not write, for example a renamed or deleted chapter. They stay: Dirigible never deletes them. The banner has **Show in Finder**.
-- The progress sheet shows "Exporting file 3 of 10: Episode 12-03-Interview.mp3". **Cancel**, a take, or a close stops the set. The files that are done stay, the file in hand is removed, and the banner says "Stopped after exporting 2 of 10 files." A failure of one part shows its alert, with the same count.
+- The progress sheet shows "Exporting Episode 12-03-Interview.mp3 (file 3 of 10)". **Cancel**, a take, or a close stops the set. The files that are done stay, the file in hand is removed, and the banner says "Stopped after exporting 2 of 10 files." A failure of one part shows its alert, with the same count.
 - When an audio file of the session goes missing or cannot be read during the set, its clips export as silence. The set continues, and an alert names the missing files and each exported file that has the silence.
 - When the set is done, the window shows no banner, and VoiceOver reads the number of files and, when **Loudness** is on, the lowest and the highest loudness. A banner shows only for an older file of the prefix or a gain over 20 dB.
 
@@ -904,7 +904,7 @@ Choose **File > Export Stems...** to write one file for each track, or one for e
 
 ### Export with presets
 
-Choose **File > Export with Presets...** to write one file for each checked preset into one folder, in one run. For example, write a WAV master and an MP3 for your podcast host at the same time. The item has no key. It writes the selection on the selected tracks when a selection exists, else the whole session. A line of the sheet shows the range: "Range: the whole session" or "Range: the selection" with its start and end.
+Choose **File > Export with Presets...** to write one file for each checked preset into one folder, in one run. For example, write a WAV master and an MP3 for your podcast host at the same time. The item has no key. It writes the selection on the selected tracks when a selection exists, else the whole session. A line of the sheet shows the range: "Exports the whole session." or "Exports the selection" with its start and end.
 
 - The sheet lists the presets, each with a check box. A row shows the name and the options: the format, the bit depth or the bit rate, the channels, and the loudness target when the preset has one. The two built-in presets are **Master (WAV)** (WAV, 24-bit, stereo, at the session rate) and **Podcast (MP3)** (MP3, 128 kbit/s, mono, 44.1 kHz, -19 LUFS). Your session presets come after them.
 - The first time, only **Podcast (MP3)** is checked. The sheet keeps your checks for the next time.
@@ -981,7 +981,7 @@ Audio that is on no track and whose CAF is gone stays in the window under **Audi
 
 ### When a take is not finished
 
-If Dirigible cannot finalize a take, the window shows **Take 1 is not finished.** (with the number of the take). You cannot record until the take is finished.
+If Dirigible cannot finalize a take, the window shows **Take 1 isn't finished.** (with the number of the take). You cannot record until the take is finished.
 
 1. Remove the cause. For example, free disk space or connect the disk again.
 2. Click **Retry Finalize**.
@@ -1087,7 +1087,7 @@ When Dirigible stops, hangs, or loses audio, save a report and send it to the pe
 4. Dirigible makes one zip file and shows it in Finder. A screen reader says that the report is saved.
 5. Send the zip file to the person who helps you.
 
-The report has the logs of the last 7 days, the crash and hang reports of Dirigible, the list of your audio devices, and a summary of your Mac. It has no audio, no session files, and no transcripts. It has the names of your audio devices, the apps that you record, and your Mac model. The logs show a code in place of each device ID. The crash and hang reports are copied as macOS wrote them, cut to the part about Dirigible. Your user name, the name of your Mac, and your home folder are removed from every file. A report can still hold other folder and file names. Dirigible sends nothing. You choose if you send the file, and to whom.
+The report has the logs of the last 7 days, the crash and hang reports of Dirigible, the list of your audio devices, and a summary of your Mac. It has no audio, no session files, and no transcripts. It has the names of your audio devices, the apps that you record, and your Mac model. The logs show a code in place of each device ID. The crash and hang reports are copied as macOS wrote them, cut to the part about Dirigible. Your user name, the name of your Mac, and your home folder are removed from every file. A report can still hold other folder and file names. Nothing is sent on its own. You choose if you send the file, and to whom.
 
 If the last use of Dirigible did not end with a quit, a banner shows in the first window after the next start. Click **Report a Problem** in the banner to save a report, or click **Not Now**. If you close that window first, the banner shows in the next window. The banner shows once for each such end.
 

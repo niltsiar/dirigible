@@ -37,7 +37,7 @@ struct CompactLiveStateContent: View {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 .accessibilityLabel(Text(fault)).help(Text(fault))
         } else if live.droppedFrames > 0 {
-            let text = L10n.trackDropped.format(live.droppedFrames)
+            let text = L10n.counted(live.droppedFrames, one: .trackDroppedOne, many: .trackDropped)
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 .accessibilityLabel(Text(verbatim: text)).help(Text(verbatim: text))
         }
@@ -108,7 +108,8 @@ struct LiveStateContent: View {
             }
         }
         if live.droppedFrames > 0 {
-            Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)
+            Text(verbatim: L10n.counted(live.droppedFrames, one: .trackDroppedOne, many: .trackDropped))
+                .foregroundStyle(.orange)
         }
     }
 }

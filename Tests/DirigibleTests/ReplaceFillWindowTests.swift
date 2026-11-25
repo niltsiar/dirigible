@@ -152,8 +152,9 @@ import Testing
         heard = []
         release.value = true
         await run(model, .fill)
-        let filled = L10n.fillDone.format(SilenceReview.seconds(144_000, rate: 48_000), 3)
-        #expect(heard == [L10n.pasteBanner.format("timeline"), filled], "\(heard)")
+        let clips = studio.session.tracks[1].clips.filter { $0.start >= 96_000 && $0.end <= 240_000 }.count
+        let filled = SessionWindow.filledText(range: 96_000..<240_000, rate: 48_000, clips: clips)
+        #expect(heard == [L10n.pasteBanner.format("timeline"), filled], "\(heard) with \(clips) clips")
         await a.close()
         await model.close()
     }
@@ -161,15 +162,20 @@ import Testing
     /// C17, C20: the numbers of the two texts, with one decimal in the number format of the locale.
     @Test func theTextsHoldTheNumbers() {
         let table: (L10n) -> String = {
-            $0 == .replaceDone ? "Replaced %@ seconds" : "Filled %1$@ seconds. Clips: %2$lld"
+            if $0 == .replaceDone { return "Replaced %@ seconds" }
+            return $0.rawValue == "fill.done.one"
+                ? "Filled %@ seconds with 1 clip." : "Filled %1$@ seconds with %2$lld clips."
         }
         let english = Locale(identifier: "en")
+        let spanish = Locale(identifier: "es")
         #expect(
             SessionWindow.replacedText(clipboard: 72_000, rate: 48_000, table: table, locale: english)
                 == "Replaced 1.5 seconds")
         #expect(
-            SessionWindow.filledText(
-                range: 96_000..<240_000, rate: 48_000, clips: 3, table: table, locale: Locale(identifier: "es"))
-                == "Filled 3,0 seconds. Clips: 3")
+            SessionWindow.filledText(range: 96_000..<240_000, rate: 48_000, clips: 3, table: table, locale: spanish)
+                == "Filled 3,0 seconds with 3 clips.")
+        #expect(
+            SessionWindow.filledText(range: 96_000..<240_000, rate: 48_000, clips: 1, table: table, locale: spanish)
+                == "Filled 3,0 seconds with 1 clip.")
     }
 }

@@ -68,9 +68,10 @@ extension L10n {
     }
 
     static func matchResult(_ result: VoiceMatchResult, text: (L10n) -> String = { $0.text }) -> String {
-        String(
-            format: text(.matchResult), locale: .current, result.tracks, matchDecibels(result.boost, text: text),
-            matchDecibels(result.cut, text: text))
+        let boost = matchDecibels(result.boost, text: text)
+        let cut = matchDecibels(result.cut, text: text)
+        if result.tracks == 1 { return String(format: text(.matchResultOne), locale: .current, boost, cut) }
+        return String(format: text(.matchResult), locale: .current, result.tracks, boost, cut)
     }
 }
 

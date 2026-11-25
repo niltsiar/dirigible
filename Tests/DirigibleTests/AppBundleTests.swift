@@ -134,15 +134,16 @@ struct AppBundleTests {
             // Code gate round 1, item 1: the loopback text of a header row.
             (
                 "track.listen.loopback",
-                "No monitor sound: the output can feed this input. Choose another output.",
-                "Sin sonido de monitor: la salida puede llegar a esta entrada. Elige otra salida."
+                "No monitor sound. The output can feed this input. Choose another output.",
+                "Sin sonido de monitor. La salida puede llegar a esta entrada. Elige otra salida."
             ),
             // B9: the Monitor button of a header row.
             ("track.monitor.label", "Monitor %@", "Monitorizar %@"),
             (
                 "track.monitor.help",
-                "Monitor Track (%@): hear the input in your headphones. Option-click: all device tracks.",
-                "Monitorizar pista (%@): oye la entrada en los auriculares. Opción-clic: todas las pistas de dispositivo."
+                "Monitor Track (%@): hear the input in your headphones. Option-click to apply to all device tracks.",
+                "Monitorizar pista (%@): oye la entrada en los auriculares. "
+                    + "Opción-clic para aplicarlo a todas las pistas de dispositivo."
             ),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.

@@ -42,11 +42,12 @@ struct ExportNoteTests {
         func text(_ table: [String: String], _ key: L10n, _ count: Int) -> String {
             String(format: table[key.rawValue] ?? "", count)
         }
-        #expect(text(en, .panelExportNoteOne, 1) == "1 track muted or not soloed: not in the export.")
-        #expect(text(es, .panelExportNoteOne, 1) == "1 pista silenciada o sin solo: no está en la exportación.")
-        #expect(text(en, .panelExportNoteMany, 2) == "2 tracks muted or not soloed: not in the export.")
-        #expect(text(es, .panelExportNoteMany, 2) == "2 pistas silenciadas o sin solo: no están en la exportación.")
-        #expect(text(en, .panelExportNoteSilent, 3) == "No track is heard: the file will be silent.")
-        #expect(text(es, .panelExportNoteSilent, 3) == "No se oye ninguna pista: el archivo estará en silencio.")
+        #expect(text(en, .panelExportNoteOne, 1) == "1 track isn't in the export. It's muted or not soloed.")
+        #expect(text(es, .panelExportNoteOne, 1) == "1 pista no está en la exportación. Está silenciada o sin solo.")
+        #expect(text(en, .panelExportNoteMany, 2) == "2 tracks aren't in the export. They're muted or not soloed.")
+        #expect(
+            text(es, .panelExportNoteMany, 2) == "2 pistas no están en la exportación. Están silenciadas o sin solo.")
+        #expect(text(en, .panelExportNoteSilent, 3) == "No track is heard. The file will be silent.")
+        #expect(text(es, .panelExportNoteSilent, 3) == "No se oye ninguna pista. El archivo estará en silencio.")
     }
 }

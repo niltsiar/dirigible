@@ -25,8 +25,9 @@ public enum KeptReason: Hashable, Sendable {
     case notArchivable
     /// Another pool file has the FLAC name of the WAV as its path, so no FLAC of the WAV can be.
     case flacNameTaken
-    /// A decode fault of the source, frames or an MD5 that differ, or fewer frames than the pool
-    /// entry. `frames` decoded before the fault. A POSIX I/O fault is never this: it stops the job.
+    /// A decode fault of the source, frames or an MD5 that differ, fewer frames than the pool
+    /// entry, or a status of the codec at a write of the new file. `frames` decoded before the
+    /// fault. A POSIX I/O fault is never this: it stops the job.
     case damaged(frames: Frames)
 }
 

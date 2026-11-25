@@ -128,4 +128,31 @@ extension PackageArchiveTests {
         #expect(back.converted == ["a.wav"] && back.bytesFreed == flac.freed, "\(back)")
         #expect(try fixture.names() == ["a.wav"])
     }
+
+    /// The Apple FLAC encoder refuses a rate over the FLAC limit of 655,350 Hz ('fmt?', probe
+    /// `probes/fix-codec-rate` of run 2026-11-04-flac-archive). A codec status is no POSIX I/O
+    /// fault: each WAV stays as damaged, and the job goes on to the next file. Fail value: the job
+    /// stops at the first file with the codec status as an errno.
+    @Test func anEncoderRefusalKeepsEachWAVAndTheJobGoesOn() throws {
+        let fixture = try ArchiveFixture()
+        let rate = 700_000
+        var session = Session(sampleRate: rate)
+        try session.addFile(try fixture.addWAV("a.wav", rate: rate, seed: 1))
+        try session.addFile(try fixture.addWAV("b.wav", rate: rate, seed: 2))
+        _ = try fixture.save(session)
+        let wavs = try fixture.contents(of: ["Clips/a.wav", "Clips/b.wav"])
+        var report = ArchiveReport()
+        var fault: ArchiveFault?
+
+        do throws(ArchiveFault) {
+            report = try archivePackage(&session, in: fixture.package, save: fixture.save)
+        } catch {
+            fault = error
+        }
+
+        try #require(fault == nil, "\(String(describing: fault))")
+        #expect(report.kept == ["a.wav": .damaged(frames: 30_000), "b.wav": .damaged(frames: 30_000)], "\(report)")
+        #expect(try fixture.contents(of: ["Clips/a.wav", "Clips/b.wav"]) == wavs)
+        #expect(try fixture.names() == ["a.wav", "b.wav"], "no FLAC and no temporary file")
+    }
 }

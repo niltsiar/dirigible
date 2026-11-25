@@ -71,7 +71,8 @@ public func archivePackage(
 }
 
 /// FLAC to WAV for each pool file of `session` and of `also` that has a FLAC, and for the FLAC of
-/// each WAV-backed segment (decision 0071), whatever the attribute says. A damaged FLAC stays,
+/// each WAV-backed segment (decision 0071), whatever the attribute says. It refuses a pending
+/// take, as `archivePackage` does. A damaged FLAC stays,
 /// and the job goes on. After the last file, it saves the session with no attribute when the
 /// attribute is set, and sets `session` to the saved value. The peak cache, thread, and lock
 /// rules are those of `archivePackage`.
@@ -219,6 +220,7 @@ func unarchivePackage(
     isStopped: () -> Bool, save: (Session) throws(SessionFileError) -> URL, seams: ArchiveSeams,
     files: (Int) -> Void = { _ in }
 ) throws(ArchiveFault) -> ArchiveReport {
+    guard session.recording == nil else { throw .pendingTake }
     let clips = package.appending(path: clipsFolderName)
     var report = ArchiveReport()
     var sources: [(file: AudioFile, flac: String, sizes: FileSizes)] = []

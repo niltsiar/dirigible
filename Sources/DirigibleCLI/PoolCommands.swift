@@ -145,7 +145,8 @@ extension FileCommand {
             discussion: """
                 It also repairs a package that a stopped job left with FLAC and WAV files. A damaged FLAC stays, with \
                 one line on stderr that gives its decoded frames. Exit 1 when a FLAC stays as damaged, 2 when the \
-                package cannot be read or written, is locked, or the disk has too little free space.
+                package cannot be read or written, is locked, has a take that is not finalized, or the disk has too \
+                little free space.
                 """)
         @OptionGroup var package: PackageArgument
 

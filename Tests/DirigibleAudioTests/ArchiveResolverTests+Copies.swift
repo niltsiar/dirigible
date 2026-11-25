@@ -234,6 +234,22 @@ extension ArchiveResolverTests {
         #expect(try packageBytes(source.url) == before, "the template does not change")
     }
 
+    /// C23 (d): the disk need of a template copy counts an archived file as the bytes of its WAV,
+    /// not of its FLAC.
+    @Test func theTemplateDiskNeedCountsTheWAVBytesOfAnArchivedFile() throws {
+        let source = try CopySource()
+        try source.archive()
+        let target = source.package.folder.url.appending(path: "New.dirigible")
+        var seams = TemplateCopySeams()
+        seams.freeBytes = { _ in 0 }
+
+        #expect(throws: TemplateError.space(needed: wavFileBytes(frames: 48_000, channels: 1) + diskMargin, free: 0)) {
+            try createSession(
+                at: target, template: source.url, progress: { _ in }, isCancelled: { false }, seams: seams)
+        }
+        #expect(!FileManager.default.fileExists(atPath: target.path))
+    }
+
     /// C22 link case: a template copy refuses a link at the FLAC name.
     @Test func aTemplateCopyRefusesALinkAtTheFLACName() throws {
         let source = try CopySource()

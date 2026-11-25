@@ -70,10 +70,12 @@ extension SessionWindow {
         if studio.isArchived { unarchiveFirst(then: nil) } else { Task { await confirmArchive(studio) } }
     }
 
-    /// The store refusal, then the confirm sheet, then the archive with the progress sheet.
+    /// The store refusal, then the confirm sheet, then the archive with the progress sheet. The
+    /// store is the Favorites store of the app, by the path test of `Favorites.backups`.
     func confirmArchive(_ studio: Studio) async {
         commitDrafts()
-        if Favorites.backups(for: studio.url, environment: ProcessInfo.processInfo.environment) == .store {
+        let store = app?.favorites.writer.map { ["DIRIGIBLE_FAVORITES": $0.store.path] } ?? [:]
+        if Favorites.backups(for: studio.url, environment: store) == .store {
             alert = .error(.archive(.favoritesStore))
             return
         }

@@ -109,11 +109,10 @@ private struct TrackRow: View {
     /// A Match Voice reads this track now. A Bool, as `showsLayout`.
     let learning: Bool
     @FocusState private var focused: Bool
-    /// Key: the window is key, so a selected row shows the emphasized fill.
+    /// Key: the window is key, so a selected row shows the accent tint.
     @Environment(\.controlActiveState) private var activeState
 
     private var style: HeaderRowStyle { HeaderRowStyle(selected: selected, emphasized: activeState == .key) }
-    private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
     private var matchState: MatchMarkState? { MatchMarkState(track.match, learning: learning) }
     private var showsFollow: Bool { track.isFollowTrack && (matchState == nil || showsFollowWithMatch) }
@@ -182,7 +181,7 @@ private struct TrackRow: View {
         // row does not move its controls to the middle (run 2026-10-11-ui-polish-header C6).
         .padding(.top, tall ? 8 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: tall ? .topLeading : .leading)
-        .foregroundStyle(textColor)
+        .foregroundStyle(.primary)
         .background { if let fill = style.fill { Color(nsColor: fill) } }
         .roleStrip(track.role)
         .contentShape(Rectangle())
@@ -207,7 +206,6 @@ private struct TrackRow: View {
             .onChange(of: focused) { if !focused { model.commitName(track.id) } }
             .disabled(!model.canEdit)
             .controlSize(.regular)
-            .foregroundStyle(renaming ? .primary : textColor)
             .background { if renaming { Color(nsColor: .textBackgroundColor) } }
             .overlay {
                 // Over the field, so a click does not give it the text focus.

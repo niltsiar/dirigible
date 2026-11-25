@@ -86,16 +86,33 @@ import Testing
         await model.close()
     }
 
-    /// The source list colors of macOS: the emphasized fill in a key window, and the text on it.
-    @Test func theSelectedRowStyle() {
+    /// A selected row in a key window shows a light tint of the accent color, not a full fill. In
+    /// another window the row keeps the unemphasized source list fill.
+    @Test func theSelectedRowStyle() throws {
         let key = HeaderRowStyle(selected: true, emphasized: true)
-        #expect(key.fill == .selectedContentBackgroundColor && key.text == .alternateSelectedControlTextColor)
+        let fill = try #require(key.fill)
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let (tint, accent) = (try Self.rgba(fill, in: name), try Self.rgba(.controlAccentColor, in: name))
+            #expect(
+                zip(tint, accent).prefix(3).allSatisfy { abs($0 - $1) < 0.01 },
+                "the tint has the accent color in \(name.rawValue): \(tint) against \(accent)")
+            #expect((0.1...0.35).contains(tint[3]), "the tint is light in \(name.rawValue): alpha \(tint[3])")
+        }
         let other = HeaderRowStyle(selected: true, emphasized: false)
-        #expect(other.fill == .unemphasizedSelectedContentBackgroundColor && other.text == nil)
+        #expect(other.fill == .unemphasizedSelectedContentBackgroundColor)
         for emphasized in [true, false] {
             let style = HeaderRowStyle(selected: false, emphasized: emphasized)
-            #expect(style.fill == nil && style.text == nil, "no fill for a row that is not selected")
+            #expect(style.fill == nil, "no fill for a row that is not selected")
         }
+    }
+
+    /// The red, green, blue, and alpha of `color` in the appearance `name`, in sRGB.
+    private static func rgba(_ color: NSColor, in name: NSAppearance.Name) throws -> [CGFloat] {
+        let appearance = try #require(NSAppearance(named: name))
+        var converted: NSColor?
+        appearance.performAsCurrentDrawingAppearance { converted = color.usingColorSpace(.sRGB) }
+        let resolved = try #require(converted)
+        return [resolved.redComponent, resolved.greenComponent, resolved.blueComponent, resolved.alphaComponent]
     }
 
     /// C15: a header click with a focused name field commits the typed name and ends the focus.

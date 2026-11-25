@@ -152,6 +152,22 @@ struct FileArchiveCommandTests {
         #expect(try changes(of: package, since: before) == [])
     }
 
+    /// C16: a pending take refuses the unarchive too, as in the app, so no job saves session.xml
+    /// while it holds `<recording>`. Fail value: the unarchive converts the files and saves.
+    @Test func anUnarchiveOfAPendingTakeChangesNoFile() async throws {
+        #expect(try await package.run("file", "archive", "PKG").status == 0)
+        try package.edit {
+            try $0.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        }
+        let before = try snapshot(of: package)
+
+        let result = try await package.run("file", "unarchive", "PKG")
+
+        try #require(result.status == 2, "\(result)")
+        #expect(result.stderr.contains(pendingTakeMessage(package.path)), "\(result)")
+        #expect(try changes(of: package, since: before) == [])
+    }
+
     /// C16, the store: the Favorites store path, and a link to it, refuse the archive; the help says
     /// so. Near input: the same package archives when the store is another path.
     @Test func theFavoritesStoreIsNeverArchived() async throws {

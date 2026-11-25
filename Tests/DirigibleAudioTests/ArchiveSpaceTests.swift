@@ -94,6 +94,28 @@ struct ArchiveSpaceTests {
         #expect(report.bytesWritten == Int64(flacs.reduce(0, +)))
     }
 
+    /// C12, the `du` gate of the replay. The Apple codec can leave megabytes allocated past the end
+    /// of a large file (probe 2026-11-25: about 14 MB after a 138 MB FLAC, 7 to 16 MB after a 138 MB
+    /// WAV, none after a 104 MB WAV), so 480 s of stereo noise makes both files.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func eachJobLeavesNoAllocatedBytesPastTheEndOfItsFile() throws {
+        let fixture = try ArchiveFixture()
+        var session = Session(sampleRate: ArchiveFixture.rate)
+        try session.addFile(try fixture.addWAV("a.wav", frames: 480 * ArchiveFixture.rate, channels: 2, seed: 1))
+        func excess(_ name: String) throws -> Int64 {
+            var info = stat()
+            try #require(lstat(fixture.url("Clips/\(name)").path, &info) == 0)
+            return Int64(info.st_blocks) * 512 - info.st_size
+        }
+
+        #expect(try archivePackage(&session, in: fixture.package, save: fixture.save).converted == ["a.wav"])
+        let flac = try excess("a.flac")
+        #expect(flac < 4_096, "the FLAC has \(flac) allocated bytes past its end")
+        #expect(try unarchivePackage(&session, in: fixture.package, save: fixture.save).converted == ["a.wav"])
+        let wav = try excess("a.wav")
+        #expect(wav < 4_096, "the WAV has \(wav) allocated bytes past its end")
+    }
+
     @Test func aVolumeWithNoPrivateSizeCountsTheAllocatedBytes() throws {
         let fixture = try ArchiveFixture()
         var session = Session(sampleRate: ArchiveFixture.rate)

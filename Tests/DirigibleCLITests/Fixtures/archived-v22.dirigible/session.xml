@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session xmlns="https://github.com/niltsiar/dirigible/session" version="22" sampleRate="48000" archive="flac">
+    <captures></captures>
+    <files>
+        <file id="host" path="host.wav" channels="1" length="24000"></file>
+        <file id="music" path="music.wav" channels="2" length="24000"></file>
+    </files>
+    <tracks>
+        <track id="563842DC-9FBA-4C12-96C5-6615707D5804" name="host" gain="0" layout="mono">
+            <clip id="host" file="host" start="0" offset="0" length="24000" gain="0"></clip>
+        </track>
+        <track id="488245AD-67F9-4075-84EE-6CF7E91C854A" name="music" gain="0" layout="stereo">
+            <clip id="music" file="music" start="0" offset="0" length="24000" gain="0"></clip>
+        </track>
+    </tracks>
+    <markers></markers>
+</session>

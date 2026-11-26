@@ -71,7 +71,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
-        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "panel.export.rate.session", "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "export.presets.summary.mono",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",

@@ -76,7 +76,7 @@
 "error.duck.no.speech.track" = "Selecteer een spraakspoor of geef een spoor de rol Dialoog.";
 "error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";
 "error.duck.both.lists" = "Spoor '%@' kan niet zowel een spraakspoor als een spoor om te verlagen zijn.";
-"error.duck.read" = "Een audiobestand van een spraakspoor is niet gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
+"error.duck.read" = "Een audiobestand van een spraakspoor kon niet worden gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
 "error.ride.read" = "Het niveau van de clips kan niet in de tijd worden aangepast. Een audiobestand kon niet worden gelezen (fout %lld). Geen clip is gewijzigd.";
 "error.ride.missing" = "Het niveau van de clips kan niet in de tijd worden aangepast. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.ride.short" = "Het niveau van de clips kan niet in de tijd worden aangepast. Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
@@ -106,7 +106,7 @@
 "track.match.value.learning" = "Stem wordt geleerd";
 "match.result" = "%1$d sporen afgestemd. De grootste versterking is %2$@ en de grootste verzwakking %3$@.";
 "match.result.one" = "1 spoor afgestemd. De grootste versterking is %1$@ en de grootste verzwakking %2$@.";
-"error.silences.read" = "Een audiobestand is niet gelezen (fout %lld). De zoekactie heeft geen stilte gevonden.";
+"error.silences.read" = "Een audiobestand kon niet worden gelezen (fout %lld). De zoekactie heeft geen stilte gevonden.";
 "error.silences.stale" = "De sporen zijn na de zoekactie gewijzigd. Zoek opnieuw om de stiltes toe te passen.";
 "error.silences.faults" = "Deze bestanden ontbreken of zijn beschadigd (%@). Hun clips zouden als stilte worden gelezen, dus de zoekactie toont geen stilte. Zet de bestanden terug en zoek opnieuw.";
 "error.duck.past.end" = "De selectie begint bij of na het einde van de sessie, dus de verlaging heeft geen gainpunt gewijzigd.";
@@ -988,7 +988,7 @@
 "banner.drift.not.corrected" = "De drift is niet gecorrigeerd.";
 "banner.drift.cause.too.short" = "De clip is korter dan 5 min.";
 "banner.drift.cause.rendered" = "De clip speelt gerenderde audio af en moet eerst zijn originele audio terugkrijgen.";
-"banner.drift.cause.take" = "Een take neemt op met de sessieklok.";
+"banner.drift.cause.take" = "Een opname neemt op met de sessieklok.";
 "banner.drift.cause.few.parts" = "Te weinig delen van de clip komen overeen met de referentie.";
 "banner.drift.cause.no.line" = "De vertraging volgt geen vaste lijn.";
 "banner.drift.cause.rate" = "De kloksnelheid wijkt te veel af van de referentie.";

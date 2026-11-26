@@ -612,7 +612,7 @@
 "panel.export.channels.stereo" = "Stereo";
 "panel.export.channels.mono" = "Mono";
 "panel.export.rate" = "Samplefrequentie";
-"panel.export.rate.session" = "Sessiefrequentie (%lld Hz)";
+"panel.export.rate.session" = "Sessie (%@ kHz)";
 "panel.export.rate.44100" = "44,1 kHz";
 "panel.export.rate.48000" = "48 kHz";
 "panel.export.loudness" = "Luidheid";

@@ -612,7 +612,7 @@
 "panel.export.channels.stereo" = "Estéreo";
 "panel.export.channels.mono" = "Mono";
 "panel.export.rate" = "Taxa de amostragem";
-"panel.export.rate.session" = "Taxa da sessão (%lld Hz)";
+"panel.export.rate.session" = "Sessão (%@ kHz)";
 "panel.export.rate.44100" = "44,1 kHz";
 "panel.export.rate.48000" = "48 kHz";
 "panel.export.loudness" = "Intensidade";

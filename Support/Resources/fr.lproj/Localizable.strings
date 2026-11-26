@@ -897,6 +897,8 @@
 "banner.export.set.dropped" = "Pas de fichier pour \U00AB %@ \U00BB, qui commence au point de découpe précédent ou à la fin de la plage.";
 "menu.file.export.stems" = "Exporter les stems…";
 "error.export.nostem" = "La session n’a plus de stem à écrire dans la plage d’exportation. Aucun fichier n’a été écrit.";
+"banner.stems.done" = "%1$lld stems exportés vers %2$@.";
+"banner.stems.done.one" = "1 stem exporté vers %@.";
 "banner.stems.stopped" = "Aucun stem n’a été écrit.";
 "banner.stems.clipped" = "Les fichiers de stems %@ saturent au-dessus de 0 dBFS et ne s\U2019additionneront pas au mixage.";
 "banner.stems.mix.clipped" = "Le mixage des stems dépasse 0 dBFS et ne correspondra pas à une exportation du mixage.";

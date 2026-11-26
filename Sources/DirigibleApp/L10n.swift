@@ -238,6 +238,8 @@ enum L10n: String, CaseIterable {
     case panelStemsGroupTrack = "panel.stems.group.track"
     case panelStemsGroupRole = "panel.stems.group.role"
     case panelStemsDefaultName = "panel.stems.default.name"
+    case bannerStemsDone = "banner.stems.done"
+    case bannerStemsDoneOne = "banner.stems.done.one"
     case bannerStemsStopped = "banner.stems.stopped"
     case bannerStemsClipped = "banner.stems.clipped"
     case bannerStemsMixClipped = "banner.stems.mix.clipped"

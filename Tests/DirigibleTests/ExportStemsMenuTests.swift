@@ -112,6 +112,26 @@ import Testing
         await model.close()
     }
 
+    /// C9: a finished run shows its folder in the window, and Show in Finder reveals that folder.
+    @Test func aFinishedRunShowsADoneBannerThatRevealsTheFolder() async throws {
+        let (model, studio, _) = try await window()
+        var revealed: [URL] = []
+        app.reveal = { revealed = $0 }
+
+        _ = try await run(model, studio, into: "Episode Stems")
+
+        let banners = ChromeState.reportBanners(model, studio)
+        guard case .stemsDone(let stems, let count)? = banners.first, banners.count == 1 else {
+            Issue.record("No done banner: \(banners)")
+            return
+        }
+        model.showInFinder([stems])
+        #expect(banners.first?.kind == .info)
+        #expect(stems.lastPathComponent == "Episode Stems", "the banner names the folder")
+        #expect(count == 3 && revealed == [folder.url.appending(path: "Episode Stems")], "\(revealed)")
+        await model.close()
+    }
+
     @Test func theSelectedTracksApplyWithOrWithoutMarks() async throws {
         let (model, studio, _) = try await window(tracks: 5)
         let three: Set<TrackID> = ["t1", "t2", "t3"]

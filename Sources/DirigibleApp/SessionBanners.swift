@@ -86,6 +86,10 @@ struct WindowBanners: View {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerExportSetShow.key) { model.showInFinder(files) }
                 }
+            } else if case .stemsDone(let folder, _) = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerExportSetShow.key) { model.showInFinder([folder]) }
+                }
             } else if case .archived = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerArchiveUnarchive.key) { model.unarchive() }.disabled(!model.canEdit)

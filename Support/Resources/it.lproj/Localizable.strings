@@ -897,6 +897,8 @@
 "banner.export.set.dropped" = "Nessun file per \U201C%@\U201D, che inizia nel punto di divisione precedente o alla fine dell\U2019intervallo.";
 "menu.file.export.stems" = "Esporta stem…";
 "error.export.nostem" = "La sessione non ha più stem da scrivere nell’intervallo di esportazione. Nessun file è stato scritto.";
+"banner.stems.done" = "%1$lld stem esportati in %2$@.";
+"banner.stems.done.one" = "1 stem esportato in %@.";
 "banner.stems.stopped" = "Nessuno stem è stato scritto.";
 "banner.stems.clipped" = "I file degli stem %@ saturano sopra 0 dBFS e non si sommeranno al mix.";
 "banner.stems.mix.clipped" = "Il mix degli stem supera 0 dBFS e non corrisponderà a un\U2019esportazione del mix.";

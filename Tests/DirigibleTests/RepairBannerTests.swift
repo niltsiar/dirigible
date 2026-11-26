@@ -100,7 +100,8 @@ struct RepairBannerTests {
             #expect(!value.localizedCaseInsensitiveContains("noise"), "\(key.rawValue): \(value)")
         }
         #expect(try #require(table[L10n.errorDenoiseTrackRole.rawValue]).contains("Reduce Noise"))
-        #expect(try #require(table[L10n.errorDenoiseUnavailable.rawValue]).hasPrefix("The noise can't be reduced."))
+        let unavailable = try #require(table[L10n.errorDenoiseUnavailable.rawValue])
+        #expect(unavailable.hasPrefix("The noise reduction of macOS didn't load"))
         #expect(try #require(table[L10n.errorDenoiseYielded.rawValue]).hasPrefix("The clip render stopped"))
     }
 }

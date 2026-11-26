@@ -116,9 +116,8 @@ struct AppBundleTests {
             (
                 "track.state.no.sound",
                 // The pane name differs on macOS 14 and 15, so the text names the button, not the pane.
-                "No sound from %1$@. If %1$@ plays sound, click Privacy… and allow Dirigible to record system audio.",
-                "No hay sonido de %1$@. Si %1$@ reproduce sonido, haz clic en Privacidad… y permite que Dirigible "
-                    + "grabe el audio del sistema."
+                "No sound from %@. Click Privacy… and allow Dirigible to record system audio.",
+                "No hay sonido de %@. Haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema."
             ),
             ("track.no.sound.settings", "Open Privacy Settings", "Abrir los ajustes de privacidad"),
             // The short title of the header button; the full name above is its help and AX label.
@@ -134,16 +133,15 @@ struct AppBundleTests {
             // Code gate round 1, item 1: the loopback text of a header row.
             (
                 "track.listen.loopback",
-                "No monitor sound. The output can feed this input. Choose another output.",
-                "Sin sonido de monitor. La salida puede llegar a esta entrada. Elige otra salida."
+                "No monitor sound. Choose an output that can't feed this input.",
+                "Sin sonido de monitor. Elige una salida que no pueda llegar a esta entrada."
             ),
             // B9: the Monitor button of a header row.
             ("track.monitor.label", "Monitor %@", "Monitorizar %@"),
             (
                 "track.monitor.help",
-                "Monitor Track (%@): hear the input in your headphones. Option-click to apply to all device tracks.",
-                "Monitorizar pista (%@): oye la entrada en los auriculares. "
-                    + "Opción-clic para aplicarlo a todas las pistas de dispositivo."
+                "Hear the input in your headphones (%@). Option-click to apply to all device tracks.",
+                "Oye la entrada en los auriculares (%@). Opción-clic para aplicarlo a todas las pistas de dispositivo."
             ),
             ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.

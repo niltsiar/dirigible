@@ -308,7 +308,8 @@ import os
         #expect(
             heard == [
                 "\(high) \(L10n.bannerLowRecordTimeLeft.text)", "\(high) \(L10n.transportStopOutputChanged.text)",
-                "\(NSAccessibilityPriorityLevel.medium.rawValue) \(L10n.mediaMissing.text)",
+                "\(NSAccessibilityPriorityLevel.medium.rawValue) \(L10n.mediaMissing.text) "
+                    + (studio.session.files["f1"]?.path ?? "f1"),
                 "\(high) \(model.shown.recordOver.detail)",
             ])
         await model.close()

@@ -37,7 +37,9 @@ struct BannerRow<Actions: View>: View {
 }
 
 extension BannerRow where Actions == EmptyView {
-    init(kind: WindowBanner.Kind, text: String) { self.init(kind: kind, text: text) { EmptyView() } }
+    init(kind: WindowBanner.Kind, text: String, detail: String? = nil) {
+        self.init(kind: kind, text: text, detail: detail) { EmptyView() }
+    }
 }
 
 extension WindowBanner.Kind {
@@ -99,7 +101,7 @@ struct WindowBanners: View {
                     Button(L10n.transcribeAgain.key) { model.transcribeAgain() }.disabled(!model.canTranscribe)
                 }
             } else {
-                BannerRow(kind: banner.kind, text: banner.text)
+                BannerRow(kind: banner.kind, text: banner.text, detail: banner.detail)
             }
         }
     }
@@ -277,9 +279,7 @@ struct TakeBanner: View {
         var lines = [L10n.takePending.format(take)]
         if let error = studio.takeError { lines.append(L10n.message(for: error, session: studio.session)) }
         if model.canFinishLeavingUnreadable { lines.append(L10n.takePendingLeaveHint.text) }
-        if let space = model.pendingSpace {
-            lines.append(L10n.takePendingSpace.format(L10n.bytes(space.needed), L10n.bytes(space.free)))
-        }
+        if let space = model.pendingSpace { lines.append(L10n.takePendingSpace.format(L10n.bytes(space.needed))) }
         return lines.joined(separator: "\n")
     }
 

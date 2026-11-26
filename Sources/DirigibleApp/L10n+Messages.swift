@@ -22,8 +22,7 @@ extension L10n {
         case .channelInUse(let first, let second): return errorChannelInUse.format(name(first), name(second))
         case .diskLow: return errorDiskLow.text
         case .appSourcesUnavailable: return errorAppSourcesUnavailable.text
-        case .placementSpace(let needed, let free):
-            return errorPlacementSpace.format(bytes(needed), bytes(free))
+        case .placementSpace(let needed, _): return errorPlacementSpace.format(bytes(needed))
         case .microphoneAccess(.restricted): return errorMicrophoneRestricted.text
         case .microphoneAccess(.denied), .microphoneAccess(.notDetermined): return errorMicrophoneDenied.text
         case .session(let error): return message(for: error, name: name)

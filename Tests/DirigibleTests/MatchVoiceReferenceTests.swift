@@ -153,7 +153,7 @@ extension MatchVoiceWindowTests {
         let text = { (key: L10n) in english[key.rawValue] ?? key.rawValue }
         let one = L10n.matchResult(VoiceMatchResult(tracks: 1, boost: 4, cut: -2), text: text)
         let many = L10n.matchResult(VoiceMatchResult(tracks: 3, boost: 4, cut: -2), text: text)
-        #expect(one.hasPrefix("Matched 1 track. "), "\(one)")
-        #expect(many.hasPrefix("Matched 3 tracks. "), "\(many)")
+        #expect(one.hasPrefix("Matched 1 track, "), "\(one)")
+        #expect(many.hasPrefix("Matched 3 tracks, "), "\(many)")
     }
 }

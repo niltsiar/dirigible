@@ -26,10 +26,8 @@ extension AppDelegate {
             let failed = open.filter { $0.studio?.saveError != nil }.map {
                 $0.url.deletingPathExtension().lastPathComponent
             }
-            let names = failed.joined(separator: ", ")
-            let quit =
-                failed.isEmpty
-                || confirmQuit(L10n.alertQuitUnsaved.format(names), L10n.alertQuitUnsavedConfirm.text, true)
+            let message = L10n.alertQuitUnsaved.text + "\n\n" + failed.joined(separator: ", ")
+            let quit = failed.isEmpty || confirmQuit(message, L10n.alertQuitUnsavedConfirm.text, true)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
             if !quit {
                 cancelQuit()

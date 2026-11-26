@@ -55,9 +55,8 @@ extension ChromeTests {
         #expect(model.alert == .error(.writerDidNotStop("Duo")))
         #expect(model.alert?.text == L10n.errorWriterDidNotStop.format("Duo", L10n.menuRecordRetry.text))
         let texts = [
-            "en": "The recording of Duo didn't stop, but its audio is safe. Click Retry Finalize to try again.",
-            "es": "La grabación de Duo no se detuvo, pero su audio está a salvo. "
-                + "Pulsa Reintentar la finalización para intentarlo de nuevo.",
+            "en": "The recording of Duo didn't stop. Click Retry Finalize to try again.",
+            "es": "La grabación de Duo no se detuvo. Pulsa Reintentar la finalización para intentarlo de nuevo.",
         ]
         for (language, expected) in texts {
             let table = try stringsTable(language)

@@ -60,7 +60,7 @@ A template is a session that you copy to start each episode of a show. Save a se
 
 1. Open the session. Choose **File > Save as Template...**. The item has no key. A sheet asks for a **Name**. A line under the field says what the template keeps, for example "Keeps 2 clips, 1.9 MB of audio." The size is the size of the audio files that the clips use. A file that no clip uses stays out of the template.
 2. Type a name and click **Save**. **Save** is off while the name is empty, has “/” or “:”, starts with a period, or is too long.
-3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one. If a window has the old template open, an alert says so and nothing is saved. Close that window and try again.
+3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one. If a window has the old template open, an alert says so and nothing is saved. Close that window and try again. If the swap fails, an alert names the template that stays in a temporary folder, and its **Show in Finder** button shows that folder.
 
 Dirigible saves templates in the Templates folder of its folder in Music, also when you chose another folder for new sessions. To see them, choose **File > Show Templates in Finder**. Rename or delete a template in Finder.
 
@@ -138,7 +138,7 @@ The headphones button (the Monitor button, after the arm button) in the track he
 - Only a track with an input device can monitor. For an app track or a track with no input, the item is dimmed.
 - When the output is the built-in speakers, the monitor plays no sound, so the microphone does not pick up the monitor. The window shows the banner "Use headphones to hear the monitor." Plug in headphones, and the sound comes back. Dirigible does not detect external speakers. With speakers, turn the monitor off.
 - When the monitor cannot play, the track header shows "No monitor sound". Hold the pointer over it to see the full text: "No monitor sound. Turn Monitor Track off and on." A header that is lower than 80 pt shows a speaker symbol with a slash.
-- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The full text says why: "No monitor sound. The output can feed this input. Choose another output."
+- When the output contains the virtual device of the input, for example a loopback device in an aggregate device, the monitor plays no sound, so it does not feed its own input. The full text says what to do: "No monitor sound. Choose an output that can't feed this input."
 - You hear your voice a short time late: about 100 ms from the built-in microphone. Bluetooth headphones add more.
 - The monitor is off when a session opens. Dirigible does not save it.
 
@@ -489,7 +489,7 @@ Dirigible can write the words of a track for you. It runs whisper.cpp on this Ma
 - When an agent starts a job while the sheet is open, the sheet button shows an alert that tells you to wait, and no words are added.
 - When the track has words, the button reads **Replace**, and a line in the sheet gives the count of words. The new words replace the old words in one step, so one **Edit > Undo** brings the old words back.
 - When the job finds no word, a banner says "No words found. The track is unchanged." and the old words stay.
-- When a take starts, the banner says "Transcription stopped. Recording started." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
+- When a take starts, the banner says "A recording stopped the transcription." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
 - In fast speech with less than 0.2 s of silence between words, the end of a word can be up to 0.42 s off (0.095 s on average). A cut at that word can keep or lose a part of it.
 - Sometimes whisper skips the speech of a long passage and gives only a few words for it. Dirigible finds a segment with 5 s of speech or more and less than one word per second, and transcribes that passage again. It keeps the new words only when they are more and pass its checks. Else the first words stay.
 - Rarely, whisper gives a word no length. Dirigible then takes the end of that word from the sound level, at most 1.0 s after its start. A cut at that word can keep or lose up to 1.0 s of audio.
@@ -708,7 +708,7 @@ Use this to put the tracks of another Dirigible session into the open session, f
 - Dirigible adds one track for each track of the other session, after the last track, and selects the new tracks. Each clip keeps its position in the other session.
 - When the open session has a track with the same name, the new track gets the name of the other session in parentheses, for example "Host (Interview at the remote studio)". A long name is shortened in the middle, so you see both ends.
 - A track that records a call app is muted, because it repeats the voice of the other side.
-- The new tracks show the result, and VoiceOver reads "Added 2 tracks at their recorded positions." When the import mutes a call track, a warning banner says so. When a marker lands after the end of the timeline, Dirigible leaves it out, and the warning banner gives the count, for example "1 marker is left out. Its position is after the end of the timeline."
+- The new tracks show the result, and VoiceOver reads "Added 2 tracks at their recorded positions." When the import mutes a call track, a warning banner says so. When a marker lands after the end of the timeline, Dirigible leaves it out, and the warning banner gives the count, for example "Left out 1 marker after the session end."
 - The import is one step: **Edit > Undo Import Session** removes all the new tracks.
 - You cannot import the open session into itself: an alert tells you to choose a different session.
 - When the other session moved or an audio file of it is missing, the import changes nothing, and an alert tells you to check that session and import it again.
@@ -939,7 +939,7 @@ Choose **File > Episode Info...** (Shift-Command-I) to show the **Episode** tab 
 - Type a short description in **Description** and the show notes in **Notes**. Command-Return saves the notes.
 - Click **Links** to type the episode URL, the feed URL, and the GUID.
 - Press Return or Tab, or click in another place, to save a field. Each save is one step for **Undo**. Esc puts back the saved text. A value that Dirigible cannot use, for example episode 0 or a date that does not exist, makes a beep and shows the rule in red below the field. The field keeps the focus until you correct the value or press Esc. The session keeps the old value.
-- Under the details, one line for each take with audio tells if the take is in sync with its recording: "Take 4: In sync, +5.000 s" when each clip of the take keeps one shift from the recording (the time is the place of the record start on the timeline), or "Take 4: Out of sync from 0:21:07 on the timeline, 2 shifts" when an edit moved some clips of the take and not others. The time of an out-of-sync line is a timeline time, not a take time. A copy of take audio, for example a cold open, does not break the take. When a take anchor file cannot be read, that take has no line, and one line names the file after the lines of the other takes, one line for each file. A session with no take audio shows no line.
+- Under the details, one line for each take with audio tells if the take is in sync with its recording: "Take 4: in sync, +5.000 s" when each clip of the take keeps one shift from the recording (the time is the place of the record start on the timeline), or "Take 4: out of sync from 0:21:07 on the timeline, 2 shifts" when an edit moved some clips of the take and not others. The time of an out-of-sync line is a timeline time, not a take time. A copy of take audio, for example a cold open, does not break the take. When a take anchor file cannot be read, that take has no line, and one line names the file after the lines of the other takes, one line for each file. A session with no take audio shows no line.
 - For the artwork, click **Choose...** or drag an image to the well. The image must be a square JPEG or PNG file, at most 3000 x 3000 pixels. Dirigible copies it into the session. **Remove** removes the artwork from the episode.
 
 The MP3 and AAC (.m4a) exports contain these details and the artwork, so a player shows them. WAV and FLAC exports do not contain them. A session with episode details does not open in a version of Dirigible from before the episode details.

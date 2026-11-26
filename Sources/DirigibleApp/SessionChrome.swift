@@ -198,7 +198,7 @@ import Observation
         announceAppWarnings(state.shown.appWarnings, before: model.shown.appWarnings, model: model)
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
-            if let priority = banner.announcement { announce(banner.text, priority) }
+            if let priority = banner.announcement { announce(banner.spoken, priority) }
         }
         let tracks = state.shown.recordOver.reached.map(\.track)
         if !tracks.isEmpty, tracks != announcedRecordOver {

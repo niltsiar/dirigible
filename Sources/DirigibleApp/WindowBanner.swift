@@ -225,7 +225,7 @@ enum WindowBanner: Equatable {
     var text: String {
         switch self {
         case .playbackStopped(let stop): L10n.message(for: stop)
-        case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
+        case .missingMedia: L10n.mediaMissing.text
         case .lowRecordTime(let minutes): lowRecordTimeText(minutes: minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
@@ -271,6 +271,15 @@ enum WindowBanner: Equatable {
         case .sessionImported(let text, _): text
         }
     }
+
+    /// The second line of the row: the file names of a missing media banner.
+    var detail: String? {
+        if case .missingMedia(let paths) = self { return paths.joined(separator: ", ") }
+        return nil
+    }
+
+    /// What VoiceOver reads: the text, then the detail line.
+    var spoken: String { detail.map { text + " " + $0 } ?? text }
 
     /// VoiceOver reads a new banner at this priority. Nil: no announcement.
     var announcement: NSAccessibilityPriorityLevel? {

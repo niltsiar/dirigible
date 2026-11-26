@@ -115,12 +115,13 @@ struct SyncMoved: Equatable {
     /// banner shows.
     var needsCheck: Bool { notCorrected || cuts }
 
-    /// The text of the first row: the drift that was not corrected and its cause, else the result, which
-    /// is the lag alone when a second row tells of a cut. `text` gives the value of a key.
+    /// The text of the first row: the drift that was not corrected and its cause, else the cut head and
+    /// the replaced audio, else the result. The move shows on the timeline, so only VoiceOver reads it
+    /// next to a cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         let parts = sentences(text: text, locale: locale)
         if !parts.drift.isEmpty { return parts.drift.joined(separator: " ") }
-        return (cuts ? Array(parts.done.prefix(1)) : parts.done).joined(separator: " ")
+        return (cuts ? parts.cut : parts.done).joined(separator: " ")
     }
 
     /// The text of the row for the cut head and the replaced audio. `text` gives the value of a key.

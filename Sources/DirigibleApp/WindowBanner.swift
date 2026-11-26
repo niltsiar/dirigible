@@ -122,7 +122,7 @@ enum WindowBanner: Equatable {
     /// has no Undo. The press number makes a new key for each sync.
     case syncMoved(SyncMoved, revision: Int?, press: Int)
     /// The head that a sync cut and the audio that it replaced, in a row of their own after the
-    /// `syncMoved` row of the same press.
+    /// `syncMoved` row of the same press when that row tells of a drift that was not corrected.
     case syncCut(SyncMoved, press: Int)
     /// A sync of `clip` found no match on `track`, so it changed nothing. The button opens the sheet
     /// again for `clip`, on another track when one exists, with the Correct drift box `correctsDrift`.
@@ -218,7 +218,7 @@ enum WindowBanner: Equatable {
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
         case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound, .stemsDone: .info
-        case .syncMoved(let moved, _, _): moved.notCorrected ? .warning : .info
+        case .syncMoved(let moved, _, _): moved.needsCheck ? .warning : .info
         case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
         case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
         case .exportReport(let report, _, _): report?.exceedsLevelLimit == true ? .warning : .info

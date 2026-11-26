@@ -1123,7 +1123,8 @@
 "menu.file.archive" = "Archiveer sessie…";
 "menu.file.unarchive" = "Hef archivering sessie op";
 "alert.archive.title" = "\"%@\" archiveren?";
-"alert.archive.body" = "%lld bestanden (%@) worden verliesvrij FLAC, meestal de helft zo groot; een bewerking heeft %@ vrije ruimte nodig om ze terug te zetten.";
+"alert.archive.body" = "%lld clipbestanden (%@) worden verliesvrij FLAC, en een bewerking heeft %@ vrije ruimte nodig om ze terug te zetten.";
+"alert.archive.body.one" = "1 clipbestand (%@) wordt verliesvrij FLAC, en een bewerking heeft %@ vrije ruimte nodig om het terug te zetten.";
 "alert.archive.confirm" = "Archiveer";
 "sheet.archive.file" = "Bestand %lld van %lld archiveren";
 "sheet.unarchive.file" = "Bestand %lld van %lld terugzetten";

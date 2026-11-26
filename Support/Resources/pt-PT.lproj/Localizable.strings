@@ -1123,7 +1123,8 @@
 "menu.file.archive" = "Arquivar sessão…";
 "menu.file.unarchive" = "Desarquivar sessão";
 "alert.archive.title" = "Arquivar \"%@\"?";
-"alert.archive.body" = "%lld ficheiros (%@) passam a FLAC sem perdas, em geral com metade do tamanho; uma edição precisa de %@ livres para os converter de novo.";
+"alert.archive.body" = "%lld ficheiros de clipe (%@) passam a FLAC sem perdas, e uma edição precisa de %@ livres para os converter de novo.";
+"alert.archive.body.one" = "1 ficheiro de clipe (%@) passa a FLAC sem perdas, e uma edição precisa de %@ livres para o converter de novo.";
 "alert.archive.confirm" = "Arquivar";
 "sheet.archive.file" = "A arquivar o ficheiro %lld de %lld";
 "sheet.unarchive.file" = "A desarquivar o ficheiro %lld de %lld";

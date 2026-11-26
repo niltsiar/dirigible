@@ -169,8 +169,11 @@ struct ArchiveSheet: View {
 @MainActor func archiveQuestion(name: String, _ facts: ArchiveFacts) -> NSAlert {
     let alert = NSAlert()
     alert.messageText = L10n.alertArchiveTitle.format(name)
-    alert.informativeText = L10n.alertArchiveBody.format(
-        facts.files, L10n.bytes(facts.bytes), L10n.bytes(facts.unarchiveNeed))
+    let size = L10n.bytes(facts.bytes)
+    let need = L10n.bytes(facts.unarchiveNeed)
+    alert.informativeText =
+        facts.files == 1
+        ? L10n.alertArchiveBodyOne.format(size, need) : L10n.alertArchiveBody.format(facts.files, size, need)
     alert.addButton(withTitle: L10n.alertArchiveConfirm.text)
     alert.addButton(withTitle: L10n.alertCancel.text).keyEquivalent = "\u{1b}"
     return alert

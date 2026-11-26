@@ -1123,7 +1123,8 @@
 "menu.file.archive" = "Archive Session…";
 "menu.file.unarchive" = "Unarchive Session";
 "alert.archive.title" = "Archive \"%@\"?";
-"alert.archive.body" = "%lld files (%@) become lossless FLAC, about half the size; an edit needs %@ free to convert back.";
+"alert.archive.body" = "%lld clip files (%@) become lossless FLAC, and an edit needs %@ free to convert them back.";
+"alert.archive.body.one" = "1 clip file (%@) becomes lossless FLAC, and an edit needs %@ free to convert it back.";
 "alert.archive.confirm" = "Archive";
 "sheet.archive.file" = "Archiving file %lld of %lld";
 "sheet.unarchive.file" = "Unarchiving file %lld of %lld";

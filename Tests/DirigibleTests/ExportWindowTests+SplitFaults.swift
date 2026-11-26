@@ -121,7 +121,7 @@ extension ExportWindowTests {
     }
 
     /// Item 9: the rows of one window use the key as their identity, so a set with two level warnings and
-    /// warnings of two parts has one key for each banner. A set with no older file has no done banner.
+    /// warnings of two parts has one key for each banner, the done banner among them.
     @Test func eachBannerOfASetHasItsOwnKey() throws {
         func report(gain: Double) throws -> LoudnessReport {
             LoudnessReport(
@@ -140,7 +140,7 @@ extension ExportWindowTests {
 
         let keys = shown.banners.map(\.key)
 
-        #expect(keys.count == 8 && Set(keys).count == 8, "\(keys)")
+        #expect(keys.count == 9 && Set(keys).count == 9, "\(keys)")
     }
 
     /// Item 10: a number of a banner uses the decimal separator of the current locale.

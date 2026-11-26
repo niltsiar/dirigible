@@ -202,7 +202,6 @@ struct LocalizationTests {
     /// and the table has no `banner.` copy of them.
     @Test func theSyncAndExportResultTextsHaveAnnounceKeys() throws {
         let moved = [
-            "banner.export.set.done": "announce.export.set.done",
             "banner.export.set.loudness": "announce.export.set.loudness",
             "banner.sync.earlier": "announce.sync.earlier",
             "banner.sync.later": "announce.sync.later",

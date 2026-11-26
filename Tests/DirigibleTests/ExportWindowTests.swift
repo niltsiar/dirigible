@@ -316,7 +316,7 @@ import os
         }
         #expect(model.exportStep == nil)
         #expect(model.alert == nil)
-        #expect(model.exportReport == nil, "an export with Off shows a report")
+        #expect(try #require(model.exportReport).report == nil, "an export with Off has no loudness report")
         let file = try AVAudioFile(forReading: out)
         #expect(file.length == 480_000 && file.fileFormat.channelCount == 2)
         await model.close()

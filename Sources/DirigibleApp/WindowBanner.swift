@@ -2,10 +2,12 @@ import AppKit
 import DirigibleAudio
 import DirigibleCore
 
-/// The loudness report of an export, the name of its file, and the session revision at its end.
+/// The loudness report of an export (nil with no loudness target), its file, and the session revision at its
+/// end.
 struct ExportReportShown: Equatable {
-    let report: LoudnessReport
-    let file: String
+    let report: LoudnessReport?
+    let url: URL
+    var file: String { url.lastPathComponent }
     let revision: Int
 }
 
@@ -48,11 +50,12 @@ enum WindowBanner: Equatable {
     case useHeadphones
     /// The default output is the built-in speakers and Monitor Track is on (decision 0044).
     case monitorHeadphones
-    /// The loudness of the last clean export with a target and the name of its file (decision
-    /// 0032). Shown only when the gain is over the auto-level limit: a warning.
-    case exportReport(LoudnessReport, file: String)
-    /// The older files of the prefix that a split export leaves in the folder, a warning, and the files
-    /// of the set for its Show in Finder button (decision 0067). A set with no older file shows no banner.
+    /// A clean export: its file for the Show in Finder button, and its loudness when it had a target
+    /// (decision 0032). A warning when the gain is over the auto-level limit, else info: the file lands
+    /// outside the window, so the window shows the result.
+    case exportReport(LoudnessReport?, file: String, url: URL)
+    /// A finished split export: the files of the set for its Show in Finder button, and the older files of
+    /// the prefix that it leaves in the folder (decision 0067). A warning with older files, else info.
     case exportSetDone(files: [URL], old: [String])
     /// A split export that stopped: the files on disk and the files of the set.
     case exportSetStopped(written: Int, count: Int)
@@ -165,7 +168,7 @@ enum WindowBanner: Equatable {
         case .lowRecordTime: "lowRecordTime"
         case .useHeadphones: "useHeadphones"
         case .monitorHeadphones: "monitorHeadphones"
-        case .exportReport(_, let file): "exportReport.\(file)"
+        case .exportReport(_, let file, _): "exportReport.\(file)"
         case .exportSetDone: "exportSetDone"
         case .exportSetStopped: "exportSetStopped"
         case .exportSetDropped(let marker): "exportSetDropped.\(marker.id)"
@@ -203,15 +206,15 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime,
-            .exportSetDone:
+            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
         case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound: .info
         case .syncMoved(let moved, _, _): moved.needsCheck ? .warning : .info
         case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
         case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
-        case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
+        case .exportReport(let report, _, _): report?.exceedsLevelLimit == true ? .warning : .info
+        case .exportSetDone(_, let old): old.isEmpty ? .info : .warning
         }
     }
 
@@ -222,9 +225,10 @@ enum WindowBanner: Equatable {
         case .lowRecordTime(let minutes): lowRecordTimeText(minutes: minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
-        case .exportReport(let report, let file):
+        case .exportReport(nil, let file, _): L10n.bannerExportDone.format(file)
+        case .exportReport(let report?, let file, _):
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
-        case .exportSetDone(_, let old): L10n.oldFilesText(old)
+        case .exportSetDone(let files, let old): old.isEmpty ? L10n.exportSetDoneText(files) : L10n.oldFilesText(old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
         case .stemsClipped(let names): stemsClippedText(names)
@@ -267,6 +271,8 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
+        // `showSet` announces a plain set with its loudness range.
+        case .exportSetDone(_, let old) where old.isEmpty: nil
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .stemsClipped,
             .stemsMixClipped, .stemsStopped, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseUnchanged, .soundRepaired, .leveledOverTime, .voiceMatchRefused,

@@ -681,6 +681,7 @@
 "banner.use.headphones" = "Usa le cuffie per tenere la voce dell\U2019ospite fuori dal tuo microfono.";
 "banner.monitor.headphones" = "Usa le cuffie per ascoltare il monitoraggio.";
 "banner.export.report" = "Esportato %1$@ (%2$@).";
+"banner.export.done" = "Esportato %@.";
 "announce.level.changed" = "Modificati %lld clip.";
 "announce.level.changed.one" = "Modificato 1 clip.";
 "banner.level.changed.none" = "Nessun clip modificato.";
@@ -886,6 +887,8 @@
 "alert.export.replace.confirm" = "Sostituisci";
 "alert.export.more" = "e altri %lld";
 "announce.export.set.done" = "%1$lld file esportati in %2$@.";
+"banner.export.set.done" = "%1$lld file esportati in %2$@.";
+"banner.export.set.done.one" = "1 file esportato in %@.";
 "announce.export.set.loudness" = "L\U2019intensità va da %1$@ a %2$@ LUFS.";
 "banner.export.set.stopped" = "Interrotto dopo l\U2019esportazione di %1$lld file su %2$lld.";
 "banner.export.set.old.one" = "Dirigible non elimina il file precedente %@ con questo prefisso.";

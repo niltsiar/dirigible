@@ -193,8 +193,8 @@ extension ExportWindowTests {
 
         let warnings = shown.banners.filter { $0.kind == .warning }
 
-        #expect(warnings == [.exportReport(try report(gain: 24), file: "Ep-01-A.wav")])
-        #expect(shown.banners.count == 1, "one warning and no done banner")
+        #expect(warnings == [.exportReport(try report(gain: 24), file: "Ep-01-A.wav", url: file("Ep-01-A.wav"))])
+        #expect(shown.banners.count == 2 && shown.banners.first?.kind == .info, "the done banner, then the warning")
     }
 
     @Test func anExistingPartFileShowsOneReplaceSheet() async throws {

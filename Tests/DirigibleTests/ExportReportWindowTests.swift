@@ -28,9 +28,9 @@ extension ExportWindowTests {
         return (model, studio, window)
     }
 
-    /// C9 (i): an export with a usual gain shows no banner, because the file is in the folder. VoiceOver
-    /// hears the name of the file and the report.
-    @Test func aPlainExportShowsNoBannerAndIsAnnounced() async throws {
+    /// C9 (i): an export with a usual gain shows an info banner with the file and its report, because the
+    /// file lands outside the window. VoiceOver reads the banner once.
+    @Test func aPlainExportShowsABannerAndIsAnnounced() async throws {
         let (model, studio, _) = try await window(noise: true)
         let chrome = try #require(model.chrome)
         var heard: [String] = []
@@ -40,11 +40,24 @@ extension ExportWindowTests {
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
 
         #expect(model.alert == nil, "\(String(describing: model.alert))")
-        let banners = ChromeState.reportBanners(model, studio)
-        #expect(!banners.contains { $0.key.hasPrefix("exportReport") }, "a plain export has a banner: \(banners)")
-        #expect(
-            heard.contains { $0.hasPrefix(leadText("banner.export.report")) }, "VoiceOver hears no report: \(heard)")
-        #expect(!heard.contains { $0.contains(L10n.reportGainLarge.text) }, "the fixture has a large gain: \(heard)")
+        let banner = try #require(ChromeState.reportBanners(model, studio).first { $0.key.hasPrefix("exportReport") })
+        #expect(banner.kind == .info && banner.text.hasPrefix(leadText("banner.export.report")), "\(banner)")
+        #expect(!banner.text.contains(L10n.reportGainLarge.text), "the fixture has a large gain: \(banner.text)")
+        await until("the report banner shows") { model.shown.banners.contains { $0.key == banner.key } }
+        #expect(heard.filter { $0 == banner.text }.count == 1, "VoiceOver hears the banner once: \(heard)")
+        await model.close()
+    }
+
+    /// C9 (i): an export with no loudness target shows an info banner with the file name only.
+    @Test func anExportWithNoTargetShowsADoneBanner() async throws {
+        let (model, studio, _) = try await window()
+        let source = try #require(model.source(of: .session, in: studio))
+
+        await model.run(source, target, studio)
+
+        let banner = try #require(ChromeState.reportBanners(model, studio).first { $0.key.hasPrefix("exportReport") })
+        #expect(banner.kind == .info, "\(banner)")
+        #expect(banner.text == L10n(rawValue: "banner.export.done")?.format("mix.wav"), "\(banner.text)")
         await model.close()
     }
 
@@ -62,13 +75,17 @@ extension ExportWindowTests {
         #expect(model.alert == nil, "the report is a modal alert: \(String(describing: model.alert))")
         let report = try #require(model.exportReport?.report)
         #expect(report.exceedsLevelLimit, "the fixture has a usual gain: \(report.gain)")
-        await until("the report banner shows") { model.shown.banners.contains(.exportReport(report, file: "mix.wav")) }
-        #expect(WindowBanner.exportReport(report, file: "mix.wav").kind == .warning)
-        #expect(heard.contains(WindowBanner.exportReport(report, file: "mix.wav").text), "no announcement: \(heard)")
+        await until("the report banner shows") {
+            model.shown.banners.contains(.exportReport(report, file: "mix.wav", url: out))
+        }
+        #expect(WindowBanner.exportReport(report, file: "mix.wav", url: out).kind == .warning)
+        #expect(
+            heard.contains(WindowBanner.exportReport(report, file: "mix.wav", url: out).text),
+            "no announcement: \(heard)")
         let off = ExportTarget(url: folder.url.appending(path: "off.wav"), options: Self.options, confirmed: nil)
         await model.run(source, off, studio)
-        #expect(model.exportReport == nil)
-        await until("the report banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
+        #expect(model.exportReport?.file == "off.wav")
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport.mix.wav" } }
         await model.close()
     }
 
@@ -120,7 +137,7 @@ extension ExportWindowTests {
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
         let report = try #require(model.exportReport?.report)
         await until("the report banner shows") {
-            model.shown.banners.contains(.exportReport(report, file: "mix.wav"))
+            model.shown.banners.contains(.exportReport(report, file: "mix.wav", url: out))
         }
 
         try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
@@ -168,14 +185,16 @@ extension ExportWindowTests {
                 target: LUFS(value: -16), measured: LUFS(value: -16 - gain), gain: try #require(Gain(dB: gain)),
                 output: LUFS(value: -16), truePeak: -1)
         }
-        #expect(WindowBanner.exportReport(try report(gain: 44), file: "a.wav").kind == .warning)
-        #expect(WindowBanner.exportReport(try report(gain: 14), file: "a.wav").kind == .info)
-        #expect(WindowBanner.exportReport(try report(gain: -21), file: "a.wav").kind == .warning)
+        let url = URL(filePath: "/a.wav")
+        #expect(WindowBanner.exportReport(try report(gain: 44), file: "a.wav", url: url).kind == .warning)
+        #expect(WindowBanner.exportReport(try report(gain: 14), file: "a.wav", url: url).kind == .info)
+        #expect(WindowBanner.exportReport(try report(gain: -21), file: "a.wav", url: url).kind == .warning)
         let large = try report(gain: 44)
-        #expect(WindowBanner.exportReport(large, file: "a.wav").text.hasSuffix(L10n.reportGainLarge.text))
+        #expect(WindowBanner.exportReport(large, file: "a.wav", url: url).text.hasSuffix(L10n.reportGainLarge.text))
         #expect(WindowAlert.exported(["f.wav"], large).text.hasSuffix(L10n.reportGainLarge.text))
         #expect(
-            !WindowBanner.exportReport(try report(gain: 14), file: "a.wav").text.contains(L10n.reportGainLarge.text))
+            !WindowBanner.exportReport(try report(gain: 14), file: "a.wav", url: url).text.contains(
+                L10n.reportGainLarge.text))
         for language in AppLanguage.allCases.map(\.rawValue) {
             let text = (try? stringsTable(language))?["banner.export.report"] ?? ""
             #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")

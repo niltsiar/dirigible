@@ -147,11 +147,11 @@ extension SessionWindow {
                 titleMissing: ExportText.lacksTitleTag(session.forPart($0.part), format: format),
                 file: $0.url.lastPathComponent, revision: revision)
         }
+        let faulty = files.filter { !$0.result.faults.isEmpty }
         showSet(
             ExportSetShown(
                 files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: old,
-                warnings: warnings, dropped: result.dropped, revision: revision))
-        let faulty = files.filter { !$0.result.faults.isEmpty }
+                faulty: !faulty.isEmpty, warnings: warnings, dropped: result.dropped, revision: revision))
         guard !faulty.isEmpty else { return }
         let faults = faulty.reduce(into: [FileID: MediaFault]()) { $0.merge($1.result.faults) { first, _ in first } }
         alert = .exportedSet(
@@ -203,11 +203,11 @@ extension SessionWindow {
                     titleMissing: ExportText.lacksTitleTag(session, format: preset.options.format),
                     file: file.url.lastPathComponent, revision: revision)
             }
+            let faulty = files.filter { !$0.result.faults.isEmpty }
             showSet(
                 ExportSetShown(
                     files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness),
-                    old: [], warnings: warnings, revision: revision))
-            let faulty = files.filter { !$0.result.faults.isEmpty }
+                    old: [], faulty: !faulty.isEmpty, warnings: warnings, revision: revision))
             guard !faulty.isEmpty else { return }
             let faults = faulty.reduce(into: [FileID: MediaFault]()) {
                 $0.merge($1.result.faults) { first, _ in first }

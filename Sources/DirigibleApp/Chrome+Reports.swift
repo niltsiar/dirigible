@@ -6,7 +6,7 @@ extension ChromeState {
     @MainActor static func reportBanners(_ model: SessionWindow, _ studio: Studio) -> [WindowBanner] {
         var banners: [WindowBanner] = []
         if let shown = model.exportReport, shown.revision == studio.sessionRevision {
-            banners.append(.exportReport(shown.report, file: shown.file))
+            banners.append(.exportReport(shown.report, file: shown.file, url: shown.url))
         }
         if let shown = model.exportSet, shown.revision == studio.sessionRevision { banners += shown.banners }
         if let shown = model.stemsShown, shown.revision == studio.sessionRevision { banners += shown.banners }

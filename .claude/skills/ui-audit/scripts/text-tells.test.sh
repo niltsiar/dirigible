@@ -29,6 +29,7 @@ cat >"$tmp/tells.strings" <<EOF
 "a.contraction" = "Don't Save";
 "a.negation" = "The clip does not move";
 "a.owner" = "Dirigible could not sync";
+"a.countd" = "Clips: %d";
 EOF
 
 cat >"$tmp/clean.strings" <<EOF
@@ -42,9 +43,9 @@ cat >"$tmp/clean.strings" <<EOF
 "c.state" = "The take is ready";
 EOF
 
-expect_tells="values 13
-colon_fact 2
-count_after_colon 1
+expect_tells="values 14
+colon_fact 3
+count_after_colon 2
 two_sentences 1
 app_name_subject 3
 error_opener 1

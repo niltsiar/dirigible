@@ -891,8 +891,8 @@
 "banner.export.set.done.one" = "Exported 1 file to %@.";
 "announce.export.set.loudness" = "Loudness ranges from %1$@ to %2$@ LUFS.";
 "banner.export.set.stopped" = "Stopped after exporting %1$lld of %2$lld files.";
-"banner.export.set.old.one" = "Dirigible doesn't delete the older file %@ with this prefix.";
-"banner.export.set.old.many" = "Dirigible doesn't delete %1$lld older files with this prefix, including %2$@.";
+"banner.export.set.old.one" = "The older file %@ with this prefix stays.";
+"banner.export.set.old.many" = "%1$lld older files with this prefix stay, including %2$@.";
 "banner.export.set.show" = "Show in Finder";
 "banner.export.set.dropped" = "No file for \U201C%@\U201D, which starts at the previous split point or at the end of the range.";
 "menu.file.export.stems" = "Export Stems…";
@@ -1017,11 +1017,11 @@
 "error.template.download" = "The file “%@” of the template isn't on this Mac. Download it and try again.";
 "error.template.space" = "The copy needs %1$@ of free disk space, and the disk has %2$@. Free some disk space and try again.";
 "error.template.write" = "“%1$@” can't be copied (error %2$lld). Check the disk and try again.";
-"error.template.exists" = "An item with this name exists. Dirigible didn't replace it.";
+"error.template.exists" = "An item with this name exists. It wasn't replaced.";
 "error.template.trash" = "The old template “%@” couldn't be moved to the Trash. Nothing was saved.";
 "error.template.open" = "The template “%@” is open in a window. Close it and try again. Nothing was saved.";
-"error.template.kept.old" = "The new template “%1$@” is saved. Dirigible couldn't move the old template to the Trash. The old template is in a temporary folder. Move it to keep it.\n\n%2$@";
-"error.template.kept.new" = "The old template “%1$@” is in the Trash. Dirigible couldn't save the new template under its name. The new template is in a temporary folder. Move it to keep it.\n\n%2$@";
+"error.template.kept.old" = "The new template “%1$@” is saved. The old template couldn't be moved to the Trash. The old template is in a temporary folder. Move it to keep it.\n\n%2$@";
+"error.template.kept.new" = "The old template “%1$@” is in the Trash. The new template couldn't be saved under its name. The new template is in a temporary folder. Move it to keep it.\n\n%2$@";
 "error.template.yielded" = "A take stopped the template copy. Nothing was made. Try again after the take.";
 "menu.file.export.presets" = "Export with Presets…";
 "export.presets.title" = "Export with Presets";

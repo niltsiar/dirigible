@@ -39,7 +39,7 @@ count() {
 }
 printf 'values %s\n' "$(values | wc -l | tr -d ' ')"
 count colon_fact values '[a-z]: [a-z%]'
-count count_after_colon values ': %(lld|@)\.?$'
+count count_after_colon values ': %(lld|d|@)\.?$'
 count two_sentences values '\. [A-Z%]'
 count app_name_subject values 'Dirigible (did|does|sends|keeps|cannot|could)'
 count error_opener error_values '^Dirigible (cannot|could not|did not)'

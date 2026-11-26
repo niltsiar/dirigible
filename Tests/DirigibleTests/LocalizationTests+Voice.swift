@@ -38,7 +38,7 @@ extension LocalizationTests {
             ])
         let voice = [
             "error.a": "There isn't enough space to render the clips.", "error.b": "The clip can't move.",
-            "error.c": "The take couldn't be saved. Dirigible keeps the audio.",
+            "error.c": "The take couldn't be saved. The audio stays on the disk.",
         ]
         #expect(errorProblems(voice) == [])
     }
@@ -53,21 +53,25 @@ extension LocalizationTests {
         #expect(labelColonKeys.count <= 5, "\(labelColonKeys.count) keys may have a fact after a colon")
         let stale = labelColonKeys.filter { !hasFactAfterColon(english[$0] ?? "") }
         #expect(stale.isEmpty, "keys with no fact after a colon: \(stale.sorted())")
+        let staleSubjects = appNameSubjectKeys.filter { !startsWithAppName(english[$0] ?? "") }
+        #expect(staleSubjects.isEmpty, "keys with no app name as the subject: \(staleSubjects.sorted())")
     }
 
     @Test func textCheckerFindsEachTellAndKeepsTheVoice() {
         let tells = [
             "a": "Words selected: %lld", "b": "Option-click: all tracks.", "c": "Stopped because the disk is full.",
             "d": "Dirigible sends nothing.", "e": "The file is not saved.",
+            "f": "The clip didn't move. Dirigible doesn't delete it.",
         ]
         #expect(
             textProblems(tells, labelKeys: []) == [
                 "a: a count after a colon", "a: a fact after a colon", "b: a fact after a colon", "c: because",
-                "d: the app name as the subject", "e: an uncontracted negation",
+                "d: the app name as the subject", "e: an uncontracted negation", "f: the app name as the subject",
             ])
         let voice = [
             "a": "%lld words selected", "b": "Option-click to apply to all tracks.", "c": "Files: %lld (%@)",
             "d": "The report goes nowhere on its own.",
+            "report.saved": "Report saved. Dirigible shows the file in Finder.",
         ]
         #expect(textProblems(voice, labelKeys: ["c"]) == [])
     }
@@ -213,6 +217,21 @@ private func hasFactAfterColon(_ value: String) -> Bool {
     value.firstMatch(of: /[a-z]: [a-z%]/) != nil
 }
 
+/// The app name and a lowercase word at the start of a sentence: a verb, a contracted form included.
+private func startsWithAppName(_ value: String) -> Bool {
+    value.firstMatch(of: /(?:^|[.?!] |\n)Dirigible [a-z]/) != nil
+}
+
+/// The keys where the app is the right subject: it acts for the user, or it is the one that quit.
+private let appNameSubjectKeys: Set = [
+    "error.microphone.denied", "error.import.channels", "report.saved", "notice.unclean.text",
+    "sheet.transcribe.note.download", "error.template.file",
+]
+
+private func hasAppNameSubject(_ key: String, _ value: String) -> Bool {
+    !appNameSubjectKeys.contains(key) && startsWithAppName(value)
+}
+
 /// The keys of a label and its value (a count and a size, or a list of names), which keep a colon.
 private let labelColonKeys: Set = [
     "media.missing", "banner.export.chapter.dropped", "alert.quit.unsaved", "sheet.unused.total",
@@ -226,9 +245,7 @@ private func textProblems(_ values: [String: String], labelKeys: Set<String>) ->
         if value.firstMatch(of: /: %(?:lld|d|@)\.?$/) != nil { problems.append("\(key): a count after a colon") }
         if hasUncontractedNegation(value) { problems.append("\(key): an uncontracted negation") }
         if value.firstMatch(of: /\bbecause\b/) != nil { problems.append("\(key): because") }
-        if value.firstMatch(of: /Dirigible (?:cannot|can|could|did|does|sends|keeps)(?![A-Za-z])/) != nil {
-            problems.append("\(key): the app name as the subject")
-        }
+        if hasAppNameSubject(key, value) { problems.append("\(key): the app name as the subject") }
         if hasFactAfterColon(value), !labelKeys.contains(key) {
             problems.append("\(key): a fact after a colon")
         }
@@ -241,9 +258,7 @@ private func errorProblems(_ values: [String: String]) -> [String] {
     var problems: [String] = []
     for (key, value) in values.sorted(by: { $0.key < $1.key }) {
         if hasUncontractedNegation(value) { problems.append("\(key): an uncontracted negation") }
-        if value.firstMatch(of: /^Dirigible (?:cannot|can|could|did|does)(?![A-Za-z])/) != nil {
-            problems.append("\(key): the app name as the subject")
-        }
+        if hasAppNameSubject(key, value) { problems.append("\(key): the app name as the subject") }
     }
     return problems
 }

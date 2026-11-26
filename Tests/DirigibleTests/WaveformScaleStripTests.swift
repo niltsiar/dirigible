@@ -137,7 +137,7 @@ import Testing
     /// 0 dB label sits below the lane top. No two labels of a lane overlap as drawn, at each range and
     /// lane height.
     @Test func theLabelsDoNotOverlapAsDrawn() {
-        let digits = WaveformScaleStrip.labelFont(range: .db60).capHeight
+        let digits = WaveformScaleStrip.labelFont.capHeight
         #expect(WaveformScaleStrip.labelHeight >= digits, "the label height holds the digits")
         for range in WaveformRange.allCases {
             for height in LaneHeight.steps where height >= WaveformScaleStrip.labelsFrom {
@@ -169,8 +169,8 @@ import Testing
             WaveformScaleStrip.labelled(range: range, laneHeight: height)
                 .map { WaveformScaleStrip.labelText(dB: $0.dB) }
         }
+        #expect(WaveformScaleStrip.labelFont.pointSize == 10)
         for range in WaveformRange.allCases {
-            #expect(WaveformScaleStrip.labelFont(range: range).pointSize == 10, "\(range.rawValue) dB")
             for height in [48.0, 100, 200] {
                 for text in drawn(range, height) {
                     let fits = width(text) <= WaveformScaleStrip.labelRoom

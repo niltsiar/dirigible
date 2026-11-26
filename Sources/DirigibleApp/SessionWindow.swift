@@ -86,10 +86,13 @@ import SwiftUI
     /// again (on-screen check, code gate 2).
     var heldTabChanges = 0
     /// The typed text of the Marker pane, the field with the focus, and the field that gets the
-    /// focus at the next pane update (Name for Marker Info…).
+    /// focus, kept until a field editor edits that field (Name for Marker Info…).
     var markerDraft: MarkerDraft?
     @ObservationIgnored var markerFocus: MarkerField?
     var markerFocusRequest: MarkerField?
+    /// True while a field editor is first responder. A pane can still hold a stale focus value
+    /// after AppKit gave the focus to another view: SwiftUI reports that move at a later layout.
+    var fieldEditorHasFocus: Bool { (window?.firstResponder as? NSTextView)?.isFieldEditor == true }
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0

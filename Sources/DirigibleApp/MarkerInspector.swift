@@ -28,17 +28,18 @@ struct MarkerInspector: View {
     let model: SessionWindow
     let studio: Studio
     @FocusState private var focus: MarkerField?
-    /// The field of a focus request until the pane reports a field (as in `EpisodeInspector`).
-    @State private var requested: MarkerField?
 
     var body: some View {
-        Group {
-            if let id = model.timeline.marker, let marker = studio.session.markers[id] {
-                pane(marker)
-            } else {
-                // The style of No Selection of the Clip pane.
-                Text(L10n.markerNone.key).font(.title3).foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // One container carries the modifiers: a switch between its branches is no pane leaving.
+        ZStack {
+            Group {
+                if let id = model.timeline.marker, let marker = studio.session.markers[id] {
+                    pane(marker)
+                } else {
+                    // The style of No Selection of the Clip pane.
+                    Text(L10n.markerNone.key).font(.title3).foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         // A field with the focus ends its edit at a marker change, so it never shows the text of
@@ -47,16 +48,25 @@ struct MarkerInspector: View {
         .onChange(of: focus) { old, new in
             model.markerFocus = new
             if old != nil { model.commitMarker() }
-            if let field = requested {
-                if new == nil { focus = field } else { requested = nil }
+            guard let field = model.markerFocusRequest else { return }
+            if new == nil {
+                focus = field
+            } else if new != field || model.fieldEditorHasFocus {
+                model.markerFocusRequest = nil
             }
         }
-        .task(id: model.markerFocusRequest) {
-            guard let field = model.markerFocusRequest else { return }
-            // A pane that the request shows gets its fields at the next pass.
-            await Task.yield()
-            if focus != field { requested = field }
+        .task(id: model.markerFocusRequest) { giveFocus() }
+        .onDisappear { model.markerFocusRequest = nil }
+    }
+
+    /// Sets the focus to the field of the request. A focus value that already equals it ends the
+    /// request only while a field editor is first responder; else the value is stale, and the nil
+    /// report of SwiftUI sets the field again.
+    private func giveFocus() {
+        guard let field = model.markerFocusRequest else { return }
+        if focus != field {
             focus = field
+        } else if model.fieldEditorHasFocus {
             model.markerFocusRequest = nil
         }
     }
@@ -104,6 +114,7 @@ struct MarkerInspector: View {
                 ) { Text(label.key) }
                 .labelsHidden()
                 .focused($focus, equals: field)
+                .onAppear { giveFocus() }
                 .onSubmit {
                     model.commitMarker()
                     if model.markerDraft?.refused != true { model.focusLanes() }

@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Timeline";
 "drop.new.track" = "Nouvelle piste";
 "drop.new.tracks" = "%lld nouvelles pistes";
+"drop.hint" = "Déposez des fichiers audio ici pour ajouter des pistes.";
 "timeline.header.handle" = "Largeur des en-têtes de piste";
 "timeline.header.rename" = "Renommer";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Crête réelle la plus élevée, dBTP";
 "loudness.target.tip" = "La sonie cible de l’exportation";
 "loudness.take.tip" = "Chaque piste armée affiche sa sonie dans son en-tête quand l’en-tête mesure 262 pt ou plus, ou quand la piste est assez haute pour deux lignes";
+"loudness.idle" = "Lecture pour mesurer";
 "menu.edit.in" = "Définir le début de la plage";
 "menu.edit.out" = "Définir la fin de la plage";
 "menu.edit.deselect" = "Tout désélectionner";

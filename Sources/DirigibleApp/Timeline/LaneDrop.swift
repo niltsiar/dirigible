@@ -15,6 +15,11 @@ final class LaneDrop {
     let line = CALayer()
     let row = CAShapeLayer()
     let text = CATextLayer()
+    /// The hint at rest, in the row under the last lane where a drop adds tracks. The cue hides it.
+    let hint = CATextLayer()
+    private var hintFrame: CGRect?
+    private var hintScale = 0.0
+    private var cueShown = false
     /// The palette of the lanes: the accent and the label color of the cue.
     var palette = LanePalette.light {
         didSet { setColors() }
@@ -30,7 +35,28 @@ final class LaneDrop {
         text.font = NSFont.systemFont(ofSize: 12, weight: .medium)
         text.fontSize = 12
         text.truncationMode = .end
+        hint.isHidden = true
+        hint.font = NSFont.systemFont(ofSize: 12)
+        hint.fontSize = 12
+        hint.alignmentMode = .center
+        hint.truncationMode = .end
+        layer.addSublayer(hint)
         setColors()
+    }
+
+    /// Places the hint in `frame`, or hides it for nil. It writes a layer only when the place changes.
+    func place(hint frame: CGRect?, scale: Double) {
+        guard frame != hintFrame || scale != hintScale else { return }
+        (hintFrame, hintScale) = (frame, scale)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let frame {
+            hint.frame = frame
+            hint.contentsScale = scale
+            if hint.string as? String != L10n.dropHint.text { hint.string = L10n.dropHint.text }
+        }
+        hint.isHidden = frame == nil || cueShown
+        CATransaction.commit()
     }
 
     /// Shows the cue of a drop on the lane `lane`, or on new tracks for nil, at the document x `x`.
@@ -43,6 +69,7 @@ final class LaneDrop {
         let width = contrast ? 2.0 : 1.0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        (cueShown, hint.isHidden) = (true, true)
         (tint.isHidden, row.isHidden, text.isHidden, line.isHidden) = (lane == nil, lane != nil, lane != nil, false)
         if let lane {
             tint.frame = CGRect(x: shown.minX, y: Double(lane) * laneHeight, width: shown.width, height: laneHeight)
@@ -76,6 +103,7 @@ final class LaneDrop {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for sublayer in [tint, line, row, text] as [CALayer] { sublayer.isHidden = true }
+        (cueShown, hint.isHidden) = (false, hintFrame == nil)
         CATransaction.commit()
     }
 
@@ -85,6 +113,7 @@ final class LaneDrop {
         CATransaction.setDisableActions(true)
         (tint.backgroundColor, tint.borderColor, line.backgroundColor) = (fill, accent, accent)
         (row.fillColor, row.strokeColor, text.foregroundColor) = (fill, accent, cgColor(palette.label))
+        hint.foregroundColor = cgColor(palette.label, alpha: 0.6)
         CATransaction.commit()
     }
 }

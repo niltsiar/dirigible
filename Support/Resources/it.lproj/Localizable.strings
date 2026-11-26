@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Timeline";
 "drop.new.track" = "Nuova traccia";
 "drop.new.tracks" = "%lld nuove tracce";
+"drop.hint" = "Rilascia i file audio qui per aggiungere tracce.";
 "timeline.header.handle" = "Larghezza delle intestazioni traccia";
 "timeline.header.rename" = "Rinomina";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Picco reale massimo, dBTP";
 "loudness.target.tip" = "L’intensità obiettivo dell’esportazione";
 "loudness.take.tip" = "Ogni traccia abilitata alla registrazione mostra la sua intensità nell’intestazione quando l’intestazione è larga 262 pt o più, o quando la traccia è abbastanza alta per due righe";
+"loudness.idle" = "Riproduci per misurare";
 "menu.edit.in" = "Imposta inizio dell’intervallo";
 "menu.edit.out" = "Imposta fine dell’intervallo";
 "menu.edit.deselect" = "Deseleziona tutto";

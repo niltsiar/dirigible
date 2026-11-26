@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Timeline";
 "drop.new.track" = "Neue Spur";
 "drop.new.tracks" = "%lld neue Spuren";
+"drop.hint" = "Audiodateien hier ablegen, um Spuren hinzuzufügen.";
 "timeline.header.handle" = "Breite des Spur-Headers";
 "timeline.header.rename" = "Umbenennen";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Höchster True Peak, dBTP";
 "loudness.target.tip" = "Das Loudness-Ziel des Exports";
 "loudness.take.tip" = "Jede aufnahmebereite Spur zeigt ihre Loudness in ihrem Header, wenn der Header 262 pt oder breiter ist oder die Spur hoch genug für zwei Zeilen ist";
+"loudness.idle" = "Zum Messen abspielen";
 "menu.edit.in" = "Startpunkt setzen";
 "menu.edit.out" = "Endpunkt setzen";
 "menu.edit.deselect" = "Auswahl aufheben";

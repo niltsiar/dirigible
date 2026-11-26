@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Linha cronológica";
 "drop.new.track" = "Nova faixa";
 "drop.new.tracks" = "%lld novas faixas";
+"drop.hint" = "Largue ficheiros de áudio aqui para adicionar faixas.";
 "timeline.header.handle" = "Largura do cabeçalho das faixas";
 "timeline.header.rename" = "Alterar nome";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Pico real máximo, dBTP";
 "loudness.target.tip" = "O alvo de intensidade da exportação";
 "loudness.take.tip" = "Cada faixa ativada para gravação mostra a sua intensidade no cabeçalho quando o cabeçalho tem 262 pt ou mais de largura, ou quando a faixa é suficientemente alta para duas linhas";
+"loudness.idle" = "Reproduzir para medir";
 "menu.edit.in" = "Definir ponto de entrada";
 "menu.edit.out" = "Definir ponto de saída";
 "menu.edit.deselect" = "Desselecionar tudo";

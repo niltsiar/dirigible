@@ -223,8 +223,8 @@
 "replace.done" = "Substituídos %@ segundos";
 "fill.done" = "Preenchidos %1$@ segundos com %2$lld clipes.";
 "fill.done.one" = "Preenchidos %@ segundos com 1 clipe.";
-"split.banner" = "Dividindo clipes estéreo em faixas mono";
-"split.done" = "Dividido em duas faixas mono.";
+"split.banner" = "Dividindo clipes estéreo em pistas mono";
+"split.done" = "Dividido em duas pistas mono.";
 "split.suffix.left" = "E";
 "split.suffix.right" = "D";
 "error.split.space" = "O disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
@@ -267,7 +267,7 @@
 "error.denoise.unreadable" = "Não foi possível ler o arquivo de áudio \U201C%1$@\U201D (erro %2$lld). Verifique o disco e tente novamente.";
 "error.denoise.missing" = "O arquivo de áudio \U201C%@\U201D não está na pasta Clips da sessão. Coloque o arquivo de volta e tente novamente.";
 "error.denoise.not.downloaded" = "O arquivo de áudio \U201C%@\U201D não está neste Mac. Baixe o arquivo primeiro.";
-"error.denoise.track.role" = "Reduzir Ruído pula as faixas de Música e Efeitos. Selecione clipes de outras faixas e tente novamente.";
+"error.denoise.track.role" = "Reduzir Ruído pula as pistas de Música e Efeitos. Selecione clipes de outras pistas e tente novamente.";
 "error.denoise.mixed" = "Clipes que compartilham áudio receberam valores diferentes. Use um só valor para eles e tente novamente.";
 "error.denoise.unavailable" = "A redução de ruído do macOS não foi carregada (erro %lld). Tente novamente.";
 "error.denoise.engine" = "O mecanismo de áudio parou (erro %lld). Tente novamente.";
@@ -682,7 +682,7 @@
 "banner.use.headphones" = "Use fones de ouvido para que a voz do convidado não entre no seu microfone.";
 "banner.monitor.headphones" = "Use fones de ouvido para ouvir o monitor.";
 "banner.export.report" = "%1$@ exportado (%2$@).";
-"banner.export.report.large" = "%1$@ exportado com uma variação de ganho de %2$+.1f dB. Verifique se a seleção tem fala.";
+"banner.export.report.large" = "%1$@ exportado com um ganho de %2$+.1f dB. Verifique se a seleção tem fala.";
 "banner.export.done" = "%@ exportado.";
 "announce.level.changed" = "%lld clipes alterados.";
 "announce.level.changed.one" = "1 clipe alterado.";
@@ -715,7 +715,7 @@
 "transcript.notloaded" = "O arquivo da transcrição %lld (%@) está ausente ou danificado. Importe a transcrição novamente.";
 "menu.file.import.transcript" = "Importar Transcrição…";
 "transcript.empty.title" = "Sem transcrição";
-"transcript.empty.hint" = "Importe um arquivo JSON do Whisper, WebVTT ou SRT para uma faixa.";
+"transcript.empty.hint" = "Importe um arquivo JSON do Whisper, WebVTT ou SRT para uma pista.";
 "transcript.follow" = "Seguir o cursor";
 "transcript.gotoword" = "Ir para a palavra";
 "transcript.selected" = "%lld palavras selecionadas";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Baixar e transcrever";
 "sheet.transcribe.replace" = "Substituir";
 "sheet.transcribe.note.download" = "O Dirigible baixa este modelo uma vez. Seu áudio nunca sai deste Mac.";
-"sheet.transcribe.note.replace.one" = "Esta faixa tem 1 palavra de transcrição.";
-"sheet.transcribe.note.replace.many" = "Esta faixa tem %lld palavras de transcrição.";
+"sheet.transcribe.note.replace.one" = "Esta pista tem 1 palavra de transcrição.";
+"sheet.transcribe.note.replace.many" = "Esta pista tem %lld palavras de transcrição.";
 "sheet.transcribe.choose" = "Escolher Arquivo de Modelo…";
 "sheet.transcribe.missing" = "%@ (ausente)";
 "sheet.transcribe.note.file" = "Um modelo de fora da lista do Dirigible pode variar em velocidade e precisão. Seu áudio nunca sai deste Mac.";
@@ -813,17 +813,17 @@
 "transcribe.banner.firewall" = "Ainda sem dados de %@. Verifique seu firewall.";
 "transcribe.stopped" = "Uma gravação interrompeu a transcrição.";
 "transcribe.again" = "Transcrever de novo";
-"transcribe.nowords" = "Nenhuma palavra encontrada. A faixa não mudou.";
-"transcribe.canceled" = "Transcrição cancelada. A faixa não mudou.";
+"transcribe.nowords" = "Nenhuma palavra encontrada. A pista não mudou.";
+"transcribe.canceled" = "Transcrição cancelada. A pista não mudou.";
 "error.transcribe.load" = "O modelo de voz não carregou. Apague o arquivo dele em ~/Library/Application Support/Dirigible/Models.";
 "error.transcribe.download" = "O download do modelo falhou. Verifique sua conexão com a internet e tente de novo.";
 "error.transcribe.download.nodata" = "O download do modelo não recebeu dados de %@. Verifique seu firewall e tente de novo.";
 "error.transcribe.folder" = "Não foi possível gravar o modelo de voz em %1$@ (erro %2$lld). Verifique a pasta e tente de novo.";
 "error.transcribe.download.checksum" = "O modelo de voz baixado não é o arquivo esperado. Tente de novo mais tarde.";
 "error.transcribe.checksum" = "O arquivo do modelo de voz está danificado. Apague-o em ~/Library/Application Support/Dirigible/Models.";
-"error.transcribe.audio" = "Não foi possível ler o arquivo de áudio %1$@ (erro %2$lld). A faixa não mudou.";
+"error.transcribe.audio" = "Não foi possível ler o arquivo de áudio %1$@ (erro %2$lld). A pista não mudou.";
 "error.transcribe.vad" = "Falta o modelo que detecta a voz. Instale o Dirigible de novo.";
-"error.transcribe.engine" = "O mecanismo de voz falhou (código %lld). A faixa não mudou.";
+"error.transcribe.engine" = "O mecanismo de voz falhou (código %lld). A pista não mudou.";
 "menu.tools.silences" = "Procurar silêncios…";
 "inspector.tab.silences" = "Silêncios";
 "silences.tracks" = "Faixas";
@@ -839,7 +839,7 @@
 "silences.action.mark" = "Marcar";
 "silences.action.skip" = "Ignorar";
 "silences.reason.word" = "Contém uma palavra";
-"silences.reason.sound" = "Som em uma faixa fora da busca";
+"silences.reason.sound" = "Som em uma pista fora da busca";
 "silences.row.label" = "Silêncio em %1$@, %2$@ segundos, %3$@";
 "silences.summary.counts" = "%1$lld Encurtar, %2$lld Silenciar, %3$lld Marcar, %4$lld Ignorar";
 "silences.summary.time" = "%1$@ s removidos, duração %2$@ s";
@@ -850,8 +850,8 @@
 "silences.keep.refusal" = "Manter deve ser menor que a duração mínima.";
 "silences.stale" = "Os ajustes ou as pistas mudaram. Procure de novo para atualizar a lista.";
 "silences.mark.name" = "Silêncio %lld";
-"silences.help.tracks" = "A busca lê as faixas marcadas. Um corte ainda remove o tempo de todas as faixas.";
-"silences.help.threshold" = "Uma parte de uma faixa neste nível ou abaixo é silêncio.";
+"silences.help.tracks" = "A busca lê as pistas marcadas. Um corte ainda remove o tempo de todas as pistas.";
+"silences.help.threshold" = "Uma parte de uma pista neste nível ou abaixo é silêncio.";
 "silences.help.minimum" = "O menor silêncio da lista.";
 "silences.help.keep" = "O tempo que Encurtar deixa em cada silêncio, abaixo da duração mínima.";
 "silences.help.action" = "Define a ação das linhas selecionadas.";
@@ -913,7 +913,7 @@
 "track.follow.turn.off" = "Desativar “Acompanhar o deslocamento”";
 "alert.follow.overlap.title" = "Um clipe cobriria outro clipe.";
 "alert.follow.overlap.body" = "Mova o clipe em %1$@ em %2$@ ou desative \U201CAcompanhar o deslocamento\U201D.";
-"error.ripple.follow.only" = "Todas as faixas acompanham o deslocamento. Desative \U201CAcompanhar o deslocamento\U201D em uma faixa para cortar.";
+"error.ripple.follow.only" = "Todas as pistas acompanham o deslocamento. Desative \U201CAcompanhar o deslocamento\U201D em uma pista para cortar.";
 
 /* Edit > Find in Session Index */
 "menu.edit.find.index" = "Buscar no Índice da Sessão…";

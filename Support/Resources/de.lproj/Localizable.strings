@@ -591,7 +591,7 @@
 "panel.export.note.many" = "%lld Spuren sind nicht im Export. Sie sind stummgeschaltet oder nicht auf Solo.";
 "panel.export.note.silent" = "Keine Spur ist hörbar. Die Datei enthält nur Stille.";
 "panel.stems.folder.name" = "Ordnername:";
-"panel.stems.scope.whole" = "%1$lld von %2$lld Spuren, die ganze Sitzung";
+"panel.stems.scope.whole" = "%1$lld von %2$lld Spuren, die ganze Session";
 "panel.stems.scope.range" = "%1$lld von %2$lld Spuren, %3$@ bis %4$@";
 "panel.stems.content" = "Jede Stem-Datei enthält ihre Spuren mit Pegel und Effekten, wie im Mix.";
 "panel.stems.role.none" = "Keine Rolle";
@@ -611,7 +611,7 @@
 "panel.export.channels.stereo" = "Stereo";
 "panel.export.channels.mono" = "Mono";
 "panel.export.rate" = "Abtastrate";
-"panel.export.rate.session" = "Sitzung (%@ kHz)";
+"panel.export.rate.session" = "Session (%@ kHz)";
 "panel.export.rate.44100" = "44,1 kHz";
 "panel.export.rate.48000" = "48 kHz";
 "panel.export.loudness" = "Loudness";
@@ -724,7 +724,7 @@
 "alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern.";
 "alert.transcript.take" = "Das Transkript wurde nicht importiert, während ein Take lief.";
 "alert.transcript.unreadable" = "%@ konnte nicht gelesen werden. %@";
-"alert.transcript.busy" = "Das Transkript wurde nicht importiert, während die Sitzung beschäftigt war.";
+"alert.transcript.busy" = "Das Transkript wurde nicht importiert, während die Session beschäftigt war.";
 "banner.transcript.skipped" = "%lld Wörter haben keinen Clip.";
 "banner.transcript.skipped.one" = "1 Wort hat keinen Clip.";
 "banner.transcript.untimed" = "%lld Wörter haben keine Zeit.";
@@ -754,7 +754,7 @@
 "start.recent.missing" = "Nicht gefunden";
 "menu.help.report" = "Problem melden…";
 "report.title" = "Problem melden";
-"report.privacy" = "Der Bericht enthält kein Audio, keine Sitzungsdateien und keine Transkripte. Er enthält die Namen deiner Audiogeräte, der Apps, die du aufnimmst, und das Modell deines Macs. Die Protokolle zeigen einen Code anstelle jeder Geräte-ID. Die Absturz- und Hängerberichte sind so kopiert, wie macOS sie geschrieben hat, gekürzt auf den Teil über Dirigible. Dein Benutzername, der Name deines Macs und dein Home-Ordner werden aus jeder Datei entfernt. Ein Bericht kann trotzdem andere Ordner- und Dateinamen enthalten. Nichts wird von selbst gesendet. Du entscheidest, ob du die Datei sendest und an wen.";
+"report.privacy" = "Der Bericht enthält kein Audio, keine Session-Dateien und keine Transkripte. Er enthält die Namen deiner Audiogeräte, der Apps, die du aufnimmst, und das Modell deines Macs. Die Protokolle zeigen einen Code anstelle jeder Geräte-ID. Die Absturz- und Hängerberichte sind so kopiert, wie macOS sie geschrieben hat, gekürzt auf den Teil über Dirigible. Dein Benutzername, der Name deines Macs und dein Home-Ordner werden aus jeder Datei entfernt. Ein Bericht kann trotzdem andere Ordner- und Dateinamen enthalten. Nichts wird von selbst gesendet. Du entscheidest, ob du die Datei sendest und an wen.";
 "report.included.show" = "Zeigen, was enthalten ist";
 "report.included.logs" = "Die Protokolle der letzten 7 Tage, mit den Aufrufstapeln bei Hängern";
 "report.included.crashes" = "Die Absturz- und Hängerberichte von Dirigible";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Laden und transkribieren";
 "sheet.transcribe.replace" = "Ersetzen";
 "sheet.transcribe.note.download" = "Dirigible lädt dieses Modell einmal herunter. Dein Audio verlässt diesen Mac nie.";
-"sheet.transcribe.note.replace.one" = "Diese Spur hat 1 Wort Transkript.";
-"sheet.transcribe.note.replace.many" = "Diese Spur hat %lld Wörter Transkript.";
+"sheet.transcribe.note.replace.one" = "Diese Spur hat 1 Wort des Transkripts.";
+"sheet.transcribe.note.replace.many" = "Diese Spur hat %lld Wörter des Transkripts.";
 "sheet.transcribe.choose" = "Modelldatei auswählen …";
 "sheet.transcribe.missing" = "%@ (fehlt)";
 "sheet.transcribe.note.file" = "Ein Modell außerhalb der Liste von Dirigible kann bei Geschwindigkeit und Genauigkeit abweichen. Dein Audio verlässt diesen Mac nie.";
@@ -876,9 +876,9 @@
 "panel.export.files.chapters" = "Eine pro Kapitel (%lld)";
 "panel.export.files.markers" = "Eine pro Marker (%lld)";
 "panel.export.files.nochapters.selection" = "Die Auswahl hat keine Kapitel.";
-"panel.export.files.nochapters.session" = "Die Sitzung hat keine Kapitel.";
+"panel.export.files.nochapters.session" = "Die Session hat keine Kapitel.";
 "panel.export.files.nomarkers.selection" = "Die Auswahl hat keine Marker.";
-"panel.export.files.nomarkers.session" = "Die Sitzung hat keine Marker.";
+"panel.export.files.nomarkers.session" = "Die Session hat keine Marker.";
 "panel.export.prefix" = "Präfix:";
 "panel.export.line" = "Schreibt %1$lld Dateien, beginnend mit %2$@. %3$@ bleibt unverändert.";
 "panel.export.line.one" = "Schreibt 1 Datei, %1$@. %2$@ bleibt unverändert.";
@@ -898,14 +898,14 @@
 "banner.export.set.show" = "Im Finder zeigen";
 "banner.export.set.dropped" = "Keine Datei für \U201E%@\U201C. Der Beginn liegt am vorherigen Teilungspunkt oder am Ende des Bereichs.";
 "menu.file.export.stems" = "Stems exportieren …";
-"error.export.nostem" = "Die Sitzung hat jetzt keinen Stem im Exportbereich. Es wurde keine Datei geschrieben.";
+"error.export.nostem" = "Die Session hat jetzt keinen Stem im Exportbereich. Es wurde keine Datei geschrieben.";
 "banner.stems.done" = "%1$lld Stems wurden nach %2$@ exportiert.";
 "banner.stems.done.one" = "1 Stem wurde nach %@ exportiert.";
 "banner.stems.stopped" = "Es wurde kein Stem geschrieben.";
 "banner.stems.clipped" = "Die Stem-Dateien %@ übersteuern über 0 dBFS. Zusammen ergeben die Stems nicht den Mix.";
 "banner.stems.mix.clipped" = "Der Mix der Stems liegt über 0 dBFS. Er entspricht keinem Mix-Export.";
-"error.export.nochapter" = "Die Sitzung hat jetzt keine Kapitel im Exportbereich. Es wurde keine Datei geschrieben.";
-"error.export.nomarker" = "Die Sitzung hat jetzt keine Marker im Exportbereich. Es wurde keine Datei geschrieben.";
+"error.export.nochapter" = "Die Session hat jetzt keine Kapitel im Exportbereich. Es wurde keine Datei geschrieben.";
+"error.export.nomarker" = "Die Session hat jetzt keine Marker im Exportbereich. Es wurde keine Datei geschrieben.";
 "menu.track.follow.ripples" = "Beim Ripple mitwandern";
 "track.follow.label" = "Beim Ripple mitwandern";
 "track.follow.value" = "Ein";
@@ -916,7 +916,7 @@
 "error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit. Schalte \U201EBeim Ripple mitwandern\U201C auf einer Spur aus, um zu schneiden.";
 
 /* Edit > Find in Session Index */
-"menu.edit.find.index" = "Im Sitzungsindex suchen …";
+"menu.edit.find.index" = "Im Session-Index suchen …";
 
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Ziehmodus";
@@ -925,8 +925,8 @@
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
 "timeline.drag.mode.cue" = "Ziehmodus %@";
-"menu.view.index.show" = "Sitzungsindex einblenden";
-"menu.view.index.hide" = "Sitzungsindex ausblenden";
+"menu.view.index.show" = "Session-Index einblenden";
+"menu.view.index.hide" = "Session-Index ausblenden";
 "index.pane.segment.index" = "Index";
 "index.handle" = "Breite des Index";
 "index.search.placeholder" = "Suchen";
@@ -986,13 +986,13 @@
 "banner.sync.choose" = "Andere Spur wählen …";
 "banner.sync.undo" = "Widerrufen";
 "sheet.sync.drift" = "Drift korrigieren";
-"sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Sitzungsuhr.";
+"sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Session-Uhr.";
 "announce.drift.corrected" = "Drift von %lld ms über den Clip korrigiert.";
 "announce.drift.split" = "Clip bei %@ geteilt (die Aufnahme pausierte %@).";
 "banner.drift.not.corrected" = "Der Drift wurde nicht korrigiert.";
 "banner.drift.cause.too.short" = "Der Clip ist kürzer als 5 min.";
 "banner.drift.cause.rendered" = "Stelle das Originalaudio des Clips wieder her und synchronisiere dann erneut.";
-"banner.drift.cause.take" = "Eine Aufnahme läuft auf der Sitzungsuhr.";
+"banner.drift.cause.take" = "Eine Aufnahme läuft auf der Session-Uhr.";
 "banner.drift.cause.few.parts" = "Zu wenige Teile des Clips stimmen mit der Referenz überein.";
 "banner.drift.cause.no.line" = "Der Versatz folgt keiner stetigen Linie.";
 "banner.drift.cause.rate" = "Die Taktrate weicht zu stark von der Referenz ab.";

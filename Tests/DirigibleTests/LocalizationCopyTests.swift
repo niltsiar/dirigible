@@ -24,7 +24,7 @@ struct LocalizationCopyTests {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
-        "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
+        "panel.export.rate.session", "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",
         "waveform.zoom.readout",
         "index.pane.segment.index", "index.filter.clips", "index.row.label.clip", "index.row.label.mark",

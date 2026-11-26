@@ -108,7 +108,7 @@
 "error.silences.faults" = "Faltan estos archivos o están dañados (%@). Restáuralos y busca de nuevo.";
 "error.duck.past.end" = "La selección empieza en el final de la sesión o después. No cambió ningún punto de ganancia.";
 "banner.duck.unread" = "No se pudieron leer los archivos %@. La música sigue alta sobre esa voz.";
-"banner.duck.no.speech.unread" = "La atenuación no encontró voz por encima de %1$.1f dBFS. No se pudieron leer los archivos %2$@.";
+"banner.duck.no.speech.unread" = "La atenuación no encontró voz por encima de %1$.1f dBFS. No se pudo leer %2$@.";
 "banner.take.sync.broken" = "%1$@ movió parte de la toma %2$lld. Ahora no está sincronizada con su grabación desde %3$@.";
 "banner.take.sync.broken.unnamed" = "Un agente de IA movió parte de la toma %1$lld. Ahora no está sincronizada con su grabación desde %2$@.";
 "banner.take.sync.show" = "Mostrar";

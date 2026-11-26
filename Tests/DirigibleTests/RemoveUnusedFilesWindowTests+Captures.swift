@@ -51,14 +51,14 @@ extension RemoveUnusedFilesWindowTests {
         await model.close()
     }
 
-    /// Move to Trash counts the moved capture files in the announcement: the stray, the WAV, the CAF,
+    /// Move counts the moved capture files in the announcement: the stray, the WAV, the CAF,
     /// and the sidecar.
     @Test func movedAnnouncementCountsTheCaptureFiles() async throws {
         let (model, studio, window, stem) = try await windowWithSegment()
         var posts: [String] = []
         model.chrome?.announce = { text, _ in posts.append(text) }
         let sheet = try await sheet(model, window)
-        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "\r" })
 
         move.performClick(nil)
 
@@ -78,7 +78,7 @@ extension RemoveUnusedFilesWindowTests {
     @Test func failedCaptureMoveIsNamed() async throws {
         let (model, studio, window, stem) = try await windowWithSegment()
         let sheet = try await sheet(model, window)
-        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "\r" })
         let capture = studio.url.appending(path: "Capture")
         try #require(chmod(capture.path, 0o555) == 0)
         defer { chmod(capture.path, 0o755) }

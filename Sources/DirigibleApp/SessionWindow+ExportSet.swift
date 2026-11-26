@@ -18,8 +18,7 @@ struct ReplaceParts: Hashable {
 }
 
 /// The replace sheet (decision 0067): the question, the first five names, and the older files of the
-/// prefix that stay. Cancel is the first button and the default, so Return cancels. Replace is
-/// destructive and has no key.
+/// prefix that stay. Cancel takes Esc. Replace is destructive. No button takes Return.
 @MainActor func replaceQuestion(_ set: ReplaceParts) -> NSAlert {
     replaceQuestion(names: set.names, folder: set.split.folder, old: set.old)
 }
@@ -38,24 +37,15 @@ struct ReplaceParts: Hashable {
     return alert
 }
 
-/// The buttons of a question that replaces an item: Cancel is the first button and the default, so
-/// Return cancels, and the destructive `confirm` has no key.
+/// The buttons of a question that replaces an item: Cancel takes Esc, the destructive `confirm` has no
+/// key, and no button takes Return, because Cancel is never the default and Replace is not the likeliest answer.
 @MainActor func addReplaceButtons(to alert: NSAlert, confirm: L10n) {
     let cancel = alert.addButton(withTitle: L10n.alertCancel.text)
-    cancel.keyEquivalent = "\r"
-    alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
-    alert.addButton(withTitle: confirm.text).hasDestructiveAction = true
-    // A button has one key and Return is the key of Cancel, so a transparent button presses Cancel at Esc
-    // in each language.
-    let escape = NSButton(frame: .zero)
-    escape.keyEquivalent = "\u{1b}"
-    escape.isTransparent = true
-    // The parent lists the cell of a button in its accessibility children, so the cell needs the flag too.
-    escape.setAccessibilityElement(false)
-    escape.cell?.setAccessibilityElement(false)
-    escape.target = cancel
-    escape.action = #selector(NSButton.performClick(_:))
-    alert.window.contentView?.addSubview(escape)
+    cancel.keyEquivalent = "\u{1b}"
+    let replace = alert.addButton(withTitle: confirm.text)
+    replace.keyEquivalent = ""
+    replace.hasDestructiveAction = true
+    alert.window.defaultButtonCell = nil
 }
 
 /// The text of the progress sheet: the place of the file in hand for a split export, else "Exporting...".

@@ -139,7 +139,7 @@ enum TemplateSwap: Equatable, Sendable {
     try? FileManager.default.removeItem(at: url)
 }
 
-/// The Replace question of Save as Template (T-Q4): it names the template, Cancel is the default, and Replace
+/// The Replace question of Save as Template (T-Q4): it names the template, no button takes Return, and Replace
 /// moves the old template to the Trash after the save.
 @MainActor func templateReplaceAlert(name: String) -> NSAlert {
     let alert = NSAlert()

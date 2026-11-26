@@ -5,7 +5,7 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 ## Before you start
 
 - Install Dirigible. The steps are in the [Install section of the README](https://github.com/niltsiar/dirigible#install).
-- The first time that you monitor or record, macOS asks for access to the microphone. If you do not allow the access, Dirigible cannot record. The window then shows the button **Open Privacy Settings**, which opens the setting.
+- The first time that you monitor or record, macOS asks for access to the microphone. If you do not allow the access, Dirigible cannot record. The window then shows the button **Open Settings**, which opens the setting.
 - A session is one item in Finder, with the name that you give it. Close the session in Dirigible before you copy or move it. Do not change the files inside it.
 - Only one window can open a session at a time.
 - Choose **Dirigible > About Dirigible** to see the version. The start window also shows it. The text in parentheses is the commit that the app was built from, with `-dirty` when the build had changes that no commit holds. Give both in a bug report. `dirigible --version` prints the same version.
@@ -60,7 +60,7 @@ A template is a session that you copy to start each episode of a show. Save a se
 
 1. Open the session. Choose **File > Save as Template...**. The item has no key. A sheet asks for a **Name**. A line under the field says what the template keeps, for example "Keeps 2 clips, 1.9 MB of audio." The size is the size of the audio files that the clips use. A file that no clip uses stays out of the template.
 2. Type a name and click **Save**. **Save** is off while the name is empty, has “/” or “:”, starts with a period, or is too long.
-3. If a template of that name exists, an alert asks what to do. **Cancel** is the default button. **Replace** moves the old template to the Trash and saves the new one. If a window has the old template open, an alert says so and nothing is saved. Close that window and try again. If the swap fails, an alert names the template that stays in a temporary folder, and its **Show in Finder** button shows that folder.
+3. If a template of that name exists, an alert asks what to do. No button is the default, and Esc cancels. **Replace** moves the old template to the Trash and saves the new one. If a window has the old template open, an alert says so and nothing is saved. Close that window and try again. If the swap fails, an alert names the template that stays in a temporary folder, and its **Show in Finder** button shows that folder.
 
 Dirigible saves templates in the Templates folder of its folder in Music, also when you chose another folder for new sessions. To see them, choose **File > Show Templates in Finder**. Rename or delete a template in Finder.
 
@@ -854,7 +854,7 @@ With **Files** set to **One for Each Chapter** or **One for Each Marker**, Dirig
 - The audio before the first point is a part with the number 00. It has the name of the last point before the range, else the episode title, else the show name, else **Intro**. A point less than half a millisecond after the start of the range has its part start at the range start, so the set has no part 00.
 - A point at the same millisecond as the point before it, or as the end of the range, has no file of its own. Its audio is in the part before it, and a banner names the point.
 - Each file gets its own loudness gain, so each part has the target level. The note "Each file gets its own loudness gain." shows when **Loudness** is not **Off**. A file with a gain of more than 20 dB gets a warning that names it. An MP3 or AAC (.m4a) part gets the part title as its title tag.
-- When files already have the names of the set, one sheet lists the first five of them. **Cancel** is the default button. **Replace** replaces only the listed files. The sheet and a warning banner also name the older files of the same prefix that this set does not write, for example a renamed or deleted chapter. They stay: Dirigible never deletes them. The banner has **Show in Finder**.
+- When files already have the names of the set, one sheet lists the first five of them. No button is the default, and Esc cancels. **Replace** replaces only the listed files. The sheet and a warning banner also name the older files of the same prefix that this set does not write, for example a renamed or deleted chapter. They stay: Dirigible never deletes them. The banner has **Show in Finder**.
 - The progress sheet shows "Exporting Episode 12-03-Interview.mp3 (file 3 of 10)". **Cancel**, a take, or a close stops the set. The files that are done stay, the file in hand is removed, and the banner says "Stopped after exporting 2 of 10 files." A failure of one part shows its alert, with the same count.
 - When an audio file of the session goes missing or cannot be read during the set, its clips export as silence. The set continues, and an alert names the missing files and each exported file that has the silence.
 - When the set is done, a banner shows the number of files and the name of the folder, with **Show in Finder**, and VoiceOver reads the number of files and, when **Loudness** is on, the lowest and the highest loudness. The banner is a warning when an older file of the prefix stays in the folder. When a file has a fault, the alert names the parts and the done banner does not show, but the warning for older files stays. A file with a gain over 20 dB gets its own warning banner.
@@ -1026,7 +1026,7 @@ During a take, an import, Auto Level, or a duck, the backups are off. A revert d
 After many retakes, the session package keeps audio files that no clip uses. To move them to the Trash:
 
 1. Choose **File > Remove Unused Files...**. A sheet shows each file, its size, and why Dirigible can remove it, the largest file first. Under the list are the number of files and the total size.
-2. Click **Move to Trash**. To keep the files, click **Cancel** or press Return or Esc.
+2. Click **Move** or press Return. To keep the files, click **Cancel** or press Esc.
 
 VoiceOver then reads the number of moved files and their size. If a file does not move, a banner names it, and the file stays in the session package.
 

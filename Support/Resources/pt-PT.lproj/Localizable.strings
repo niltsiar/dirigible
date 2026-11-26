@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Reduzir estrondo";
 "sheet.repair.rumble.note" = "Corta o som abaixo de %lld Hz, como pancadas e vento.";
 "sheet.repair.deess" = "Suavizar sons de \U201Cs\U201D";
-"sheet.repair.deess.note" = "Suaviza sons de \U201Cs\U201D ásperos até %lld dB.";
+"sheet.repair.deess.note" = "Até %lld dB.";
 "sheet.repair.amount" = "Quantidade";
 "sheet.repair.more" = "Mais";
 "sheet.repair.frequency" = "Frequência";
@@ -314,19 +314,19 @@
 "alert.ok" = "OK";
 "alert.cancel" = "Cancelar";
 "alert.close.recording" = "Parar a gravação e fechar a janela?";
-"alert.close.recording.confirm" = "Parar e fechar";
+"alert.close.recording.confirm" = "Fechar";
 "alert.close.unsaved" = "Não foi possível guardar as últimas alterações. Fechar mesmo assim?";
 "alert.close.unsaved.confirm" = "Fechar";
 "alert.track.remove" = "Remover as faixas e os seus clipes?";
 "alert.unused.none" = "Não há ficheiros não utilizados.";
 "alert.track.remove.confirm" = "Remover";
 "alert.quit.recording" = "Parar a gravação e sair?";
-"alert.quit.recording.confirm" = "Parar e sair";
+"alert.quit.recording.confirm" = "Sair";
 "alert.quit.unsaved" = "Não foi possível guardar as últimas alterações destas sessões. Sair mesmo assim?";
 "alert.quit.unsaved.confirm" = "Sair";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Abrir definições de privacidade";
+"alert.microphone.settings" = "Abrir definições";
 "empty.title" = "Sem faixas";
 "empty.steps" = "Adicione uma faixa para cada voz, escolha a entrada e clique em Gravar.";
 "track.default.name" = "Faixa %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "Permitir que um agente de IA grave?";
 "consent.agent.line" = "Diz ser “%@”.";
 "consent.app.tracks" = "Este excerto grava %@. As pessoas na chamada não são avisadas.";
-"consent.message" = "O excerto grava %1$@ em %2$@ a partir de %3$@. Tem %4$lld s para responder.";
+"consent.message" = "O excerto grava %1$@ em %2$@ a partir de %3$@. Tem %4$@ para responder.";
 "consent.record.over" = "A gravação substitui o áudio em %1$@ depois de %2$@.";
 "consent.pre.roll.line" = "Começa a gravar em %1$@, depois de um pré-roll de %2$@.";
 "consent.dont.record" = "Não gravar";
 "consent.grant" = "Não voltar a perguntar até eu fechar esta janela";
-"consent.grant.help" = "Termina quando fechar esta janela ou %1$@ depois do seu clique. Termina também depois de %2$@ de excertos seguintes.";
+"consent.grant.help" = "Termina %1$@ depois do seu clique, ou depois de %2$@ de excertos seguintes.";
 "redo.agent.unnamed" = "Refazer edição do agente";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "As cópias de segurança danificadas não mantêm nenhum ficheiro (%@)";
 "sheet.unused.notfiles" = "As ligações e as pastas na sessão mantêm-se (%@)";
 "sheet.unused.footnote" = "O espaço é libertado quando esvaziar o Lixo.";
-"sheet.unused.move" = "Mover para o Lixo";
+"sheet.unused.move" = "Mover";
 "sheet.duck.title" = "Atenuar música sob a voz";
 "sheet.duck.speech" = "Faixas de voz";
 "sheet.duck.music" = "Faixas a atenuar";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Transferir e transcrever";
 "sheet.transcribe.replace" = "Substituir";
 "sheet.transcribe.note.download" = "O Dirigible transfere este modelo uma vez. O áudio nunca sai deste Mac.";
-"sheet.transcribe.note.replace.one" = "Substituir troca a única palavra desta faixa pelas palavras novas. Desfazer repõe-a.";
-"sheet.transcribe.note.replace.many" = "Substituir troca as %lld palavras desta faixa pelas palavras novas. Desfazer repõe-as.";
+"sheet.transcribe.note.replace.one" = "Esta faixa tem 1 palavra de transcrição.";
+"sheet.transcribe.note.replace.many" = "Esta faixa tem %lld palavras de transcrição.";
 "sheet.transcribe.choose" = "Escolher ficheiro de modelo…";
 "sheet.transcribe.missing" = "%@ (em falta)";
 "sheet.transcribe.note.file" = "Um modelo de fora da lista do Dirigible pode variar em velocidade e precisão. O seu áudio nunca sai deste Mac.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Guardar como modelo";
 "template.save.button" = "Guardar";
 "template.replace.title" = "Já existe um modelo com o nome “%@”.";
-"template.replace.info" = "Substituir move o modelo antigo para o Lixo e guarda este no lugar dele.";
+"template.replace.info" = "O modelo antigo vai para o Lixo.";
 "template.replace.replace" = "Substituir";
 "menu.file.save.template" = "Guardar como modelo…";
 "menu.file.show.templates" = "Mostrar modelos no Finder";

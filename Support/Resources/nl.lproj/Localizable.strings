@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Gerommel verminderen";
 "sheet.repair.rumble.note" = "Knipt geluid onder %lld Hz weg, zoals bonken en wind.";
 "sheet.repair.deess" = "Scherpe 's'-klanken verzachten";
-"sheet.repair.deess.note" = "Verzacht scherpe 's'-klanken met maximaal %lld dB.";
+"sheet.repair.deess.note" = "Maximaal %lld dB.";
 "sheet.repair.amount" = "Hoeveelheid";
 "sheet.repair.more" = "Meer";
 "sheet.repair.frequency" = "Frequentie";
@@ -314,19 +314,19 @@
 "alert.ok" = "OK";
 "alert.cancel" = "Annuleer";
 "alert.close.recording" = "Opname stoppen en het venster sluiten?";
-"alert.close.recording.confirm" = "Stop en sluit";
+"alert.close.recording.confirm" = "Sluit";
 "alert.close.unsaved" = "De laatste wijzigingen konden niet worden bewaard. Toch sluiten?";
 "alert.close.unsaved.confirm" = "Sluit";
 "alert.track.remove" = "De sporen en hun clips verwijderen?";
 "alert.unused.none" = "Er zijn geen ongebruikte bestanden.";
 "alert.track.remove.confirm" = "Verwijder";
 "alert.quit.recording" = "De opname en Dirigible stoppen?";
-"alert.quit.recording.confirm" = "Stop beide";
+"alert.quit.recording.confirm" = "Sluit af";
 "alert.quit.unsaved" = "De laatste wijzigingen van deze sessies konden niet worden bewaard. Toch stoppen?";
 "alert.quit.unsaved.confirm" = "Stop";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Open privacyinstellingen";
+"alert.microphone.settings" = "Open instellingen";
 "empty.title" = "Geen sporen";
 "empty.steps" = "Voeg een spoor toe voor elke stem, kies de invoer en klik dan op 'Neem op'.";
 "track.default.name" = "Spoor %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "Een AI-agent laten opnemen?";
 "consent.agent.line" = "De agent zegt dat hij '%@' is.";
 "consent.app.tracks" = "Deze take neemt %@ op. Mensen in het gesprek krijgen geen melding.";
-"consent.message" = "De take neemt %1$@ op, op %2$@, vanaf %3$@. Je hebt %4$lld s om te antwoorden.";
+"consent.message" = "De take neemt %1$@ op, op %2$@, vanaf %3$@. Je hebt %4$@ om te antwoorden.";
 "consent.record.over" = "De opname vervangt audio op %1$@ na %2$@.";
 "consent.pre.roll.line" = "Begint met opnemen op %1$@, na een pre-roll van %2$@.";
 "consent.dont.record" = "Neem niet op";
 "consent.grant" = "Niet meer vragen tot dit venster sluit";
-"consent.grant.help" = "Stopt als je dit venster sluit of %1$@ na je klik. Het stopt ook na %2$@ aan latere takes.";
+"consent.grant.help" = "Stopt %1$@ na je klik, of na %2$@ aan latere takes.";
 "redo.agent.unnamed" = "Wijziging van agent opnieuw";
 "marker.default.name" = "Markering %lld";
 "chapter.default.name" = "Hoofdstuk %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "Beschadigde reservekopieën bewaren geen bestand (%@)";
 "sheet.unused.notfiles" = "Links en mappen in de sessie blijven behouden (%@)";
 "sheet.unused.footnote" = "De ruimte komt vrij als je de prullenmand leegmaakt.";
-"sheet.unused.move" = "Verplaats naar prullenmand";
+"sheet.unused.move" = "Verplaats";
 "sheet.duck.title" = "Verlaag muziek onder spraak";
 "sheet.duck.speech" = "Spraaksporen";
 "sheet.duck.music" = "Sporen om te verlagen";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Downloaden en transcriberen";
 "sheet.transcribe.replace" = "Vervangen";
 "sheet.transcribe.note.download" = "Dirigible downloadt dit model één keer. Je audio verlaat deze Mac nooit.";
-"sheet.transcribe.note.replace.one" = "Vervangen wisselt het enige woord van dit spoor om voor de nieuwe woorden. Herstel brengt het terug.";
-"sheet.transcribe.note.replace.many" = "Vervangen wisselt de %lld woorden van dit spoor om voor de nieuwe woorden. Herstel brengt ze terug.";
+"sheet.transcribe.note.replace.one" = "Dit spoor heeft 1 woord transcript.";
+"sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden transcript.";
 "sheet.transcribe.choose" = "Kies modelbestand…";
 "sheet.transcribe.missing" = "%@ (ontbreekt)";
 "sheet.transcribe.note.file" = "Een model van buiten de lijst van Dirigible kan verschillen in snelheid en nauwkeurigheid. Je audio verlaat deze Mac nooit.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Bewaar als sjabloon";
 "template.save.button" = "Bewaar";
 "template.replace.title" = "Er bestaat al een sjabloon met de naam '%@'.";
-"template.replace.info" = "Vervang verplaatst het oude sjabloon naar de prullenmand en bewaart dit sjabloon op zijn plaats.";
+"template.replace.info" = "Het oude sjabloon gaat naar de prullenmand.";
 "template.replace.replace" = "Vervang";
 "menu.file.save.template" = "Bewaar als sjabloon…";
 "menu.file.show.templates" = "Toon sjablonen in de Finder";

@@ -33,7 +33,7 @@ An unused pool entry whose file is not on the disk loses its entry and moves not
 
 **Confirmation.** The app shows the list first. At the confirmation, the prune scans again in its turn of the write chain, and it moves only the files that are in both lists. `Studio` refuses the scan and the prune with `.busy` during a take, a finalize, a placement, a level, and an import. The CLI refuses a pending take, as every edit.
 
-**Commands.** File > Remove Unused Files… (the app, no key; Cancel is the default button), `dirigible file prune [--dry-run]`, and the MCP tool `file_prune` with `dry_run`. `--dry-run` writes nothing. `file prune` and `file_prune` run the same body and give the same lines. On a package that the app has open, `file_prune` gives the "open in Dirigible" error of 0046, as `backup_revert` does: the window holds the undo entries and the clipboard that keep files, and File > Remove Unused Files sees them.
+**Commands.** File > Remove Unused Files… (the app, no key; Move is the default button, with no destructive style, and Esc cancels), `dirigible file prune [--dry-run]`, and the MCP tool `file_prune` with `dry_run`. `--dry-run` writes nothing. `file prune` and `file_prune` run the same body and give the same lines. On a package that the app has open, `file_prune` gives the "open in Dirigible" error of 0046, as `backup_revert` does: the window holds the undo entries and the clipboard that keep files, and File > Remove Unused Files sees them.
 
 **No version change.** The prune adds no data to `session.xml` (0024).
 

@@ -43,9 +43,7 @@ struct SessionView: View {
                         }
                     }
                 case .confirmRemoveFavorite(let part, _):
-                    Button(L10n.alertFavoritesRemoveConfirm.key, role: .destructive) {
-                        model.confirmRemoveFavorite(part)
-                    }
+                    Button(L10n.alertFavoritesRemoveConfirm.key) { model.confirmRemoveFavorite(part) }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .microphone:
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }

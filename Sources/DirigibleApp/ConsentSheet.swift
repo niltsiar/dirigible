@@ -64,17 +64,29 @@ struct ConsentSheet: View {
     }
 
     private var message: String {
-        let fraction: Duration.UnitsFormatStyle.FractionalPartDisplayStrategy =
-            consent.seconds.rounded() == consent.seconds ? .hide : .show(length: 1)
-        let length = Duration.seconds(consent.seconds).formatted(
-            .units(allowed: [.hours, .minutes, .seconds], width: .wide, fractionalPart: fraction))
-        let limit = Int(RecordRequest.answerLimit.components.seconds)
-        return L10n.consentMessage.format(length, list(consent.names), startText, limit)
+        consentMessageText(
+            seconds: consent.seconds, names: list(consent.names), start: startText, limit: RecordRequest.answerLimit)
     }
 
     private var startText: String { timeDisplayText(consent.start, rate: sampleRate, playing: false) }
 
     private func list(_ names: [String]) -> String { ListFormatter.localizedString(byJoining: names) }
+}
+
+/// The body of the consent sheet. The length of the take and the time to answer have one unit form, in
+/// words, in the number format of `locale`.
+func consentMessageText(
+    seconds: Double, names: String, start: String, limit: Duration, locale: Locale = .current,
+    format: String = L10n.consentMessage.text
+) -> String {
+    func wide(_ seconds: Double) -> String {
+        let fraction: Duration.UnitsFormatStyle.FractionalPartDisplayStrategy =
+            seconds.rounded() == seconds ? .hide : .show(length: 1)
+        return Duration.seconds(seconds).formatted(
+            .units(allowed: [.hours, .minutes, .seconds], width: .wide, fractionalPart: fraction).locale(locale))
+    }
+    return String(
+        format: format, locale: locale, wide(seconds), names, start, wide(Double(limit.components.seconds)))
 }
 
 /// Record of the consent sheet: an AppKit button that refuses the key focus, so Tab and Space

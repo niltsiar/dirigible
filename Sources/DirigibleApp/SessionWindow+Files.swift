@@ -28,7 +28,7 @@ extension SessionWindow {
         }
     }
 
-    /// Move to Trash in the sheet: the studio scans again and moves the files that are in both
+    /// Move in the sheet: the studio scans again and moves the files that are in both
     /// lists. VoiceOver hears the count and the size, and an error banner names each file that
     /// did not move. A studio that became busy refuses, and the alert says so, unless the window
     /// closes.

@@ -24,8 +24,8 @@ struct UnusedFileRow: Identifiable, Equatable {
 }
 
 /// The confirmation of File > Remove Unused Files (decision 0047): the list, the total, the kept
-/// line, and the Trash note. Cancel is the default button (Return and Escape); Move to Trash is
-/// destructive and has no key (HIG: a destructive button is not the default).
+/// line, and the Trash note. Move is the default button (Return) with no destructive style: the user
+/// chose Remove Unused Files, and the Trash gives the files back. Cancel takes Escape.
 struct UnusedFilesSheet: View {
     let model: SessionWindow
     let scan: UnusedFiles
@@ -47,8 +47,8 @@ struct UnusedFilesSheet: View {
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button(L10n.alertCancel.key) { model.unusedFiles = nil }.keyboardShortcut(.defaultAction)
-                Button(L10n.sheetUnusedMove.key, role: .destructive) { model.moveUnusedFiles(scan) }
+                Button(L10n.alertCancel.key) { model.unusedFiles = nil }
+                Button(L10n.sheetUnusedMove.key) { model.moveUnusedFiles(scan) }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)

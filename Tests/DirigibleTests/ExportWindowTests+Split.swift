@@ -222,9 +222,9 @@ extension ExportWindowTests {
         await model.close()
     }
 
-    /// Decision 0067: Cancel is the first button and the default, so Return cancels; Replace is the
-    /// destructive button and has no key.
-    @Test func theReplaceSheetCancelsOnReturnAndReplaceIsDestructive() async throws {
+    /// Decision 0067: Cancel takes Esc and no button takes Return; Replace is the destructive button and has
+    /// no key.
+    @Test func theReplaceSheetHasNoDefaultAndReplaceIsDestructive() async throws {
         let (model, studio, _) = try await window()
         let source = try #require(model.source(of: .session, in: studio))
 
@@ -233,13 +233,13 @@ extension ExportWindowTests {
                 source: source, options: Self.options, split: try #require(setTarget().split), existing: [:], old: []))
 
         #expect(question.buttons.map(\.title) == [L10n.alertCancel.text, L10n.alertExportReplaceConfirm.text])
-        #expect(question.buttons.map(\.keyEquivalent) == ["\r", ""])
+        #expect(question.buttons.map(\.keyEquivalent) == ["\u{1b}", ""])
+        #expect(question.window.defaultButtonCell == nil)
         #expect(question.buttons.map(\.hasDestructiveAction) == [false, true])
         await model.close()
     }
 
-    /// The Esc button is transparent and has no title: the accessibility tree of the sheet holds the
-    /// buttons Cancel and Replace only.
+    /// The accessibility tree of the sheet holds the buttons Cancel and Replace only.
     @Test func theReplaceSheetShowsVoiceOverOnlyCancelAndReplace() async throws {
         let (model, studio, nsWindow) = try await window()
         try threeChapters(studio)
@@ -255,12 +255,11 @@ extension ExportWindowTests {
             return own + children.flatMap(buttonTitles)
         }
 
-        #expect(sheetButtons(sheet).contains { $0.isTransparent }, "the sheet has the Esc button")
         #expect(
             Set(buttonTitles(sheet.contentView as Any)) == [
                 L10n.alertCancel.text, L10n.alertExportReplaceConfirm.text,
             ],
-            "VoiceOver reads the Esc button")
+            "VoiceOver reads two buttons")
         try #require(sheetButtons(sheet).first { $0.title == L10n.alertCancel.text }).performClick(nil)
         await until(limit: .seconds(10), "Cancel closes the sheet") { nsWindow.attachedSheet == nil }
         await job.ends()

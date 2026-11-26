@@ -230,12 +230,12 @@ import os
         await model.close()
     }
 
-    /// T17: Return runs Cancel.
-    @Test func cancelIsTheDefaultButton() {
+    /// T17: no button takes Return, Esc runs Cancel, and Replace is the destructive button.
+    @Test func noButtonIsTheDefault() {
         let alert = templateReplaceAlert(name: "Show")
-        #expect(alert.buttons[0].title == L10n.alertCancel.text)
-        #expect(alert.buttons[0].keyEquivalent == "\r", "Return presses Cancel")
-        #expect(alert.window.defaultButtonCell === alert.buttons[0].cell, "Cancel is the default")
+        #expect(alert.buttons.map(\.title) == [L10n.alertCancel.text, L10n.templateReplaceReplace.text])
+        #expect(alert.buttons.map(\.keyEquivalent) == ["\u{1b}", ""], "Cancel takes Esc and no button takes Return")
+        #expect(alert.window.defaultButtonCell == nil, "Cancel is not the default")
         #expect(alert.buttons[1].hasDestructiveAction, "Replace is the destructive button")
     }
 

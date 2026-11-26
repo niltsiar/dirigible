@@ -782,10 +782,10 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 A role tells what a track holds: dialogue, music, or effects. A role is a label. It changes no sound.
 
 - Choose **Track > Role**, then **Dialogue**, **Music**, **Effects**, or **None**. The role goes to the selected tracks. You can also right-click a track header and choose **Role**.
-- A track with a role has a color strip at the left edge of its header and a letter before its name: teal and **D** for dialogue, green and **M** for music, yellow and **E** for effects. A track with no role shows neither.
-- The Role submenu starts with a line that says the role is a label and changes no sound. The tip of the letter shows the role name and the same help.
+- A track with a role has a color strip at the left edge of its header and a gray symbol before its name: a speech bubble for dialogue, a music note for music, and sparkles for effects. The strip is teal for dialogue, green for music, and yellow for effects. A track with no role shows neither.
+- The Role submenu starts with a line that says the role is a label and changes no sound. The tip of the symbol shows the role name and the same help.
 - Five things read the role:
-  - The header shows the color strip and the letter.
+  - The header shows the color strip and the symbol.
   - A duck takes the speech from the dialogue tracks and the tracks to lower from the music tracks (see [Duck the music under the speech](#duck-the-music-under-the-speech)).
   - **Reduce Noise** with noise reduction on skips the clips of tracks with the music or effects role. Remove hum alone takes every role (see [Reduce noise](#reduce-noise)).
   - **File > Export Stems...** with **One file for each** set to **Role** writes one file for each role (see [Export stems](#export-stems)).

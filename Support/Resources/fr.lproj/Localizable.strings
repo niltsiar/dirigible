@@ -23,9 +23,6 @@
 "track.role.dialogue" = "Dialogue";
 "track.role.music" = "Musique";
 "track.role.effects" = "Effets";
-"track.role.dialogue.letter" = "D";
-"track.role.music.letter" = "M";
-"track.role.effects.letter" = "E";
 "track.role.help" = "Une étiquette qui ne change pas le son. \U00AB\U00A0Atténuer la musique sous la voix\U00A0\U00BB, \U00AB\U00A0Réduire le bruit\U00A0\U00BB et \U00AB\U00A0Exporter les stems\U00A0\U00BB la lisent.";
 "track.role.header" = "Étiquette seule, sans changement du son";
 "menu.track.volume.up" = "Monter le volume de la piste";

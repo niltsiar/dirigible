@@ -23,9 +23,6 @@
 "track.role.dialogue" = "Diálogo";
 "track.role.music" = "Música";
 "track.role.effects" = "Efeitos";
-"track.role.dialogue.letter" = "D";
-"track.role.music.letter" = "M";
-"track.role.effects.letter" = "E";
 "track.role.help" = "Um rótulo que não muda o som. \U201CAbaixar Música sob a Voz\U201D, \U201CReduzir Ruído\U201D e \U201CExportar Stems\U201D leem o rótulo.";
 "track.role.header" = "Só um rótulo, sem mudança no som";
 "menu.track.volume.up" = "Aumentar Volume da Pista";

@@ -23,9 +23,6 @@
 "track.role.dialogue" = "Dialogue";
 "track.role.music" = "Music";
 "track.role.effects" = "Effects";
-"track.role.dialogue.letter" = "D";
-"track.role.music.letter" = "M";
-"track.role.effects.letter" = "E";
 "track.role.help" = "A label that changes no sound. Duck Music Under Speech, Reduce Noise, and Export Stems read it.";
 "track.role.header" = "Label only, no change to the sound";
 "menu.track.volume.up" = "Raise Track Volume";

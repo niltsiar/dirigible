@@ -114,6 +114,8 @@ struct ExportSetShown: Equatable {
     let loudness: [LoudnessReport]
     /// The names of the files of the prefix that an older set wrote and this set did not.
     let old: [String]
+    /// A file rendered as silence: the alert is the result, and no done banner shows.
+    var faulty = false
     /// The tag warnings of the files that have one, each naming its file.
     var warnings: [ChapterWarningsShown] = []
     /// The split points with no file of their own.
@@ -129,13 +131,13 @@ struct ExportSetShown: Equatable {
         return exportSetDoneText(files, outputs.min(), outputs.max())
     }
 
-    /// The banners of the set. A stop gives only the count banner. A finished set gives a banner only
-    /// for the older files of the prefix that stay, and for each file with a gain over the limit.
+    /// The banners of the set. A stop gives only the count banner. A finished set gives the done banner
+    /// (a warning when older files of the prefix stay), and a banner for each file with a gain over the limit.
     var banners: [WindowBanner] {
         guard !stopped else { return [.exportSetStopped(written: files.count, count: count)] }
-        var banners: [WindowBanner] = old.isEmpty ? [] : [.exportSetDone(files: files, old: old)]
+        var banners: [WindowBanner] = faulty ? [] : [.exportSetDone(files: files, old: old)]
         for (url, report) in zip(files, loudness) where report.exceedsLevelLimit {
-            banners.append(.exportReport(report, file: url.lastPathComponent))
+            banners.append(.exportReport(report, file: url.lastPathComponent, url: url))
         }
         return banners + dropped.map { .exportSetDropped($0) } + warnings.flatMap(\.banners)
     }
@@ -156,6 +158,13 @@ extension L10n {
     /// The first five names and the count of the others.
     static func nameList(_ names: [String]) -> (shown: [String], more: Int) {
         (Array(names.prefix(5)), max(0, names.count - 5))
+    }
+
+    /// "Exported 10 files to Episode 12.": the count of a finished set and the name of its folder.
+    static func exportSetDoneText(_ files: [URL]) -> String {
+        let folder = files.first?.deletingLastPathComponent().lastPathComponent ?? ""
+        return files.count == 1
+            ? bannerExportSetDoneOne.format(folder) : bannerExportSetDone.format(files.count, folder)
     }
 
     /// The sentence about the older files of the prefix that stay.

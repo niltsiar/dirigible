@@ -681,6 +681,7 @@
 "banner.use.headphones" = "Use headphones to keep the guest's voice out of your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "Exported %1$@ (%2$@).";
+"banner.export.done" = "Exported %@.";
 "announce.level.changed" = "Changed %lld clips.";
 "announce.level.changed.one" = "Changed 1 clip.";
 "banner.level.changed.none" = "No clips changed.";
@@ -886,6 +887,8 @@
 "alert.export.replace.confirm" = "Replace";
 "alert.export.more" = "and %lld more";
 "announce.export.set.done" = "Exported %1$lld files to %2$@.";
+"banner.export.set.done" = "Exported %1$lld files to %2$@.";
+"banner.export.set.done.one" = "Exported 1 file to %@.";
 "announce.export.set.loudness" = "Loudness ranges from %1$@ to %2$@ LUFS.";
 "banner.export.set.stopped" = "Stopped after exporting %1$lld of %2$lld files.";
 "banner.export.set.old.one" = "Dirigible doesn't delete the older file %@ with this prefix.";

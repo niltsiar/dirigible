@@ -681,6 +681,7 @@
 "banner.use.headphones" = "Use fones de ouvido para que a voz do convidado não entre no seu microfone.";
 "banner.monitor.headphones" = "Use fones de ouvido para ouvir o monitor.";
 "banner.export.report" = "%1$@ exportado (%2$@).";
+"banner.export.done" = "%@ exportado.";
 "announce.level.changed" = "%lld clipes alterados.";
 "announce.level.changed.one" = "1 clipe alterado.";
 "banner.level.changed.none" = "Nenhum clipe alterado.";
@@ -886,6 +887,8 @@
 "alert.export.replace.confirm" = "Substituir";
 "alert.export.more" = "e mais %lld";
 "announce.export.set.done" = "%1$lld arquivos exportados para %2$@.";
+"banner.export.set.done" = "%1$lld arquivos exportados para %2$@.";
+"banner.export.set.done.one" = "1 arquivo exportado para %@.";
 "announce.export.set.loudness" = "O loudness vai de %1$@ a %2$@ LUFS.";
 "banner.export.set.stopped" = "Interrompido após exportar %1$lld de %2$lld arquivos.";
 "banner.export.set.old.one" = "O Dirigible não exclui o arquivo anterior %@ com este prefixo.";

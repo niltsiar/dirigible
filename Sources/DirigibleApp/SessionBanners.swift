@@ -78,6 +78,10 @@ struct WindowBanners: View {
                     }
                     .disabled(!model.canChooseAnotherSyncTrack(for: clip))
                 }
+            } else if case .exportReport(_, _, let url) = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerExportSetShow.key) { model.showInFinder([url]) }
+                }
             } else if case .exportSetDone(let files, _) = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.bannerExportSetShow.key) { model.showInFinder(files) }

@@ -6,12 +6,13 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The banner after an export set: a warning only when older files of the prefix stay in the
-/// folder (`ExportWindowTests+Split.swift` has the set helpers).
+/// The banner after an export set: an info banner with the count and the folder, which becomes a warning
+/// when older files of the prefix stay in the folder (`ExportWindowTests+Split.swift` has the set helpers).
 extension ExportWindowTests {
-    /// C9 (j): a set with no older file of the prefix shows no banner, because the files are in the
-    /// folder. VoiceOver hears the count and the folder.
-    @Test func anExportSetWithNoOlderFilesShowsNoBanner() async throws {
+    /// C9 (j): a set with no older file of the prefix shows an info banner with the count and the folder
+    /// name, because the files are outside the window. VoiceOver hears the count, the folder, and the
+    /// loudness once: the banner adds no second announcement.
+    @Test func anExportSetWithNoOlderFilesShowsADoneBanner() async throws {
         let (model, studio, _) = try await window()
         let chrome = try #require(model.chrome)
         var heard: [String] = []
@@ -21,10 +22,32 @@ extension ExportWindowTests {
         try await runSet(model, studio, setTarget())
 
         let banners = ChromeState.reportBanners(model, studio)
-        #expect(banners.isEmpty, "a set with no older file has a banner: \(banners)")
+        #expect(banners.count == 1 && banners.first?.kind == .info, "\(banners)")
+        let name = folder.url.lastPathComponent
+        #expect(banners.first?.text == L10n(rawValue: "banner.export.set.done")?.format(3, name), "\(banners)")
+        await until("the done banner shows") { model.shown.banners.contains { $0.key == "exportSetDone" } }
+        let lead = leadText("announce.export.set.done")
+        #expect(heard.filter { $0.hasPrefix(lead) }.count == 1, "VoiceOver hears the set once: \(heard)")
+        await model.close()
+    }
+
+    /// C9 (j): the info banner of a plain set has Show in Finder, which reveals the files of the set.
+    @Test func theDoneBannerOfAPlainSetShowsTheFilesInFinder() async throws {
+        let (model, studio, _) = try await window()
+        try threeChapters(studio)
+        var revealed: [URL] = []
+        app.reveal = { revealed = $0 }
+        try await runSet(model, studio, setTarget())
+
+        guard case .exportSetDone(let files, let old)? = ChromeState.reportBanners(model, studio).first else {
+            Issue.record("No done banner")
+            return
+        }
+        model.showInFinder(files)
+
         #expect(
-            heard.contains { $0.hasPrefix(leadText("announce.export.set.done")) }, "VoiceOver hears no result: \(heard)"
-        )
+            old.isEmpty
+                && revealed.map(\.lastPathComponent) == ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"])
         await model.close()
     }
 

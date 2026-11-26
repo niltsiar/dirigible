@@ -681,6 +681,7 @@
 "banner.use.headphones" = "Gebruik een koptelefoon, zodat de stem van de gast niet in je microfoon komt.";
 "banner.monitor.headphones" = "Gebruik een koptelefoon om de monitor te horen.";
 "banner.export.report" = "%1$@ geëxporteerd (%2$@).";
+"banner.export.done" = "%@ geëxporteerd.";
 "announce.level.changed" = "%lld clips gewijzigd.";
 "announce.level.changed.one" = "1 clip gewijzigd.";
 "banner.level.changed.none" = "Geen clips gewijzigd.";
@@ -886,6 +887,8 @@
 "alert.export.replace.confirm" = "Vervang";
 "alert.export.more" = "en %lld meer";
 "announce.export.set.done" = "%1$lld bestanden geëxporteerd naar %2$@.";
+"banner.export.set.done" = "%1$lld bestanden geëxporteerd naar %2$@.";
+"banner.export.set.done.one" = "1 bestand geëxporteerd naar %@.";
 "announce.export.set.loudness" = "De luidheid loopt van %1$@ tot %2$@ LUFS.";
 "banner.export.set.stopped" = "Gestopt na het exporteren van %1$lld van %2$lld bestanden.";
 "banner.export.set.old.one" = "Dirigible verwijdert het oudere bestand %@ met dit voorvoegsel niet.";

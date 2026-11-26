@@ -9,8 +9,8 @@ import Testing
 /// Code gate 1 of run 2026-10-28-chapter-export-files: where a set result reaches the user.
 extension ExportWindowTests {
     /// Item 1: a set whose media is missing keeps its files and its loudness reports, and the alert names
-    /// each part file with faults. A set with no older file has no done banner.
-    @Test func aSetWithFaultsKeepsTheDoneBannerAndNamesEachFaultyPart() async throws {
+    /// each part file with faults. A set with no older file and a fault has no done banner.
+    @Test func aSetWithFaultsAndNoOlderFilesHasNoDoneBannerAndNamesEachFaultyPart() async throws {
         let (model, studio, _) = try await window(audio: false)
         try threeChapters(studio)
 
@@ -23,6 +23,24 @@ extension ExportWindowTests {
         #expect(shown.files.map(\.lastPathComponent) == parts && shown.loudness.count == 3)
         #expect(shown.files.count == 3)
         #expect(!ChromeState.reportBanners(model, studio).contains { $0.key == "exportSetDone" })
+        await model.close()
+    }
+
+    /// A set with a fault and an older file of the prefix still shows the older-files warning.
+    @Test func aSetWithFaultsAndOlderFilesKeepsTheOlderFilesWarning() async throws {
+        let (model, studio, _) = try await window(audio: false)
+        try threeChapters(studio)
+        try Data("older set".utf8).write(to: file("Ep-02-Old.wav"))
+
+        try await runSet(model, studio, setTarget(options: Self.podcast))
+
+        let done = ChromeState.reportBanners(model, studio).first { $0.key == "exportSetDone" }
+        #expect(done?.kind == .warning, "\(String(describing: done))")
+        guard case .exportSetDone(_, let old)? = done else {
+            Issue.record("No older-files banner: \(String(describing: done))")
+            return
+        }
+        #expect(old == ["Ep-02-Old.wav"], "\(old)")
         await model.close()
     }
 

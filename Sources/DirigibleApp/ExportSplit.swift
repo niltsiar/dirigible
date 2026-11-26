@@ -114,7 +114,7 @@ struct ExportSetShown: Equatable {
     let loudness: [LoudnessReport]
     /// The names of the files of the prefix that an older set wrote and this set did not.
     let old: [String]
-    /// A file rendered as silence: the alert is the result, and no done banner shows.
+    /// A file rendered as silence: the alert is the result, and the done banner shows only for older files.
     var faulty = false
     /// The tag warnings of the files that have one, each naming its file.
     var warnings: [ChapterWarningsShown] = []
@@ -133,9 +133,10 @@ struct ExportSetShown: Equatable {
 
     /// The banners of the set. A stop gives only the count banner. A finished set gives the done banner
     /// (a warning when older files of the prefix stay), and a banner for each file with a gain over the limit.
+    /// A fault with no older file removes the done banner: the alert names the parts.
     var banners: [WindowBanner] {
         guard !stopped else { return [.exportSetStopped(written: files.count, count: count)] }
-        var banners: [WindowBanner] = faulty ? [] : [.exportSetDone(files: files, old: old)]
+        var banners: [WindowBanner] = faulty && old.isEmpty ? [] : [.exportSetDone(files: files, old: old)]
         for (url, report) in zip(files, loudness) where report.exceedsLevelLimit {
             banners.append(.exportReport(report, file: url.lastPathComponent, url: url))
         }

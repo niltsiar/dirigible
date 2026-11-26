@@ -206,7 +206,7 @@ struct RepairSheet: View {
             HStack {
                 Slider(
                     value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Int($0) }),
-                    in: Double(range.lowerBound)...Double(range.upperBound), step: 1
+                    in: Double(range.lowerBound)...Double(range.upperBound)
                 )
                 .accessibilityLabel(Text(title.key))
                 .accessibilityValue(Text(verbatim: shown))

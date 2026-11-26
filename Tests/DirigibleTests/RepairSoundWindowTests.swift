@@ -124,6 +124,34 @@ import Testing
         await model.close()
     }
 
+    /// ui-audit G8: a slider with a step of 1 over the 14000 hertz of the de-ess frequency draws
+    /// 14000 tick marks, which merge into one black bar. No slider of the sheet draws a tick mark.
+    @Test func noSliderDrawsTickMarks() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = set("c1")
+        model.run(.repairSound)
+        var draft = try #require(model.repairDraft)
+        (draft.rumble, draft.deess, draft.showsMore) = (true, true, true)
+        let host = NSHostingView(rootView: RepairSheet(model: model, studio: studio, draft: draft))
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: host.fittingSize), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFront(nil)
+
+        func sliders(_ view: NSView) -> [NSSlider] {
+            ((view as? NSSlider).map { [$0] } ?? []) + view.subviews.flatMap(sliders)
+        }
+        await until("the sheet has its sliders") {
+            host.layoutSubtreeIfNeeded()
+            return sliders(host).count == 3
+        }
+        #expect(sliders(host).map(\.numberOfTickMarks) == [0, 0, 0])
+        window.close()
+        await model.close()
+    }
+
     /// ui-audit A8: each of the three sliders has a visible label on its line, left of it, and the
     /// three labels end at one edge, so they sit in one column. Fail: a slider with only a
     /// VoiceOver label. The check reads the drawn pixels, because a hosted SwiftUI sheet gives

@@ -290,6 +290,7 @@
 "sheet.repair.amount" = "Stärke";
 "sheet.repair.more" = "Mehr";
 "sheet.repair.frequency" = "Frequenz";
+"sheet.repair.cutoff" = "Grenzfrequenz";
 "sheet.repair.none" = "Aktiviere mindestens eine Reparatur.";
 "sheet.repair.apply" = "Reparieren";
 "repair.peaks.one" = "Übersteuerte Spitzen in 1 Clip repariert.";

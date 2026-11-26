@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -120,6 +121,60 @@ import Testing
             studio.transport = .idle
             model.alert = nil
         }
+        await model.close()
+    }
+
+    /// ui-audit A8: each of the three sliders has a visible label on its line, left of it, and the
+    /// three labels end at one edge, so they sit in one column. Fail: a slider with only a
+    /// VoiceOver label. The check reads the drawn pixels, because a hosted SwiftUI sheet gives
+    /// no accessibility tree to a test.
+    @Test func eachSliderHasAVisibleLabelInOneColumn() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = set("c1")
+        model.run(.repairSound)
+        var draft = try #require(model.repairDraft)
+        (draft.rumble, draft.deess, draft.showsMore) = (true, true, true)
+        let host = NSHostingView(rootView: RepairSheet(model: model, studio: studio, draft: draft))
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: host.fittingSize), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFront(nil)
+
+        func sliders(_ view: NSView) -> [NSSlider] {
+            ((view as? NSSlider).map { [$0] } ?? []) + view.subviews.flatMap(sliders)
+        }
+        await until("the sheet has its sliders") {
+            host.layoutSubtreeIfNeeded()
+            return sliders(host).count == 3
+        }
+        drawNow(window)
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        let scale = Double(bitmap.pixelsWide) / host.bounds.width
+        let background = try #require(bitmap.colorAt(x: 1, y: 1)?.usingColorSpace(.sRGB))
+        func isInk(_ x: Int, _ y: Int) -> Bool {
+            guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return false }
+            let gap =
+                abs(color.redComponent - background.redComponent)
+                + abs(color.greenComponent - background.greenComponent)
+            return gap + abs(color.blueComponent - background.blueComponent) > 0.6
+        }
+        let all = sliders(host)
+        try #require(all.count == 3, "the three sliders")
+        let edges: [Int] = try all.map { slider in
+            let rect = slider.convert(slider.bounds, to: host)
+            let top = host.isFlipped ? rect.minY : host.bounds.height - rect.maxY
+            let rows = Int((top + rect.height * 0.25) * scale)..<Int((top + rect.height * 0.75) * scale)
+            let columns = 0..<Int((rect.minX - 4) * scale)
+            let inked = columns.filter { x in rows.contains { isInk(x, $0) } }
+            try #require(inked.count > 8, "a visible label left of the slider at \(rect): \(inked.count) columns")
+            return try #require(inked.max())
+        }
+        let spread = (edges.max() ?? 0) - (edges.min() ?? 0)
+        #expect(Double(spread) <= 2 * scale, "one label column: right edges \(edges)")
+        window.close()
         await model.close()
     }
 }

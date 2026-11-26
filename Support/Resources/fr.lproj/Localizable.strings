@@ -290,6 +290,7 @@
 "sheet.repair.amount" = "Quantité";
 "sheet.repair.more" = "Plus";
 "sheet.repair.frequency" = "Fréquence";
+"sheet.repair.cutoff" = "Coupure";
 "sheet.repair.none" = "Activez au moins une réparation.";
 "sheet.repair.apply" = "Réparer";
 "repair.peaks.one" = "Pics écrêtés réparés dans 1 clip.";

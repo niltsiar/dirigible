@@ -290,6 +290,7 @@
 "sheet.repair.amount" = "Hoeveelheid";
 "sheet.repair.more" = "Meer";
 "sheet.repair.frequency" = "Frequentie";
+"sheet.repair.cutoff" = "Afkappunt";
 "sheet.repair.none" = "Zet minstens één herstelactie aan.";
 "sheet.repair.apply" = "Herstellen";
 "repair.peaks.one" = "Afgekapte pieken hersteld in 1 clip.";

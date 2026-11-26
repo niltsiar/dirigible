@@ -290,6 +290,7 @@
 "sheet.repair.amount" = "Amount";
 "sheet.repair.more" = "More";
 "sheet.repair.frequency" = "Frequency";
+"sheet.repair.cutoff" = "Cutoff";
 "sheet.repair.none" = "Turn on at least one repair.";
 "sheet.repair.apply" = "Repair";
 "repair.peaks.one" = "Repaired clipped peaks in 1 clip.";

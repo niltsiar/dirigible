@@ -290,6 +290,7 @@
 "sheet.repair.amount" = "Cantidad";
 "sheet.repair.more" = "Más";
 "sheet.repair.frequency" = "Frecuencia";
+"sheet.repair.cutoff" = "Corte";
 "sheet.repair.none" = "Activa al menos una reparación.";
 "sheet.repair.apply" = "Reparar";
 "repair.peaks.one" = "Picos recortados reparados en 1 clip.";

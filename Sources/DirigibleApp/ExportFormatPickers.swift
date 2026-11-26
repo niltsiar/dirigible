@@ -2,6 +2,19 @@ import DirigibleAudio
 import DirigibleCore
 import SwiftUI
 
+/// A sample rate in kHz without the unit, in the number format of `locale`: "48", "44,1" in Spanish.
+func kiloHertzText(_ rate: Int, locale: Locale = .current) -> String {
+    (Double(rate) / 1000).formatted(.number.locale(locale))
+}
+
+/// The "Session" item of the Sample rate pop-up: the session rate in kHz, in the number format of
+/// `locale` ("44,1" in Spanish). `format` has one `%@` for the number.
+func sessionRateItemText(
+    _ rate: Int, locale: Locale = .current, format: String = L10n.panelExportRateSession.text
+) -> String {
+    String(format: format, kiloHertzText(rate, locale: locale))
+}
+
 /// The Bit depth, Channels, and Sample rate pop-ups of an export panel: the mix panel and the stem
 /// panel list the same values. A lossy mix has a bit rate in place of the bit depth (`showsBits`).
 struct ExportFormatPickers: View {
@@ -30,7 +43,7 @@ struct ExportFormatPickers: View {
             label(.panelExportChannels)
         }
         Picker(selection: $rate) {
-            Text(verbatim: L10n.panelExportRateSession.format(sessionRate)).tag(ExportRate.session)
+            Text(verbatim: sessionRateItemText(sessionRate)).tag(ExportRate.session)
             Text(L10n.panelExportRate44100.key).tag(ExportRate.hz44100)
             Text(L10n.panelExportRate48000.key).tag(ExportRate.hz48000)
         } label: {

@@ -354,7 +354,7 @@ func subtitleText(
     archive: ArchiveCounts? = nil, locale: Locale = .current,
     text: (L10n) -> String = { $0.text }
 ) -> String {
-    let kHz = (Double(rate) / 1000).formatted(.number.locale(locale))
+    let kHz = kiloHertzText(rate, locale: locale)
     let part: String? =
         if preRoll {
             text(.subtitlePreRoll)

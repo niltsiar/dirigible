@@ -612,7 +612,7 @@
 "panel.export.channels.stereo" = "Estéreo";
 "panel.export.channels.mono" = "Mono";
 "panel.export.rate" = "Frecuencia de muestreo";
-"panel.export.rate.session" = "Frecuencia de la sesión (%lld Hz)";
+"panel.export.rate.session" = "Sesión (%@ kHz)";
 "panel.export.rate.44100" = "44,1 kHz";
 "panel.export.rate.48000" = "48 kHz";
 "panel.export.loudness" = "Sonoridad";

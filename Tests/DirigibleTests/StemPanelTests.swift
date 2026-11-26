@@ -96,6 +96,25 @@ import Testing
         return walk(host)
     }
 
+    /// The session rate item gives kHz with the decimal mark of the locale, and no zero decimal.
+    @Test func sessionRateItemUsesTheLocaleDecimalMark() {
+        let es = Locale(identifier: "es_ES")
+        let en = Locale(identifier: "en_US")
+        #expect(sessionRateItemText(44_100, locale: es, format: "Sesión (%@ kHz)") == "Sesión (44,1 kHz)")
+        #expect(sessionRateItemText(48_000, locale: es, format: "Sesión (%@ kHz)") == "Sesión (48 kHz)")
+        #expect(sessionRateItemText(44_100, locale: en, format: "Session (%@ kHz)") == "Session (44.1 kHz)")
+    }
+
+    /// The item must fit the pop-up of the 420 pt accessory in each language: no ellipsis.
+    @Test func sessionRateItemIsShortInEveryLanguage() throws {
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let format = try #require(try stringsTable(language)["panel.export.rate.session"])
+            let item = sessionRateItemText(44_100, locale: Locale(identifier: "en_US"), format: format)
+            #expect(item.count <= 20, "\(language): \(item)")
+            #expect(format.contains("%@ kHz"), "\(language): \(format)")
+        }
+    }
+
     /// The mix panel and the stem panel list the same bit depths, channels, and sample rates, so a new
     /// case cannot show in one panel only.
     @Test func bothPanelsOfferTheSameFormatPickers() throws {
@@ -111,7 +130,7 @@ import Testing
             BitDepth.allCases.map { "\($0.rawValue)" },
             [L10n.panelExportChannelsStereo.text, L10n.panelExportChannelsMono.text],
             [
-                L10n.panelExportRateSession.format(sessionRate), L10n.panelExportRate44100.text,
+                sessionRateItemText(sessionRate), L10n.panelExportRate44100.text,
                 L10n.panelExportRate48000.text,
             ],
         ]

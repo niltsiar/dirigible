@@ -23,9 +23,6 @@
 "track.role.dialogue" = "Dialog";
 "track.role.music" = "Musik";
 "track.role.effects" = "Effekte";
-"track.role.dialogue.letter" = "D";
-"track.role.music.letter" = "M";
-"track.role.effects.letter" = "E";
 "track.role.help" = "Eine Bezeichnung, die keinen Klang ändert. \U201EMusik unter Sprache absenken\U201C, \U201ERauschen reduzieren\U201C und \U201EStems exportieren\U201C lesen sie.";
 "track.role.header" = "Nur eine Bezeichnung, keine Klangänderung";
 "menu.track.volume.up" = "Spurlautstärke erhöhen";

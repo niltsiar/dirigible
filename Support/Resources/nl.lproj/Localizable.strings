@@ -23,9 +23,6 @@
 "track.role.dialogue" = "Dialoog";
 "track.role.music" = "Muziek";
 "track.role.effects" = "Effecten";
-"track.role.dialogue.letter" = "D";
-"track.role.music.letter" = "M";
-"track.role.effects.letter" = "E";
 "track.role.help" = "Een label dat het geluid niet verandert. \U201CVerlaag muziek onder spraak\U201D, \U201CRuis verminderen\U201D en \U201CExporteer stems\U201D lezen het.";
 "track.role.header" = "Alleen een label, geen geluidswijziging";
 "menu.track.volume.up" = "Verhoog spoorvolume";

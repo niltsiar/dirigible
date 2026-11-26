@@ -111,6 +111,7 @@
 "error.silences.faults" = "Estes ficheiros estão em falta ou danificados (%@). Restaure-os e procure de novo.";
 "error.duck.past.end" = "A seleção começa no fim da sessão ou depois. Nenhum ponto de ganho mudou.";
 "banner.duck.unread" = "Não foi possível ler %@. A música mantém-se alta sobre essa voz.";
+"banner.duck.no.speech.unread" = "A atenuação não encontrou voz acima de %1$.1f dBFS. Não foi possível ler %2$@.";
 "banner.take.sync.broken" = "%1$@ moveu parte do excerto %2$lld. Agora está dessincronizado da gravação a partir de %3$@.";
 "banner.take.sync.broken.unnamed" = "Um agente de IA moveu parte do excerto %1$lld. Agora está dessincronizado da gravação a partir de %2$@.";
 "banner.take.sync.show" = "Mostrar";
@@ -399,7 +400,7 @@
 "take.recovered" = "O excerto %lld foi recuperado.";
 "take.unplaced" = "Áudio que não está em nenhuma faixa:";
 "take.unplaced.redo" = "Refazer traz este áudio de volta.";
-"banner.save.error" = "A última alteração não foi guardada. %@";
+"banner.save.error" = "A última alteração não foi guardada.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transporte";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Utilize auscultadores para que a voz do convidado não entre no seu microfone.";
 "banner.monitor.headphones" = "Utilize auscultadores para ouvir o monitor.";
 "banner.export.report" = "%1$@ exportado (%2$@).";
+"banner.export.report.large" = "%1$@ exportado com um ganho de %2$+.1f dB. Verifique se a seleção tem voz.";
 "banner.export.done" = "%@ exportado.";
 "announce.level.changed" = "%lld clipes alterados.";
 "announce.level.changed.one" = "1 clipe alterado.";
@@ -705,7 +707,7 @@
 "report.peak" = "pico real %.1f dBTP";
 "report.peak.none" = "sem pico real (silêncio)";
 "report.gain" = "ganho %+.1f dB";
-"report.gain.large" = "O ganho é superior a 20 dB. Verifique se a seleção tem voz.";
+"report.gain.large" = "Verifique se a seleção tem voz.";
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Erro";
 "banner.kind.info" = "Informação";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "O desfasamento muda %lld ms ao longo do clipe.";
 "banner.sync.not.measured" = "Só correspondeu uma parte do clipe: é demasiado pouco para medir a deriva.";
 "banner.sync.too.short" = "O clipe tem menos dos 60 s de que a medição da deriva precisa.";
-"banner.sync.head.cut" = "O início do clipe foi cortado em %@ para o manter dentro da sessão.";
+"banner.sync.head.cut" = "O início do clipe foi cortado em %@ para o manter na sessão.";
 "banner.sync.replaced" = "A deslocação substituiu áudio de %@.";
 "banner.sync.no.match" = "Nenhuma correspondência encontrada para %@ em %@.";
 "banner.sync.choose" = "Escolher outra faixa…";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Desfazer importação de sessão";
 "redo.import.session" = "Refazer importação de sessão";
 "error.import.session.same" = "Não é possível importar uma sessão para si própria. Escolha outra sessão.";
-"error.import.session.source" = "A sessão \U201C%1$@\U201D não foi importada. %2$@";
+"error.import.session.source" = "A sessão \U201C%1$@\U201D não foi importada.";
 "error.import.session.target.rate" = "A taxa de amostragem desta sessão, %lld Hz, não está entre 8000 e 384000 Hz. Importe noutra sessão.";
 "error.import.session.yielded" = "A importação da sessão \U201C%@\U201D foi interrompida por um excerto noutra janela. Volte a importar depois do excerto.";
 "error.import.session.rate" = "\U201C%1$@\U201D tem uma taxa de amostragem de %2$lld Hz. Importe uma sessão de 8000 a 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Esta sessão está arquivada como FLAC.";
 "banner.archived.unarchive" = "Desarquivar";
 "banner.archive.saved" = "O arquivamento libertou %@.";
-"banner.archive.snapshot" = "Um instantâneo APFS do volume pode manter estes bytes em uso até o macOS apagar o instantâneo.";
 "banner.archive.no.space" = "O arquivamento não libertou espaço em disco.";
 "banner.archive.damaged" = "Estes ficheiros estão danificados (%@). Ficam como estão.";
 "subtitle.archived" = "Arquivada";

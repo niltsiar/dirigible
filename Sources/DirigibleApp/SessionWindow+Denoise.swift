@@ -56,9 +56,9 @@ extension SessionWindow {
         do throws(StudioError) {
             try await studio.startEffectPreview(request, of: clip, among: clips, listen: listen)
         } catch {
-            let line = L10n.sheetDenoisePreviewFailed.format(L10n.message(for: error, session: studio.session))
-            fault(line)
-            chrome?.announce(line, .medium)
+            let message = L10n.message(for: error, session: studio.session)
+            fault(message)
+            chrome?.announce(L10n.sheetDenoisePreviewFailed.format(message), .medium)
         }
     }
 

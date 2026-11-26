@@ -111,6 +111,7 @@
 "error.silences.faults" = "These files are missing or damaged (%@). Restore them and scan again.";
 "error.duck.past.end" = "The selection starts at or after the end of the session. No gain point changed.";
 "banner.duck.unread" = "%@ couldn't be read. The music stays up over that speech.";
+"banner.duck.no.speech.unread" = "The duck found no speech over %1$.1f dBFS. %2$@ couldn't be read.";
 "banner.take.sync.broken" = "%1$@ moved part of take %2$lld. It's now out of sync with its recording from %3$@.";
 "banner.take.sync.broken.unnamed" = "An AI agent moved part of take %1$lld. It's now out of sync with its recording from %2$@.";
 "banner.take.sync.show" = "Show";
@@ -399,7 +400,7 @@
 "take.recovered" = "Take %lld was recovered.";
 "take.unplaced" = "Audio that is on no track:";
 "take.unplaced.redo" = "Redo brings this audio back.";
-"banner.save.error" = "The last change isn't saved. %@";
+"banner.save.error" = "The last change isn't saved.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transport";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Use headphones to keep the guest's voice out of your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "Exported %1$@ (%2$@).";
+"banner.export.report.large" = "Exported %1$@ with a gain of %2$+.1f dB. Check that the selection has speech.";
 "banner.export.done" = "Exported %@.";
 "announce.level.changed" = "Changed %lld clips.";
 "announce.level.changed.one" = "Changed 1 clip.";
@@ -705,7 +707,7 @@
 "report.peak" = "true peak %.1f dBTP";
 "report.peak.none" = "no true peak (silence)";
 "report.gain" = "gain %+.1f dB";
-"report.gain.large" = "The gain is more than 20 dB. Check that the selection has speech.";
+"report.gain.large" = "Check that the selection has speech.";
 "banner.kind.warning" = "Warning";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Information";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "The lag changes by %lld ms across the clip.";
 "banner.sync.not.measured" = "Only one part of the clip matched, too few to measure the drift.";
 "banner.sync.too.short" = "The clip is shorter than the 60 s that drift measuring needs.";
-"banner.sync.head.cut" = "Cut %@ from the start of the clip to keep it inside the session.";
+"banner.sync.head.cut" = "Cut %@ from the clip start to keep it in the session.";
 "banner.sync.replaced" = "The move replaced audio of %@.";
 "banner.sync.no.match" = "Couldn't find a match for %@ on %@.";
 "banner.sync.choose" = "Choose Another Track…";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Undo Import Session";
 "redo.import.session" = "Redo Import Session";
 "error.import.session.same" = "You can't import a session into itself. Choose a different session.";
-"error.import.session.source" = "The session \U201C%1$@\U201D wasn't imported. %2$@";
+"error.import.session.source" = "The session \U201C%1$@\U201D wasn't imported.";
 "error.import.session.target.rate" = "This session's sample rate of %lld Hz is outside 8000 to 384000 Hz. Import into another session.";
 "error.import.session.yielded" = "The import of the session \U201C%@\U201D stopped for a take in another window. Import again after the take.";
 "error.import.session.rate" = "\U201C%1$@\U201D has a sample rate of %2$lld Hz. Import a session of 8000 to 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "This session is archived as FLAC.";
 "banner.archived.unarchive" = "Unarchive";
 "banner.archive.saved" = "The archive saved %@.";
-"banner.archive.snapshot" = "An APFS snapshot of the volume can keep these bytes in use until macOS deletes the snapshot.";
 "banner.archive.no.space" = "The archive freed no disk space.";
 "banner.archive.damaged" = "These files are damaged (%@). They stay as they are.";
 "subtitle.archived" = "Archived";

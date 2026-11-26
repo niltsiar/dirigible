@@ -121,6 +121,9 @@ enum WindowBanner: Equatable {
     /// move, which its Undo button undoes, or nil when the clip was already in place: then the banner
     /// has no Undo. The press number makes a new key for each sync.
     case syncMoved(SyncMoved, revision: Int?, press: Int)
+    /// The head that a sync cut and the audio that it replaced, in a row of their own after the
+    /// `syncMoved` row of the same press.
+    case syncCut(SyncMoved, press: Int)
     /// A sync of `clip` found no match on `track`, so it changed nothing. The button opens the sheet
     /// again for `clip`, on another track when one exists, with the Correct drift box `correctsDrift`.
     case syncNoMatch(clip: ClipID, track: TrackID, clipName: String, trackName: String, correctsDrift: Bool, press: Int)
@@ -133,8 +136,8 @@ enum WindowBanner: Equatable {
     case transcriptionStopped(TranscribeRequest, press: Int)
     /// A transcription job kept no word, so the track is unchanged.
     case noWordsFound(press: Int)
-    /// The result line of File > Import Session (decision 0075, C16) when it tells of a muted call track or a
-    /// marker that was left out. The window posts the same text itself.
+    /// The muted call tracks and the left out markers of File > Import Session (decision 0075, C16). The
+    /// window announces the whole result line itself.
     case sessionImported(String, press: Int)
 
     enum Kind: CaseIterable {
@@ -197,6 +200,7 @@ enum WindowBanner: Equatable {
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
         case .syncMoved(_, _, let press): "syncMoved.\(press)"
+        case .syncCut(_, let press): "syncCut.\(press)"
         case .syncNoMatch(_, _, _, _, _, let press): "syncNoMatch.\(press)"
         case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
         case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
@@ -210,11 +214,11 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped, .voiceMatchRefused,
-            .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
+            .syncNoMatch, .syncCut, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
         case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound, .stemsDone: .info
-        case .syncMoved(let moved, _, _): moved.needsCheck ? .warning : .info
+        case .syncMoved(let moved, _, _): moved.notCorrected ? .warning : .info
         case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
         case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
         case .exportReport(let report, _, _): report?.exceedsLevelLimit == true ? .warning : .info
@@ -230,8 +234,9 @@ enum WindowBanner: Equatable {
         case .useHeadphones: L10n.bannerUseHeadphones.text
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
         case .exportReport(nil, let file, _): L10n.bannerExportDone.format(file)
-        case .exportReport(let report?, let file, _):
-            L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
+        case .exportReport(let report?, let file, _) where report.exceedsLevelLimit:
+            L10n.bannerExportReportLarge.format(file, report.gain.dB)
+        case .exportReport(let report?, let file, _): L10n.bannerExportReport.format(file, L10n.message(for: report))
         case .exportSetDone(let files, let old): old.isEmpty ? L10n.exportSetDoneText(files) : L10n.oldFilesText(old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
@@ -252,17 +257,17 @@ enum WindowBanner: Equatable {
         case .voiceMatchRefused(let text, _): text
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .archived: L10n.bannerArchived.text
-        case .archiveSaved(let net) where net > 0:
-            L10n.bannerArchiveSaved.format(L10n.bytes(net)) + " " + L10n.bannerArchiveSnapshot.text
+        case .archiveSaved(let net) where net > 0: L10n.bannerArchiveSaved.format(L10n.bytes(net))
         case .archiveSaved: L10n.bannerArchiveNoSpace.text
         case .archiveDamaged(let paths): L10n.bannerArchiveDamaged.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
         case .duckNoSpeech(let threshold, let unread, _) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
-        case .duckNoSpeech(let threshold, let unread, let press):
-            L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread, press: press).text
+        case .duckNoSpeech(let threshold, let unread, _):
+            L10n.bannerDuckNoSpeechUnread.format(threshold, unread.joined(separator: ", "))
         case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
         case .syncMoved(let moved, _, _): moved.text()
+        case .syncCut(let moved, _): moved.cutText()
         case .syncNoMatch(_, _, let clipName, let trackName, _, _): syncNoMatchText(clip: clipName, track: trackName)
         case .takeSyncBroken(let take, let from, let rate, let agent, _):
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
@@ -294,7 +299,7 @@ enum WindowBanner: Equatable {
             .levelReport, .noiseUnchanged, .soundRepaired, .leveledOverTime, .voiceMatchRefused,
             .transcriptImported, .archived, .archiveSaved, .archiveDamaged, .unusedFilesFailed, .consentExpired,
             .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptionStopped, .noWordsFound, .syncMoved, .syncNoMatch:
+            .transcriptionStopped, .noWordsFound, .syncMoved, .syncCut, .syncNoMatch:
             .medium
         case .sessionImported: nil
         }

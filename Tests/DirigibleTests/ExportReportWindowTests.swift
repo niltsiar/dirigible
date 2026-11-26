@@ -190,7 +190,9 @@ extension ExportWindowTests {
         #expect(WindowBanner.exportReport(try report(gain: 14), file: "a.wav", url: url).kind == .info)
         #expect(WindowBanner.exportReport(try report(gain: -21), file: "a.wav", url: url).kind == .warning)
         let large = try report(gain: 44)
-        #expect(WindowBanner.exportReport(large, file: "a.wav", url: url).text.hasSuffix(L10n.reportGainLarge.text))
+        #expect(
+            WindowBanner.exportReport(large, file: "a.wav", url: url).text
+                == L10n.bannerExportReportLarge.format("a.wav", 44.0))
         #expect(WindowAlert.exported(["f.wav"], large).text.hasSuffix(L10n.reportGainLarge.text))
         #expect(
             !WindowBanner.exportReport(try report(gain: 14), file: "a.wav", url: url).text.contains(

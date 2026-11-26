@@ -215,8 +215,8 @@ struct SessionView: View {
             }
             if let error = studio.saveError {
                 BannerRow(
-                    kind: .error,
-                    text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
+                    kind: .error, text: L10n.bannerSaveError.text,
+                    detail: L10n.message(for: error, session: studio.session))
             }
             TakeBanner(model: model, studio: studio)
             TranscribeBanner(model: model)
@@ -306,6 +306,7 @@ extension WindowAlert {
         switch self {
         case .followOverlap(let overlap): overlap.body()
         case .confirmRemoveFavorite: L10n.alertFavoritesRemoveBody.text
+        case .error(.sessionImport(let error, _)): L10n.detail(for: error)
         default: nil
         }
     }

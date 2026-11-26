@@ -111,9 +111,8 @@ extension ArchiveWindowTests {
         await model.close()
     }
 
-    /// C20 and C12: the result banner gives the freed bytes less the FLAC bytes, and with a net
-    /// over 0 it ends with the APFS snapshot sentence.
-    @Test func theResultBannerGivesTheNetBytesAndTheSnapshotSentence() async throws {
+    /// C20 and C12: the result banner gives the freed bytes less the FLAC bytes, in one sentence.
+    @Test func theResultBannerGivesTheNetBytesInOneSentence() async throws {
         let (model, studio, window) = try await window(archived: false)
         let wav = try fileSizes(of: studio.url.appending(path: "Clips/f1.wav"), name: "f1.wav")
 
@@ -128,7 +127,7 @@ extension ArchiveWindowTests {
             return
         }
         #expect(net == wav.freed - flac.bytes && net > 0, "net \(net), WAV \(wav), FLAC \(flac)")
-        #expect(banner?.text.hasSuffix(" " + L10n.bannerArchiveSnapshot.text) == true, "\(banner?.text ?? "")")
+        #expect(banner?.text == L10n.bannerArchiveSaved.format(L10n.bytes(net)), "\(banner?.text ?? "")")
         await model.close()
     }
 

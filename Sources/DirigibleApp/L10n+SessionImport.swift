@@ -13,9 +13,19 @@ extension L10n {
         case .sameSession: return errorImportSessionSame.text
         case .takeNotFinalized: return errorImportSessionPending.format(source)
         case .nothingToImport: return errorImportSessionEmpty.format(source)
-        case .source(let error): return errorImportSessionSource.format(source, message(for: error))
+        case .source: return errorImportSessionSource.format(source)
         case .unsafeFile(let path): return errorImportSessionFile.format(source, path)
         case .paste(let error): return message(forImport: error, source: source)
+        }
+    }
+
+    /// The line under the title of a refusal that names the source session: the reason, then the next
+    /// step. Nil for a refusal whose title says all.
+    static func detail(for error: SessionImportError) -> String? {
+        switch error {
+        case .source(let error): message(for: error)
+        case .paste(.notDownloaded(let file)): errorImportNotDownloaded.format(file)
+        default: nil
         }
     }
 
@@ -25,7 +35,7 @@ extension L10n {
         switch error {
         case .sourceMissing, .sourceUnreadable: errorImportSessionMissing.format(source)
         case .sourceChanged: errorImportSessionChanged.format(source)
-        case .notDownloaded(let file): errorImportSessionSource.format(source, errorImportNotDownloaded.format(file))
+        case .notDownloaded: errorImportSessionSource.format(source)
         case .space, .write(_, ENOSPC): errorImportSessionSpace.format(source)
         case .write(_, let code): errorImportSessionCopy.format(source, Int(code))
         case .convert(_, let code): errorImportSessionConvert.format(source, Int(code))
@@ -47,5 +57,19 @@ extension L10n {
         if muted > 0 { line += " " + count(.importSessionMutedOne, .importSessionMutedOther, muted) }
         if leftOut > 0 { line += " " + count(.importSessionLeftOutOne, .importSessionLeftOutOther, leftOut) }
         return line
+    }
+
+    /// The banner of a window import: the muted call tracks and the markers that were left out, each when
+    /// there is one. The tracks show in the window, so the banner does not count them. `table` gives the
+    /// format of a key: the tests read the tables.
+    static func sessionImportCheck(muted: Int, leftOut: Int, table: (L10n) -> String = { $0.text }) -> String {
+        var parts: [String] = []
+        if muted > 0 {
+            parts.append(counted(muted, one: .importSessionMutedOne, many: .importSessionMutedOther, text: table))
+        }
+        if leftOut > 0 {
+            parts.append(counted(leftOut, one: .importSessionLeftOutOne, many: .importSessionLeftOutOther, text: table))
+        }
+        return parts.joined(separator: " ")
     }
 }

@@ -200,29 +200,25 @@ struct LevelReportBannerTests {
         )
     }
 
-    @Test func aSilentClipKeepsTheTrackVolumeSentence() throws {
+    @Test func aSilentClipGivesItsOwnSentenceAlone() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 1))
-                == "No clips changed. The track volume doesn't change the clip gain. 1 clip with no level keeps its gain."
-        )
+                == "1 clip with no level keeps its gain.")
     }
 
-    @Test func silentClipsAreNotAtTheTarget() throws {
+    @Test func silentClipsGiveTheirCountAlone() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 2))
-                == "No clips changed. The track volume doesn't change the clip gain. "
-                + "2 clips with no level keep their gain."
-        )
+                == "2 clips with no level keep their gain.")
     }
 
     /// Code gate F1: a second level of a clip at the limit changes nothing and repeats the limit
-    /// sentence.
+    /// sentence, with no no-change sentence next to it (A3: two sentences at most).
     @Test func aKeptClipAtTheLimitGivesAWarning() throws {
         let report = LevelReport(changed: 0, atLimit: 1, unmeasured: 0)
         #expect(
             try english(report)
-                == "No clips changed. The track volume doesn't change the clip gain. Check that the clip at the 20 dB limit has speech."
-        )
+                == "Check that the clip at the 20 dB limit has speech.")
         #expect(WindowBanner.levelReport(report, press: 2).kind == .warning)
     }
 

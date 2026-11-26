@@ -48,9 +48,6 @@ struct EpisodeInspector: View {
     let model: SessionWindow
     let studio: Studio
     @FocusState private var focus: EpisodeField?
-    /// The field of a focus request until the pane reports a field. AppKit can end the first
-    /// focus move before SwiftUI reports it, and the focus then goes to nil (item 1398).
-    @State private var requested: EpisodeField?
     @State private var linksShown = false
     @State private var notesExpanded = false
 
@@ -119,26 +116,39 @@ struct EpisodeInspector: View {
         .disabled(!model.canEdit)
         .onChange(of: focus) { old, new in
             model.episodeFocus = new
+            let request = model.episodeFocusRequest
+            var held = false
             // A move into another field (also from the lanes) keeps a refused draft; a move out of
             // the pane only commits.
             if let new, new != model.episodeDraft?.field {
-                _ = model.holdsRefusedEpisode()
+                held = model.holdsRefusedEpisode()
             } else if old != nil {
                 model.commitEpisode()
             }
-            if let field = requested {
-                if new == nil { focus = field } else { requested = nil }
+            guard let request else { return }
+            if held {
+                focus = model.episodeFocusRequest
+            } else if new == nil {
+                focus = request
+            } else if new != request || model.fieldEditorHasFocus {
+                model.episodeFocusRequest = nil
             }
         }
-        .task(id: model.episodeFocusRequest) {
-            guard let field = model.episodeFocusRequest else { return }
-            // A field under Links shows only when Links is open, so a hold there opens it.
-            if [.episodeURL, .feedURL, .guid].contains(field), !linksShown {
-                linksShown = true
-                await Task.yield()
-            }
-            if focus != field { requested = field }
+        .task(id: model.episodeFocusRequest) { giveFocus() }
+        .onDisappear { model.episodeFocusRequest = nil }
+    }
+
+    /// Sets the focus to the field of the request. A focus value that already equals it ends the
+    /// request only while a field editor is first responder; else the value is stale, and the nil
+    /// report of SwiftUI sets the field again. A field under Links shows only when Links is open:
+    /// a hold there opens it, and the field sets the focus when it appears.
+    private func giveFocus() {
+        guard let field = model.episodeFocusRequest else { return }
+        if [.episodeURL, .feedURL, .guid].contains(field), !linksShown {
+            linksShown = true
+        } else if focus != field {
             focus = field
+        } else if model.fieldEditorHasFocus {
             model.episodeFocusRequest = nil
         }
     }
@@ -162,6 +172,7 @@ struct EpisodeInspector: View {
             TextField(text: text(name, episode), prompt: prompt.map { Text($0.key) }, axis: axis) { Text(label.key) }
                 .labelsHidden()
                 .focused($focus, equals: name)
+                .onAppear { giveFocus() }
                 .onSubmit {
                     if !model.holdsRefusedEpisode() { model.focusLanes() }
                 }

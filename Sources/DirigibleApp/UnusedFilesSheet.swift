@@ -42,7 +42,7 @@ struct UnusedFilesSheet: View {
                 TableColumn(L10n.sheetUnusedReason.key) { Text($0.reason.key) }.width(Self.reasonWidth)
             }
             .frame(width: 614, height: 220)
-            Text(verbatim: L10n.sheetUnusedTotal.format(rows.count, L10n.bytes(rows.map(\.bytes).reduce(0, +))))
+            Text(verbatim: L10n.totalLine(count: rows.count, bytes: rows.map(\.bytes).reduce(0, +)))
             ForEach(L10n.scanLines(scan), id: \.self) { Text(verbatim: $0) }
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)
             HStack {
@@ -62,9 +62,18 @@ struct UnusedFilesSheet: View {
 }
 
 extension L10n {
-    /// "Kept for a backup, Undo, or the clipboard: N (size)", or nil when no file is kept.
+    /// "3 files (1.2 MB)": the files that the sheet moves and their size.
+    static func totalLine(count: Int, bytes size: Int64) -> String {
+        count == 1 ? sheetUnusedTotalOne.format(bytes(size)) : sheetUnusedTotal.format(count, bytes(size))
+    }
+
+    /// "N files (size) stay for a backup, Undo, or the clipboard", or nil when no file is kept.
     static func keptLine(_ kept: UnusedFiles.Kept) -> String? {
-        kept.count == 0 ? nil : sheetUnusedKept.format(kept.count, bytes(kept.bytes))
+        switch kept.count {
+        case 0: nil
+        case 1: sheetUnusedKeptOne.format(bytes(kept.bytes))
+        default: sheetUnusedKept.format(kept.count, bytes(kept.bytes))
+        }
     }
 
     /// The damaged backups that keep no file (decision 0047 D2), or nil when there is none.

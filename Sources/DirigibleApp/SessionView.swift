@@ -51,11 +51,13 @@ struct SessionView: View {
                     Button(L10n.alertMicrophoneSettings.key) { model.openPrivacySettings() }
                     Button(L10n.alertCancel.key, role: .cancel) {}
                 case .error, .importChain, .exported, .exportedSet, .noUnusedFiles, .transcriptExport,
-                    .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .templateNewKept,
-                    .templateOldKept, .binFileFault:
+                    .transcriptImport, .placedWithNoClip, .templateTrash, .templateOpen, .binFileFault:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
                     if alert == .error(.archived) { Button(L10n.bannerArchiveUnarchive.key) { model.unarchive() } }
+                case .templateNewKept(_, let path), .templateOldKept(_, let path):
+                    Button(L10n.alertOK.key) {}
+                    Button(L10n.bannerExportSetShow.key) { model.showInFinder([URL(filePath: path)]) }
                 case .transcribeFile(_, let request), .transcribeNoData(_, let request):
                     Button(L10n.alertOK.key) {}
                     if let pick = alert.pickButton { Button(pick.key) { model.startWithPickedFile(request) } }
@@ -341,8 +343,8 @@ extension WindowAlert {
         case .transcribeNoData(let error, _): L10n.message(for: error)
         case .templateTrash(let name): L10n.errorTemplateTrash.format(name)
         case .templateOpen(let name): L10n.errorTemplateOpen.format(name)
-        case .templateNewKept(let name, let path): L10n.errorTemplateKeptNew.format(name, path)
-        case .templateOldKept(let name, let path): L10n.errorTemplateKeptOld.format(name, path)
+        case .templateNewKept(let name, _): L10n.errorTemplateKeptNew.format(name)
+        case .templateOldKept(let name, _): L10n.errorTemplateKeptOld.format(name)
         case .binFileFault(let path, .missing): L10n.errorBinMissing.format(path)
         case .binFileFault(let path, .short): L10n.errorBinShort.format(path)
         case .binFileFault(let path, .unreadable): L10n.errorBinUnreadable.format(path)

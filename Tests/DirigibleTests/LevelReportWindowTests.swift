@@ -203,7 +203,7 @@ struct LevelReportBannerTests {
     @Test func aSilentClipKeepsTheTrackVolumeSentence() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 1))
-                == "No clips changed. The track volume doesn't change the clip gain. 1 clip has no level to measure. It keeps its gain."
+                == "No clips changed. The track volume doesn't change the clip gain. 1 clip with no level keeps its gain."
         )
     }
 
@@ -211,7 +211,7 @@ struct LevelReportBannerTests {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 2))
                 == "No clips changed. The track volume doesn't change the clip gain. "
-                + "2 clips have no level to measure. They keep their gain."
+                + "2 clips with no level keep their gain."
         )
     }
 
@@ -236,7 +236,7 @@ struct LevelReportBannerTests {
     /// C9 (d): a clip with no level to measure gives a warning banner next to a changed clip.
     @Test func aClipWithNoLevelGivesAWarning() throws {
         let report = LevelReport(changed: 2, atLimit: 0, unmeasured: 1)
-        #expect(try english(report) == "1 clip has no level to measure. It keeps its gain.")
+        #expect(try english(report) == "1 clip with no level keeps its gain.")
         #expect(WindowBanner.levelReport(report, press: 1).kind == .warning)
     }
 

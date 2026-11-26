@@ -13,8 +13,7 @@ struct TranscribeJobShown: Equatable {
     /// The host that the firewall hint names, while the download gets no byte; else nil.
     var hint: String?
 
-    /// The second line of the banner: "No data from huggingface.co yet. A firewall can block the
-    /// download."
+    /// The second line of the banner: "No data from huggingface.co yet. Check your firewall."
     var hintText: String? { hint.map { L10n.transcribeBannerFirewall.format($0) } }
 
     /// "Downloading the speech model... 42 %" or "Transcribing Host... 42 %".

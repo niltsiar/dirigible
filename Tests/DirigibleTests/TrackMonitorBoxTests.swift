@@ -220,7 +220,7 @@ import Testing
             #expect(help.contains("(%@)") && help.contains("Op"), "the key and the Option-click: \(help)")
         }
         let help = String(format: en[L10n.trackMonitorHelp.rawValue] ?? "", keyText(MenuKeys.monitorTrack))
-        #expect(help.hasPrefix("Monitor Track (⌃⌘M):"), "the help with the key: \(help)")
+        #expect(help.hasPrefix("Hear the input in your headphones (⌃⌘M)."), "the help with the key: \(help)")
     }
 
     // MARK: Code gate round 1, item 1

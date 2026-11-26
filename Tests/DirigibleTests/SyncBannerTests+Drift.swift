@@ -42,12 +42,9 @@ extension SyncBannerTests {
     @Test func theBannerGivesTheCause() {
         let causes: [(DriftCause, String)] = [
             (.clipTooShort, "The clip is shorter than 5 min."),
-            (.renderedFile, "The clip plays rendered audio and needs its original audio restored first."),
+            (.renderedFile, "Restore the original audio of the clip, then sync again."),
             (.takeFile, "A take records on the session clock."),
-            (
-                .transcriptNotLoaded,
-                "A transcript of the session didn't load. Import it again with an agent or the dirigible command."
-            ),
+            (.transcriptNotLoaded, "Import the transcript again, then sync again."),
             (.noFit(.tooFewPoints), "Too few parts of the clip match the reference."),
             (.noFit(.tooManyOutliers), "Too few parts of the clip match the reference."),
             (.noFit(.twoLines), "The lag doesn't follow a steady line."),

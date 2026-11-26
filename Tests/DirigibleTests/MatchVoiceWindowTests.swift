@@ -240,15 +240,13 @@ import Testing
         }
         #expect(
             text(.matchRefusedReference, en, 6, 10)
-                == "The reference clip has 6 s of voice. Match Voice needs 10 s. "
-                + "Choose a longer clip or a longer range.")
+                == "The reference clip has only 6 s of voice. Choose a clip with 10 s or more.")
         #expect(
             text(.matchRefusedReference, es, 6, 10)
-                == "El clip de referencia tiene 6 s de voz. Igualar voz necesita 10 s. "
-                + "Elige un clip m\u{E1}s largo o un intervalo m\u{E1}s largo.")
+                == "El clip de referencia solo tiene 6 s de voz. Elige un clip con 10 s o m\u{E1}s.")
         #expect(
             text(.matchRefusedTrack, en, "Guest", 6, 10)
-                == "The track \u{201C}Guest\u{201D} has 6 s of voice. Match Voice needs 10 s.")
+                == "The track \u{201C}Guest\u{201D} has only 6 s of voice, under the 10 s that Match Voice needs.")
     }
 
     /// C11: a slider drag from 75 to 40 through 20 preview values makes one entry at the mouse-up.

@@ -89,12 +89,14 @@ extension LocalizationTests {
         let tells = [
             "a": "Words selected: %lld", "b": "Option-click: all tracks.", "c": "Stopped because the disk is full.",
             "d": "Dirigible sends nothing.", "e": "The file is not saved.",
-            "f": "The clip didn't move. Dirigible doesn't delete it.",
+            "f": "The clip didn't move. Dirigible doesn't delete it.", "g": "Did not start",
+            "h": "Take sync: Cannot read %@",
         ]
         #expect(
             textProblems(tells, labelKeys: []) == [
                 "a: a count after a colon", "a: a fact after a colon", "b: a fact after a colon", "c: because",
                 "d: the app name as the subject", "e: an uncontracted negation", "f: the app name as the subject",
+                "g: an uncontracted negation", "h: an uncontracted negation",
             ])
         let voice = [
             "a": "%lld words selected", "b": "Option-click to apply to all tracks.", "c": "Files: %lld (%@)",
@@ -255,7 +257,7 @@ private func noteProblems(_ values: [String: String]) -> [String] {
 }
 
 /// The keys that list file names, so they may hold 100 characters or more.
-private let voiceNameLists: Set = ["media.missing"]
+private let voiceNameLists: Set<String> = []
 
 /// One line for each tell of a value: `<key>: <tell>`, sorted by key.
 private func voiceProblems(_ values: [String: String], nameLists: Set<String>) -> [String] {
@@ -269,7 +271,7 @@ private func voiceProblems(_ values: [String: String], nameLists: Set<String>) -
 }
 
 private func hasUncontractedNegation(_ value: String) -> Bool {
-    value.firstMatch(of: /\b(?:cannot|does not|did not|do not|is not|are not|could not)\b/) != nil
+    value.firstMatch(of: /\b(?:cannot|does not|did not|do not|is not|are not|could not)\b/.ignoresCase()) != nil
 }
 
 /// A letter, a colon, a space, and a letter or a format specifier: a fact after a colon.
@@ -291,9 +293,9 @@ private func hasAppNameSubject(_ key: String, _ value: String) -> Bool {
     !appNameSubjectKeys.contains(key) && startsWithAppName(value)
 }
 
-/// The keys of a label and its value (a count and a size, or a list of names), which keep a colon.
+/// The keys of a label and its value (a take and its sync state), which keep a colon.
 private let labelColonKeys: Set = [
-    "media.missing", "alert.quit.unsaved", "sheet.unused.total", "sheet.unused.kept",
+    "episode.take.sync.in", "episode.take.sync.broken", "episode.take.sync.fault",
 ]
 
 /// One line for each tell of a text: `<key>: <tell>`, sorted by key.

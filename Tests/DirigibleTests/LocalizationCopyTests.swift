@@ -96,6 +96,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "sheet.unused.total.one",
         "export.presets.podcast", "export.presets.summary.lufs", "export.presets.master",
         "export.presets.summary.mono", "export.presets.summary.stereo",
         "sheet.sync.row", "sync.duration.minutes", "sync.duration.seconds",

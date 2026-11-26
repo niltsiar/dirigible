@@ -8,7 +8,7 @@
 - Amended: 2026-10-29, run `2026-10-29-pt-pt-ui`. The UI has eight languages: European Portuguese (`pt-PT`) joins Brazilian Portuguese (`pt`). A Mac set to `pt-PT`, or to another Portuguese region but Brazil, gets `pt-PT`.
 - Amended: 2026-11-24, run `2026-11-24-docs-gate`. Checks names the ellipsis forms of a doc, a menu table, and a `.strings` file.
 - Amended: 2026-11-24, run `2026-11-24-ui-design-audit`. The Voice clause sets the style of English UI text, with the source of each rule in `docs/research/ui-design-audit.md`. A count with a noun has one key for 1 and one key for more.
-- Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (item 0032). `LocalizationTests` fails an `es` value in usted form (**Checks**).
+- Amended: 2026-11-25, run `2026-11-24-ui-design-audit`. `LocalizationTests` fails an `es` value in usted form (**Checks**).
 
 ## Context
 

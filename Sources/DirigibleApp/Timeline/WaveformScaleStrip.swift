@@ -93,16 +93,14 @@ final class WaveformScaleStrip: NSView {
     /// The label of a tick: the dB under full scale, with no minus sign, so "145" fits the strip.
     static func labelText(dB: Double) -> String { String(Int(-dB)) }
 
-    private static let font = NSFont.systemFont(ofSize: labelSize)
+    /// The one font of the labels: `labelSize` at each range.
+    static let labelFont = NSFont.systemFont(ofSize: labelSize)
 
     /// Whether the label of a tick is not wider than `labelRoom`. The glyph widths do not scale in
     /// line with the size, so it measures.
     static func fits(dB: Double) -> Bool {
-        NSAttributedString(string: labelText(dB: dB), attributes: [.font: font]).size().width <= labelRoom
+        NSAttributedString(string: labelText(dB: dB), attributes: [.font: labelFont]).size().width <= labelRoom
     }
-
-    /// The one font of the labels: `labelSize` at each range.
-    static func labelFont(range: WaveformRange) -> NSFont { font }
 
     /// The y of a label center in its lane: the tick y, kept inside the lane.
     static func labelCenter(y: Double, laneHeight: Double) -> Double {
@@ -120,7 +118,7 @@ final class WaveformScaleStrip: NSView {
         let first = max(0, Int(((top + dirtyRect.minY) / inputs.laneHeight).rounded(.down)))
         let last = min(inputs.lanes - 1, Int(((top + dirtyRect.maxY) / inputs.laneHeight).rounded(.down)))
         guard first <= last else { return }
-        let font = Self.labelFont(range: inputs.range)
+        let font = Self.labelFont
         // The labels and their place in a lane, measured one time for all lanes.
         let labels = Self.labelled(range: inputs.range, laneHeight: inputs.laneHeight).map { label in
             let text = NSAttributedString(

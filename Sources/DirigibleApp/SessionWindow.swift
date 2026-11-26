@@ -78,8 +78,8 @@ import SwiftUI
     var episodeDraft: EpisodeDraft?
     /// The episode field with the focus, from the pane.
     @ObservationIgnored var episodeFocus: EpisodeField?
-    /// The episode field that gets the focus, kept until a field editor edits that field: Title for File > Episode
-    /// Info…, or the field of a refused draft.
+    /// The episode field that gets the focus, kept until a field editor edits that field: Title
+    /// for File > Episode Info…, or the field of a refused draft.
     var episodeFocusRequest: EpisodeField?
     /// The count of tab changes that a refused episode draft stopped. The tab picker takes it as
     /// its identity: the segmented control shows the segment of the click until SwiftUI makes it

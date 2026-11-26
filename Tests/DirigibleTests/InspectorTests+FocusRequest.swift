@@ -6,13 +6,13 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleTimeline
 
-/// The focus request of the inspector panes (run 2026-11-26-inspector-focus-request, item 1953):
-/// a request stays until the field is first responder, and it ends there.
+/// The focus request of the inspector panes (item 1953): a request stays until the field is first
+/// responder, and it ends there.
 extension InspectorTests {
-    /// Runs `count` layout passes of the window, each followed by a main-actor turn, so SwiftUI
+    /// Runs 20 layout passes of the window, each followed by a main-actor turn, so SwiftUI
     /// reports a focus move and the pane answers it. A pass is no wall-clock wait.
-    func settle(_ window: NSWindow, passes count: Int = 20) async {
-        for _ in 0..<count {
+    func settle(_ window: NSWindow) async {
+        for _ in 0..<20 {
             window.contentView?.layoutSubtreeIfNeeded()
             await Task.yield()
         }

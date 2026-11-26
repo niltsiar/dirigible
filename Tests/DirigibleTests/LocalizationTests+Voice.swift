@@ -20,6 +20,14 @@ extension LocalizationTests {
         #expect(several.count <= sentenceBudget, "\(several.count) texts have two sentences or more: \(several)")
     }
 
+    /// ui-audit A5: no text joins two parts with a hyphen between spaces.
+    @Test func noTextHasASpacedHyphen() throws {
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let found = try stringsTable(language).filter { $0.value.contains(" - ") }.keys.sorted()
+            #expect(found == [], "\(language) has a spaced hyphen")
+        }
+    }
+
     /// A banner, an alert, and an error have one fact in each sentence and at most two sentences.
     @Test func messageTextsHoldOneFactInEachSentence() throws {
         let values = try stringsTable("en").filter { isMessageKey($0.key) }

@@ -7,7 +7,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The double click on a row of the index list and the action Play from here. The rows of the
+/// The double click on a row of the index list and the action Play from Here. The rows of the
 /// fixture are a (0), h1 (1), m1 (2), b (3), c (4), and m2 (5).
 extension SessionIndexWindowTests {
     /// A double click as a mouse sends it: a pair with count 1, then a pair with count 2.
@@ -68,7 +68,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// The action Play from here and the row menu item do what a double click does.
+    /// The action Play from Here and the row menu item do what a double click does.
     @Test func playFromHereActsAsADoubleClick() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()

@@ -184,7 +184,7 @@ struct TranscribeDraft: Equatable {
         }
     }
 
-    /// "Standard - 148 MB", "More Accurate - 190.1 MB, slower", or "Most Accurate - 574 MB, slowest".
+    /// "Standard (148 MB)", "More Accurate (190.1 MB, slower)", or "Most Accurate (574 MB, slowest)".
     /// `text` gives the table value of a key.
     static func title(
         of model: WhisperModel, locale: Locale = .current, text: (L10n) -> String = { $0.text }

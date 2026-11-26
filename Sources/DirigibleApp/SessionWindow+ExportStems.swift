@@ -15,6 +15,8 @@ struct StemsShown: Equatable {
 
     let outcome: Outcome
     let revision: Int
+    /// A file rendered as silence: the alert is the result, and no done banner shows.
+    var faulty = false
 
     /// What VoiceOver hears when the stems are written. Nil after a stop: its banner says that.
     var doneText: String? {
@@ -23,13 +25,14 @@ struct StemsShown: Equatable {
     }
 
     /// The clip warning comes first: the stems over 0 dBFS, then the mix line. A stop gives only the
-    /// stop banner. A clean finish gives no banner.
+    /// stop banner. A finish with no warning and no fault gives the done banner.
     var banners: [WindowBanner] {
-        guard case .done(_, let files, let mixPeak) = outcome else { return [.stemsStopped] }
+        guard case .done(let folder, let files, let mixPeak) = outcome else { return [.stemsStopped] }
         var banners: [WindowBanner] = []
         let clipped = files.filter(\.isOverFullScale).map(\.name)
         if !clipped.isEmpty { banners.append(.stemsClipped(clipped)) }
         if let mixPeak, mixPeak > 1 { banners.append(.stemsMixClipped) }
+        if banners.isEmpty && !faulty { banners.append(.stemsDone(folder: folder, count: files.count)) }
         return banners
     }
 }
@@ -101,7 +104,7 @@ extension SessionWindow {
                 by: target.grouping, source: source, titles: .app(), options: target.options, folder: target.folder)
             let shown = StemsShown(
                 outcome: .done(folder: target.folder, files: result.files, mixPeak: result.mixPeak),
-                revision: revision)
+                revision: revision, faulty: !result.faults.isEmpty)
             stemsShown = shown
             if let text = shown.doneText { chrome?.announce(text, .medium) }
             if !result.faults.isEmpty { alert = .exported(paths(of: result.faults, in: session), nil) }

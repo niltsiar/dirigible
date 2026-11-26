@@ -897,6 +897,8 @@
 "banner.export.set.dropped" = "No file for \U201C%@\U201D, which starts at the previous split point or at the end of the range.";
 "menu.file.export.stems" = "Export Stems…";
 "error.export.nostem" = "The session has no stem to write in the export range now. No file was written.";
+"banner.stems.done" = "Exported %1$lld stems to %2$@.";
+"banner.stems.done.one" = "Exported 1 stem to %@.";
 "banner.stems.stopped" = "No stem was written.";
 "banner.stems.clipped" = "The stem files %@ clip over 0 dBFS and won't add up to the mix.";
 "banner.stems.mix.clipped" = "The mix of the stems is over 0 dBFS and won't match a mix export.";

@@ -66,6 +66,9 @@ enum WindowBanner: Equatable {
     case stemsClipped([String])
     /// The mix of the stems is over 0 dBFS, so the stems do not add up to a mix export.
     case stemsMixClipped
+    /// A stem export with no warning: its folder for the Show in Finder button and the count of stem
+    /// files. The folder lands outside the window, so the window shows the result.
+    case stemsDone(folder: URL, count: Int)
     /// A stem export that stopped: no stem was written.
     case stemsStopped
     /// The names of the chapters that the exported file leaves out, because each starts at the
@@ -174,6 +177,7 @@ enum WindowBanner: Equatable {
         case .exportSetDropped(let marker): "exportSetDropped.\(marker.id)"
         case .stemsClipped: "stemsClipped"
         case .stemsMixClipped: "stemsMixClipped"
+        case .stemsDone: "stemsDone"
         case .stemsStopped: "stemsStopped"
         case .chaptersDropped(_, let file): "chaptersDropped.\(file)"
         case .chapterImagesOmitted(let file): "chapterImagesOmitted.\(file)"
@@ -209,7 +213,7 @@ enum WindowBanner: Equatable {
             .syncNoMatch, .stemsClipped, .stemsMixClipped, .stemsStopped, .sessionImported, .leveledOverTime:
             .warning
         case .missingMedia, .unusedFilesFailed, .archiveDamaged: .error
-        case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound: .info
+        case .archived, .archiveSaved, .consentExpired, .noiseUnchanged, .noWordsFound, .stemsDone: .info
         case .syncMoved(let moved, _, _): moved.needsCheck ? .warning : .info
         case .levelReport(let report, _): report.atLimit > 0 || report.unmeasured > 0 ? .warning : .info
         case .soundRepaired(let result, _): result.drop > 0 ? .warning : .info
@@ -233,6 +237,7 @@ enum WindowBanner: Equatable {
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
         case .stemsClipped(let names): stemsClippedText(names)
         case .stemsMixClipped: L10n.bannerStemsMixClipped.text
+        case .stemsDone(let folder, let count): stemsDoneText(count, folder: folder.lastPathComponent)
         case .stemsStopped: L10n.bannerStemsStopped.text
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
@@ -273,6 +278,8 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         // `showSet` announces a plain set with its loudness range.
         case .exportSetDone(_, let old) where old.isEmpty: nil
+        // `runStems` announces the count and the folder.
+        case .stemsDone: nil
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .stemsClipped,
             .stemsMixClipped, .stemsStopped, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseUnchanged, .soundRepaired, .leveledOverTime, .voiceMatchRefused,
@@ -294,6 +301,13 @@ func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?) -> Strin
         text += " " + L10n.announceExportSetLoudness.format(L10n.loudnessNumber(low), L10n.loudnessNumber(high))
     }
     return text
+}
+
+/// "Exported 3 stems to Episode Stems.": the count of stem files and the name of their folder. `text` gives
+/// the value of a key.
+func stemsDoneText(_ count: Int, folder: String, text: (L10n) -> String = { $0.text }) -> String {
+    count == 1
+        ? String(format: text(.bannerStemsDoneOne), folder) : String(format: text(.bannerStemsDone), count, folder)
 }
 
 /// "The stem files a.wav, b.wav clip over 0 dBFS and won't add up to the mix." `text` gives the value of a key.

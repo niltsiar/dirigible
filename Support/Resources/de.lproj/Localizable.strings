@@ -897,6 +897,8 @@
 "banner.export.set.dropped" = "Keine Datei für den Marker \U201E%@\U201C, der am vorherigen Teilungspunkt oder am Ende des Bereichs beginnt.";
 "menu.file.export.stems" = "Stems exportieren …";
 "error.export.nostem" = "Die Sitzung hat jetzt keinen Stem im Exportbereich. Es wurde keine Datei geschrieben.";
+"banner.stems.done" = "%1$lld Stems wurden nach %2$@ exportiert.";
+"banner.stems.done.one" = "1 Stem wurde nach %@ exportiert.";
 "banner.stems.stopped" = "Es wurde kein Stem geschrieben.";
 "banner.stems.clipped" = "Die Stem-Dateien %@ übersteuern über 0 dBFS und ergeben zusammen nicht den Mix.";
 "banner.stems.mix.clipped" = "Der Mix der Stems liegt über 0 dBFS und entspricht keinem Mix-Export.";

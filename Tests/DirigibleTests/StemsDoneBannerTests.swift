@@ -22,7 +22,47 @@ struct StemsDoneBannerTests {
         let banners = shown(files).banners
 
         #expect(banners == [.stemsClipped(["02 Guest.wav"])], "a peak of 1.0 gives no warning")
-        #expect(shown([file("01 Host.wav", peak: 1)]).banners.isEmpty, "no clip: no banner")
+        #expect(shown([file("01 Host.wav", peak: 1)]).banners == [.stemsDone(folder: folder, count: 1)], "no clip")
+    }
+
+    /// C9: the folder is outside the window, so a clean finish shows one info banner with the stem count
+    /// and the folder name. Its text has a form for 1 stem, so 1 does not read "1 stems".
+    @Test func aCleanFinishShowsOneInfoBannerNamingTheFolder() throws {
+        let files = [file("01 Host.wav", peak: 0.5), file("02 Guest.wav", peak: 0.5)]
+
+        let banners = shown(files).banners
+
+        #expect(banners == [.stemsDone(folder: folder, count: 2)])
+        #expect(banners.first?.kind == .info)
+        #expect(banners.first?.text == stemsDoneText(2, folder: "Show Stems"), "the text names the folder")
+        #expect(banners.first?.announcement == nil, "the end of the run announces its own text once")
+        let en = try stringsTable("en")
+        #expect(stemsDoneText(2, folder: "Show Stems") { en[$0.rawValue] ?? "" } == "Exported 2 stems to Show Stems.")
+        #expect(stemsDoneText(1, folder: "Show Stems") { en[$0.rawValue] ?? "" } == "Exported 1 stem to Show Stems.")
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            let one = try #require(table["banner.stems.done.one"], "\(language)")
+            let many = try #require(table["banner.stems.done"], "\(language)")
+            #expect(!one.contains("%lld") && one.contains("%@"), "\(language): \(one)")
+            #expect(many.contains("%1$lld") && many.contains("%2$@"), "\(language): \(many)")
+        }
+    }
+
+    /// A warning is the result of the run: it stays as it was and the done banner does not add a second line.
+    @Test func aWarningWinsOverTheDoneBanner() {
+        let clipped = shown([file("01 Host.wav", peak: 1.2)], mixPeak: 1.3).banners
+        #expect(clipped == [.stemsClipped(["01 Host.wav"]), .stemsMixClipped])
+        #expect(clipped.allSatisfy { $0.kind == .warning })
+        #expect(shown([file("01 Host.wav", peak: 0.5)], mixPeak: 1.3).banners == [.stemsMixClipped])
+    }
+
+    /// A stem that rendered as silence gives the alert of Export: the alert is the result.
+    @Test func aStemWithAFaultGivesNoDoneBanner() {
+        let faulty = StemsShown(
+            outcome: .done(folder: folder, files: [file("01 Host.wav", peak: 0.5)], mixPeak: nil), revision: 3,
+            faulty: true)
+
+        #expect(faulty.banners.isEmpty)
     }
 
     @Test func aStopSaysNoStemWasWritten() throws {

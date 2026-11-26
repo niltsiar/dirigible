@@ -897,6 +897,8 @@
 "banner.export.set.dropped" = "Nenhum ficheiro para \U201C%@\U201D, que começa no ponto de divisão anterior ou no fim do intervalo.";
 "menu.file.export.stems" = "Exportar stems…";
 "error.export.nostem" = "A sessão já não tem nenhum stem para gravar no intervalo de exportação. Nenhum ficheiro foi gravado.";
+"banner.stems.done" = "%1$lld stems exportados para %2$@.";
+"banner.stems.done.one" = "1 stem exportado para %@.";
 "banner.stems.stopped" = "Nenhum stem foi gravado.";
 "banner.stems.clipped" = "Os ficheiros de stems %@ saturam acima de 0 dBFS e não somarão a mistura.";
 "banner.stems.mix.clipped" = "A mistura dos stems excede 0 dBFS e não corresponderá a uma exportação da mistura.";

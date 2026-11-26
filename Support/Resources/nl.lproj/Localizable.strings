@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Tijdlijn";
 "drop.new.track" = "Nieuw spoor";
 "drop.new.tracks" = "%lld nieuwe sporen";
+"drop.hint" = "Zet audiobestanden hier neer om sporen toe te voegen.";
 "timeline.header.handle" = "Breedte van spoorlabels";
 "timeline.header.rename" = "Wijzig naam";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Hoogste echte piek, dBTP";
 "loudness.target.tip" = "Het luidheidsdoel van de export";
 "loudness.take.tip" = "Elk spoor met actieve opname toont zijn luidheid in het spoorlabel als het label 262 pt of breder is, of als het spoor hoog genoeg is voor twee regels";
+"loudness.idle" = "Speel af om te meten";
 "menu.edit.in" = "Stel beginpunt in";
 "menu.edit.out" = "Stel eindpunt in";
 "menu.edit.deselect" = "Deselecteer alles";

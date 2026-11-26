@@ -31,6 +31,7 @@
 - Amended: 2026-11-24, run `2026-11-24-ui-design-audit` (F112). No text of the app draws under 10 pt, the macOS minimum. The labels of the scale strip draw at 10 pt at each range, with no step-down. A label that is wider than the 14 pt left of its tick does not draw, and its tick stays: the 3-digit label of 120 and 145 dB. The strip stays 20 pt wide. The role letter of a track header is 10 pt in its 14 pt box.
 - Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F148). A selected track header in a key window shows a light tint of the accent color (alpha 0.22), not the full selection fill, and its labels keep their normal text color. In a window that is not key, the header keeps the unemphasized source list fill (`HeaderRowStyle`).
 - Amended: 2026-11-25, run `2026-11-24-ui-design-audit`. The selection band in the lanes and in the overview strip moves each channel 30 % toward the system accent color in light mode too (`LanePalette.selected`). A light lane keeps its hue under the band, and the waveform keeps its contrast.
+- Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F147). The row under the last lane has a hint in secondary text: a drop of audio files there adds tracks. It is a text layer of `LaneDrop`, over the lane pixels (0022), so it draws no lane pixel. It shows when the lanes in view have a row of one lane height or more under the last lane and no take records. A drop cue hides it.
 
 ## Context
 

@@ -180,7 +180,7 @@ The loudness meter is the strip below the tracks. It measures the mix that you h
 - **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
 - **Target** is the loudness target of the export: -16 LUFS for **Podcast** or **Off**, -18 LUFS for **Speech**, -23 LUFS for **EBU R 128**, and -24 LUFS for **US broadcast**.
 
-When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. A play in reverse, at half speed, at 4x, or at a **Playback Speed** other than 1x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Input Levels** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines.
+Before the first play, the strip says "Play to measure" in place of **Average** and **Peak**. When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. A play in reverse, at half speed, at 4x, or at a **Playback Speed** other than 1x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Input Levels** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
@@ -689,7 +689,7 @@ Choose **File > Import Audio...** (Command-T) and select a WAV, AIFF, FLAC, MP3,
 - Dirigible levels the clip as **Tools > Auto Level** does, and selects it. One **Edit > Undo** removes the clip, its level, and a new track.
 - A banner shows the name of the file and the progress. Click **Cancel** in the banner or press Command-period to stop the import: the session does not change. A Cancel at the very end can come too late; then the change stays, and **Edit > Undo** removes it. VoiceOver reads the banner when it appears, and reads the progress bar with the banner text. You cannot record or edit until the import ends.
 
-You can also drag audio files from Finder onto the tracks. During the drag, a line shows where the clips start. The target track gets a colored border, or a **New Track** row shows where Dirigible adds the tracks.
+You can also drag audio files from Finder onto the tracks. During the drag, a line shows where the clips start. The target track gets a colored border, or a **New Track** row shows where Dirigible adds the tracks. When the tracks leave room for one more track in the window, a line under the last track says "Drop audio files here to add tracks."
 
 - Drop one file on a track to put the clip on that track. The clip starts at the pointer, not at the playhead.
 - Drop one file below the last track, or at the bottom edge of the tracks when they fill the window, to add a new track.

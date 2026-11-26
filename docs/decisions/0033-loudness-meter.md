@@ -5,6 +5,7 @@
 - Accepted: 2026-10-03, after a UI panel of three, prototype P1, and plan gates 1 and 2 of run `2026-10-03-loudness-meter`.
 - Amends: 0008 (the live meter), 0016 (the Player feeds the meter), 0023 (the strip is a row of the content, not a side pane), and 0002 (the new files).
 - Amended: 2026-10-13, run `2026-10-13-preroll-varispeed` (9a). Only a 1x forward play at the speed 1x feeds the meter: a play at another vari-speed gives no value, as the other shuttle rates do (0052).
+- Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F147). With no value at all and no meter of the inputs, the strip shows one hint in place of the Average and Peak cells, and the Loudness cell has no dash. The Target text shows its unit: "-16 LUFS".
 
 ## Context
 
@@ -21,7 +22,7 @@ The panel had three lenses: Apple pro apps (Logic Loudness Meter, the Final Cut 
 
 **Place.** An opaque strip of 28 pt below the lanes, the full width of the timeline pane, a row of `SessionView`. It holds no critical information: the export sets the loudness (0032), and the take state stays in the banners. So it is not the bottom bar of the research. View > Show/Hide Loudness Meter (Shift-Command-8, the key of the Final Cut Pro Audio Meters) toggles it. The app preference `view.loudness.shown` is a `Bool`, default true; it never changes its meaning or type.
 
-**Values.** Loudness is the short-term value (3 s), the big number: clip gain can still fix it, and the export fixes the integrated value. A bar shows the momentary value (400 ms) from -40 to 0 LUFS, at most 360 pt wide. Average is the integrated value with its measured time. Peak is the highest true peak. Target is the line of the export target. The EBU names are in the tooltips. A nil value shows an en dash.
+**Values.** Loudness is the short-term value (3 s), the big number: clip gain can still fix it, and the export fixes the integrated value. A bar shows the momentary value (400 ms) from -40 to 0 LUFS, at most 360 pt wide. Average is the integrated value with its measured time. Peak is the highest true peak. Target is the line of the export target. The EBU names are in the tooltips. A nil value shows an en dash, unless no value exists at all and no take meters the inputs: then a hint shows ("Play to measure").
 
 **Target line and colors.** The line is the stereo target of the export preset (`export.loudness`); Off gives -16. The meter measures the stereo mix, so a mono export at -19 equals this line. The bar is green up to the line and yellow over it (Logic). Peak turns red over -1 dBTP and keeps its number.
 

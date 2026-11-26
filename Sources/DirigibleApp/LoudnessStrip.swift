@@ -14,12 +14,17 @@ struct LoudnessTexts: Equatable {
     /// The true peak is over -1 dBTP: the text is red.
     var peakOver = false
     var target = ""
+    /// With no value at all: the one text that stands in for the Average and Peak cells, and
+    /// the cells hold no text. Empty while any value shows or a take meters its inputs.
+    var hint = ""
 }
 
 /// The formats of the loudness values. The strip only formats: `Studio.loudness` gives nil M and
 /// S when no 1x forward play runs.
 enum LoudnessText {
     static let dash = "\u{2013}"
+    /// The unit of the target text.
+    static let unit = "LUFS"
     /// A true peak over this value turns the Peak text red (dBTP).
     static let peakLimit = -1.0
 
@@ -34,11 +39,20 @@ enum LoudnessText {
             ? String(format: "%d:%02d:%02d", hours, minutes, rest) : String(format: "%d:%02d", minutes, rest)
     }
 
-    static func texts(_ values: LoudnessValues, target: LUFS) -> LoudnessTexts {
-        LoudnessTexts(
+    /// The target text with its unit: "-16 LUFS".
+    static func targetText(_ lufs: Double) -> String { String(format: "%.0f \(unit)", lufs) }
+
+    /// `idle`: no take or monitor meters the inputs. Then no value at all gives the hint.
+    static func texts(_ values: LoudnessValues, target: LUFS, idle: Bool = false) -> LoudnessTexts {
+        if idle, values.momentary == nil, values.shortTerm == nil, values.integrated == nil, values.truePeak == nil {
+            return LoudnessTexts(
+                shortTerm: "", integrated: "", peak: "", target: Self.targetText(target.value),
+                hint: L10n.loudnessIdle.text)
+        }
+        return LoudnessTexts(
             shortTerm: value(values.shortTerm?.value), integrated: value(values.integrated?.value),
             duration: values.integrated == nil ? "" : duration(values.seconds), peak: value(values.truePeak),
-            peakOver: (values.truePeak ?? -.infinity) > peakLimit, target: String(format: "%.0f", target.value))
+            peakOver: (values.truePeak ?? -.infinity) > peakLimit, target: Self.targetText(target.value))
     }
 
     /// The short-term value of a track header in whole LU ("-17"), only while the track records
@@ -95,7 +109,7 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
         track.addSublayer(yellow)
         layer?.addSublayer(track)
         layer?.addSublayer(line)
-        texts.target = String(format: "%.0f", target)
+        texts.target = LoudnessText.targetText(target)
         colors()
     }
 
@@ -119,10 +133,13 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
         guard input != shown || pending else { return }
         (shown, self.inputs) = (input, inputs)
         let target = loudnessTarget(token)
-        let next = LoudnessText.texts(values, target: target)
-        if next != texts, now - lastText >= Self.textInterval {
+        let next = LoudnessText.texts(values, target: target, idle: !inputs)
+        // A switch between the hint and the values is a change of state: the limit holds back values
+        // only, and a switch starts a new interval.
+        let switched = next.hint.isEmpty != texts.hint.isEmpty
+        if next != texts, switched || now - lastText >= Self.textInterval {
             let relayout = next.duration.count != texts.duration.count
-            (texts, lastText) = (next, now)
+            (texts, lastText) = (next, switched ? -.infinity : now)
             textChanges += 1
             needsDisplay = true
             if relayout { needsLayout = true }
@@ -141,7 +158,8 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
     }
 
     private var spokenText: String {
-        [
+        if !texts.hint.isEmpty { return "\(texts.hint), \(L10n.loudnessTarget.text) \(texts.target)" }
+        return [
             (L10n.loudnessShort, texts.shortTerm), (.loudnessAverage, texts.integrated), (.loudnessPeak, texts.peak),
             (.loudnessTarget, texts.target),
         ].map { "\($0.text) \($1)" }.joined(separator: ", ")
@@ -180,7 +198,8 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
         super.layout()
         var cells = [
             Cell(label: .loudnessShort, template: "-00.0"), Cell(label: .loudnessAverage, template: "-00.0"),
-            Cell(label: .loudnessPeak, template: "-00.0"), Cell(label: .loudnessTarget, template: "-00"),
+            Cell(label: .loudnessPeak, template: "-00.0"),
+            Cell(label: .loudnessTarget, template: "-00 \(LoudnessText.unit)"),
         ]
         for index in cells.indices {
             cells[index].labelWidth = Self.width(cells[index].label.text, Self.labelFont)
@@ -245,7 +264,10 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
         NSColor.separatorColor.setFill()
         NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: 1).fill()
         let values = [texts.shortTerm, texts.integrated, texts.peak, texts.target]
+        let hinted = !texts.hint.isEmpty
         for (index, cell) in geometry.cells.enumerated() {
+            // The hint stands in for the Average and Peak cells.
+            if hinted, index == 1 || index == 2 { continue }
             let red = index == 2 && texts.peakOver
             draw(cell.label.text, at: cell.x, Self.labelFont, .secondaryLabelColor)
             // The value ends at the end of its slot, so the digits stay in place.
@@ -257,6 +279,9 @@ final class LoudnessStrip: NSView, NSViewToolTipOwner {
                     texts.duration, at: cell.x + cell.labelWidth + 6 + cell.valueWidth + 5, Self.spanFont,
                     .secondaryLabelColor)
             }
+        }
+        if hinted, let cell = geometry.cells.dropFirst().first {
+            draw(texts.hint, at: cell.x, Self.labelFont, .secondaryLabelColor)
         }
     }
 

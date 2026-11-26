@@ -103,7 +103,22 @@ final class TimelineDocumentView: NSView {
 
     /// The lanes in view moved (a scroll or a new size): `updateLayer()` shows the new window with
     /// no dirty rect, so it renders only the pixels that the last window did not hold.
-    func shownMoved() { layer?.setNeedsDisplay() }
+    func shownMoved() {
+        layer?.setNeedsDisplay()
+        updateHint()
+    }
+
+    /// The hint under the last lane (C17): in the row where a drop of audio files adds tracks. It
+    /// shows when the lanes in view have a row of one lane height or more under the last lane and
+    /// no take records. A layer, so it draws no lane pixel (decision 0022).
+    private func updateHint() {
+        guard let inputs, let scrollView else { return }
+        let (shown, height) = (scrollView.shown, inputs.laneHeight)
+        let top = Double(inputs.session.tracks.count) * height
+        let room = !inputs.session.tracks.isEmpty && !taking && shown.maxY - top >= height
+        let frame = CGRect(x: shown.minX + 12, y: top + (height - 16) / 2, width: max(0, shown.width - 24), height: 16)
+        drop.place(hint: room ? frame : nil, scale: Double(window?.backingScaleFactor ?? 2))
+    }
 
     /// An append to the live store at a tick: marks the columns from the lowest added frame or
     /// the head of the last live tick, the lower, to `head`, with 1 pt on each side for the
@@ -203,6 +218,7 @@ final class TimelineDocumentView: NSView {
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
         playhead.resize(width: increasesContrast ? 2 : 1, height: height)
         updateShades()
+        updateHint()
     }
 
     private func updateShades() {
@@ -230,6 +246,7 @@ final class TimelineDocumentView: NSView {
         if taking != self.taking {
             self.taking = taking
             showPlayheadColors()
+            updateHint()
         }
         playhead.position = CGPoint(x: frame / framesPerPoint, y: bounds.height / 2)
         showPreRollLine(studio?.preRollFrame)

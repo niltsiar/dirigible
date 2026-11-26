@@ -104,4 +104,58 @@ extension DropTests {
         view.lanes.increasesContrast = false
         await model.close()
     }
+
+    /// The first text layer under `layer` that holds `text`.
+    func textLayer(_ layer: CALayer?, _ text: String) -> CATextLayer? {
+        if let found = layer as? CATextLayer, found.string as? String == text { return found }
+        return layer?.sublayers?.lazy.compactMap { textLayer($0, text) }.first
+    }
+
+    /// C17 (c): the row under the last lane says that a drop of audio files adds tracks. Two 60 pt
+    /// lanes in a window with room for three more show it. A drag cue, a window with no row of one
+    /// lane under the last lane, and a take that records hide it.
+    @Test func theAreaBelowTheLastLaneHintsAtADrop() async throws {
+        // The first NSRulerView registers units with AppKit strings, which withStrings breaks.
+        _ = NSRulerView(scrollView: nil, orientation: .horizontalRuler)
+        try await HeaderStateLineTests().withStrings("en") {
+            let (model, studio, view) = try await open(tracks: 2, seconds: 120, laneHeight: 60)
+            let window = try #require(model.window)
+            window.setContentSize(NSSize(width: 1200, height: 600))
+            view.linkProxy?.view = nil
+            drawNow(window)
+            let shown = view.shown
+            try #require(shown.maxY >= 120 + 3 * 60, "room for three more lanes: \(shown)")
+            @MainActor func hint() -> CATextLayer? {
+                textLayer(view.lanes.layer, "Drop audio files here to add tracks.")
+            }
+            @MainActor func showing() -> Bool { hint().map { !$0.isHidden } == true }
+
+            #expect(showing(), "a: room under the last lane")
+            let row = CGRect(x: shown.minX + 12, y: 142, width: shown.width - 24, height: 16)
+            #expect(hint()?.frame == row, "a: centered in the row under the last lane: \(String(describing: hint()))")
+
+            let drag = fileDrag([try wav("Voice.wav")], at: NSPoint(x: shown.minX + 100, y: 150), in: view)
+            #expect(view.draggingEntered(drag) == .copy)
+            #expect(!showing(), "b: the cue of a drop hides the hint")
+            view.draggingExited(drag)
+            #expect(showing(), "b: the hint comes back after the drag")
+
+            model.timeline.laneHeight = .fixed(200)
+            await until("the lanes take 200 pt") { view.lanes.inputs?.laneHeight == 200 }
+            drawNow(window)
+            #expect(!showing(), "c: no row of one lane under the last lane")
+            model.timeline.laneHeight = .fixed(60)
+            await until("the lanes take 60 pt") { view.lanes.inputs?.laneHeight == 60 }
+            drawNow(window)
+            #expect(showing(), "c: room again")
+
+            try LiveTake.begin(studio, tracks: ["t1"], at: .zero, take: 1)
+            view.displayTick()
+            #expect(!showing(), "d: a take records")
+            studio.transport = .idle
+            _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
+            studio.liveTracks = [:]
+            await model.close()
+        }
+    }
 }

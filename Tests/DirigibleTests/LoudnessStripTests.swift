@@ -34,7 +34,7 @@ import Testing
             strip.texts
                 == LoudnessTexts(
                     shortTerm: "-17.4", integrated: "-16.8", duration: "3:12", peak: "-0.6", peakOver: true,
-                    target: "-16"),
+                    target: "-16 LUFS"),
             "\(strip.texts)")
         var quieter = Self.playing
         quieter.truePeak = -1.2
@@ -46,8 +46,7 @@ import Testing
         strip.show(stopped, target: nil, inputs: false, now: 2)
         #expect(strip.texts.shortTerm == "\u{2013}" && strip.texts.integrated == "-16.8", "stopped: \(strip.texts)")
         strip.show(.none, target: nil, inputs: false, now: 3)
-        #expect(
-            strip.texts == LoudnessTexts(target: "-16"), "no values: \(strip.texts)")
+        #expect(strip.texts.duration.isEmpty && !strip.texts.peakOver, "no values: \(strip.texts)")
         #expect(LoudnessText.duration(3_725) == "1:02:05")
 
         var live = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.5, shortTerm: LUFS(value: -17.4))
@@ -57,6 +56,22 @@ import Testing
         #expect(LoudnessText.header(live) == "-17")
         live.state = .deviceLost
         #expect(LoudnessText.header(live) == nil, "a lost device shows no number")
+    }
+
+    /// With no measurement, one hint stands in for Average and Peak and no cell holds a dash. The
+    /// target shows its unit. The spoken value reads the same. A value takes the hint away.
+    @Test func anIdleStripShowsAHintAndTheTargetUnit() async throws {
+        try await HeaderStateLineTests().withStrings("en") {
+            let strip = strip()
+            strip.show(.none, target: nil, inputs: false, now: 0)
+            let cells = [strip.texts.shortTerm, strip.texts.integrated, strip.texts.peak]
+            #expect(!cells.contains(LoudnessText.dash), "no dash: \(strip.texts)")
+            #expect(strip.texts.target == "-16 LUFS", "\(strip.texts)")
+            #expect(strip.accessibilityValue() as? String == "Play to measure, Target -16 LUFS")
+            strip.show(Self.playing, target: nil, inputs: false, now: 2)
+            let spoken = "Loudness -17.4, Average -16.8, Peak -0.6, Target -16 LUFS"
+            #expect(strip.accessibilityValue() as? String == spoken)
+        }
     }
 
     /// The meter measures the stereo mix, so the line is the stereo target of the export preset,
@@ -229,7 +244,7 @@ import Testing
             view.displayTick()
             return strip.texts.integrated == LoudnessText.dash
         }
-        #expect(strip.texts == LoudnessTexts(target: "-16"), "\(path): \(strip.texts)")
+        #expect(strip.texts == LoudnessTexts(target: "-16 LUFS"), "\(path): \(strip.texts)")
         if path == "take" {
             studio.transport = .idle
             _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
@@ -278,5 +293,20 @@ import Testing
         #expect(
             strip.texts.shortTerm == "-30.0" && strip.textChanges == 2,
             "the held text came: \(strip.texts), \(strip.textChanges)")
+    }
+
+    /// A switch between the hint and the values is a change of state, not a new value: it shows at
+    /// once, inside the 4 Hz limit that holds back a change of values.
+    @Test func theHintAndTheValuesSwitchAtOnce() {
+        let strip = strip()
+        strip.show(.none, target: nil, inputs: false, now: 0)
+        strip.show(.none, target: nil, inputs: true, now: 0.1)
+        let dashes = [strip.texts.shortTerm, strip.texts.integrated, strip.texts.peak]
+        #expect(dashes == Array(repeating: LoudnessText.dash, count: 3), "a monitor after the hint: \(strip.texts)")
+
+        let other = self.strip()
+        other.show(Self.playing, target: nil, inputs: false, now: 0)
+        other.show(.none, target: nil, inputs: false, now: 0.1)
+        #expect(other.texts.integrated.isEmpty, "the hint after the values: \(other.texts)")
     }
 }

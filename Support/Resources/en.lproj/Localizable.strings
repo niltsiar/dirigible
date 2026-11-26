@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Timeline";
 "drop.new.track" = "New Track";
 "drop.new.tracks" = "%lld New Tracks";
+"drop.hint" = "Drop audio files here to add tracks.";
 "timeline.header.handle" = "Track header width";
 "timeline.header.rename" = "Rename";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Highest true peak, dBTP";
 "loudness.target.tip" = "The export loudness target";
 "loudness.take.tip" = "Each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines";
+"loudness.idle" = "Play to measure";
 "menu.edit.in" = "Set In Point";
 "menu.edit.out" = "Set Out Point";
 "menu.edit.deselect" = "Deselect All";

@@ -440,6 +440,7 @@
 "timeline.accessibility" = "Linha do tempo";
 "drop.new.track" = "Nova Pista";
 "drop.new.tracks" = "%lld Novas Pistas";
+"drop.hint" = "Solte arquivos de áudio aqui para adicionar pistas.";
 "timeline.header.handle" = "Largura do cabeçalho das pistas";
 "timeline.header.rename" = "Renomear";
 
@@ -507,6 +508,7 @@
 "loudness.peak.tip" = "Pico real máximo, dBTP";
 "loudness.target.tip" = "A loudness alvo da exportação";
 "loudness.take.tip" = "Cada pista ativada para gravação mostra a sua loudness no cabeçalho quando o cabeçalho tem 262 pt ou mais de largura, ou quando a pista é alta o suficiente para duas linhas";
+"loudness.idle" = "Reproduza para medir";
 "menu.edit.in" = "Definir Início do Intervalo";
 "menu.edit.out" = "Definir Fim do Intervalo";
 "menu.edit.deselect" = "Desmarcar Tudo";

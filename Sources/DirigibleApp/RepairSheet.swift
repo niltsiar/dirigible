@@ -125,8 +125,12 @@ struct RepairSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(verbatim: draft.title()).font(.headline)
-            ForEach(RepairDraft.Row.allCases, id: \.self) { row in
-                self.row(row)
+            // One grid, so the slider labels of all rows share one column. A view outside a grid
+            // row spans both columns.
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 12) {
+                ForEach(RepairDraft.Row.allCases, id: \.self) { row in
+                    self.row(row)
+                }
             }
             if let reason = draft.reason { note(reason.text) }
             Divider()
@@ -164,25 +168,25 @@ struct RepairSheet: View {
             note(L10n.sheetRepairRumbleNote.format(draft.rumbleHertz)).padding(.leading, 20)
             if let top = draft.rumbleMax {
                 slider(
-                    L10n.sheetRepairRumble, $draft.rumbleHertz, Rumble.range.lowerBound...top, unit: .inspectorHertz
-                )
-                .disabled(!draft.rumble).padding(.leading, 20)
+                    .sheetRepairCutoff, .sheetRepairRumble, $draft.rumbleHertz, Rumble.range.lowerBound...top,
+                    unit: .inspectorHertz, enabled: draft.rumble)
             }
         case .deess:
             Toggle(L10n.sheetRepairDeess.key, isOn: $draft.deess).toggleStyle(.checkbox)
                 .disabled(draft.frequencyMax == nil)
             if let top = draft.frequencyMax {
                 note(L10n.sheetRepairDeessNote.format(draft.deessDecibels)).padding(.leading, 20)
-                slider(L10n.sheetRepairAmount, $draft.deessDecibels, DeEss.decibelRange, unit: .inspectorDecibels)
-                    .disabled(!draft.deess).padding(.leading, 20)
-                DisclosureGroup(L10n.sheetRepairMore.key, isExpanded: $draft.showsMore) {
+                slider(
+                    .sheetRepairAmount, .sheetRepairAmount, $draft.deessDecibels, DeEss.decibelRange,
+                    unit: .inspectorDecibels, enabled: draft.deess)
+                // The slider sits in the grid under the group, so its label stays in the label column.
+                DisclosureGroup(L10n.sheetRepairMore.key, isExpanded: $draft.showsMore) {}
+                    .padding(.leading, 20)
+                if draft.showsMore {
                     slider(
-                        L10n.sheetRepairFrequency, $draft.deessHertz, DeEss.hertzRange.lowerBound...top,
-                        unit: .inspectorHertz
-                    )
-                    .disabled(!draft.deess)
+                        .sheetRepairFrequency, .sheetRepairFrequency, $draft.deessHertz,
+                        DeEss.hertzRange.lowerBound...top, unit: .inspectorHertz, enabled: draft.deess)
                 }
-                .padding(.leading, 20)
             } else {
                 note(L10n.errorDenoiseCornerRate.format(DeEss.hertzRange.lowerBound, RepairDraft.lowestDeessRate))
                     .padding(.leading, 20)
@@ -190,16 +194,25 @@ struct RepairSheet: View {
         }
     }
 
-    private func slider(_ title: L10n, _ value: Binding<Int>, _ range: ClosedRange<Int>, unit: L10n) -> some View {
+    /// A grid row: the visible `label` in the label column, then the slider and its value. The slider
+    /// keeps the accessibility label `title`. A modifier on the row would make it one cell that spans
+    /// the grid, so `enabled` goes in.
+    private func slider(
+        _ label: L10n, _ title: L10n, _ value: Binding<Int>, _ range: ClosedRange<Int>, unit: L10n, enabled: Bool
+    ) -> some View {
         let shown = "\(value.wrappedValue) \(unit.text)"
-        return HStack {
-            Slider(
-                value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Int($0) }),
-                in: Double(range.lowerBound)...Double(range.upperBound), step: 1
-            )
-            .accessibilityLabel(Text(title.key))
-            .accessibilityValue(Text(verbatim: shown))
-            Text(verbatim: shown).monospacedDigit().frame(width: 72, alignment: .trailing)
+        return GridRow(alignment: .center) {
+            Text(label.key).padding(.leading, 20).gridColumnAlignment(.trailing)
+            HStack {
+                Slider(
+                    value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Int($0) }),
+                    in: Double(range.lowerBound)...Double(range.upperBound), step: 1
+                )
+                .accessibilityLabel(Text(title.key))
+                .accessibilityValue(Text(verbatim: shown))
+                Text(verbatim: shown).monospacedDigit().frame(width: 72, alignment: .trailing)
+            }
+            .disabled(!enabled)
         }
     }
 

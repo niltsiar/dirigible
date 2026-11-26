@@ -779,6 +779,7 @@ enum L10n: String, CaseIterable {
     case sheetRepairAmount = "sheet.repair.amount"
     case sheetRepairMore = "sheet.repair.more"
     case sheetRepairFrequency = "sheet.repair.frequency"
+    case sheetRepairCutoff = "sheet.repair.cutoff"
     case sheetRepairNone = "sheet.repair.none"
     case sheetRepairApply = "sheet.repair.apply"
     case repairPeaksOne = "repair.peaks.one"

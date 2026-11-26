@@ -48,7 +48,7 @@ Common pattern in the documented behavior:
 - A non-fatal problem in the result shows as a persistent marker on the affected item: red frames and a yellow triangle (R7), a yellow line in the inspector (R6), a red outline (R19), an icon in a browser column (R13). It does not show as an alert after the task.
 - An alert appears only when work stops or the user must act: the system overload alert in Logic (R15) and the locate-files prompt in Hindenburg (R19).
 - No guide documents a disk-space warning before or during recording (R8, R14, R21). Logic tells the user to check disk space by hand (R14). Hindenburg gives a System Monitor (R21).
-- Hindenburg PRO documents no result message for export, normalize, noise reduction, or clipping (R17, R18, R20). For the base reference app, the visible change is the feedback.
+- The Hindenburg PRO guides are silent on a result message for export, normalize, noise reduction, and clipping (R17, R18, R20). No test in the real app was made. So no observation of Hindenburg PRO backs the banner rule or its exceptions. The rule is a HIG and Hallmark choice.
 
 Limits:
 - A guide that is silent is not proof that the app shows nothing. A test in the real app can confirm each NOT FOUND.

@@ -111,6 +111,7 @@
 "error.silences.faults" = "Deze bestanden ontbreken of zijn beschadigd (%@). Zet de bestanden terug en zoek opnieuw.";
 "error.duck.past.end" = "De selectie begint bij of na het einde van de sessie. Geen gainpunt is gewijzigd.";
 "banner.duck.unread" = "%@ kon niet worden gelezen. De muziek blijft luid boven die spraak.";
+"banner.duck.no.speech.unread" = "De verlaging vond geen spraak boven %1$.1f dBFS. %2$@ kon niet worden gelezen.";
 "banner.take.sync.broken" = "%1$@ heeft een deel van take %2$lld verplaatst. Die loopt nu niet meer synchroon met de opname van %3$@.";
 "banner.take.sync.broken.unnamed" = "Een AI-agent heeft een deel van take %1$lld verplaatst. Die loopt nu niet meer synchroon met de opname van %2$@.";
 "banner.take.sync.show" = "Toon";
@@ -399,7 +400,7 @@
 "take.recovered" = "Take %lld is hersteld.";
 "take.unplaced" = "Audio die op geen enkel spoor staat:";
 "take.unplaced.redo" = "Kies Wijzig > Opnieuw om deze audio terug te halen.";
-"banner.save.error" = "De laatste wijziging is niet bewaard. %@";
+"banner.save.error" = "De laatste wijziging is niet bewaard.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transport";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Gebruik een koptelefoon, zodat de stem van de gast niet in je microfoon komt.";
 "banner.monitor.headphones" = "Gebruik een koptelefoon om de monitor te horen.";
 "banner.export.report" = "%1$@ geëxporteerd (%2$@).";
+"banner.export.report.large" = "%1$@ geëxporteerd met een versterking van %2$+.1f dB. Controleer of de selectie spraak bevat.";
 "banner.export.done" = "%@ geëxporteerd.";
 "announce.level.changed" = "%lld clips gewijzigd.";
 "announce.level.changed.one" = "1 clip gewijzigd.";
@@ -705,7 +707,7 @@
 "report.peak" = "echte piek %.1f dBTP";
 "report.peak.none" = "geen echte piek (stilte)";
 "report.gain" = "versterking %+.1f dB";
-"report.gain.large" = "De versterking is meer dan 20 dB. Controleer of de selectie spraak bevat.";
+"report.gain.large" = "Controleer of de selectie spraak bevat.";
 "banner.kind.warning" = "Waarschuwing";
 "banner.kind.error" = "Fout";
 "banner.kind.info" = "Informatie";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "De vertraging verandert met %lld ms over de clip.";
 "banner.sync.not.measured" = "Slechts één deel van de clip kwam overeen, te weinig om de drift te meten.";
 "banner.sync.too.short" = "De clip is korter dan de 60 s die de driftmeting nodig heeft.";
-"banner.sync.head.cut" = "Het begin van de clip is %@ ingekort om de clip binnen de sessie te houden.";
+"banner.sync.head.cut" = "Het begin van de clip is %@ ingekort om de clip in de sessie te houden.";
 "banner.sync.replaced" = "De verplaatsing heeft audio van %@ vervangen.";
 "banner.sync.no.match" = "Geen overeenkomst gevonden voor %@ op %@.";
 "banner.sync.choose" = "Kies een ander spoor…";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Herstel sessie-import";
 "redo.import.session" = "Sessie-import opnieuw";
 "error.import.session.same" = "Je kunt een sessie niet in zichzelf importeren. Kies een andere sessie.";
-"error.import.session.source" = "De sessie \U2018%1$@\U2019 is niet geïmporteerd. %2$@";
+"error.import.session.source" = "De sessie \U2018%1$@\U2019 is niet geïmporteerd.";
 "error.import.session.target.rate" = "De samplefrequentie van deze sessie, %lld Hz, ligt niet tussen 8000 en 384000 Hz. Importeer in een andere sessie.";
 "error.import.session.yielded" = "Het importeren van de sessie \U2018%@\U2019 is gestopt vanwege een take in een ander venster. Importeer opnieuw na de take.";
 "error.import.session.rate" = "\U2018%1$@\U2019 heeft een samplefrequentie van %2$lld Hz. Importeer een sessie van 8000 tot 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Deze sessie is als FLAC gearchiveerd.";
 "banner.archived.unarchive" = "Hef archivering op";
 "banner.archive.saved" = "Het archiveren heeft %@ vrijgemaakt.";
-"banner.archive.snapshot" = "Een APFS-snapshot van het volume kan deze bytes in gebruik houden tot macOS de snapshot verwijdert.";
 "banner.archive.no.space" = "Het archiveren heeft geen schijfruimte vrijgemaakt.";
 "banner.archive.damaged" = "Deze bestanden zijn beschadigd (%@). Ze blijven zoals ze zijn.";
 "subtitle.archived" = "Gearchiveerd";

@@ -111,6 +111,7 @@
 "error.silences.faults" = "Faltan estos archivos o están dañados (%@). Restáuralos y busca de nuevo.";
 "error.duck.past.end" = "La selección empieza en el final de la sesión o después. No cambió ningún punto de ganancia.";
 "banner.duck.unread" = "No se pudieron leer los archivos %@. La música sigue alta sobre esa voz.";
+"banner.duck.no.speech.unread" = "La atenuación no encontró voz por encima de %1$.1f dBFS. No se pudieron leer los archivos %2$@.";
 "banner.take.sync.broken" = "%1$@ movió parte de la toma %2$lld. Ahora no está sincronizada con su grabación desde %3$@.";
 "banner.take.sync.broken.unnamed" = "Un agente de IA movió parte de la toma %1$lld. Ahora no está sincronizada con su grabación desde %2$@.";
 "banner.take.sync.show" = "Mostrar";
@@ -399,7 +400,7 @@
 "take.recovered" = "Se recuperó la toma %lld.";
 "take.unplaced" = "Audio que no está en ninguna pista:";
 "take.unplaced.redo" = "Rehacer recupera este audio.";
-"banner.save.error" = "El último cambio no está guardado. %@";
+"banner.save.error" = "El último cambio no está guardado.";
 
 /* Transporte (decisión 0016) */
 "menu.transport" = "Transporte";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Usa auriculares para que la voz del invitado no entre en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "%1$@ exportado (%2$@).";
+"banner.export.report.large" = "%1$@ exportado con una ganancia de %2$+.1f dB. Comprueba que la selección tiene voz.";
 "banner.export.done" = "%@ exportado.";
 "announce.level.changed" = "Se cambiaron %lld clips.";
 "announce.level.changed.one" = "Se cambió 1 clip.";
@@ -705,7 +707,7 @@
 "report.peak" = "pico real %.1f dBTP";
 "report.peak.none" = "sin pico real (silencio)";
 "report.gain" = "ganancia %+.1f dB";
-"report.gain.large" = "La ganancia supera los 20 dB. Comprueba que la selección tiene voz.";
+"report.gain.large" = "Comprueba que la selección tiene voz.";
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Error";
 "banner.kind.info" = "Información";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "El desfase cambia %lld ms a lo largo del clip.";
 "banner.sync.not.measured" = "Solo coincidió una parte del clip, insuficiente para medir la deriva.";
 "banner.sync.too.short" = "El clip dura menos de los 60 s que necesita la medición de la deriva.";
-"banner.sync.head.cut" = "Se cortaron %@ del inicio del clip para mantenerlo dentro de la sesión.";
+"banner.sync.head.cut" = "Se cortaron %@ del inicio del clip para mantenerlo en la sesión.";
 "banner.sync.replaced" = "El movimiento sustituyó audio de %@.";
 "banner.sync.no.match" = "No se encontró una coincidencia para %@ en %@.";
 "banner.sync.choose" = "Elegir otra pista…";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Deshacer importación de sesión";
 "redo.import.session" = "Rehacer importación de sesión";
 "error.import.session.same" = "No puedes importar una sesión en sí misma. Elige otra sesión.";
-"error.import.session.source" = "La sesión \U00AB%1$@\U00BB no se importó. %2$@";
+"error.import.session.source" = "La sesión \U00AB%1$@\U00BB no se importó.";
 "error.import.session.target.rate" = "La frecuencia de muestreo de esta sesión, %lld Hz, no está entre 8000 y 384000 Hz. Importa en otra sesión.";
 "error.import.session.yielded" = "La importación de la sesión \U00AB%@\U00BB se detuvo por una toma en otra ventana. Vuelve a importar después de la toma.";
 "error.import.session.rate" = "\U00AB%1$@\U00BB tiene una frecuencia de muestreo de %2$lld Hz. Importa una sesión de 8000 a 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Esta sesión está archivada como FLAC.";
 "banner.archived.unarchive" = "Desarchivar";
 "banner.archive.saved" = "El archivado ha liberado %@.";
-"banner.archive.snapshot" = "Una instantánea APFS del volumen puede mantener estos bytes en uso hasta que macOS elimine la instantánea.";
 "banner.archive.no.space" = "El archivado no ha liberado espacio en disco.";
 "banner.archive.damaged" = "Estos archivos están dañados (%@). Se quedan como están.";
 "subtitle.archived" = "Archivada";

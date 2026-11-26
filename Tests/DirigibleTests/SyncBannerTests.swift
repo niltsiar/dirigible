@@ -32,10 +32,13 @@ import Testing
 
     func bannerText(_ moved: SyncMoved) -> String { moved.text(text: englishText, locale: Self.us) }
 
-    /// The result sentences, then the sentences to check: the whole text of a sync.
+    func cutText(_ moved: SyncMoved) -> String { moved.cutText(text: englishText, locale: Self.us) }
+
+    /// The result sentences, then the sentences to check of both rows: the whole text of a sync.
     func text(_ moved: SyncMoved) -> String {
         let done = moved.doneText(text: englishText, locale: Self.us)
-        return moved.needsCheck ? done + " " + bannerText(moved) : done
+        let checks = [moved.notCorrected ? bannerText(moved) : nil, moved.cuts ? cutText(moved) : nil].compactMap { $0 }
+        return checks.isEmpty ? done : done + " " + checks.joined(separator: " ")
     }
 
     /// C20: the first sentence says "earlier" or "later" with a duration and no sign.
@@ -72,7 +75,7 @@ import Testing
                 == "Moved the clip 3.4 s earlier. The clip is shorter than the 60 s that drift measuring needs.")
         #expect(
             text(moved(lag: -163_200, headCut: 288_000))
-                == "Moved the clip 3.4 s earlier. Cut 6.0 s from the start of the clip to keep it inside the session.")
+                == "Moved the clip 3.4 s earlier. Cut 6.0 s from the clip start to keep it in the session.")
         #expect(
             text(moved(lag: -163_200, replaced: ["Part 2"]))
                 == "Moved the clip 3.4 s earlier. The move replaced audio of Part 2.")
@@ -135,20 +138,23 @@ import Testing
             Issue.record("no banner with Undo: \(banner)")
             return
         }
-        #expect(banner.kind == .warning, "\(banner.kind)")
-        #expect(bannerText(moved) == "The move replaced audio of r.", "\(bannerText(moved))")
+        #expect(banner.kind == .info, "\(banner.kind)")
+        let rows = ChromeState.reportBanners(model, studio).filter { $0.key.hasPrefix("syncCut") }
+        #expect(rows.map(\.kind) == [.warning], "\(rows)")
+        #expect(cutText(moved) == "The move replaced audio of r.", "\(cutText(moved))")
         #expect(model.canUndoAgentEdit(revision: revision))
         await model.close()
     }
 
-    /// C9 (k): the banner of a head cut, and of a drift that was not corrected, is a warning that holds
-    /// only the sentences to check.
+    /// C9 (k): a head cut has its own warning row after the result row, and a drift that was not corrected
+    /// is a warning that holds only the sentences to check.
     @Test func theBannerHoldsOnlyTheSentencesToCheck() {
         let cut = moved(lag: -163_200, headCut: 288_000)
-        #expect(WindowBanner.syncMoved(cut, revision: 3, press: 1).kind == .warning)
+        #expect(WindowBanner.syncMoved(cut, revision: 3, press: 1).kind == .info)
+        #expect(bannerText(cut) == "Moved the clip 3.4 s earlier.", "\(bannerText(cut))")
+        #expect(WindowBanner.syncCut(cut, press: 1).kind == .warning)
         #expect(
-            bannerText(cut) == "Cut 6.0 s from the start of the clip to keep it inside the session.",
-            "\(bannerText(cut))")
+            cutText(cut) == "Cut 6.0 s from the clip start to keep it in the session.", "\(cutText(cut))")
         let drift = driftMoved(.notCorrected(.takeFile))
         #expect(WindowBanner.syncMoved(drift, revision: 3, press: 1).kind == .warning)
         #expect(

@@ -34,7 +34,12 @@ extension ChromeState {
             banners.append(shown.banner)
         }
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
-        if let shown = model.syncReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
+        if let shown = model.syncReport, shown.revision == studio.sessionRevision {
+            banners.append(shown.banner)
+            if case .syncMoved(let moved, _, let press) = shown.banner, moved.cuts {
+                banners.append(.syncCut(moved, press: press))
+            }
+        }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
             if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
         }

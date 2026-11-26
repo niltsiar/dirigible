@@ -108,8 +108,9 @@ extension SessionWindow {
             tracks: imported.tracks.count, muted: imported.mutedCallTracks, leftOut: imported.leftOutMarkers)
         if imported.mutedCallTracks > 0 || imported.leftOutMarkers > 0 {
             sessionImportPresses += 1
+            let check = L10n.sessionImportCheck(muted: imported.mutedCallTracks, leftOut: imported.leftOutMarkers)
             sessionImportReport = ToolBannerShown(
-                banner: .sessionImported(line, press: sessionImportPresses), revision: studio.sessionRevision)
+                banner: .sessionImported(check, press: sessionImportPresses), revision: studio.sessionRevision)
         }
         chrome?.announce(line, .high)
     }

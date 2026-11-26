@@ -111,6 +111,7 @@
 "error.silences.faults" = "Questi file mancano o sono danneggiati (%@). Ripristina i file e cerca di nuovo.";
 "error.duck.past.end" = "La selezione inizia alla fine della sessione o dopo. Nessun punto di gain è cambiato.";
 "banner.duck.unread" = "Impossibile leggere %@. La musica resta alta su quella voce.";
+"banner.duck.no.speech.unread" = "L\U2019abbassamento non ha trovato voce sopra %1$.1f dBFS. Impossibile leggere %2$@.";
 "banner.take.sync.broken" = "%1$@ ha spostato una parte del take %2$lld. Ora non è più sincronizzato con la sua registrazione da %3$@.";
 "banner.take.sync.broken.unnamed" = "Un agente IA ha spostato una parte del take %1$lld. Ora non è più sincronizzato con la sua registrazione da %2$@.";
 "banner.take.sync.show" = "Mostra";
@@ -399,7 +400,7 @@
 "take.recovered" = "Il take %lld è stato recuperato.";
 "take.unplaced" = "Audio che non è su nessuna traccia:";
 "take.unplaced.redo" = "Con Ripristina, questo audio torna al suo posto.";
-"banner.save.error" = "L\U2019ultima modifica non è stata salvata. %@";
+"banner.save.error" = "L\U2019ultima modifica non è stata salvata.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Trasporto";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Usa le cuffie per tenere la voce dell\U2019ospite fuori dal tuo microfono.";
 "banner.monitor.headphones" = "Usa le cuffie per ascoltare il monitoraggio.";
 "banner.export.report" = "Esportato %1$@ (%2$@).";
+"banner.export.report.large" = "Esportato %1$@ con una variazione di guadagno di %2$+.1f dB. Controlla che la selezione contenga parlato.";
 "banner.export.done" = "Esportato %@.";
 "announce.level.changed" = "Modificati %lld clip.";
 "announce.level.changed.one" = "Modificato 1 clip.";
@@ -705,7 +707,7 @@
 "report.peak" = "picco reale %.1f dBTP";
 "report.peak.none" = "nessun picco reale (silenzio)";
 "report.gain" = "guadagno %+.1f dB";
-"report.gain.large" = "La variazione di guadagno supera 20 dB. Controlla che la selezione contenga parlato.";
+"report.gain.large" = "Controlla che la selezione contenga parlato.";
 "banner.kind.warning" = "Avviso";
 "banner.kind.error" = "Errore";
 "banner.kind.info" = "Informazioni";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "Lo sfasamento cambia di %lld ms lungo il clip.";
 "banner.sync.not.measured" = "È corrisposta una sola parte del clip, troppo poco per misurare la deriva.";
 "banner.sync.too.short" = "Il clip dura meno dei 60 s che servono per misurare la deriva.";
-"banner.sync.head.cut" = "Inizio del clip tagliato di %@ per tenerlo dentro la sessione.";
+"banner.sync.head.cut" = "Inizio del clip tagliato di %@ per tenerlo nella sessione.";
 "banner.sync.replaced" = "Lo spostamento ha sostituito l’audio di %@.";
 "banner.sync.no.match" = "Nessuna corrispondenza trovata per %@ su %@.";
 "banner.sync.choose" = "Scegli un’altra traccia…";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Annulla importazione sessione";
 "redo.import.session" = "Ripristina importazione sessione";
 "error.import.session.same" = "Non puoi importare una sessione in se stessa. Scegli un’altra sessione.";
-"error.import.session.source" = "La sessione \U201C%1$@\U201D non è stata importata. %2$@";
+"error.import.session.source" = "La sessione \U201C%1$@\U201D non è stata importata.";
 "error.import.session.target.rate" = "La frequenza di campionamento di questa sessione, %lld Hz, non è tra 8000 e 384000 Hz. Importa in un\U2019altra sessione.";
 "error.import.session.yielded" = "L’importazione della sessione \U201C%@\U201D si è interrotta a causa di un take in un’altra finestra. Importa di nuovo dopo il take.";
 "error.import.session.rate" = "\U201C%1$@\U201D ha una frequenza di campionamento di %2$lld Hz. Importa una sessione da 8000 a 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Questa sessione è archiviata come FLAC.";
 "banner.archived.unarchive" = "Annulla archiviazione";
 "banner.archive.saved" = "L'archiviazione ha liberato %@.";
-"banner.archive.snapshot" = "Un'istantanea APFS del volume può tenere in uso questi byte finché macOS non elimina l'istantanea.";
 "banner.archive.no.space" = "L\U2019archiviazione non ha liberato spazio su disco.";
 "banner.archive.damaged" = "Questi file sono danneggiati (%@). Restano come sono.";
 "subtitle.archived" = "Archiviata";

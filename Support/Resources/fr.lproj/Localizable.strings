@@ -111,6 +111,7 @@
 "error.silences.faults" = "Ces fichiers sont manquants ou endommagés (%@). Restaurez-les et relancez la recherche.";
 "error.duck.past.end" = "La sélection commence à la fin de la session ou après. Aucun point de gain n\U2019a changé.";
 "banner.duck.unread" = "Impossible de lire %@. La musique reste forte sur cette voix.";
+"banner.duck.no.speech.unread" = "L\U2019atténuation n\U2019a trouvé aucune voix au-dessus de %1$.1f dBFS. Impossible de lire %2$@.";
 "banner.take.sync.broken" = "%1$@ a déplacé une partie de la prise %2$lld. Elle n\U2019est plus synchronisée avec son enregistrement à partir de %3$@.";
 "banner.take.sync.broken.unnamed" = "Un agent d\U2019IA a déplacé une partie de la prise %1$lld. Elle n\U2019est plus synchronisée avec son enregistrement à partir de %2$@.";
 "banner.take.sync.show" = "Afficher";
@@ -399,7 +400,7 @@
 "take.recovered" = "La prise %lld a été récupérée.";
 "take.unplaced" = "Audio qui n’est sur aucune piste :";
 "take.unplaced.redo" = "Rétablir ramène cet audio.";
-"banner.save.error" = "La dernière modification n\U2019est pas sauvegardée. %@";
+"banner.save.error" = "La dernière modification n\U2019est pas sauvegardée.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transport";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Utilisez un casque pour que la voix de l\U2019invité n\U2019entre pas dans votre micro.";
 "banner.monitor.headphones" = "Utilisez un casque pour entendre le monitoring.";
 "banner.export.report" = "%1$@ exporté (%2$@).";
+"banner.export.report.large" = "%1$@ exporté avec un gain de %2$+.1f dB. Vérifiez que la sélection contient de la parole.";
 "banner.export.done" = "%@ exporté.";
 "announce.level.changed" = "%lld clips modifiés.";
 "announce.level.changed.one" = "1 clip modifié.";
@@ -705,7 +707,7 @@
 "report.peak" = "crête réelle %.1f dBTP";
 "report.peak.none" = "aucune crête réelle (silence)";
 "report.gain" = "gain %+.1f dB";
-"report.gain.large" = "La modification du gain dépasse 20 dB. Vérifiez que la sélection contient de la parole.";
+"report.gain.large" = "Vérifiez que la sélection contient de la parole.";
 "banner.kind.warning" = "Avertissement";
 "banner.kind.error" = "Erreur";
 "banner.kind.info" = "Information";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Annuler l’importation de session";
 "redo.import.session" = "Rétablir l’importation de session";
 "error.import.session.same" = "Vous ne pouvez pas importer une session dans elle-même. Choisissez une autre session.";
-"error.import.session.source" = "La session \U00AB\U00A0%1$@\U00A0\U00BB n’a pas été importée. %2$@";
+"error.import.session.source" = "La session \U00AB\U00A0%1$@\U00A0\U00BB n’a pas été importée.";
 "error.import.session.target.rate" = "La fréquence d\U2019échantillonnage de cette session, %lld Hz, n\U2019est pas comprise entre 8000 et 384000 Hz. Importez dans une autre session.";
 "error.import.session.yielded" = "L’importation de la session \U00AB\U00A0%@\U00A0\U00BB s’est arrêtée à cause d’une prise dans une autre fenêtre. Importez à nouveau après la prise.";
 "error.import.session.rate" = "\U00AB\U00A0%1$@\U00A0\U00BB a une fréquence d\U2019échantillonnage de %2$lld Hz. Importez une session de 8000 à 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Cette session est archivée en FLAC.";
 "banner.archived.unarchive" = "Désarchiver";
 "banner.archive.saved" = "L'archivage a libéré %@.";
-"banner.archive.snapshot" = "Un instantané APFS du volume peut garder ces octets en usage jusqu'à ce que macOS supprime l'instantané.";
 "banner.archive.no.space" = "L\U2019archivage n\U2019a libéré aucun espace disque.";
 "banner.archive.damaged" = "Ces fichiers sont endommagés (%@). Ils restent tels quels.";
 "subtitle.archived" = "Archivée";

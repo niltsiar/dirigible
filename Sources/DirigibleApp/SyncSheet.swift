@@ -92,7 +92,7 @@ func syncRevealFrame(of range: Range<Frames>, origin: Double, visibleFrames: Dou
 /// What a sync did (decision 0076): the lag with its direction, the spread of the excerpt lags or why
 /// the drift was not measured, the head that the move cut, and the names of the other clips that it cut.
 /// The result sentences go to VoiceOver. A banner holds only the sentences to check: the drift that was
-/// not corrected, the head cut, and the replaced audio.
+/// not corrected in one row, and the head cut and the replaced audio in another.
 struct SyncMoved: Equatable {
     let lag: Frames
     let drift: SyncDrift
@@ -102,18 +102,30 @@ struct SyncMoved: Equatable {
     /// What the drift fix did, or nil for a sync with no drift option.
     var outcome: DriftOutcome?
 
-    /// True when the sync did not correct the drift, cut the head of the clip, or replaced audio: the
-    /// banner is a warning.
-    var needsCheck: Bool {
+    /// True when the sync did not correct the drift.
+    var notCorrected: Bool {
         if case .notCorrected = outcome { return true }
-        return headCut > .zero || !replaced.isEmpty
+        return false
     }
 
-    /// The text of the banner: the sentences to check, or the result when none needs a check, which is a
-    /// sync that moved nothing. `text` gives the value of a key.
+    /// True when the move cut the head of the clip or replaced audio: the banner has a row for it.
+    var cuts: Bool { headCut > .zero || !replaced.isEmpty }
+
+    /// True when the sync did not correct the drift, cut the head of the clip, or replaced audio: the
+    /// banner shows.
+    var needsCheck: Bool { notCorrected || cuts }
+
+    /// The text of the first row: the drift that was not corrected and its cause, else the result, which
+    /// is the lag alone when a second row tells of a cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         let parts = sentences(text: text, locale: locale)
-        return (parts.check.isEmpty ? parts.done : parts.check).joined(separator: " ")
+        if !parts.drift.isEmpty { return parts.drift.joined(separator: " ") }
+        return (cuts ? Array(parts.done.prefix(1)) : parts.done).joined(separator: " ")
+    }
+
+    /// The text of the row for the cut head and the replaced audio. `text` gives the value of a key.
+    func cutText(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
+        sentences(text: text, locale: locale).cut.joined(separator: " ")
     }
 
     /// The result for VoiceOver: "Moved the clip 2 min 3.0 s later." (the direction as a word, never a
@@ -123,7 +135,9 @@ struct SyncMoved: Equatable {
         sentences(text: text, locale: locale).done.joined(separator: " ")
     }
 
-    private func sentences(text: (L10n) -> String, locale: Locale) -> (done: [String], check: [String]) {
+    private func sentences(
+        text: (L10n) -> String, locale: Locale
+    ) -> (done: [String], drift: [String], cut: [String]) {
         func format(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: locale, arguments: arguments)
         }
@@ -154,16 +168,17 @@ struct SyncMoved: Equatable {
             case .onePartMatched: done.append(format(.bannerSyncNotMeasured))
             }
         }
-        var check: [String] = []
+        var drift: [String] = []
         if case .notCorrected(let cause) = outcome {
-            check.append(format(.bannerDriftNotCorrected))
-            check.append(format(cause.reasonKey))
+            drift.append(format(.bannerDriftNotCorrected))
+            drift.append(format(cause.reasonKey))
         }
-        if headCut > .zero { check.append(format(.bannerSyncHeadCut, duration(headCut))) }
+        var cut: [String] = []
+        if headCut > .zero { cut.append(format(.bannerSyncHeadCut, duration(headCut))) }
         if !replaced.isEmpty {
-            check.append(format(.bannerSyncReplaced, replaced.formatted(.list(type: .and).locale(locale))))
+            cut.append(format(.bannerSyncReplaced, replaced.formatted(.list(type: .and).locale(locale))))
         }
-        return (done, check)
+        return (done, drift, cut)
     }
 }
 

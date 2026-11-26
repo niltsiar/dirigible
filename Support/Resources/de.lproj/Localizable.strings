@@ -111,6 +111,7 @@
 "error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt (%@). Stelle sie wieder her und suche erneut.";
 "error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach. Kein Pegelpunkt wurde geändert.";
 "banner.duck.unread" = "Nicht lesbar: %@. Die Musik bleibt über dieser Sprache laut.";
+"banner.duck.no.speech.unread" = "Das Absenken fand keine Sprache über %1$.1f dBFS. Nicht lesbar: %2$@.";
 "banner.take.sync.broken" = "%1$@ hat einen Teil von Take %2$lld verschoben. Der Teil ist jetzt nicht mehr synchron mit seiner Aufnahme von %3$@.";
 "banner.take.sync.broken.unnamed" = "Ein KI-Agent hat einen Teil von Take %1$lld verschoben. Der Teil ist jetzt nicht mehr synchron mit seiner Aufnahme von %2$@.";
 "banner.take.sync.show" = "Zeigen";
@@ -399,7 +400,7 @@
 "take.recovered" = "Take %lld wurde wiederhergestellt.";
 "take.unplaced" = "Audio, das auf keiner Spur liegt:";
 "take.unplaced.redo" = "„Wiederholen“ bringt dieses Audio zurück.";
-"banner.save.error" = "Die letzte Änderung ist nicht gesichert. %@";
+"banner.save.error" = "Die letzte Änderung ist nicht gesichert.";
 
 /* Transport (decision 0016) */
 "menu.transport" = "Transport";
@@ -683,6 +684,7 @@
 "banner.use.headphones" = "Verwende Kopfhörer, damit die Stimme des Gasts nicht in dein Mikrofon gelangt.";
 "banner.monitor.headphones" = "Verwende Kopfhörer, um das Monitoring zu hören.";
 "banner.export.report" = "%1$@ exportiert (%2$@).";
+"banner.export.report.large" = "%1$@ exportiert mit einer Pegeländerung von %2$+.1f dB. Prüfe, ob die Auswahl Sprache enthält.";
 "banner.export.done" = "%@ exportiert.";
 "announce.level.changed" = "%lld Clips geändert.";
 "announce.level.changed.one" = "1 Clip geändert.";
@@ -705,7 +707,7 @@
 "report.peak" = "True Peak %.1f dBTP";
 "report.peak.none" = "kein True Peak (Stille)";
 "report.gain" = "Pegel %+.1f dB";
-"report.gain.large" = "Die Pegeländerung beträgt mehr als 20 dB. Prüfe, ob die Auswahl Sprache enthält.";
+"report.gain.large" = "Prüfe, ob die Auswahl Sprache enthält.";
 "banner.kind.warning" = "Warnung";
 "banner.kind.error" = "Fehler";
 "banner.kind.info" = "Information";
@@ -980,7 +982,7 @@
 "banner.sync.spread" = "Der Versatz ändert sich um %lld ms über den Clip.";
 "banner.sync.not.measured" = "Nur ein Teil des Clips stimmte überein, zu wenig, um den Drift zu messen.";
 "banner.sync.too.short" = "Der Clip ist kürzer als die 60 s, die für die Driftmessung nötig sind.";
-"banner.sync.head.cut" = "%@ vom Anfang des Clips wurden abgeschnitten, damit er innerhalb der Session bleibt.";
+"banner.sync.head.cut" = "%@ vom Clipanfang wurden abgeschnitten, damit er in der Session bleibt.";
 "banner.sync.replaced" = "Die Verschiebung hat Audio von %@ ersetzt.";
 "banner.sync.no.match" = "Keine Übereinstimmung für %@ auf %@ gefunden.";
 "banner.sync.choose" = "Andere Spur wählen …";
@@ -1069,7 +1071,7 @@
 "undo.import.session" = "Session-Import widerrufen";
 "redo.import.session" = "Session-Import wiederholen";
 "error.import.session.same" = "Du kannst eine Session nicht in sich selbst importieren. Wähle eine andere Session.";
-"error.import.session.source" = "Die Session \U201E%1$@\U201C wurde nicht importiert. %2$@";
+"error.import.session.source" = "Die Session \U201E%1$@\U201C wurde nicht importiert.";
 "error.import.session.target.rate" = "Die Abtastrate dieser Session, %lld Hz, liegt nicht zwischen 8000 und 384000 Hz. Importiere in eine andere Session.";
 "error.import.session.yielded" = "Der Import der Session \U201E%@\U201C wurde für einen Take in einem anderen Fenster gestoppt. Importiere nach dem Take erneut.";
 "error.import.session.rate" = "\U201E%1$@\U201C hat eine Abtastrate von %2$lld Hz. Importiere eine Session mit 8000 bis 384000 Hz.";
@@ -1138,7 +1140,6 @@
 "banner.archived" = "Diese Session ist als FLAC archiviert.";
 "banner.archived.unarchive" = "Archivierung aufheben";
 "banner.archive.saved" = "Das Archivieren hat %@ freigegeben.";
-"banner.archive.snapshot" = "Ein APFS-Snapshot des Volumes kann diese Bytes belegen, bis macOS den Snapshot löscht.";
 "banner.archive.no.space" = "Das Archivieren hat keinen Speicherplatz freigegeben.";
 "banner.archive.damaged" = "Diese Dateien sind beschädigt (%@). Sie bleiben unverändert.";
 "subtitle.archived" = "Archiviert";

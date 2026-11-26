@@ -155,8 +155,9 @@ import Testing
         await imported(model, from: package)
 
         let line = L10n.sessionImportLine(tracks: 3, muted: 1, leftOut: 0)
+        let check = L10n.sessionImportCheck(muted: 1, leftOut: 0)
         let banners = ChromeState.reportBanners(model, studio)
-        #expect(banners.contains { $0 == .sessionImported(line, press: 1) && $0.kind == .warning }, "\(banners)")
+        #expect(banners.contains { $0 == .sessionImported(check, press: 1) && $0.kind == .warning }, "\(banners)")
         #expect(dock.announced.filter { $0 == line }.count == 1, "\(dock.announced)")
         try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
         #expect(!ChromeState.reportBanners(model, studio).contains { $0.key.hasPrefix("sessionImported") })
@@ -186,24 +187,40 @@ import Testing
                 + "Left out 3 markers after the session end.")
     }
 
-    /// C12: a refused source names the source session, then gives the open refusal text unchanged.
+    /// A3: the banner holds only the two sentences that need a check, with no count of the new tracks.
+    @Test func theBannerLineHoldsOnlyTheMutedAndLeftOutSentences() throws {
+        let english = try stringsTable("en")
+        let table = { (key: L10n) in english[key.rawValue] ?? key.rawValue }
+        #expect(
+            L10n.sessionImportCheck(muted: 2, leftOut: 1, table: table)
+                == "Muted 2 call tracks that repeat the other voice. Left out 1 marker after the session end.")
+        #expect(
+            L10n.sessionImportCheck(muted: 0, leftOut: 3, table: table) == "Left out 3 markers after the session end.")
+        #expect(L10n.sessionImportCheck(muted: 0, leftOut: 0, table: table) == "")
+    }
+
+    /// C12: a refused source names the source session in the title, and the open refusal text comes
+    /// unchanged as the message of the alert.
     @Test func aRefusedSourceNamesTheSourceSession() async throws {
+        let title = "The session \u{201C}Guest\u{201D} wasn't imported."
         try await HeaderStateLineTests().withStrings("en") {
+            let unsafe = SessionImportError.source(.unsafeItem("Clips/a.wav"))
+            #expect(L10n.message(for: unsafe, source: "Guest") == title)
             #expect(
-                L10n.message(for: .source(.unsafeItem("Clips/a.wav")), source: "Guest")
-                    == "The session \u{201C}Guest\u{201D} wasn't imported. "
-                    + "\u{201C}Clips/a.wav\u{201D} in the package isn't a plain file or folder. Replace it or remove it."
+                L10n.detail(for: unsafe)
+                    == "\u{201C}Clips/a.wav\u{201D} in the package isn't a plain file or folder. Replace it or remove it."
             )
-            #expect(
-                L10n.message(for: .source(.unsupportedVersion(99)), source: "Guest")
-                    == "The session \u{201C}Guest\u{201D} wasn't imported. "
-                    + L10n.message(for: SessionFileError.unsupportedVersion(99)))
+            let version = SessionImportError.source(.unsupportedVersion(99))
+            #expect(L10n.message(for: version, source: "Guest") == title)
+            #expect(L10n.detail(for: version) == L10n.message(for: SessionFileError.unsupportedVersion(99)))
             for file in ["session.xml", "Transcripts/t1.xml", "a.wav"] {
-                #expect(
-                    L10n.message(for: SessionImportError.paste(.notDownloaded(file: file)), source: "Guest")
-                        == "The session \u{201C}Guest\u{201D} wasn't imported. \u{201C}\(file)\u{201D} isn't on this Mac. "
-                        + "Download it first.")
+                let error = SessionImportError.paste(.notDownloaded(file: file))
+                #expect(L10n.message(for: error, source: "Guest") == title)
+                #expect(L10n.detail(for: error) == "\u{201C}\(file)\u{201D} isn't on this Mac. Download it first.")
             }
+            #expect(L10n.detail(for: .sameSession) == nil)
+            let alert = WindowAlert.error(.sessionImport(version, source: "Guest"))
+            #expect(alert.text == title && alert.message == L10n.detail(for: version))
         }
     }
 

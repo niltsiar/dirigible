@@ -14,7 +14,8 @@ extension L10n {
         ].joined(separator: ", ")
     }
 
-    /// The sentence after the report of a gain over the auto-level limit. Empty for a usual gain.
+    /// The sentence after the report of a gain over the auto-level limit, for the exported alert. Empty
+    /// for a usual gain.
     static func largeGainHint(for report: LoudnessReport) -> String {
         report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
     }
@@ -25,24 +26,21 @@ extension L10n {
         value == 1 ? text(one) : String(format: text(many), locale: .current, value)
     }
 
-    /// The banner text of an Auto Level: the no-change sentences and the track volume sentence when no
-    /// clip changed, then the clips at the limit and the clips with no level. Empty when clips changed
-    /// and nothing needs a check: VoiceOver hears the count (`announceLevelChanged`) and no banner
-    /// shows. `text` gives the value of a key, so a test can read the English table.
+    /// The banner text of an Auto Level: the clips at the limit and the clips with no level, or, when
+    /// neither exists and no clip changed, the no-change sentence and the track volume sentence. Empty
+    /// when clips changed and nothing needs a check: VoiceOver hears the count (`announceLevelChanged`)
+    /// and no banner shows. `text` gives the value of a key, so a test can read the English table.
     static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
         var parts: [String] = []
-        if report.isEmpty {
-            parts.append(text(.bannerLevelNone))
-        } else if report.changed == 0 {
-            parts.append(text(.bannerLevelChangedNone))
-        }
-        if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
         if report.atLimit > 0 {
             parts.append(counted(report.atLimit, one: .bannerLevelLimitOne, many: .bannerLevelLimit, text: text))
         }
         if report.unmeasured > 0 {
             parts.append(
                 counted(report.unmeasured, one: .bannerLevelUnmeasuredOne, many: .bannerLevelUnmeasured, text: text))
+        }
+        if parts.isEmpty, report.changed == 0 {
+            parts = [text(report.isEmpty ? .bannerLevelNone : .bannerLevelChangedNone), text(.bannerLevelVolume)]
         }
         return parts.joined(separator: " ")
     }

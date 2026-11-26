@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Downloaden en transcriberen";
 "sheet.transcribe.replace" = "Vervangen";
 "sheet.transcribe.note.download" = "Dirigible downloadt dit model één keer. Je audio verlaat deze Mac nooit.";
-"sheet.transcribe.note.replace.one" = "Dit spoor heeft 1 woord transcript.";
-"sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden transcript.";
+"sheet.transcribe.note.replace.one" = "Dit spoor heeft 1 woord van het transcript.";
+"sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden van het transcript.";
 "sheet.transcribe.choose" = "Kies modelbestand…";
 "sheet.transcribe.missing" = "%@ (ontbreekt)";
 "sheet.transcribe.note.file" = "Een model van buiten de lijst van Dirigible kan verschillen in snelheid en nauwkeurigheid. Je audio verlaat deze Mac nooit.";

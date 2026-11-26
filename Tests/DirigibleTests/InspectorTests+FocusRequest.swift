@@ -51,4 +51,20 @@ extension InspectorTests {
             "focus \(String(describing: model.markerFocus)), responder \(String(describing: window.firstResponder))")
         await model.close()
     }
+
+    /// Item 1953: a request ends when Title has the focus. A click away after that leaves the
+    /// lanes as first responder.
+    @Test func aClickAwayAfterEpisodeInfoKeepsTheLanes() async throws {
+        let (model, _, window, view) = try await open(try await package())
+        model.showEpisodeInfo()
+        try await waitForTitleFocus(model, window)
+        await until(limit: .seconds(10), "the request ends") { model.episodeFocusRequest == nil }
+
+        #expect(window.makeFirstResponder(view.lanes))
+        await settle(window)
+        #expect(
+            model.episodeFocus == nil && window.firstResponder === view.lanes,
+            "focus \(String(describing: model.episodeFocus)), responder \(String(describing: window.firstResponder))")
+        await model.close()
+    }
 }

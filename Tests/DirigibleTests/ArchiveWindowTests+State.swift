@@ -35,6 +35,15 @@ extension ArchiveWindowTests {
         }
     }
 
+    /// The confirm alert of Archive Session reads its own key when one clip file converts, so it never
+    /// says "1 files". Without a string table in the test bundle, the text of a key is the key.
+    @Test func theArchiveAlertHasAKeyForOneFileAndAKeyForMore() {
+        let one = archiveQuestion(name: "Show", ArchiveFacts(files: 1, bytes: 1_000_000))
+        let more = archiveQuestion(name: "Show", ArchiveFacts(files: 3, bytes: 3_000_000))
+        #expect(one.informativeText == "alert.archive.body.one")
+        #expect(more.informativeText == "alert.archive.body")
+    }
+
     /// C20: during a take the archive item is off, and the command starts no job.
     @Test func theArchiveItemIsOffDuringATake() async throws {
         let (model, studio, window) = try await window(archived: false)

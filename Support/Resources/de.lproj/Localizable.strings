@@ -1123,7 +1123,8 @@
 "menu.file.archive" = "Session archivieren …";
 "menu.file.unarchive" = "Archivierung der Session aufheben";
 "alert.archive.title" = "\"%@\" archivieren?";
-"alert.archive.body" = "%lld Dateien (%@) werden verlustfrei zu FLAC, meist mit halber Größe; eine Bearbeitung braucht %@ freien Speicher, um sie zurückzuwandeln.";
+"alert.archive.body" = "%lld Clip-Dateien (%@) werden verlustfrei zu FLAC, und eine Bearbeitung braucht %@ freien Speicher, um sie zurückzuwandeln.";
+"alert.archive.body.one" = "1 Clip-Datei (%@) wird verlustfrei zu FLAC, und eine Bearbeitung braucht %@ freien Speicher, um sie zurückzuwandeln.";
 "alert.archive.confirm" = "Archivieren";
 "sheet.archive.file" = "Datei %lld von %lld wird archiviert";
 "sheet.unarchive.file" = "Datei %lld von %lld wird wiederhergestellt";

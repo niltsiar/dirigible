@@ -1100,6 +1100,7 @@ enum L10n: String, CaseIterable {
     case menuFileUnarchive = "menu.file.unarchive"
     case alertArchiveTitle = "alert.archive.title"
     case alertArchiveBody = "alert.archive.body"
+    case alertArchiveBodyOne = "alert.archive.body.one"
     case alertArchiveConfirm = "alert.archive.confirm"
     case sheetArchiveFile = "sheet.archive.file"
     case sheetUnarchiveFile = "sheet.unarchive.file"

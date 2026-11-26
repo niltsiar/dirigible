@@ -76,8 +76,9 @@ extension LocalizationTests {
         let values = [
             "alert.a": "The clip moved. Undo it.", "alert.b": "Replace the file in %@?",
             "alert.c": "Some files exported as silence:\n%@", "alert.d": "Close anyway? The changes weren't saved.",
+            "alert.e": "%lld files become FLAC; an edit converts them back.",
         ]
-        #expect(severalSentences(values) == ["alert.a", "alert.d"])
+        #expect(severalSentences(values) == ["alert.a", "alert.d", "alert.e"])
     }
 
     @Test func voiceCheckerFindsEachTellAndKeepsTheVoice() {
@@ -144,9 +145,9 @@ private let voiceKeys: Set = ["media.missing", "inspector.clips"]
 /// The most message texts of `sentenceAreas` with two sentences or more.
 private let sentenceBudget = 10
 
-/// The keys of `values` that have a second sentence, sorted.
+/// The keys of `values` that have a second sentence, sorted. A semicolon and a space is a break too.
 private func severalSentences(_ values: [String: String]) -> [String] {
-    values.filter { $0.value.firstMatch(of: /[.?!][ ]/) != nil }.keys.sorted()
+    values.filter { $0.value.firstMatch(of: /[.?!;][ ]/) != nil }.keys.sorted()
 }
 
 /// The label of each form row: the Clip form, Settings, and the sheets. A button, a menu item, a tab,

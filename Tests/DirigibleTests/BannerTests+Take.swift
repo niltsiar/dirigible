@@ -306,7 +306,7 @@ extension BannerTests {
         let take = TakeResult(take: 1, end: .requested, gaps: [:], lateStarts: ["t1"])
         let row = try #require(try rows(take).last)
 
-        #expect(row == "Track “t1” started recording late, so the start of the take is missing from it.")
+        #expect(row == "Track “t1” started recording late. The start of the take is missing from it.")
     }
 
     /// Negative control: a take with no late start has no such row, and a gap keeps its own row.

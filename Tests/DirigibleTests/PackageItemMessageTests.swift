@@ -29,13 +29,11 @@ struct PackageItemMessageTests {
         for (language, text) in [
             (
                 "en",
-                "The package can't be opened. \u{201C}Clips\u{201D} is a link, a special file, or an item of the "
-                    + "wrong kind. Replace that item with a plain file or folder, or remove it."
+                "\u{201C}Clips\u{201D} in the package isn't a plain file or folder. Replace it or remove it."
             ),
             (
                 "es",
-                "No se puede abrir el paquete. \u{AB}Clips\u{BB} es un enlace, un archivo especial o un elemento de un "
-                    + "tipo incorrecto. Sustituye ese elemento por un archivo o una carpeta normal, o elimínalo."
+                "\u{AB}Clips\u{BB} en el paquete no es un archivo ni una carpeta normal. Sustitúyelo o elimínalo."
             ),
         ] {
             let format = try #require(try stringsTable(language)[L10n.errorFileItem.rawValue])

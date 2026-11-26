@@ -86,8 +86,8 @@ struct RepairBannerTests {
         #expect(L10n.repairDone(none) { table[$0.rawValue] ?? $0.rawValue } == "")
     }
 
-    /// C14 (app part): the error values of a clip render name the clip render in each table, and the
-    /// two that name the noise reduction keep it. Fail: "noise reduced" in a value of a repair.
+    /// C14 (app part): the error values of a clip render do not name the noise reduction, and the
+    /// two that name it keep it. Fail: "noise" in a value of a repair.
     @Test func clipRenderErrorValuesAreNeutral() throws {
         let neutral: [L10n] = [
             .errorDenoiseSpace, .errorDenoiseWrite, .errorDenoiseUnreadable, .errorDenoiseMissing,
@@ -97,9 +97,9 @@ struct RepairBannerTests {
         let table = try stringsTable("en")
         for key in neutral {
             let value = try #require(table[key.rawValue])
-            #expect(value.hasPrefix("The clips can't be rendered."), "\(key.rawValue): \(value)")
+            #expect(!value.localizedCaseInsensitiveContains("noise"), "\(key.rawValue): \(value)")
         }
-        #expect(try #require(table[L10n.errorDenoiseTrackRole.rawValue]).contains("noise reduced"))
+        #expect(try #require(table[L10n.errorDenoiseTrackRole.rawValue]).contains("Reduce Noise"))
         #expect(try #require(table[L10n.errorDenoiseUnavailable.rawValue]).hasPrefix("The noise can't be reduced."))
         #expect(try #require(table[L10n.errorDenoiseYielded.rawValue]).hasPrefix("The clip render stopped"))
     }

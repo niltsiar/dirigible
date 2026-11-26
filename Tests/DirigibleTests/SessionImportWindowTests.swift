@@ -192,9 +192,9 @@ import Testing
         try await HeaderStateLineTests().withStrings("en") {
             #expect(
                 L10n.message(for: .source(.unsafeItem("Clips/a.wav")), source: "Guest")
-                    == "The session \u{201C}Guest\u{201D} wasn't imported. The package can't be "
-                    + "opened. \u{201C}Clips/a.wav\u{201D} is a link, a special file, or an item of the wrong kind. "
-                    + "Replace that item with a plain file or folder, or remove it.")
+                    == "The session \u{201C}Guest\u{201D} wasn't imported. "
+                    + "\u{201C}Clips/a.wav\u{201D} in the package isn't a plain file or folder. Replace it or remove it."
+            )
             #expect(
                 L10n.message(for: .source(.unsupportedVersion(99)), source: "Guest")
                     == "The session \u{201C}Guest\u{201D} wasn't imported. "
@@ -202,8 +202,8 @@ import Testing
             for file in ["session.xml", "Transcripts/t1.xml", "a.wav"] {
                 #expect(
                     L10n.message(for: SessionImportError.paste(.notDownloaded(file: file)), source: "Guest")
-                        == "The session \u{201C}Guest\u{201D} wasn't imported. \u{201C}\(file)\u{201D} can't be imported. "
-                        + "The file isn't on this Mac. Download the file first.")
+                        == "The session \u{201C}Guest\u{201D} wasn't imported. \u{201C}\(file)\u{201D} isn't on this Mac. "
+                        + "Download it first.")
             }
         }
     }
@@ -219,13 +219,13 @@ import Testing
             ]
             for fault in faults {
                 let text = L10n.message(for: SessionImportError.paste(fault), source: "Guest")
-                #expect(text.hasPrefix("The session \u{201C}Guest\u{201D} wasn't imported. "), "\(text)")
+                #expect(text.contains("\u{201C}Guest\u{201D}"), "\(text)")
                 #expect(!text.localizedCaseInsensitiveContains("paste"), "\(text)")
                 #expect(!text.localizedCaseInsensitiveContains("copy again"), "\(text)")
             }
             #expect(
                 L10n.message(for: SessionImportError.paste(.write(file: "a.wav", errno: EIO)), source: "Guest")
-                    == "The session \u{201C}Guest\u{201D} wasn't imported. The audio couldn't be copied (error 5). "
+                    == "The audio of \u{201C}Guest\u{201D} couldn't be copied (error 5). "
                     + "Check the disk and try again.")
             #expect(
                 L10n.message(for: SessionImportError.paste(.session(.trackCount(300))), source: "Guest")

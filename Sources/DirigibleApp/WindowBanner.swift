@@ -310,12 +310,12 @@ func stemsDoneText(_ count: Int, folder: String, text: (L10n) -> String = { $0.t
         ? String(format: text(.bannerStemsDoneOne), folder) : String(format: text(.bannerStemsDone), count, folder)
 }
 
-/// "The stem files a.wav, b.wav clip over 0 dBFS and won't add up to the mix." `text` gives the value of a key.
+/// "The stem files a.wav, b.wav clip over 0 dBFS. They won't add up to the mix." `text` gives the value of a key.
 func stemsClippedText(_ names: [String], text: (L10n) -> String = { $0.text }) -> String {
     String(format: text(.bannerStemsClipped), names.joined(separator: ", "))
 }
 
-/// The text of the take sync banner: "Claude Code moved part of take 4, which is now out of sync with
+/// The text of the take sync banner: "Claude Code moved part of take 4. It's now out of sync with
 /// its recording from 0:21:07." `text` gives the value of a key.
 func takeSyncBreakText(
     take: Int, from: Frames, rate: Int, agent: String?, text: (L10n) -> String = { $0.text }

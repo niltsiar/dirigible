@@ -65,7 +65,7 @@ import Testing
             "a spread of 20 ms or less has no line")
         #expect(
             text(moved(lag: -163_200, drift: .onePartMatched))
-                == "Moved the clip 3.4 s earlier. Only one part of the clip matched, which isn't enough to measure the drift."
+                == "Moved the clip 3.4 s earlier. Only one part of the clip matched, too few to measure the drift."
         )
         #expect(
             text(moved(lag: -163_200, drift: .clipTooShort))

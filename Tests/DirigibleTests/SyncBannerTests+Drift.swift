@@ -55,7 +55,7 @@ extension SyncBannerTests {
             (.noFit(.rateOutOfRange), "The clock rate differs too much from the reference."),
             (
                 .composedRateOutOfRange,
-                "The clip was fixed before, and a second fix would change its clock too much."
+                "A second fix would change the clock of this clip too much."
             ),
             (.underOneMillisecond, "The lag changes by less than 1 ms across the clip."),
         ]

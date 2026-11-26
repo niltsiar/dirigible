@@ -202,7 +202,7 @@ struct RepairSheet: View {
     ) -> some View {
         let shown = "\(value.wrappedValue) \(unit.text)"
         return GridRow(alignment: .center) {
-            Text(label.key).padding(.leading, 20).gridColumnAlignment(.trailing)
+            Text(label.key).padding(.leading, 20).gridColumnAlignment(.leading)
             HStack {
                 Slider(
                     value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Int($0) }),

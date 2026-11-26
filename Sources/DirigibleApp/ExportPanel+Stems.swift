@@ -124,19 +124,25 @@ struct StemAccessory: View {
 
     var body: some View {
         Form {
-            Picker(L10n.panelStemsGroup.key, selection: $settings.grouping) {
+            Picker(selection: $settings.grouping) {
                 Text(L10n.panelStemsGroupTrack.key).tag(StemGrouping.track)
                 Text(L10n.panelStemsGroupRole.key).tag(StemGrouping.role)
+            } label: {
+                Text(verbatim: L10n.panelStemsGroup.text + ":")
             }
-            Picker(L10n.panelExportFormat.key, selection: $settings.format) {
+            Picker(selection: $settings.format) {
                 Text(L10n.panelExportFormatWAV.key).tag(StemSettings.Format.wav)
                 Text(L10n.panelExportFormatFLAC.key).tag(StemSettings.Format.flac)
+            } label: {
+                Text(verbatim: L10n.panelExportFormat.text + ":")
             }
             ExportFormatPickers(
-                bits: $settings.bits, layout: $settings.layout, rate: $settings.rate, sessionRate: sessionRate)
+                bits: $settings.bits, layout: $settings.layout, rate: $settings.rate, sessionRate: sessionRate,
+                colons: true)
             Text(L10n.panelStemsContent.key).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
-        .padding()
+        .padding(.vertical)
+        .padding(.horizontal, 24)
         .frame(width: 420)
     }
 }

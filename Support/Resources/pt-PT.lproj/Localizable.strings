@@ -1123,11 +1123,11 @@
 "menu.file.archive" = "Arquivar sessão…";
 "menu.file.unarchive" = "Desarquivar sessão";
 "alert.archive.title" = "Arquivar \"%@\"?";
-"alert.archive.body" = "O Dirigible converte %lld ficheiros de clipe (%@) em FLAC, em geral com metade do tamanho. O áudio e as edições ficam iguais. Uma edição converte-os de novo em WAV e precisa de %@ livres.";
+"alert.archive.body" = "%lld ficheiros (%@) passam a FLAC sem perdas, em geral com metade do tamanho; uma edição precisa de %@ livres para os converter de novo.";
 "alert.archive.confirm" = "Arquivar";
 "sheet.archive.file" = "A arquivar o ficheiro %lld de %lld";
 "sheet.unarchive.file" = "A desarquivar o ficheiro %lld de %lld";
-"banner.archived" = "Esta sessão está arquivada como FLAC. Uma edição desarquiva-a primeiro.";
+"banner.archived" = "Esta sessão está arquivada como FLAC, e uma edição desarquiva-a primeiro.";
 "banner.archived.unarchive" = "Desarquivar";
 "banner.archive.saved" = "O arquivamento libertou %@.";
 "banner.archive.snapshot" = "Um instantâneo APFS do volume pode manter estes bytes em uso até o macOS apagar o instantâneo.";

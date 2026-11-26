@@ -1123,11 +1123,11 @@
 "menu.file.archive" = "Archiveer sessie…";
 "menu.file.unarchive" = "Hef archivering sessie op";
 "alert.archive.title" = "\"%@\" archiveren?";
-"alert.archive.body" = "Dirigible zet %lld clipbestanden (%@) om naar FLAC, meestal de helft zo groot. De audio en de bewerkingen blijven gelijk. Een bewerking zet ze terug naar WAV en heeft %@ vrije ruimte nodig.";
+"alert.archive.body" = "%lld bestanden (%@) worden verliesvrij FLAC, meestal de helft zo groot; een bewerking heeft %@ vrije ruimte nodig om ze terug te zetten.";
 "alert.archive.confirm" = "Archiveer";
 "sheet.archive.file" = "Bestand %lld van %lld archiveren";
 "sheet.unarchive.file" = "Bestand %lld van %lld terugzetten";
-"banner.archived" = "Deze sessie is als FLAC gearchiveerd. Een bewerking heft de archivering eerst op.";
+"banner.archived" = "Deze sessie is als FLAC gearchiveerd, en een bewerking heft de archivering eerst op.";
 "banner.archived.unarchive" = "Hef archivering op";
 "banner.archive.saved" = "Het archiveren heeft %@ vrijgemaakt.";
 "banner.archive.snapshot" = "Een APFS-snapshot van het volume kan deze bytes in gebruik houden tot macOS de snapshot verwijdert.";

@@ -345,7 +345,7 @@ func lowRecordTimeText(minutes: Int, locale: Locale = .current, text: (L10n) -> 
 }
 
 /// The window subtitle: the rate and at most one more part, so it has one middle dot at most. The
-/// part is "Pre-roll" during the pre-roll of a take, else "Archived" or "Partly archived: 28 of 40
+/// part is "Pre-roll" during the pre-roll of a take, else "Archived" or "Partly archived, 28 of 40
 /// files are FLAC", else the record time left ("2 hr, 10 min left", rounded down to the minute), else
 /// the drag mode when it is not Overwrite ("Shuffle drag mode"). No plural form (0010); Foundation
 /// gives the units of the time. `text` gives the value of a key.

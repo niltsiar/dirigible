@@ -1044,14 +1044,14 @@ An archived session keeps its clip files as FLAC, usually half the size of the W
 2. Click **Archive**. A sheet shows "Archiving file 2 of 40" and a bar. **Cancel** or Esc stops after the file in hand.
 3. A banner gives the disk space that the archive freed.
 
-While the session is archived, a banner says "This session is archived as FLAC. An edit unarchives it first.", and the window subtitle shows "Archived" after the sample rate. After a stop, it shows "Partly archived: 28 of 40 files are FLAC". The same menu item reads **Unarchive Session** (**Desarchivar sesión**).
+While the session is archived, a banner says "This session is archived as FLAC, and an edit unarchives it first.", and the window subtitle shows "Archived" after the sample rate. After a stop, it shows "Partly archived, 28 of 40 files are FLAC". The same menu item reads **Unarchive Session** (**Desarchivar sesión**).
 
 An edit, Play, Record, an export, and **Remove Unused Files** on an archived session first convert the files back to WAV, with the same progress sheet. Then the edit runs once. Record starts no take: press Record again. **Cancel** in the sheet drops the edit, and the session stays archived. To convert the files without an edit, click **Unarchive** in the banner or choose **File > Unarchive Session**. When the disk has less free space than the unarchive needs, an alert gives both numbers, and no file changes.
 
 Dirigible opens an archived session, draws its waveforms, and checks its media with no unarchive. **Add to Favorites**, **Save as Template**, a paste into another session, and **Import Session** from an archived session also run with no unarchive, and they copy the audio as WAV files. A session that you make from an archived session is not archived.
 
 - The archive changes each clip file, so a backup tool or a cloud sync that follows the session uploads each file again.
-- When a WAV file shares its data with a copy, for example after a paste from another session, an import, a template, or a copy in Finder, its removal frees no disk space. When the archive frees nothing, the banner says "The archive freed no disk space: the WAV files share their data with a copy." A snapshot of the volume, for example a local Time Machine snapshot, keeps freed space in use until macOS deletes the snapshot.
+- When a WAV file shares its data with a copy, for example after a paste from another session, an import, a template, or a copy in Finder, its removal frees no disk space. When the archive frees nothing, the banner says "The WAV files share their data with a copy, so the archive freed no disk space." A snapshot of the volume, for example a local Time Machine snapshot, keeps freed space in use until macOS deletes the snapshot.
 - A file that Dirigible cannot convert stays as it is. When a FLAC file is damaged, the unarchive keeps it, converts the other files, and a banner names each damaged file.
 - The Favorites store is never archived.
 - A Dirigible of an older version shows "made by a newer version of Dirigible" for an archived session and changes nothing in it. Unarchive the session first.

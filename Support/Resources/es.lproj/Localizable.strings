@@ -900,7 +900,7 @@
 "banner.stems.done" = "Se exportaron %1$lld stems a %2$@.";
 "banner.stems.done.one" = "Se exportó 1 stem a %@.";
 "banner.stems.stopped" = "No se escribió ningún stem.";
-"banner.stems.clipped" = "Los archivos de stems %@ saturan por encima de 0 dBFS. No sumarán la mezcla.";
+"banner.stems.clipped" = "Los archivos de stems %@ saturan por encima de 0 dBFS. No se sumarán a la mezcla.";
 "banner.stems.mix.clipped" = "La mezcla de los stems supera 0 dBFS. No coincidirá con una exportación de la mezcla.";
 "error.export.nochapter" = "La sesión ya no tiene capítulos en el rango de exportación. No se escribió ningún archivo.";
 "error.export.nomarker" = "La sesión ya no tiene marcadores en el rango de exportación. No se escribió ningún archivo.";

@@ -77,10 +77,10 @@
 "error.duck.no.ducked.track" = "Selecione uma pista a abaixar ou dê a uma pista a função Música.";
 "error.duck.both.lists" = "A pista “%@” não pode ser ao mesmo tempo uma pista de voz e uma pista a abaixar.";
 "error.duck.read" = "Não foi possível ler um arquivo de áudio de uma pista de voz (erro %lld). Nenhum ponto de ganho mudou.";
-"error.ride.read" = "Nivelar ao longo do tempo não leu um arquivo de áudio (erro %lld). Nenhum clipe mudou.";
-"error.ride.missing" = "Nivelar ao longo do tempo não achou \U201C%@\U201D na pasta Clips. Coloque o arquivo de volta.";
+"error.ride.read" = "Nivelar ao longo do tempo não conseguiu ler um arquivo de áudio (erro %lld). Nenhum clipe mudou.";
+"error.ride.missing" = "Nivelar ao longo do tempo não achou \U201C%@\U201D na pasta Clips. Coloque o arquivo de volta e tente novamente.";
 "error.ride.short" = "Nivelar ao longo do tempo achou \U201C%@\U201D mais curto que a sessão. Restaure o arquivo e tente de novo.";
-"error.ride.unreadable" = "Nivelar ao longo do tempo não leu \U201C%@\U201D. Verifique o disco e tente novamente.";
+"error.ride.unreadable" = "Nivelar ao longo do tempo não conseguiu ler \U201C%@\U201D. Verifique o disco e tente novamente.";
 "error.match.read" = "Não foi possível ler um arquivo de áudio (erro %lld). Nenhum clipe mudou.";
 "error.match.missing" = "O arquivo de áudio \U201C%@\U201D não está na pasta Clips da sessão. Coloque o arquivo de volta e tente novamente.";
 "error.match.short" = "O arquivo de áudio \U201C%@\U201D é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
@@ -707,7 +707,7 @@
 "banner.kind.warning" = "Aviso";
 "banner.kind.error" = "Erro";
 "banner.kind.info" = "Informação";
-"error.transcript.empty" = "A transcrição não tem nenhuma palavra na linha do tempo. Nenhuma legenda foi gravada.";
+"error.transcript.empty" = "A transcrição não tem nenhuma palavra na linha do tempo. Nenhuma legenda foi escrita.";
 "error.transcript.gone" = "A transcrição não está mais na sessão. Nenhum arquivo foi gravado.";
 "error.transcript.unloaded" = "O arquivo da transcrição está ausente ou danificado. Importe a transcrição de novo com um agente ou com o comando dirigible.";
 "transcript.notloaded" = "As palavras da transcrição %lld (%@) não aparecem. O arquivo está ausente ou danificado.";

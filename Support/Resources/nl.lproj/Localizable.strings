@@ -77,8 +77,8 @@
 "error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";
 "error.duck.both.lists" = "Spoor '%@' kan niet zowel een spraakspoor als een spoor om te verlagen zijn.";
 "error.duck.read" = "Een audiobestand van een spraakspoor kon niet worden gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
-"error.ride.read" = "Niveau in de tijd aanpassen kon een audiobestand niet lezen (fout %lld). Geen clip gewijzigd.";
-"error.ride.missing" = "Niveau in de tijd aanpassen vindt '%@' niet. Zet het bestand terug in de map Clips.";
+"error.ride.read" = "Niveau in de tijd aanpassen kon een audiobestand niet lezen (fout %lld). Geen clip is gewijzigd.";
+"error.ride.missing" = "Niveau in de tijd aanpassen vindt '%@' niet in de map Clips. Zet het bestand terug en probeer het opnieuw.";
 "error.ride.short" = "Niveau in de tijd aanpassen vond '%@' korter dan de sessie. Herstel het bestand en probeer opnieuw.";
 "error.ride.unreadable" = "Niveau in de tijd aanpassen kon '%@' niet lezen. Controleer de schijf en probeer opnieuw.";
 "error.match.read" = "Een audiobestand kon niet worden gelezen (fout %lld). Geen clip is gewijzigd.";

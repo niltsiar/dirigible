@@ -153,7 +153,7 @@ import Testing
     }
 
     /// ui-audit A8: each of the three sliders has a visible label on its line, left of it, and the
-    /// three labels end at one edge, so they sit in one column. Fail: a slider with only a
+    /// three labels start at one edge, so they sit in one column. Fail: a slider with only a
     /// VoiceOver label. The check reads the drawn pixels, because a hosted SwiftUI sheet gives
     /// no accessibility tree to a test.
     @Test func eachSliderHasAVisibleLabelInOneColumn() async throws {
@@ -198,10 +198,10 @@ import Testing
             let columns = 0..<Int((rect.minX - 4) * scale)
             let inked = columns.filter { x in rows.contains { isInk(x, $0) } }
             try #require(inked.count > 8, "a visible label left of the slider at \(rect): \(inked.count) columns")
-            return try #require(inked.max())
+            return try #require(inked.min())
         }
         let spread = (edges.max() ?? 0) - (edges.min() ?? 0)
-        #expect(Double(spread) <= 2 * scale, "one label column: right edges \(edges)")
+        #expect(Double(spread) <= 2 * scale, "one label column: left edges \(edges)")
         window.close()
         await model.close()
     }

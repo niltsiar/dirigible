@@ -714,7 +714,7 @@
 "error.transcript.unloaded" = "The transcript file is missing or damaged. Import it again with an agent or the dirigible command.";
 "transcript.notloaded" = "The file of transcript %lld (%@) is missing or damaged. Import the transcript again.";
 "menu.file.import.transcript" = "Import Transcript…";
-"transcript.empty.title" = "No transcript";
+"transcript.empty.title" = "No Transcript";
 "transcript.empty.hint" = "Import a Whisper JSON, WebVTT, or SRT file for a track.";
 "transcript.follow" = "Follow Playhead";
 "transcript.gotoword" = "Go to Word";
@@ -781,9 +781,9 @@
 "sheet.transcribe.language" = "Language";
 "sheet.transcribe.automatic" = "Automatic";
 "sheet.transcribe.model" = "Model";
-"sheet.transcribe.standard" = "Standard - %@";
-"sheet.transcribe.accurate" = "More Accurate - %@, slower";
-"sheet.transcribe.most.accurate" = "Most Accurate - %@, slowest";
+"sheet.transcribe.standard" = "Standard (%@)";
+"sheet.transcribe.accurate" = "More Accurate (%@, slower)";
+"sheet.transcribe.most.accurate" = "Most Accurate (%@, slowest)";
 "sheet.transcribe.start" = "Transcribe";
 "sheet.transcribe.download" = "Download and Transcribe";
 "sheet.transcribe.replace" = "Replace";
@@ -806,7 +806,7 @@
 "sheet.transcribe.kind.small" = "Small";
 "sheet.transcribe.kind.medium" = "Medium";
 "sheet.transcribe.kind.large" = "Large";
-"sheet.transcribe.file.title" = "%1$@ - %2$@";
+"sheet.transcribe.file.title" = "%1$@ (%2$@)";
 "alert.transcribe.locate" = "Locate…";
 "transcribe.banner.download" = "Downloading the speech model… %lld %%";
 "transcribe.banner.running" = "Transcribing %1$@… %2$lld %%";
@@ -945,7 +945,7 @@
 "index.column.end" = "End";
 "index.action.go.to" = "Go to";
 "index.action.show.info" = "Show Info";
-"index.action.play.from.here" = "Play from here";
+"index.action.play.from.here" = "Play from Here";
 "index.menu.play.from.here" = "Play from Here";
 "index.post.selected.gone" = "Selected item removed";
 "index.post.deleted" = "Deleted %lld items";

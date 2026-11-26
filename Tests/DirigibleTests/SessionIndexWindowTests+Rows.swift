@@ -371,7 +371,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// Each row has the actions Go to, Show Info, Play from here, and Delete; a marker or chapter row
+    /// Each row has the actions Go to, Show Info, Play from Here, and Delete; a marker or chapter row
     /// also has Rename. The actions are read on the row elements that the table gives to an
     /// accessibility client, which are not the row views.
     @Test func aRowHasItsCustomActions() async throws {

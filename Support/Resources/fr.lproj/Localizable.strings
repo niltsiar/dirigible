@@ -781,9 +781,9 @@
 "sheet.transcribe.language" = "Langue";
 "sheet.transcribe.automatic" = "Automatique";
 "sheet.transcribe.model" = "Modèle";
-"sheet.transcribe.standard" = "Standard - %@";
-"sheet.transcribe.accurate" = "Plus précis - %@, plus lent";
-"sheet.transcribe.most.accurate" = "Précision maximale - %@, le plus lent";
+"sheet.transcribe.standard" = "Standard (%@)";
+"sheet.transcribe.accurate" = "Plus précis (%@, plus lent)";
+"sheet.transcribe.most.accurate" = "Précision maximale (%@, le plus lent)";
 "sheet.transcribe.start" = "Transcrire";
 "sheet.transcribe.download" = "Télécharger et transcrire";
 "sheet.transcribe.replace" = "Remplacer";
@@ -806,7 +806,7 @@
 "sheet.transcribe.kind.small" = "Small";
 "sheet.transcribe.kind.medium" = "Medium";
 "sheet.transcribe.kind.large" = "Large";
-"sheet.transcribe.file.title" = "%1$@ - %2$@";
+"sheet.transcribe.file.title" = "%1$@ (%2$@)";
 "alert.transcribe.locate" = "Localiser…";
 "transcribe.banner.download" = "Téléchargement du modèle vocal… %lld %%";
 "transcribe.banner.running" = "Transcription de %1$@… %2$lld %%";

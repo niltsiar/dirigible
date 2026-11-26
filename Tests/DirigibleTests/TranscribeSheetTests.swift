@@ -63,9 +63,9 @@ struct TranscribeSheetTests {
         func title(_ model: WhisperModel) -> String {
             TranscribeDraft.title(of: model, locale: Locale(identifier: "en_US")) { table[$0.rawValue] ?? "" }
         }
-        #expect(title(.base) == "Standard - 148 MB")
-        #expect(title(.smallQ51) == "More Accurate - 190.1 MB, slower")
-        #expect(title(turbo) == "Most Accurate - 574 MB, slowest")
+        #expect(title(.base) == "Standard (148 MB)")
+        #expect(title(.smallQ51) == "More Accurate (190.1 MB, slower)")
+        #expect(title(turbo) == "Most Accurate (574 MB, slowest)")
     }
 
     /// Lead ruling C27: a sheet that opens with Spanish starts at More Accurate (small-q5_1), and a

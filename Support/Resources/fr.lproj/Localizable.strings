@@ -1123,11 +1123,11 @@
 "menu.file.archive" = "Archiver la session…";
 "menu.file.unarchive" = "Désarchiver la session";
 "alert.archive.title" = "Archiver \"%@\" ?";
-"alert.archive.body" = "Dirigible convertit %lld fichiers de clip (%@) en FLAC, en général deux fois plus petits. L'audio et les modifications restent les mêmes. Une modification les reconvertit en WAV et demande %@ d'espace libre.";
+"alert.archive.body" = "%lld fichiers (%@) passent en FLAC sans perte, en général deux fois plus petits ; une modification demande %@ d'espace libre pour les reconvertir.";
 "alert.archive.confirm" = "Archiver";
 "sheet.archive.file" = "Archivage du fichier %lld sur %lld";
 "sheet.unarchive.file" = "Désarchivage du fichier %lld sur %lld";
-"banner.archived" = "Cette session est archivée en FLAC. Une modification la désarchive d'abord.";
+"banner.archived" = "Cette session est archivée en FLAC, et une modification la désarchive d'abord.";
 "banner.archived.unarchive" = "Désarchiver";
 "banner.archive.saved" = "L'archivage a libéré %@.";
 "banner.archive.snapshot" = "Un instantané APFS du volume peut garder ces octets en usage jusqu'à ce que macOS supprime l'instantané.";

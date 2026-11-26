@@ -76,7 +76,7 @@
 "error.duck.no.speech.track" = "Wähle eine Sprachspur aus oder gib einer Spur die Rolle „Dialog“.";
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
 "error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
-"error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
+"error.duck.read" = "Eine Audiodatei einer Sprachspur konnte nicht gelesen werden (Fehler %lld). Kein Pegelpunkt wurde geändert.";
 "error.ride.read" = "Der Pegel der Clips kann nicht über die Zeit angepasst werden. Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
 "error.ride.missing" = "Der Pegel der Clips kann nicht über die Zeit angepasst werden. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.ride.short" = "Der Pegel der Clips kann nicht über die Zeit angepasst werden. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
@@ -106,7 +106,7 @@
 "track.match.value.learning" = "Stimme wird gelernt";
 "match.result" = "%1$d Spuren angeglichen. Die größte Anhebung ist %2$@, die größte Absenkung %3$@.";
 "match.result.one" = "1 Spur angeglichen. Die größte Anhebung ist %1$@, die größte Absenkung %2$@.";
-"error.silences.read" = "Eine Audiodatei wurde nicht gelesen (Fehler %lld). Die Suche hat keine Stille gefunden.";
+"error.silences.read" = "Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Die Suche hat keine Stille gefunden.";
 "error.silences.stale" = "Die Spuren haben sich nach der Suche geändert. Suche erneut, um die Stille anzuwenden.";
 "error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt (%@). Ihre Clips würden als Stille gelesen, daher zeigt die Suche keine Stille. Stelle die Dateien wieder her und suche erneut.";
 "error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach, daher hat das Absenken keinen Pegelpunkt geändert.";
@@ -809,7 +809,7 @@
 "transcribe.banner.download" = "Sprachmodell wird geladen … %lld %%";
 "transcribe.banner.running" = "%1$@ wird transkribiert … %2$lld %%";
 "transcribe.banner.firewall" = "Noch keine Daten von %@. Eine Firewall kann den Download blockieren.";
-"transcribe.stopped" = "Die Transkription wurde angehalten. Eine Aufnahme begann.";
+"transcribe.stopped" = "Die Transkription wurde gestoppt. Eine Aufnahme begann.";
 "transcribe.again" = "Erneut transkribieren";
 "transcribe.nowords" = "Keine Wörter gefunden. Die Spur ist unverändert.";
 "transcribe.canceled" = "Transkription abgebrochen. Die Spur ist unverändert.";
@@ -817,7 +817,7 @@
 "error.transcribe.download" = "Der Download des Modells ist fehlgeschlagen. Prüfe deine Internetverbindung und versuche es erneut.";
 "error.transcribe.download.nodata" = "Der Download des Modells hat keine Daten von %@ erhalten. Eine Firewall kann den Download blockieren. Erlaube die Verbindung in deiner Firewall und versuche es erneut.";
 "error.transcribe.folder" = "Das Sprachmodell konnte nicht in %1$@ geschrieben werden (Fehler %2$lld). Prüfe, ob das Volume freien Speicherplatz hat und ob du in diesen Ordner schreiben darfst, und versuche es erneut.";
-"error.transcribe.download.checksum" = "Das geladene Sprachmodell ist nicht die erwartete Datei, daher hat Dirigible es gelöscht. Versuche es später erneut.";
+"error.transcribe.download.checksum" = "Das heruntergeladene Sprachmodell ist nicht die erwartete Datei, daher hat Dirigible es gelöscht. Versuche es später erneut.";
 "error.transcribe.checksum" = "Die Datei des Sprachmodells ist beschädigt oder nicht die erwartete. Lösche sie in ~/Library/Application Support/Dirigible/Models und versuche es erneut.";
 "error.transcribe.audio" = "Die Audiodatei %1$@ konnte nicht gelesen werden (Fehler %2$lld). Die Spur ist unverändert.";
 "error.transcribe.vad" = "Das Modell, das Sprache erkennt, fehlt. Installiere Dirigible erneut.";
@@ -894,7 +894,7 @@
 "banner.export.set.old.one" = "Dirigible löscht die ältere Datei %@ mit diesem Präfix nicht.";
 "banner.export.set.old.many" = "Dirigible löscht %1$lld ältere Dateien mit diesem Präfix nicht, darunter %2$@.";
 "banner.export.set.show" = "Im Finder zeigen";
-"banner.export.set.dropped" = "Keine Datei für \U201E%@\U201C, das am vorherigen Teilungspunkt oder am Ende des Bereichs beginnt.";
+"banner.export.set.dropped" = "Keine Datei für den Marker \U201E%@\U201C, der am vorherigen Teilungspunkt oder am Ende des Bereichs beginnt.";
 "menu.file.export.stems" = "Stems exportieren …";
 "error.export.nostem" = "Die Sitzung hat jetzt keinen Stem im Exportbereich. Es wurde keine Datei geschrieben.";
 "banner.stems.stopped" = "Es wurde kein Stem geschrieben.";
@@ -992,7 +992,7 @@
 "banner.drift.cause.few.parts" = "Zu wenige Teile des Clips stimmen mit der Referenz überein.";
 "banner.drift.cause.no.line" = "Der Versatz folgt keiner stetigen Linie.";
 "banner.drift.cause.rate" = "Die Taktrate weicht zu stark von der Referenz ab.";
-"banner.drift.cause.composed" = "Der Clip wurde schon korrigiert, und eine zweite Korrektur würde die Taktrate zu stark ändern.";
+"banner.drift.cause.composed" = "Der Clip wurde schon korrigiert, und eine zweite Korrektur würde die Uhr zu stark ändern.";
 "banner.drift.cause.under.ms" = "Der Versatz ändert sich um weniger als 1 ms über den Clip.";
 "banner.drift.cause.transcript" = "Ein Transkript der Sitzung wurde nicht geladen. Importiere es erneut mit einem Agenten oder dem Befehl dirigible.";
 "session.template.label" = "Vorlage:";

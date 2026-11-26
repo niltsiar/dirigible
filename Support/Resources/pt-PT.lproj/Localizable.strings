@@ -790,7 +790,7 @@
 "sheet.transcribe.note.replace.many" = "Esta faixa tem %lld palavras. Substituir troca-as pelas palavras novas. Desfazer repõe-as.";
 "sheet.transcribe.choose" = "Escolher ficheiro de modelo…";
 "sheet.transcribe.missing" = "%@ (em falta)";
-"sheet.transcribe.note.file" = "Este modelo não é da lista do Dirigible. A velocidade e a precisão podem variar. O áudio nunca sai deste Mac.";
+"sheet.transcribe.note.file" = "Este modelo não é da lista do Dirigible. A velocidade e a precisão podem variar. O seu áudio nunca sai deste Mac.";
 "sheet.transcribe.check.running" = "A verificar %@…";
 "sheet.transcribe.check.wait" = "Isto pode demorar um minuto.";
 "sheet.transcribe.check.multilingual" = "%@, multilingue";
@@ -989,7 +989,7 @@
 "banner.drift.cause.too.short" = "O clipe tem menos de 5 min.";
 "banner.drift.cause.rendered" = "O clipe reproduz áudio processado e precisa primeiro do áudio original restaurado.";
 "banner.drift.cause.take" = "Uma gravação usa o relógio da sessão.";
-"banner.drift.cause.few.parts" = "Poucas partes do clipe correspondem à referência.";
+"banner.drift.cause.few.parts" = "Muito poucas partes do clipe correspondem à referência.";
 "banner.drift.cause.no.line" = "O desfasamento não segue uma reta estável.";
 "banner.drift.cause.rate" = "A taxa do relógio difere demasiado da referência.";
 "banner.drift.cause.composed" = "O clipe já foi corrigido, e uma segunda correção alteraria demasiado o relógio dele.";

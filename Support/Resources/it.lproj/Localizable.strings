@@ -988,7 +988,7 @@
 "banner.drift.not.corrected" = "La deriva non è stata corretta.";
 "banner.drift.cause.too.short" = "Il clip dura meno di 5 min.";
 "banner.drift.cause.rendered" = "Il clip riproduce audio renderizzato e ha bisogno prima del suo audio originale.";
-"banner.drift.cause.take" = "Un take registra con il clock della sessione.";
+"banner.drift.cause.take" = "Una ripresa registra con il clock della sessione.";
 "banner.drift.cause.few.parts" = "Troppe poche parti del clip corrispondono al riferimento.";
 "banner.drift.cause.no.line" = "Lo sfasamento non segue una retta stabile.";
 "banner.drift.cause.rate" = "La frequenza del clock differisce troppo dal riferimento.";

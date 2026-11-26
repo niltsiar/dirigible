@@ -76,7 +76,7 @@
 "error.duck.no.speech.track" = "Selecione uma pista de voz ou dê a uma pista a função Diálogo.";
 "error.duck.no.ducked.track" = "Selecione uma pista a abaixar ou dê a uma pista a função Música.";
 "error.duck.both.lists" = "A pista “%@” não pode ser ao mesmo tempo uma pista de voz e uma pista a abaixar.";
-"error.duck.read" = "Um arquivo de áudio de uma pista de voz não foi lido (erro %lld). Nenhum ponto de ganho mudou.";
+"error.duck.read" = "Não foi possível ler um arquivo de áudio de uma pista de voz (erro %lld). Nenhum ponto de ganho mudou.";
 "error.ride.read" = "Não foi possível nivelar os clipes ao longo do tempo. Não foi possível ler um arquivo de áudio (erro %lld). Nenhum clipe mudou.";
 "error.ride.missing" = "Não foi possível nivelar os clipes ao longo do tempo. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
 "error.ride.short" = "Não foi possível nivelar os clipes ao longo do tempo. O arquivo de áudio “%@” é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
@@ -106,7 +106,7 @@
 "track.match.value.learning" = "Aprendendo a voz";
 "match.result" = "%1$d pistas correspondidas. O maior reforço é %2$@ e o maior corte é %3$@.";
 "match.result.one" = "1 pista correspondida. O maior reforço é %1$@ e o maior corte é %2$@.";
-"error.silences.read" = "Um arquivo de áudio não foi lido (erro %lld). A busca não encontrou silêncios.";
+"error.silences.read" = "Não foi possível ler um arquivo de áudio (erro %lld). A busca não encontrou silêncios.";
 "error.silences.stale" = "As pistas mudaram depois da busca. Busque de novo para aplicar os silêncios.";
 "error.silences.faults" = "Estes arquivos estão faltando ou danificados (%@). Os clipes deles seriam lidos como silêncio, então a busca não mostra silêncios. Restaure os arquivos e busque de novo.";
 "error.duck.past.end" = "A seleção começa no fim da sessão ou depois, então o abaixamento não mudou nenhum ponto de ganho.";
@@ -989,7 +989,7 @@
 "banner.drift.cause.too.short" = "O clipe tem menos de 5 min.";
 "banner.drift.cause.rendered" = "O clipe toca áudio renderizado e precisa antes do áudio original restaurado.";
 "banner.drift.cause.take" = "Uma gravação usa o relógio da sessão.";
-"banner.drift.cause.few.parts" = "Poucas partes do clipe correspondem à referência.";
+"banner.drift.cause.few.parts" = "Muito poucas partes do clipe correspondem à referência.";
 "banner.drift.cause.no.line" = "O deslocamento não segue uma reta estável.";
 "banner.drift.cause.rate" = "A taxa do relógio difere demais da referência.";
 "banner.drift.cause.composed" = "O clipe já foi corrigido, e uma segunda correção mudaria demais o relógio dele.";

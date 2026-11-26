@@ -138,20 +138,22 @@ import Testing
             Issue.record("no banner with Undo: \(banner)")
             return
         }
-        #expect(banner.kind == .info, "\(banner.kind)")
+        #expect(banner.kind == .warning, "\(banner.kind)")
         let rows = ChromeState.reportBanners(model, studio).filter { $0.key.hasPrefix("syncCut") }
-        #expect(rows.map(\.kind) == [.warning], "\(rows)")
-        #expect(cutText(moved) == "The move replaced audio of r.", "\(cutText(moved))")
+        #expect(rows.isEmpty, "\(rows)")
+        #expect(bannerText(moved) == "The move replaced audio of r.", "\(bannerText(moved))")
         #expect(model.canUndoAgentEdit(revision: revision))
         await model.close()
     }
 
-    /// C9 (k): a head cut has its own warning row after the result row, and a drift that was not corrected
-    /// is a warning that holds only the sentences to check.
+    /// C9 (k), ui-audit A1: a head cut is a warning that holds the cut and not the move, which the
+    /// timeline shows, and a drift that was not corrected is a warning that holds only the sentences to
+    /// check.
     @Test func theBannerHoldsOnlyTheSentencesToCheck() {
         let cut = moved(lag: -163_200, headCut: 288_000)
-        #expect(WindowBanner.syncMoved(cut, revision: 3, press: 1).kind == .info)
-        #expect(bannerText(cut) == "Moved the clip 3.4 s earlier.", "\(bannerText(cut))")
+        #expect(WindowBanner.syncMoved(cut, revision: 3, press: 1).kind == .warning)
+        #expect(bannerText(cut) == cutText(cut), "\(bannerText(cut))")
+        #expect(!bannerText(cut).contains("Moved"), "\(bannerText(cut))")
         #expect(WindowBanner.syncCut(cut, press: 1).kind == .warning)
         #expect(
             cutText(cut) == "Cut 6.0 s from the clip start to keep it in the session.", "\(cutText(cut))")

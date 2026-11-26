@@ -19,7 +19,7 @@ A read-only audit of the app UI for AI-sounding text and for gaps against macOS 
 
 ## Checks
 
-A tier tells what a fail costs: `floor` is a fault that stops a ship, `reflex` is fixed or waived with a reason, `finish` is read and answered. Grade each check: 1 for no instance of its tell, 0.5 for 1 to 5 instances, 0 for 6 or more, and 0 at once for a hard fail, with no judgement and whatever the count of instances. Grade `n/a` when the inputs cannot show the check (a text file shows no layout). A text in Apple's voice, with a contraction, one fact, and the ellipsis character, gets no finding.
+A tier tells what a fail costs: `floor` is a fault that stops a ship, `reflex` is fixed or waived with a reason, `finish` is read and answered. Grade each check: 1 for no instance of its tell, 0.5 for 1 to 5 instances, 0 for 6 or more, and 0 at once for a hard fail, with no judgement and whatever the count of instances. Grade `n/a` when the inputs cannot show the check (a text file shows no layout). A waived instance is no instance: a decision record sets it for safety and names it as a waiver of the check. List it under Waived, with the decision. A text in Apple's voice, with a contraction, one fact, and the ellipsis character, gets no finding.
 
 | ID | Check | Tier | Pass rule | Fail example in this app | Source |
 |---|---|---|---|---|---|
@@ -47,7 +47,7 @@ Run them on the English table. The message keys are `banner`, `alert`, `consent`
 The report has these parts, in this order:
 
 1. The notes of step 2, one line per screenshot.
-2. A findings table with the columns Check, Tier, Location, Tell, Fix. Location is a key (`banner.level.changed`) or a screenshot name with a region. The fix is the text or the change that would pass the check. Each finding cites one F<n> of its check.
+2. A findings table with the columns Check, Tier, Location, Tell, Fix. Location is a key (`banner.level.changed`) or a screenshot name with a region. The fix is the text or the change that would pass the check. Each finding cites one F<n> of its check. Under the table, the list Waived names each waived instance and its decision.
 3. One line with the grades: `A1 <grade> ... A10 <grade>`.
 4. The tally line `floor fails <n>, reflex fails <n>`. A fail is a grade of 0.
 5. The last line `Score: <n> / 10`, with no line after it: write any note on the sum or the cap above it. The score is the sum of the grades, scaled to 10 when some checks are `n/a`: 10 times the sum, divided by the number of graded checks, rounded to the nearest 0.5. A grade of 0 on a `floor` check caps the score at 6.0.

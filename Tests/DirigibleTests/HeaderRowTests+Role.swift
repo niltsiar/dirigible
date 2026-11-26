@@ -6,7 +6,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The role strip and glyph of a header row (decision 0060, C13, U12).
+/// The role strip and glyph of a header row (decision 0060, C13, U12, ui-audit A7).
 extension HeaderRowTests {
     /// The role color of `appearance` in the color space of the capture, as 8-bit RGB.
     func rgb(_ role: Track.Role, _ appearance: NSAppearance, _ image: CGImage) throws -> (Int, Int, Int) {
@@ -19,10 +19,10 @@ extension HeaderRowTests {
         )
     }
 
-    /// C13: in light and dark mode, the 4 pt strip of a row with a role has the role color, and the
-    /// glyph adds more pixels of it right of the strip. A row with no role has no pixel of a role
-    /// color.
-    @Test func aRoleShowsTheStripAndTheGlyphAndNoRoleShowsNothing() async throws {
+    /// C13 and A7: in light and dark mode, the 4 pt strip of a row with a role has the role color,
+    /// and no pixel right of the strip has it, so the glyph is no colored tile. A row with no role
+    /// has no pixel of a role color.
+    @Test func aRoleColorsOnlyTheStripAndNoRoleShowsNothing() async throws {
         let (model, studio) = try await model(tracks: 4)
         let ids = studio.session.tracks.map(\.id)
         let roles: [Track.Role?] = [.dialogue, .music, .effects, nil]
@@ -59,13 +59,22 @@ extension HeaderRowTests {
                 let strip = try pixels(row, 0..<4)
                 let inStrip = strip.filter { near($0, color) }.count
                 #expect(inStrip * 10 >= strip.count * 9, "the strip: \(label): \(inStrip) of \(strip.count)")
-                #expect(try pixels(row, 4..<8).allSatisfy { !near($0, color) }, "the strip is 4 pt: \(label)")
-                let glyph = try pixels(row, 8..<width).filter { near($0, color) }.count
-                #expect(glyph > 100, "the glyph: \(label): \(glyph) pixels")
+                let right = try pixels(row, 4..<width).filter { near($0, color) }.count
+                #expect(right == 0, "only the 4 pt strip has the role color: \(label): \(right) pixels")
             }
             window.close()
         }
         await model.close()
+    }
+
+    /// U12 and A7: each role has its own system symbol, so the role does not depend on the strip
+    /// color alone, and the glyph is no letter that reads as the Mute "M".
+    @Test func eachRoleHasItsOwnSystemSymbol() {
+        let symbols = Track.Role.allCases.map(\.symbol)
+        #expect(Set(symbols).count == symbols.count, "\(symbols)")
+        for symbol in symbols {
+            #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol)")
+        }
     }
 
     /// The glyph comes out of the name width, so a row with a role and a full live state stays

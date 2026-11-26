@@ -3,7 +3,7 @@ import DirigibleCore
 import SwiftUI
 
 /// The look of a track role in the header (decision 0060, U12): a 4 pt strip at the leading edge
-/// and a letter glyph, so the role does not depend on color alone. No role shows nothing.
+/// and a symbol glyph, so the role does not depend on color alone. No role shows nothing.
 extension Track.Role {
     var title: L10n {
         switch self {
@@ -13,11 +13,13 @@ extension Track.Role {
         }
     }
 
-    var letter: L10n {
+    /// The SF Symbol of the glyph. A symbol, not a letter, so the music glyph never reads as the
+    /// Mute "M" next to it.
+    var symbol: String {
         switch self {
-        case .dialogue: .trackRoleDialogueLetter
-        case .music: .trackRoleMusicLetter
-        case .effects: .trackRoleEffectsLetter
+        case .dialogue: "bubble.left"
+        case .music: "music.note"
+        case .effects: "sparkles"
         }
     }
 
@@ -31,17 +33,16 @@ extension Track.Role {
     }
 }
 
-/// The role letter on the role color, before the name.
+/// The role symbol in the secondary color, before the name. The strip carries the role color.
 struct RoleGlyph: View {
     static let size = 14.0
     let role: Track.Role
 
     var body: some View {
-        Text(verbatim: role.letter.text)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(Color.black.opacity(0.85))
+        Image(systemName: role.symbol)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
             .frame(width: Self.size, height: Self.size)
-            .background(Color(nsColor: role.color), in: RoundedRectangle(cornerRadius: 3))
             .help(Text(role.title.key) + Text(verbatim: "\n") + Text(L10n.trackRoleHelp.key))
             .accessibilityLabel(Text(role.title.key))
     }

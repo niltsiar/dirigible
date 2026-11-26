@@ -86,8 +86,7 @@ extension InspectorTests {
     /// hidden, the Clip tab with the focus in a clip field, the Episode tab with the focus in
     /// Title, the Marker tab with the focus in Link, and the lanes. With no current marker it beeps
     /// and the pane shows "No Marker".
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func markerInfoShowsTheMarkerPaneWithTheFocusInName() async throws {
+    @Test func markerInfoShowsTheMarkerPaneWithTheFocusInName() async throws {
         let (model, studio, window, view) = try await open(try await package(), shown: false)
         var beeps = 0
         model.beep = { beeps += 1 }

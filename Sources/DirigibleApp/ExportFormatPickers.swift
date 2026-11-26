@@ -10,21 +10,31 @@ struct ExportFormatPickers: View {
     @Binding var rate: ExportRate
     let sessionRate: Int
     var showsBits = true
+    /// Each label ends in a colon, as the labels of a save panel do.
+    var colons = false
+
+    private func label(_ title: L10n) -> Text { Text(verbatim: colons ? title.text + ":" : title.text) }
 
     var body: some View {
         if showsBits {
-            Picker(L10n.panelExportBits.key, selection: $bits) {
+            Picker(selection: $bits) {
                 ForEach(BitDepth.allCases, id: \.self) { bits in Text(verbatim: "\(bits.rawValue)").tag(bits) }
+            } label: {
+                label(.panelExportBits)
             }
         }
-        Picker(L10n.panelExportChannels.key, selection: $layout) {
+        Picker(selection: $layout) {
             Text(L10n.panelExportChannelsStereo.key).tag(ChannelLayout.stereo)
             Text(L10n.panelExportChannelsMono.key).tag(ChannelLayout.mono)
+        } label: {
+            label(.panelExportChannels)
         }
-        Picker(L10n.panelExportRate.key, selection: $rate) {
+        Picker(selection: $rate) {
             Text(verbatim: L10n.panelExportRateSession.format(sessionRate)).tag(ExportRate.session)
             Text(L10n.panelExportRate44100.key).tag(ExportRate.hz44100)
             Text(L10n.panelExportRate48000.key).tag(ExportRate.hz48000)
+        } label: {
+            label(.panelExportRate)
         }
     }
 }

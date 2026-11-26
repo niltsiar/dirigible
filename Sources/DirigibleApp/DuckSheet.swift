@@ -58,11 +58,9 @@ struct DuckSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.sheetDuckTitle.key).font(.headline)
-            HStack(alignment: .top, spacing: 24) {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 10) {
                 checklist(L10n.sheetDuckSpeech, \.speech)
                 checklist(L10n.sheetDuckMusic, \.music)
-            }
-            Grid(alignment: .leading) {
                 stepper(L10n.sheetDuckDepth, $draft.depth, DuckDraft.depths, step: 1, unit: .inspectorDecibels)
                 stepper(L10n.sheetDuckAttack, $draft.attack, DuckDraft.times, step: 100, unit: .inspectorMilliseconds)
                 stepper(L10n.sheetDuckRelease, $draft.release, DuckDraft.times, step: 100, unit: .inspectorMilliseconds)
@@ -87,8 +85,8 @@ struct DuckSheet: View {
     }
 
     private func checklist(_ title: L10n, _ list: WritableKeyPath<DuckDraft, Set<TrackID>>) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.key).font(.subheadline.bold())
+        GridRow(alignment: .top) {
+            Text(title.key).gridColumnAlignment(.trailing)
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(tracks, id: \.id) { track in
@@ -108,19 +106,18 @@ struct DuckSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: 120)
+            .frame(height: min(120, CGFloat(tracks.count) * 20))
+            // Both lists name the same tracks, so VoiceOver reads the list title on entry.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Text(title.key))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Both lists name the same tracks, so VoiceOver reads the list title on entry.
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text(title.key))
     }
 
     private func stepper(
         _ title: L10n, _ value: Binding<Int>, _ range: ClosedRange<Int>, step: Int, unit: L10n
     ) -> some View {
         let shown = "\(value.wrappedValue) \(unit.text)"
-        return GridRow {
+        return GridRow(alignment: .firstTextBaseline) {
             Text(title.key)
             Stepper(value: value, in: range, step: step) {
                 Text(verbatim: shown).monospacedDigit()

@@ -134,7 +134,7 @@ extension TranscriptPaneTests {
             text: { (try? stringsTable("en"))?[$0.rawValue] ?? "" })
         #expect(
             all
-                == "1 word has no clip. 2 words have no time. 3 words are over repeated audio. Dropped a, b, which didn't load."
+                == "1 word has no clip. 2 words have no time. 3 words are over repeated audio. Dropped a, b. It didn't load."
         )
         #expect(L10n.transcriptImportResult(skipped: 0, untimed: 0, repeated: 0, dropped: []) == nil)
         await model.close()

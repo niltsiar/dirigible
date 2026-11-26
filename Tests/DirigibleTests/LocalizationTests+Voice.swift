@@ -4,8 +4,9 @@ import Testing
 @testable import DirigibleApp
 
 /// The Voice clause of decision 0010 for the English message texts: no count after a colon, no
-/// uncontracted negation, under 100 characters unless the text lists file names, and at most
-/// `sentenceBudget` texts with two sentences or more.
+/// uncontracted negation, under 100 characters unless the text lists file names, at most
+/// `sentenceBudget` texts with two sentences or more, and in each message no join of two facts and
+/// at most `sentenceLimit` sentences.
 extension LocalizationTests {
     @Test func messageTextsFollowTheVoiceClause() throws {
         let english = try stringsTable("en")
@@ -17,6 +18,33 @@ extension LocalizationTests {
         #expect(voiceProblems(values, nameLists: voiceNameLists) == [])
         let several = severalSentences(english.filter { key, _ in sentenceAreas.contains { key.hasPrefix($0 + ".") } })
         #expect(several.count <= sentenceBudget, "\(several.count) texts have two sentences or more: \(several)")
+    }
+
+    /// A banner, an alert, and an error have one fact in each sentence and at most two sentences.
+    @Test func messageTextsHoldOneFactInEachSentence() throws {
+        let values = try stringsTable("en").filter { isMessageKey($0.key) }
+        #expect(values.count >= 350, "the filter found \(values.count) message keys")
+        #expect(oneFactKeys.allSatisfy { values[$0] != nil }, "a key of oneFactKeys is not in the table")
+        #expect(factProblems(values) == [])
+    }
+
+    @Test func factCheckerFindsAJoinAndALongMessageAndKeepsAList() {
+        let tells = [
+            "error.a": "The disk is full, and the export stopped.", "error.b": "The file moved, which stopped it.",
+            "error.c": "The clip is empty, so nothing moved.", "error.d": "The disk is full. Free space. Try again.",
+            "error.e": "It is full. The file moved, and the export stopped. Try again.",
+        ]
+        #expect(
+            factProblems(tells) == [
+                "error.a: two facts in one sentence", "error.b: two facts in one sentence",
+                "error.c: two facts in one sentence", "error.d: 3 sentences",
+                "error.e: 3 sentences", "error.e: two facts in one sentence",
+            ])
+        let voice = [
+            "error.a": "The session holds tracks, clips, and markers.", "error.b": "The disk is full. Free some space.",
+            "error.c": "Some files exported as silence:\n%@", "error.d": "Close anyway? The changes aren't saved.",
+        ]
+        #expect(factProblems(voice) == [])
     }
 
     /// An error text has no uncontracted negation and does not open with the app name as the subject.
@@ -141,13 +169,45 @@ extension LocalizationTests {
     }
 }
 
-/// The key prefixes that the guard reads, and the single keys that join them.
+/// The key prefixes that the guard reads, and the single keys that join them. An error text is an
+/// alert, so `messageAreas` has `error`; `oneFactKeys` are other texts that a banner or an alert shows.
 private let sentenceAreas = ["banner", "alert", "consent", "notice", "empty", "start", "reverted", "window"]
-private let voiceAreas = ["announce"] + sentenceAreas
-private let voiceKeys: Set = ["media.missing", "inspector.clips"]
+private let messageAreas = sentenceAreas + ["error"]
+private let voiceAreas = ["announce"] + messageAreas
+private let oneFactKeys: Set = [
+    "transport.stop.output.changed", "transport.stop.package.unavailable", "transport.stop.no.descriptor",
+    "sheet.duck.note", "sheet.repair.declip.note", "take.late.start", "take.pending.leave.hint",
+    "sheet.transcribe.check.take",
+]
+private let voiceKeys = Set(["media.missing", "inspector.clips"]).union(oneFactKeys)
+
+private func isMessageKey(_ key: String) -> Bool {
+    messageAreas.contains { key.hasPrefix($0 + ".") } || oneFactKeys.contains(key)
+}
 
 /// The most message texts of `sentenceAreas` with two sentences or more.
-private let sentenceBudget = 10
+private let sentenceBudget = 26
+
+/// A message has at most this many sentences: the fact, and the next step.
+private let sentenceLimit = 2
+
+/// One line for each tell of a message: `<key>: <tell>`, sorted by key. A ", and" with an earlier
+/// comma in its sentence closes a list ("A, B, and C") and joins no facts.
+private func factProblems(_ values: [String: String]) -> [String] {
+    var problems: [String] = []
+    for (key, value) in values.sorted(by: { $0.key < $1.key }) {
+        let sentences = value.split(separator: /[.?!;][ ]/, omittingEmptySubsequences: true)
+        if sentences.count > sentenceLimit { problems.append("\(key): \(sentences.count) sentences") }
+        if sentences.contains(where: joinsTwoFacts) { problems.append("\(key): two facts in one sentence") }
+    }
+    return problems
+}
+
+private func joinsTwoFacts(_ sentence: Substring) -> Bool {
+    if sentence.contains(", which") || sentence.contains(", so ") { return true }
+    guard let join = sentence.firstRange(of: ", and ") else { return false }
+    return !sentence[..<join.lowerBound].contains(",")
+}
 
 /// The keys of `values` that have a second sentence, sorted. A semicolon and a space is a break too.
 private func severalSentences(_ values: [String: String]) -> [String] {
@@ -195,7 +255,7 @@ private func noteProblems(_ values: [String: String]) -> [String] {
 }
 
 /// The keys that list file names, so they may hold 100 characters or more.
-private let voiceNameLists: Set = ["media.missing", "banner.export.chapter.dropped"]
+private let voiceNameLists: Set = ["media.missing"]
 
 /// One line for each tell of a value: `<key>: <tell>`, sorted by key.
 private func voiceProblems(_ values: [String: String], nameLists: Set<String>) -> [String] {
@@ -224,8 +284,7 @@ private func startsWithAppName(_ value: String) -> Bool {
 
 /// The keys where the app is the right subject: it acts for the user, or it is the one that quit.
 private let appNameSubjectKeys: Set = [
-    "error.microphone.denied", "error.import.channels", "report.saved", "notice.unclean.text",
-    "sheet.transcribe.note.download", "error.template.file",
+    "error.microphone.denied", "report.saved", "notice.unclean.text", "sheet.transcribe.note.download",
 ]
 
 private func hasAppNameSubject(_ key: String, _ value: String) -> Bool {
@@ -234,8 +293,7 @@ private func hasAppNameSubject(_ key: String, _ value: String) -> Bool {
 
 /// The keys of a label and its value (a count and a size, or a list of names), which keep a colon.
 private let labelColonKeys: Set = [
-    "media.missing", "banner.export.chapter.dropped", "alert.quit.unsaved", "sheet.unused.total",
-    "sheet.unused.kept",
+    "media.missing", "alert.quit.unsaved", "sheet.unused.total", "sheet.unused.kept",
 ]
 
 /// One line for each tell of a text: `<key>: <tell>`, sorted by key.

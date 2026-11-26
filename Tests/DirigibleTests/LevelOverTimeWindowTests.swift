@@ -273,7 +273,7 @@ import Testing
         for (message, row) in zip(messages, rows) {
             #expect(message == row.1.text, "\(row.0)")
             #expect(message != L10n.errorSessionOther.text)
-            #expect(english[row.1.rawValue]?.hasPrefix("The clips can't be leveled over time.") == true)
+            #expect(english[row.1.rawValue]?.contains("Leveling over time") == true, "\(row.0)")
         }
         #expect(english[L10n.errorRideRead.rawValue]?.contains("%lld") == true)
         for row in rows.dropFirst() { #expect(english[row.1.rawValue]?.contains("%@") == true) }

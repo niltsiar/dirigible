@@ -61,9 +61,9 @@ struct NewerVersionMessageTests {
     @Test func aNewerAnchorNamesTheNewerVersionAndTheWayOut() throws {
         try check(
             .segment(Self.segment, .newerAnchor(version: 2)), .errorSegmentNewerAnchor,
-            en: "The timing file of the audio take1-1-1 was made by a newer version of Dirigible. Select one track, "
-                + "then use Place at Playhead on Selected Track.",
-            es: "El archivo de tiempo del audio take1-1-1 se creó con una versión más nueva de Dirigible. Selecciona "
-                + "una pista y usa Colocar en el cursor en la pista seleccionada.")
+            en:
+                "The audio take1-1-1 was made by a newer version of Dirigible. Use Place at Playhead on Selected Track.",
+            es: "El audio take1-1-1 se creó con una versión más nueva de Dirigible. "
+                + "Usa Colocar en el cursor en la pista seleccionada.")
     }
 }

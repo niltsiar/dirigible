@@ -73,8 +73,8 @@ import Testing
         let (en, es) = (try stringsTable("en"), try stringsTable("es"))
         func text(_ table: [String: String], _ key: L10n) -> String { table[key.rawValue] ?? key.rawValue }
         #expect(
-            text(en, .panelStemsFolderName) == "Folder name"
-                && text(es, .panelStemsFolderName) == "Nombre de la carpeta")
+            text(en, .panelStemsFolderName) == "Folder name:"
+                && text(es, .panelStemsFolderName) == "Nombre de la carpeta:")
         #expect(text(en, .alertExportConfirm) == "Export" && text(es, .alertExportConfirm) == "Exportar")
         #expect(
             text(en, .panelStemsContent)

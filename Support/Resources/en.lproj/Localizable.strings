@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Reduce rumble";
 "sheet.repair.rumble.note" = "Cuts sound below %lld Hz, such as thumps and wind.";
 "sheet.repair.deess" = "Soften \U201Cs\U201D sounds";
-"sheet.repair.deess.note" = "Softens harsh \U201Cs\U201D sounds by up to %lld dB.";
+"sheet.repair.deess.note" = "Up to %lld dB.";
 "sheet.repair.amount" = "Amount";
 "sheet.repair.more" = "More";
 "sheet.repair.frequency" = "Frequency";
@@ -314,19 +314,19 @@
 "alert.ok" = "OK";
 "alert.cancel" = "Cancel";
 "alert.close.recording" = "Stop the recording and close the window?";
-"alert.close.recording.confirm" = "Stop and Close";
+"alert.close.recording.confirm" = "Close";
 "alert.close.unsaved" = "The last changes couldn't be saved. Close anyway?";
 "alert.close.unsaved.confirm" = "Close";
 "alert.track.remove" = "Remove the tracks and their clips?";
 "alert.unused.none" = "There are no unused files.";
 "alert.track.remove.confirm" = "Remove";
 "alert.quit.recording" = "Stop the recording and quit?";
-"alert.quit.recording.confirm" = "Stop and Quit";
+"alert.quit.recording.confirm" = "Quit";
 "alert.quit.unsaved" = "The last changes of these sessions couldn't be saved. Quit anyway?";
 "alert.quit.unsaved.confirm" = "Quit";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Open Privacy Settings";
+"alert.microphone.settings" = "Open Settings";
 "empty.title" = "No Tracks";
 "empty.steps" = "Add a track for each voice, choose its input, then press Record.";
 "track.default.name" = "Track %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "Allow an AI agent to record?";
 "consent.agent.line" = "It says it's \U201C%@\U201D.";
 "consent.app.tracks" = "This take records %@. People in the call aren't notified.";
-"consent.message" = "The take records %1$@ on %2$@ from %3$@. You have %4$lld s to answer.";
+"consent.message" = "The take records %1$@ on %2$@ from %3$@. You have %4$@ to answer.";
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
 "consent.pre.roll.line" = "Starts recording at %1$@, after a %2$@ pre-roll.";
 "consent.dont.record" = "Don't Record";
 "consent.grant" = "Don't ask again until I close this window";
-"consent.grant.help" = "Ends when this window closes or %1$@ after your click. It also ends after %2$@ of later takes.";
+"consent.grant.help" = "Ends %1$@ after your click, or after %2$@ of later takes.";
 "redo.agent.unnamed" = "Redo Agent Edit";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Chapter %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "Damaged backups keep no file (%@)";
 "sheet.unused.notfiles" = "Links and folders in the session stay (%@)";
 "sheet.unused.footnote" = "The space comes back when you empty the Trash.";
-"sheet.unused.move" = "Move to Trash";
+"sheet.unused.move" = "Move";
 "sheet.duck.title" = "Duck Music Under Speech";
 "sheet.duck.speech" = "Speech tracks";
 "sheet.duck.music" = "Tracks to duck";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Download and Transcribe";
 "sheet.transcribe.replace" = "Replace";
 "sheet.transcribe.note.download" = "Dirigible downloads this model once. Your audio never leaves this Mac.";
-"sheet.transcribe.note.replace.one" = "Replace swaps the only word of this track for the new words. Undo brings it back.";
-"sheet.transcribe.note.replace.many" = "Replace swaps the %lld words of this track for the new words. Undo brings them back.";
+"sheet.transcribe.note.replace.one" = "This track has 1 word of transcript.";
+"sheet.transcribe.note.replace.many" = "This track has %lld words of transcript.";
 "sheet.transcribe.choose" = "Choose Model File…";
 "sheet.transcribe.missing" = "%@ (missing)";
 "sheet.transcribe.note.file" = "A model from outside the Dirigible list can differ in speed and accuracy. Your audio never leaves this Mac.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Save as Template";
 "template.save.button" = "Save";
 "template.replace.title" = "A template named “%@” exists.";
-"template.replace.info" = "Replace moves the old template to the Trash and saves this one in its place.";
+"template.replace.info" = "The old template goes to the Trash.";
 "template.replace.replace" = "Replace";
 "menu.file.save.template" = "Save as Template…";
 "menu.file.show.templates" = "Show Templates in Finder";

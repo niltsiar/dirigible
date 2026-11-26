@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Rumpeln reduzieren";
 "sheet.repair.rumble.note" = "Schneidet Schall unter %lld Hz ab, etwa Poltern und Wind.";
 "sheet.repair.deess" = "Scharfe \U201ES\U201C-Laute abschwächen";
-"sheet.repair.deess.note" = "Schwächt scharfe \U201ES\U201C-Laute um bis zu %lld dB ab.";
+"sheet.repair.deess.note" = "Bis zu %lld dB.";
 "sheet.repair.amount" = "Stärke";
 "sheet.repair.more" = "Mehr";
 "sheet.repair.frequency" = "Frequenz";
@@ -314,19 +314,19 @@
 "alert.ok" = "OK";
 "alert.cancel" = "Abbrechen";
 "alert.close.recording" = "Aufnahme stoppen und Fenster schließen?";
-"alert.close.recording.confirm" = "Stoppen und schließen";
+"alert.close.recording.confirm" = "Schließen";
 "alert.close.unsaved" = "Die letzten Änderungen konnten nicht gesichert werden. Trotzdem schließen?";
 "alert.close.unsaved.confirm" = "Schließen";
 "alert.track.remove" = "Die Spuren und ihre Clips entfernen?";
 "alert.unused.none" = "Es gibt keine ungenutzten Dateien.";
 "alert.track.remove.confirm" = "Entfernen";
 "alert.quit.recording" = "Aufnahme stoppen und beenden?";
-"alert.quit.recording.confirm" = "Stoppen und beenden";
+"alert.quit.recording.confirm" = "Beenden";
 "alert.quit.unsaved" = "Die letzten Änderungen dieser Sessions konnten nicht gesichert werden. Trotzdem beenden?";
 "alert.quit.unsaved.confirm" = "Beenden";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Datenschutzeinstellungen öffnen";
+"alert.microphone.settings" = "Einstellungen öffnen";
 "empty.title" = "Keine Spuren";
 "empty.steps" = "Füge für jede Stimme eine Spur hinzu, wähle ihren Eingang und klicke dann auf „Aufnehmen“.";
 "track.default.name" = "Spur %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "Darf ein KI-Agent aufnehmen?";
 "consent.agent.line" = "Er sagt, er sei „%@“.";
 "consent.app.tracks" = "Dieser Take nimmt %@ auf. Personen im Anruf werden nicht benachrichtigt.";
-"consent.message" = "Der Take nimmt %1$@ auf, auf %2$@, ab %3$@. Du hast %4$lld s zum Antworten.";
+"consent.message" = "Der Take nimmt %1$@ auf, auf %2$@, ab %3$@. Du hast %4$@ zum Antworten.";
 "consent.record.over" = "Die Aufnahme ersetzt Audio auf %1$@ nach %2$@.";
 "consent.pre.roll.line" = "Startet die Aufnahme bei %1$@ nach %2$@ Vorlauf.";
 "consent.dont.record" = "Nicht aufnehmen";
 "consent.grant" = "Nicht erneut fragen, bis ich dieses Fenster schließe";
-"consent.grant.help" = "Endet, wenn du dieses Fenster schließt oder %1$@ nach deinem Klick. Endet auch nach %2$@ späterer Takes.";
+"consent.grant.help" = "Endet %1$@ nach deinem Klick oder nach %2$@ späterer Takes.";
 "redo.agent.unnamed" = "Agenten-Bearbeitung wiederholen";
 "marker.default.name" = "Marker %lld";
 "chapter.default.name" = "Kapitel %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "Beschädigte Backups behalten keine Datei (%@)";
 "sheet.unused.notfiles" = "Links und Ordner in der Session bleiben (%@)";
 "sheet.unused.footnote" = "Der Speicherplatz wird frei, wenn du den Papierkorb entleerst.";
-"sheet.unused.move" = "In den Papierkorb legen";
+"sheet.unused.move" = "Verschieben";
 "sheet.duck.title" = "Musik unter Sprache absenken";
 "sheet.duck.speech" = "Sprachspuren";
 "sheet.duck.music" = "Abzusenkende Spuren";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Laden und transkribieren";
 "sheet.transcribe.replace" = "Ersetzen";
 "sheet.transcribe.note.download" = "Dirigible lädt dieses Modell einmal herunter. Dein Audio verlässt diesen Mac nie.";
-"sheet.transcribe.note.replace.one" = "Ersetzen tauscht das einzige Wort dieser Spur gegen die neuen Wörter aus. Mit Widerrufen kommt es zurück.";
-"sheet.transcribe.note.replace.many" = "Ersetzen tauscht die %lld Wörter dieser Spur gegen die neuen Wörter aus. Mit Widerrufen kommen sie zurück.";
+"sheet.transcribe.note.replace.one" = "Diese Spur hat 1 Wort Transkript.";
+"sheet.transcribe.note.replace.many" = "Diese Spur hat %lld Wörter Transkript.";
 "sheet.transcribe.choose" = "Modelldatei auswählen …";
 "sheet.transcribe.missing" = "%@ (fehlt)";
 "sheet.transcribe.note.file" = "Ein Modell außerhalb der Liste von Dirigible kann bei Geschwindigkeit und Genauigkeit abweichen. Dein Audio verlässt diesen Mac nie.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Als Vorlage sichern";
 "template.save.button" = "Sichern";
 "template.replace.title" = "Eine Vorlage namens „%@“ existiert bereits.";
-"template.replace.info" = "Ersetzen legt die alte Vorlage in den Papierkorb und sichert diese an ihrer Stelle.";
+"template.replace.info" = "Die alte Vorlage kommt in den Papierkorb.";
 "template.replace.replace" = "Ersetzen";
 "menu.file.save.template" = "Als Vorlage sichern …";
 "menu.file.show.templates" = "Vorlagen im Finder zeigen";

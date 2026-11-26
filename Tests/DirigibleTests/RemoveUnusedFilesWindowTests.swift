@@ -63,16 +63,21 @@ import Testing
         await model.close()
     }
 
-    /// C13: Return gives Cancel, and Move to Trash has no key.
-    @Test func returnCancels() async throws {
+    /// C13: Return gives Move, which has no destructive style, and Escape gives Cancel.
+    @Test func returnMovesTheFilesToTheTrash() async throws {
         let (model, studio, window) = try await window()
         let sheet = try await sheet(model, window)
-        #expect(buttons(sheet.contentView).map(\.keyEquivalent).sorted() == ["", "\r", "\u{1b}"], "\(sheet)")
+        let all = buttons(sheet.contentView)
+        let keys = all.map(\.keyEquivalent).sorted()
+        #expect(keys == ["", "\r", "\u{1b}"], "Move takes Return, Esc has one hidden Cancel: \(keys)")
+        #expect(all.allSatisfy { !$0.hasDestructiveAction }, "no destructive button")
 
         press("\r", code: 36, in: sheet)
 
-        await until("Return closes the sheet") { model.unusedFiles == nil && window.attachedSheet == nil }
-        #expect(strayExists(studio) && model.pruneReport == nil)
+        await until(limit: .seconds(10), "Return moves the files") { model.pruneReport != nil }
+        let report = try #require(model.pruneReport?.report)
+        defer { for moved in report.moved { try? FileManager.default.removeItem(at: moved.trashURL) } }
+        #expect(report.moved.map(\.item.path) == [stray] && !strayExists(studio))
         await model.close()
     }
 
@@ -90,13 +95,13 @@ import Testing
         await model.close()
     }
 
-    /// C13: Move to Trash moves the file, and a banner gives the count and the size.
+    /// C13: Move moves the file, and a banner gives the count and the size.
     @Test func filesMovedToTheTrashShowNoBannerAndAreAnnounced() async throws {
         let (model, studio, window) = try await window()
         var posts: [String] = []
         model.chrome?.announce = { text, _ in posts.append(text) }
         let sheet = try await sheet(model, window)
-        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "\r" })
 
         move.performClick(nil)
 
@@ -128,11 +133,11 @@ import Testing
         await model.close()
     }
 
-    /// Review item 7: Move to Trash on a studio that became busy says so and moves nothing.
+    /// Review item 7: Move on a studio that became busy says so and moves nothing.
     @Test func busyMoveShowsAlert() async throws {
         let (model, studio, window) = try await window()
         let sheet = try await sheet(model, window)
-        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "\r" })
         studio.transport = .leveling
 
         move.performClick(nil)
@@ -182,12 +187,12 @@ import Testing
         await model.close()
     }
 
-    /// Round 2 item 8: a Move to Trash that meets a window close shows no busy alert on the
+    /// Round 2 item 8: a Move that meets a window close shows no busy alert on the
     /// closing window.
     @Test func moveDuringCloseShowsNoAlert() async throws {
         let (model, studio, window) = try await window()
         let sheet = try await sheet(model, window)
-        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "" })
+        let move = try #require(buttons(sheet.contentView).first { $0.keyEquivalent == "\r" })
         studio.transport = .leveling
 
         move.performClick(nil)

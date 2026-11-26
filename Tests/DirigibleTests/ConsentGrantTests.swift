@@ -243,12 +243,11 @@ extension ConsentTests {
         for (language, expected) in [
             (
                 "en",
-                "Ends when this window closes or 1 hour after your click. It also ends after 2 hours of later takes."
+                "Ends 1 hour after your click, or after 2 hours of later takes."
             ),
             (
                 "es",
-                "Termina al cerrar esta ventana o 1 hora después de tu clic. "
-                    + "También termina después de 2 horas de tomas posteriores."
+                "Termina 1 hora después de tu clic, o después de 2 horas de tomas posteriores."
             ),
         ] {
             let template = try #require(try stringsTable(language)[L10n.consentGrantHelp.rawValue])

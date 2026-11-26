@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Reducir retumbo";
 "sheet.repair.rumble.note" = "Corta el sonido por debajo de %lld Hz, como golpes y viento.";
 "sheet.repair.deess" = "Suavizar sonidos \U00ABs\U00BB";
-"sheet.repair.deess.note" = "Suaviza los sonidos \U00ABs\U00BB ásperos hasta %lld dB.";
+"sheet.repair.deess.note" = "Hasta %lld dB.";
 "sheet.repair.amount" = "Cantidad";
 "sheet.repair.more" = "Más";
 "sheet.repair.frequency" = "Frecuencia";
@@ -314,19 +314,19 @@
 "alert.ok" = "Aceptar";
 "alert.cancel" = "Cancelar";
 "alert.close.recording" = "¿Detener la grabación y cerrar la ventana?";
-"alert.close.recording.confirm" = "Detener y cerrar";
+"alert.close.recording.confirm" = "Cerrar";
 "alert.close.unsaved" = "No se pudieron guardar los últimos cambios. ¿Cerrar de todos modos?";
 "alert.close.unsaved.confirm" = "Cerrar";
 "alert.track.remove" = "¿Eliminar las pistas y sus clips?";
 "alert.unused.none" = "No hay archivos sin usar.";
 "alert.track.remove.confirm" = "Eliminar";
 "alert.quit.recording" = "¿Detener la grabación y salir?";
-"alert.quit.recording.confirm" = "Detener y salir";
+"alert.quit.recording.confirm" = "Salir";
 "alert.quit.unsaved" = "No se pudieron guardar los últimos cambios de estas sesiones. ¿Salir de todos modos?";
 "alert.quit.unsaved.confirm" = "Salir";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Abrir los ajustes de privacidad";
+"alert.microphone.settings" = "Abrir ajustes";
 "empty.title" = "No hay pistas";
 "empty.steps" = "Añade una pista para cada voz, elige su entrada y pulsa Grabar.";
 "track.default.name" = "Pista %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "¿Permitir que un agente de IA grabe?";
 "consent.agent.line" = "Dice que es “%@”.";
 "consent.app.tracks" = "Esta toma graba %@. Las personas de la llamada no reciben aviso.";
-"consent.message" = "La toma graba %1$@ en %2$@ desde %3$@. Tienes %4$lld s para responder.";
+"consent.message" = "La toma graba %1$@ en %2$@ desde %3$@. Tienes %4$@ para responder.";
 "consent.record.over" = "La grabación sustituye audio en %1$@ después de %2$@.";
 "consent.pre.roll.line" = "Empieza a grabar en %1$@, después de un pre-roll de %2$@.";
 "consent.dont.record" = "No grabar";
 "consent.grant" = "No volver a preguntar hasta que cierre esta ventana";
-"consent.grant.help" = "Termina al cerrar esta ventana o %1$@ después de tu clic. También termina después de %2$@ de tomas posteriores.";
+"consent.grant.help" = "Termina %1$@ después de tu clic, o después de %2$@ de tomas posteriores.";
 "redo.agent.unnamed" = "Rehacer edición de un agente";
 "marker.default.name" = "Marcador %lld";
 "chapter.default.name" = "Capítulo %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "Las copias dañadas no conservan ningún archivo (%@)";
 "sheet.unused.notfiles" = "Los enlaces y las carpetas de la sesión se conservan (%@)";
 "sheet.unused.footnote" = "El espacio se recupera al vaciar la Papelera.";
-"sheet.unused.move" = "Trasladar a la Papelera";
+"sheet.unused.move" = "Trasladar";
 "sheet.duck.title" = "Atenuar la música bajo la voz";
 "sheet.duck.speech" = "Pistas de voz";
 "sheet.duck.music" = "Pistas que atenuar";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Descargar y transcribir";
 "sheet.transcribe.replace" = "Reemplazar";
 "sheet.transcribe.note.download" = "Dirigible descarga este modelo una vez. Tu audio nunca sale de este Mac.";
-"sheet.transcribe.note.replace.one" = "Reemplazar cambia la única palabra de esta pista por las palabras nuevas. Deshacer la recupera.";
-"sheet.transcribe.note.replace.many" = "Reemplazar cambia las %lld palabras de esta pista por las palabras nuevas. Deshacer las recupera.";
+"sheet.transcribe.note.replace.one" = "Esta pista tiene 1 palabra de transcripción.";
+"sheet.transcribe.note.replace.many" = "Esta pista tiene %lld palabras de transcripción.";
 "sheet.transcribe.choose" = "Elegir archivo de modelo…";
 "sheet.transcribe.missing" = "%@ (no encontrado)";
 "sheet.transcribe.note.file" = "Un modelo de fuera de la lista de Dirigible puede variar en velocidad y precisión. Tu audio nunca sale de este Mac.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Guardar como plantilla";
 "template.save.button" = "Guardar";
 "template.replace.title" = "Ya existe una plantilla llamada «%@».";
-"template.replace.info" = "Reemplazar mueve la plantilla anterior a la Papelera y guarda esta en su lugar.";
+"template.replace.info" = "La plantilla anterior va a la Papelera.";
 "template.replace.replace" = "Reemplazar";
 "menu.file.save.template" = "Guardar como plantilla…";
 "menu.file.show.templates" = "Mostrar plantillas en el Finder";

@@ -283,7 +283,7 @@
 "sheet.repair.rumble" = "Riduci il rimbombo";
 "sheet.repair.rumble.note" = "Taglia il suono sotto %lld Hz, come urti e vento.";
 "sheet.repair.deess" = "Attenua i suoni \U201Cs\U201D";
-"sheet.repair.deess.note" = "Attenua i suoni \U201Cs\U201D aspri fino a %lld dB.";
+"sheet.repair.deess.note" = "Fino a %lld dB.";
 "sheet.repair.amount" = "Quantità";
 "sheet.repair.more" = "Altro";
 "sheet.repair.frequency" = "Frequenza";
@@ -314,19 +314,19 @@
 "alert.ok" = "OK";
 "alert.cancel" = "Annulla";
 "alert.close.recording" = "Interrompere la registrazione e chiudere la finestra?";
-"alert.close.recording.confirm" = "Interrompi e chiudi";
+"alert.close.recording.confirm" = "Chiudi";
 "alert.close.unsaved" = "Impossibile salvare le ultime modifiche. Chiudere comunque?";
 "alert.close.unsaved.confirm" = "Chiudi";
 "alert.track.remove" = "Rimuovere le tracce e i loro clip?";
 "alert.unused.none" = "Non ci sono file inutilizzati.";
 "alert.track.remove.confirm" = "Rimuovi";
 "alert.quit.recording" = "Interrompere la registrazione e uscire?";
-"alert.quit.recording.confirm" = "Interrompi ed esci";
+"alert.quit.recording.confirm" = "Esci";
 "alert.quit.unsaved" = "Impossibile salvare le ultime modifiche di queste sessioni. Uscire comunque?";
 "alert.quit.unsaved.confirm" = "Esci";
 
 /* Tracks and takes */
-"alert.microphone.settings" = "Apri impostazioni Privacy";
+"alert.microphone.settings" = "Apri impostazioni";
 "empty.title" = "Nessuna traccia";
 "empty.steps" = "Aggiungi una traccia per ogni voce, scegli il suo ingresso, poi premi Registra.";
 "track.default.name" = "Traccia %lld";
@@ -570,12 +570,12 @@
 "consent.title" = "Consentire a un agente IA di registrare?";
 "consent.agent.line" = "Dice di essere “%@”.";
 "consent.app.tracks" = "Questo take registra %@. Le persone nella chiamata non ricevono avvisi.";
-"consent.message" = "Il take registra %1$@ su %2$@ a partire da %3$@. Hai %4$lld s per rispondere.";
+"consent.message" = "Il take registra %1$@ su %2$@ a partire da %3$@. Hai %4$@ per rispondere.";
 "consent.record.over" = "La registrazione sostituisce l’audio su %1$@ dopo %2$@.";
 "consent.pre.roll.line" = "Inizia a registrare da %1$@, dopo un pre-roll di %2$@.";
 "consent.dont.record" = "Rifiuta";
 "consent.grant" = "Non chiedere più fino alla chiusura di questa finestra";
-"consent.grant.help" = "Termina quando chiudi questa finestra o %1$@ dopo il tuo clic. Termina anche dopo %2$@ di take successivi.";
+"consent.grant.help" = "Termina %1$@ dopo il tuo clic, o dopo %2$@ di take successivi.";
 "redo.agent.unnamed" = "Ripristina modifica dell’agente";
 "marker.default.name" = "Marcatore %lld";
 "chapter.default.name" = "Capitolo %lld";
@@ -638,7 +638,7 @@
 "sheet.unused.damaged" = "I backup danneggiati non conservano alcun file (%@)";
 "sheet.unused.notfiles" = "I link e le cartelle nella sessione vengono conservati (%@)";
 "sheet.unused.footnote" = "Lo spazio torna libero quando svuoti il Cestino.";
-"sheet.unused.move" = "Sposta nel Cestino";
+"sheet.unused.move" = "Sposta";
 "sheet.duck.title" = "Abbassa la musica sotto la voce";
 "sheet.duck.speech" = "Tracce vocali";
 "sheet.duck.music" = "Tracce da abbassare";
@@ -788,8 +788,8 @@
 "sheet.transcribe.download" = "Scarica e trascrivi";
 "sheet.transcribe.replace" = "Sostituisci";
 "sheet.transcribe.note.download" = "Dirigible scarica questo modello una sola volta. Il tuo audio non lascia mai questo Mac.";
-"sheet.transcribe.note.replace.one" = "Sostituisci scambia l\U2019unica parola di questa traccia con le parole nuove. Annulla la ripristina.";
-"sheet.transcribe.note.replace.many" = "Sostituisci scambia le %lld parole di questa traccia con le parole nuove. Annulla le ripristina.";
+"sheet.transcribe.note.replace.one" = "Questa traccia ha 1 parola di trascrizione.";
+"sheet.transcribe.note.replace.many" = "Questa traccia ha %lld parole di trascrizione.";
 "sheet.transcribe.choose" = "Scegli file del modello…";
 "sheet.transcribe.missing" = "%@ (mancante)";
 "sheet.transcribe.note.file" = "Un modello fuori dall\U2019elenco di Dirigible può variare in velocità e precisione. Il tuo audio non lascia mai questo Mac.";
@@ -1008,7 +1008,7 @@
 "template.save.title" = "Salva come modello";
 "template.save.button" = "Salva";
 "template.replace.title" = "Esiste già un modello chiamato “%@”.";
-"template.replace.info" = "Sostituisci sposta il vecchio modello nel Cestino e salva questo al suo posto.";
+"template.replace.info" = "Il vecchio modello va nel Cestino.";
 "template.replace.replace" = "Sostituisci";
 "menu.file.save.template" = "Salva come modello…";
 "menu.file.show.templates" = "Mostra i modelli nel Finder";

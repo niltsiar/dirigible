@@ -82,7 +82,11 @@ struct SessionView: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .opening:
-            ProgressView(model.recovering ? L10n.windowRecovering.key : L10n.windowOpening.key)
+            if model.recovering {
+                ProgressView(L10n.windowRecovering.key)
+            } else {
+                ProgressView().accessibilityLabel(Text(L10n.windowOpening.key))
+            }
         case .failed(let error):
             VStack(spacing: 12) {
                 Text(verbatim: L10n.message(for: error))

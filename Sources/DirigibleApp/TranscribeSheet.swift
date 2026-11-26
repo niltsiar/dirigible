@@ -337,16 +337,11 @@ struct TranscribeSheet: View {
             set: { model.transcribe.draft?[keyPath: path] = $0 })
     }
 
-    /// The check line (U17): a running check with a small spinner, a pass with the facts, or a
-    /// refusal with a warning symbol in the label color. The text is selectable.
+    /// The check line (U17): a running check or a pass with the facts as text, or a refusal with a
+    /// warning symbol in the label color. The text is selectable.
     @ViewBuilder private func checkLine(_ line: ModelCheckLine) -> some View {
         switch line {
-        case .running:
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.small)
-                note(line.text, limit: Self.noteLineLimit)
-            }
-        case .passed: note(line.text, limit: Self.noteLineLimit)
+        case .running, .passed: note(line.text, limit: Self.noteLineLimit)
         case .refused:
             Label {
                 Text(verbatim: line.text).textSelection(.enabled).lineLimit(Self.noteLineLimit)

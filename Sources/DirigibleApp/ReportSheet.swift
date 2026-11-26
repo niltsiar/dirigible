@@ -37,14 +37,14 @@ struct ReportSheet: View {
     ]
 }
 
-/// The sheet of a collect that takes more than a moment: a labeled spinner and Cancel.
+/// The sheet of a collect that takes more than a moment: a spinner and Cancel. The spinner has a
+/// VoiceOver label and no visible one.
 struct ReportProgressSheet: View {
     let cancel: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             ProgressView().controlSize(.small).accessibilityLabel(Text(L10n.reportProgress.key))
-            Text(L10n.reportProgress.key)
             Spacer()
             Button(L10n.alertCancel.key, action: cancel).keyboardShortcut(.cancelAction)
         }

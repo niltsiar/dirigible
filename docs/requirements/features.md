@@ -182,3 +182,4 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F168 | Agent batch: many edit calls as one undo step in the app and one save on the files | tester 2026-10-16 | done, Release 4 run 20 | R16 |
 | F169 | European Portuguese UI (pt-PT) beside Brazilian Portuguese | user 2026-10-16 | done, Release 4 run 28 | R13 |
 | F170 | Remove the raw CAF of a take after its WAV passes the frame, rate, and alignment checks | user 2026-10-17 | done, Release 6 run 4 | R6 |
+| F171 | UI texts in the macOS voice, a banner only for a failure or an effect that does not show, and a ui-audit skill with a score | tester 2026-11-24 | done, Release 7 run 9 | R13 |

@@ -22,8 +22,8 @@ extension TranscribeSheetTests {
     func theLineRegionFitsTheLongestFixedTextsOfEachTable(language: String) throws {
         let table = try stringsTable(language)
         let text: (L10n) -> String = { table[$0.rawValue] ?? $0.rawValue }
-        // The sheet is 440 pt wide with 20 pt of padding; the check line has a 16 pt symbol or
-        // spinner and 6 pt of spacing beside its text.
+        // The sheet is 440 pt wide with 20 pt of padding; the check line of a refusal has a 16 pt
+        // symbol and 6 pt of spacing beside its text.
         let (full, beside, spacing) = (CGFloat(400), CGFloat(378), CGFloat(6))
         let line = Self.noteHeight("Ag", width: full)
         let facts = [4, 6, 12, 24, 32, 7].flatMap { layers in
@@ -36,7 +36,7 @@ extension TranscribeSheetTests {
             + text(.sheetTranscribeCheckWait)
         var states: [(name: String, notes: [(String, CGFloat)])] = [
             ("download", [(text(.sheetTranscribeNoteDownload), full)]),
-            ("running", [(running, beside)]),
+            ("running", [(running, full)]),
         ]
         for fact in facts {
             states.append(

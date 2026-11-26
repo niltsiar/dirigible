@@ -12,7 +12,7 @@ The source of truth is `.claude/skills/THIRD_PARTY.md`, plus the git commits e8e
 
 | Local item | Origin | Pinned commit |
 |---|---|---|
-| architect, bro, interrogate, reflect, tdd, technical-writing, unslop | `cursor/plugins` `pstack/skills/*` (Lauren Tan, who is "poteto") | b42effe, 2026-09-23 |
+| architect, bro (deleted on 2026-11-26), interrogate, reflect, tdd, technical-writing, unslop | `cursor/plugins` `pstack/skills/*` (Lauren Tan, who is "poteto") | b42effe, 2026-09-23 |
 | deslop, verify-this | `cursor/plugins` `cursor-team-kit/skills/*` | b42effe |
 | docs/principles.md (shortened) | `pstack/skills/principle-*` | b42effe |
 | diagnosing-bugs, domain-modeling, pr, research, resolving-merge-conflicts (deleted on 2026-10-01), writing-for-agents, `.claude/hooks/git-guardrails.sh` | `mattpocock/skills` | c55ee46, 2026-09-18 |

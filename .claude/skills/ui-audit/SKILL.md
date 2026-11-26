@@ -1,11 +1,11 @@
 ---
 name: ui-audit
-description: "Audit the UI of the app for AI-sounding text and for gaps against macOS design rules, and give a score out of 10. Use for 'audit the UI', 'review the UI texts', 'does this sound like an AI', 'is the UI native', and before and after a UI change."
+description: "Audit the app UI, review UI text, and give a score."
 ---
 
 # UI audit
 
-A read-only audit. It grades screenshots and string tables against 10 checks (A1 to A10), reports each finding by tier, and ends with one score. It changes no file except its own report. The sources of each check are in `docs/research/ui-design-audit.md` (finding IDs F<n>) and `docs/research/result-feedback.md` (how the reference apps report a result).
+A read-only audit of the app UI for AI-sounding text and for gaps against macOS design rules. Use it for an audit of the UI, a review of the UI texts, "does this sound like an AI", "is the UI native", and before and after a UI change. It grades screenshots and string tables against 10 checks (A1 to A10), reports each finding by tier, and ends with one score out of 10. It changes no file except its own report. The sources of each check are in `docs/research/ui-design-audit.md` (finding IDs F<n>) and `docs/research/result-feedback.md` (how the reference apps report a result).
 
 ## Steps
 

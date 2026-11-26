@@ -17,7 +17,7 @@ enum InspectorField: Hashable {
 
 /// The typed text of an inspector field that no commit has saved yet, the text that the field
 /// showed before the typing, and the clips of the inspection at the first key. A commit sets
-/// these clips, also after the Marks change (plan gate I2). The Gain at Playhead field also keeps
+/// these clips, also after the Marks change (plan gate I2). The Gain at playhead field also keeps
 /// the playhead of the first key.
 struct InspectorDraft: Equatable {
     enum Target: Equatable {
@@ -151,7 +151,7 @@ struct InspectorView: View {
     }
 
     /// The text of a field: the gain to 0.1 dB, or the fade in whole ms with no grouping, so the
-    /// text parses again. Empty for Mixed. The Gain at Playhead has `pointText`.
+    /// text parses again. Empty for Mixed. The Gain at playhead has `pointText`.
     static func text(_ field: ClipField, _ inspection: ClipInspection, rate: Int) -> String {
         let fade: ClipInspection.Shown<Frames>
         switch field {

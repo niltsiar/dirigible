@@ -4,7 +4,7 @@ import DirigibleCore
 import DirigibleTimeline
 import SwiftUI
 
-/// The Gain at Playhead field of the Clip pane (decision 0060, C11): the envelope in dB of the clips
+/// The Gain at playhead field of the Clip pane (decision 0060, C11): the envelope in dB of the clips
 /// of the selected tracks at the playhead, and a typed value sets a point there. It has its own body,
 /// so a playhead move runs this body and not the pane (W7). The field is off when no clip plays the
 /// playhead, so it stays in the tab order and for VoiceOver.
@@ -61,7 +61,7 @@ extension InspectorView {
     /// The prompt of an empty field: a dash, so the label does not show as the placeholder.
     static let emptyFieldPrompt = "\u{2013}"
 
-    /// The text of the Gain at Playhead field: the envelope to 0.1 dB, empty for Mixed or no clip.
+    /// The text of the Gain at playhead field: the envelope to 0.1 dB, empty for Mixed or no clip.
     static func pointText(_ point: PointGain?) -> String {
         guard case .value(let dB)? = point?.gain else { return "" }
         return ReadoutLayer.decibels(dB, locale: .current)

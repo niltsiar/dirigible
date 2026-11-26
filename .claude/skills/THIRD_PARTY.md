@@ -7,7 +7,6 @@ We adapted them to Claude Code and to this project. The git history shows each c
 | Skill | Source path | Copyright |
 |---|---|---|
 | `architect` | `pstack/skills/architect` | Lauren Tan |
-| `bro` | `pstack/skills/bro` | Lauren Tan |
 | `interrogate` | `pstack/skills/interrogate` | Lauren Tan |
 | `reflect` | `pstack/skills/reflect` | Lauren Tan |
 | `tdd` | `pstack/skills/tdd` | Lauren Tan |

@@ -98,7 +98,7 @@ public struct ClipInspection: Equatable, Sendable {
     }
 }
 
-/// The gain points at the playhead (decision 0060, C11): the Gain at Playhead field, Add Gain
+/// The gain points at the playhead (decision 0060, C11): the Gain at playhead field, Add Gain
 /// Point, and Previous and Next Gain Point work on the clips of the selected tracks. A clip set
 /// acts on its own clips. The field shows the envelope in dB, on top of the clip gain, at the file
 /// frame under the playhead.

@@ -9,12 +9,12 @@ import Testing
 /// The focus request of the inspector panes (run 2026-11-26-inspector-focus-request, item 1953):
 /// a request stays until the field is first responder, and it ends there.
 extension InspectorTests {
-    /// Runs `count` layout passes of the window, each followed by a main-actor turn and a short
-    /// wait, so SwiftUI reports a focus move and the pane answers it.
-    func settle(_ window: NSWindow, passes count: Int = 20) async throws {
+    /// Runs `count` layout passes of the window, each followed by a main-actor turn, so SwiftUI
+    /// reports a focus move and the pane answers it. A pass is no wall-clock wait.
+    func settle(_ window: NSWindow, passes count: Int = 20) async {
         for _ in 0..<count {
             window.contentView?.layoutSubtreeIfNeeded()
-            try await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
         }
     }
 
@@ -25,7 +25,7 @@ extension InspectorTests {
         model.timeline.marker = "c1"
         model.selectInspectorTab(.marker)
         model.markerFocusRequest = .name
-        try await settle(window)
+        await settle(window)
         #expect(shownFields(window).isEmpty, "No Marker: no fields")
         #expect(model.markerFocusRequest == .name, "the request \(String(describing: model.markerFocusRequest))")
 
@@ -45,7 +45,7 @@ extension InspectorTests {
         await until(limit: .seconds(10), "the request ends") { model.markerFocusRequest == nil }
 
         #expect(window.makeFirstResponder(view.lanes))
-        try await settle(window)
+        await settle(window)
         #expect(
             model.markerFocus == nil && window.firstResponder === view.lanes,
             "focus \(String(describing: model.markerFocus)), responder \(String(describing: window.firstResponder))")

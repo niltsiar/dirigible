@@ -77,10 +77,10 @@
 "error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";
 "error.duck.both.lists" = "La piste « %@ » ne peut pas être à la fois une piste de voix et une piste à atténuer.";
 "error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
-"error.ride.read" = "Le nivellement dans le temps n\U2019a pas lu un fichier audio (erreur %lld). Aucun clip modifié.";
-"error.ride.missing" = "Le nivellement dans le temps ne trouve pas \U00AB %@ \U00BB dans le dossier Clips. Remettez le fichier.";
-"error.ride.short" = "Le nivellement dans le temps a trouvé \U00AB %@ \U00BB plus court que la session. Restaurez le fichier.";
-"error.ride.unreadable" = "Le nivellement dans le temps n\U2019a pas pu lire \U00AB %@ \U00BB. Vérifiez le disque.";
+"error.ride.read" = "Le nivellement dans le temps n\U2019a pas pu lire un fichier audio (erreur %lld). Aucun clip n\U2019a été modifié.";
+"error.ride.missing" = "Le nivellement dans le temps ne trouve pas \U00AB %@ \U00BB dans le dossier Clips. Remettez le fichier et réessayez.";
+"error.ride.short" = "Le nivellement dans le temps a trouvé \U00AB %@ \U00BB plus court que la session. Restaurez le fichier et réessayez.";
+"error.ride.unreadable" = "Le nivellement dans le temps n\U2019a pas pu lire \U00AB %@ \U00BB. Vérifiez le disque et réessayez.";
 "error.match.read" = "Un fichier audio n\U2019a pas pu être lu (erreur %lld). Aucun clip n\U2019a changé.";
 "error.match.missing" = "Le fichier audio \U00AB %@ \U00BB n\U2019est pas dans le dossier Clips de la session. Remettez-le en place et réessayez.";
 "error.match.short" = "Le fichier audio \U00AB %@ \U00BB est plus court que ne l\U2019indique la session. Restaurez le fichier et réessayez.";
@@ -218,7 +218,7 @@
 "error.paste.copy" = "L\U2019audio de \U00AB %1$@ \U00BB n\U2019a pas pu être copié (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.paste.convert" = "L\U2019audio de \U00AB %1$@ \U00BB n\U2019a pas pu être converti (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.paste.yielded" = "Le collage depuis « %@ » s’est arrêté à cause d’une prise dans une autre fenêtre. Collez à nouveau après la prise.";
-"error.writer.did.not.stop" = "L\U2019enregistrement de %1$@ ne s\U2019est pas arrêté. Cliquez sur %2$@ pour réessayer.";
+"error.writer.did.not.stop" = "L\U2019enregistrement de %1$@ ne s\U2019est pas arrêté, mais son audio est en sécurité. Cliquez sur %2$@ pour réessayer.";
 "error.studio.output.term" = "\U00AB Enregistrer avec pré-roll \U00BB ne peut pas lire le délai du périphérique de sortie. \U00AB Enregistrer » (⌘R) fonctionne toujours.";
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";

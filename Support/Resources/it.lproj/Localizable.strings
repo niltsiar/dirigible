@@ -77,10 +77,10 @@
 "error.duck.no.ducked.track" = "Seleziona una traccia da abbassare o assegna a una traccia il ruolo Musica.";
 "error.duck.both.lists" = "La traccia “%@” non può essere sia una traccia vocale sia una traccia da abbassare.";
 "error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
-"error.ride.read" = "Il livellamento nel tempo non ha letto un file audio (errore %lld). Nessun clip è cambiato.";
+"error.ride.read" = "Il livellamento nel tempo non ha potuto leggere un file audio (errore %lld). Nessun clip è cambiato.";
 "error.ride.missing" = "Il livellamento nel tempo non trova \U201C%@\U201D nella cartella Clips. Rimetti il file e riprova.";
 "error.ride.short" = "Il livellamento nel tempo ha trovato \U201C%@\U201D più corto della sessione. Ripristina il file e riprova.";
-"error.ride.unreadable" = "Il livellamento nel tempo non ha letto \U201C%@\U201D. Controlla il disco e riprova.";
+"error.ride.unreadable" = "Il livellamento nel tempo non ha potuto leggere \U201C%@\U201D. Controlla il disco e riprova.";
 "error.match.read" = "Impossibile leggere un file audio (errore %lld). Nessun clip è cambiato.";
 "error.match.missing" = "Il file audio \U201C%@\U201D non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.match.short" = "Il file audio \U201C%@\U201D è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";

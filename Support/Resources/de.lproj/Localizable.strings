@@ -77,10 +77,10 @@
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
 "error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
 "error.duck.read" = "Eine Audiodatei einer Sprachspur konnte nicht gelesen werden (Fehler %lld). Kein Pegelpunkt wurde geändert.";
-"error.ride.read" = "Der Pegelausgleich über die Zeit konnte eine Audiodatei nicht lesen (Fehler %lld). Nichts geändert.";
-"error.ride.missing" = "Der Pegelausgleich über die Zeit findet \U201E%@\U201C nicht. Lege die Datei in den Ordner Clips zurück.";
-"error.ride.short" = "Der Pegelausgleich über die Zeit fand \U201E%@\U201C kürzer als die Session. Stelle die Datei wieder her.";
-"error.ride.unreadable" = "Der Pegelausgleich über die Zeit konnte \U201E%@\U201C nicht lesen. Prüfe die Festplatte.";
+"error.ride.read" = "Der Pegelausgleich über die Zeit konnte eine Audiodatei nicht lesen (Fehler %lld). Kein Clip wurde geändert.";
+"error.ride.missing" = "Der Pegelausgleich über die Zeit findet \U201E%@\U201C nicht im Ordner Clips. Lege die Datei zurück und versuche es erneut.";
+"error.ride.short" = "Der Pegelausgleich über die Zeit fand \U201E%@\U201C kürzer als die Session. Stelle die Datei wieder her und versuche es erneut.";
+"error.ride.unreadable" = "Der Pegelausgleich über die Zeit konnte \U201E%@\U201C nicht lesen. Prüfe die Festplatte und versuche es erneut.";
 "error.match.read" = "Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
 "error.match.missing" = "Die Audiodatei \U201E%@\U201C ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.match.short" = "Die Audiodatei \U201E%@\U201C ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
@@ -796,7 +796,7 @@
 "sheet.transcribe.check.multilingual" = "%@, mehrsprachig";
 "sheet.transcribe.check.english" = "%@, nur Englisch";
 "sheet.transcribe.check.layers" = "%lld Audioschichten";
-"sheet.transcribe.check.take" = "Eine Aufnahme hat begonnen. Die Prüfung der Modelldatei wurde angehalten.";
+"sheet.transcribe.check.take" = "Eine Aufnahme hat begonnen. Die Prüfung der Modelldatei wurde gestoppt.";
 "sheet.transcribe.check.busy" = "Eine Aufnahme blockiert die Prüfung der Modelldatei. Versuche es nach der Aufnahme erneut.";
 "sheet.transcribe.check.changed" = "Die Modelldatei hat sich während der Prüfung geändert. Versuche es erneut.";
 "sheet.transcribe.kind.tiny" = "Tiny";

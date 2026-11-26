@@ -77,10 +77,10 @@
 "error.duck.no.ducked.track" = "Selecione uma faixa a atenuar ou atribua a uma faixa a função Música.";
 "error.duck.both.lists" = "A faixa “%@” não pode ser, ao mesmo tempo, uma faixa de voz e uma faixa a atenuar.";
 "error.duck.read" = "Não foi possível ler um ficheiro de áudio de uma faixa de voz (erro %lld). Nenhum ponto de ganho mudou.";
-"error.ride.read" = "A nivelação ao longo do tempo não leu um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
-"error.ride.missing" = "A nivelação ao longo do tempo não achou \U201C%@\U201D na pasta Clips. Coloque o ficheiro de volta.";
-"error.ride.short" = "A nivelação ao longo do tempo achou \U201C%@\U201D mais curto que a sessão. Restaure o ficheiro.";
-"error.ride.unreadable" = "A nivelação ao longo do tempo não leu \U201C%@\U201D. Verifique o disco e volte a tentar.";
+"error.ride.read" = "A nivelação ao longo do tempo não conseguiu ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
+"error.ride.missing" = "A nivelação ao longo do tempo não achou \U201C%@\U201D na pasta Clips. Coloque o ficheiro de volta e volte a tentar.";
+"error.ride.short" = "A nivelação ao longo do tempo achou \U201C%@\U201D mais curto que a sessão. Restaure o ficheiro e volte a tentar.";
+"error.ride.unreadable" = "A nivelação ao longo do tempo não conseguiu ler \U201C%@\U201D. Verifique o disco e volte a tentar.";
 "error.match.read" = "Não foi possível ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
 "error.match.missing" = "O ficheiro de áudio \U201C%@\U201D não está na pasta Clips da sessão. Coloque-o novamente na pasta e volte a tentar.";
 "error.match.short" = "O ficheiro de áudio \U201C%@\U201D é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
@@ -976,7 +976,7 @@
 "sync.duration.minutes" = "%lld min %.1f s";
 "sync.duration.seconds" = "%.1f s";
 "banner.sync.spread" = "O desfasamento muda %lld ms ao longo do clipe.";
-"banner.sync.not.measured" = "Só correspondeu uma parte do clipe, pouca para medir a deriva.";
+"banner.sync.not.measured" = "Só correspondeu uma parte do clipe: é demasiado pouco para medir a deriva.";
 "banner.sync.too.short" = "O clipe tem menos dos 60 s de que a medição da deriva precisa.";
 "banner.sync.head.cut" = "O início do clipe foi cortado em %@ para o manter dentro da sessão.";
 "banner.sync.replaced" = "A deslocação substituiu áudio de %@.";

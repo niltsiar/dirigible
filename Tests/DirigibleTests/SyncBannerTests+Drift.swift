@@ -38,33 +38,32 @@ extension SyncBannerTests {
         #expect(text(driftMoved(.corrected(slow))).hasSuffix("Corrected a drift of 81 ms across the clip."))
     }
 
-    /// No fix gives "The drift wasn't corrected." and the cause as a sentence, after the 0076 spread line.
+    /// No fix gives one row: the fact with its cause, or the fact and the step that removes the cause,
+    /// after the 0076 spread line.
     @Test func theBannerGivesTheCause() {
+        let restore = "The drift wasn't corrected. Restore the original audio of the clip, then sync again."
+        let few = "Too few parts of the clip match the reference to correct the drift."
+        let line = "The lag isn't steady enough to correct the drift."
         let causes: [(DriftCause, String)] = [
-            (.clipTooShort, "The clip is shorter than 5 min."),
-            (.renderedFile, "Restore the original audio of the clip, then sync again."),
-            (.takeFile, "A take records on the session clock."),
-            (.transcriptNotLoaded, "Import the transcript again, then sync again."),
-            (.noFit(.tooFewPoints), "Too few parts of the clip match the reference."),
-            (.noFit(.tooManyOutliers), "Too few parts of the clip match the reference."),
-            (.noFit(.twoLines), "The lag doesn't follow a steady line."),
-            (.noFit(.endOutlier), "The lag doesn't follow a steady line."),
-            (.noFit(.rateOutOfRange), "The clock rate differs too much from the reference."),
-            (
-                .composedRateOutOfRange,
-                "A second fix would change the clock of this clip too much."
-            ),
-            (.underOneMillisecond, "The lag changes by less than 1 ms across the clip."),
+            (.clipTooShort, "The drift of a clip under 5 min isn't corrected."),
+            (.renderedFile, restore),
+            (.takeFile, "The drift of a take isn't corrected."),
+            (.transcriptNotLoaded, "The drift wasn't corrected. Import the transcript again, then sync again."),
+            (.noFit(.tooFewPoints), few),
+            (.noFit(.tooManyOutliers), few),
+            (.noFit(.twoLines), line),
+            (.noFit(.endOutlier), line),
+            (.noFit(.rateOutOfRange), "The clock rate differs too much from the reference to correct the drift."),
+            (.composedRateOutOfRange, "A second drift fix would change the clock of this clip too much."),
+            (.underOneMillisecond, "A drift under 1 ms across the clip isn't corrected."),
         ]
         for (cause, reason) in causes {
-            #expect(
-                text(driftMoved(.notCorrected(cause))) == Self.first + " The drift wasn't corrected. \(reason)",
-                "\(cause)")
+            #expect(text(driftMoved(.notCorrected(cause))) == Self.first + " \(reason)", "\(cause)")
         }
         #expect(
             text(driftMoved(.notCorrected(.underOneMillisecond), drift: .spread(2_880)))
                 == Self.first + " The lag changes by 60 ms across the clip."
-                + " The drift wasn't corrected. The lag changes by less than 1 ms across the clip.",
+                + " A drift under 1 ms across the clip isn't corrected.",
             "the spread line stays before the cause")
     }
 }

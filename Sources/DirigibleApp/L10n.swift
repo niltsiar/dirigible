@@ -968,7 +968,6 @@ enum L10n: String, CaseIterable {
     case bannerSyncUndo = "banner.sync.undo"
     case announceDriftCorrected = "announce.drift.corrected"
     case announceDriftSplit = "announce.drift.split"
-    case bannerDriftNotCorrected = "banner.drift.not.corrected"
     case bannerDriftCauseTooShort = "banner.drift.cause.too.short"
     case bannerDriftCauseRendered = "banner.drift.cause.rendered"
     case bannerDriftCauseTake = "banner.drift.cause.take"

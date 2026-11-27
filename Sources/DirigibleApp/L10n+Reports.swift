@@ -20,8 +20,8 @@ extension L10n {
         value == 1 ? text(one) : String(format: text(many), locale: .current, value)
     }
 
-    /// The banner text of an Auto Level: the clips at the limit and the clips with no level, or, when
-    /// neither exists and no clip changed, the no-change sentence and the track volume sentence. Empty
+    /// The banner text of an Auto Level: the clips at the limit and the clips with no level, each in its
+    /// own row, or, when neither exists and no clip changed, the no-change fact and the gain step. Empty
     /// when clips changed and nothing needs a check: VoiceOver hears the count (`announceLevelChanged`)
     /// and no banner shows. `text` gives the value of a key, so a test can read the English table.
     static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
@@ -34,9 +34,9 @@ extension L10n {
                 counted(report.unmeasured, one: .bannerLevelUnmeasuredOne, many: .bannerLevelUnmeasured, text: text))
         }
         if parts.isEmpty, report.changed == 0 {
-            parts = [text(report.isEmpty ? .bannerLevelNone : .bannerLevelChangedNone), text(.bannerLevelVolume)]
+            return text(report.isEmpty ? .bannerLevelNone : .bannerLevelChangedNone) + " " + text(.bannerLevelVolume)
         }
-        return parts.joined(separator: " ")
+        return parts.joined(separator: "\n")
     }
 
     /// The announcement of a Reduce Noise run that changed clips: "Reduced noise in 3 clips by 12 dB.",

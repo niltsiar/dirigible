@@ -193,7 +193,7 @@ import Testing
         let table = { (key: L10n) in english[key.rawValue] ?? key.rawValue }
         #expect(
             L10n.sessionImportCheck(muted: 2, leftOut: 1, table: table)
-                == "Muted 2 call tracks that repeat the other voice. Left out 1 marker after the session end.")
+                == "Muted 2 call tracks that repeat the other voice.\nLeft out 1 marker after the session end.")
         #expect(
             L10n.sessionImportCheck(muted: 0, leftOut: 3, table: table) == "Left out 3 markers after the session end.")
         #expect(L10n.sessionImportCheck(muted: 0, leftOut: 0, table: table) == "")

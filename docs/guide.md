@@ -439,6 +439,7 @@ A clip with gain points has a line that follows them, and the waveform goes down
 
 - Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits. The gain points keep their shape: they add to the clip gain.
 - With a range selected inside a clip, but not the whole clip, drag the line inside the range to change the gain of that range only. The gain goes up or down in the range, with a ramp of 500 ms on each side, and it adds to the gain points that are there. A drag outside the range changes the clip gain.
+- **Edit > Duck Selection** (Shift-D) lowers a selected range by 16 dB, on each clip of the selected tracks, with the same ramps of 500 ms on each side as the drag above. Press the key again to lower the range 16 dB more, down to -96 dB. A held key lowers the range once. VoiceOver says the new total. With no selection, with a set of selected clips, with a range whose ramps reach no clip, or at -96 dB, you hear a beep. When the cursor is in a text field, the field gets the key and types the letter. VoiceOver says nothing when no selected clip plays a frame of the range, because only its ramps reach a clip. Hindenburg PRO has Copy & Duck on the same key. Dirigible does not have it.
 - Option-click the line to add a gain point there. The sound does not change. Option-drag adds a point and moves it.
 - Drag a point to move it in time and in dB. It stops at the points next to it and at the clip edges, and it goes down to -60 dB and up to +20 dB. The label shows **Point -16.0 dB**.
 - Double-click a point to remove it.
@@ -1495,6 +1496,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Slip Content Right** | **Deslizar el contenido a la derecha** | Shift-Option-Right Arrow |
 | **Fade** | **Fundido** | Command-F |
 | **Add Gain Point** | **Añadir punto de ganancia** | Option-K |
+| **Duck Selection** | **Atenuar la selección** | Shift-D |
 | **Close Gaps** | **Cerrar huecos** | None |
 | **Heal Clips** | **Unir clips** | None |
 | **Drag Mode** | **Modo de arrastre** | None |

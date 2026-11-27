@@ -141,6 +141,25 @@ extension SessionWindow {
         if healed == false { beep() }
     }
 
+    /// Edit > Duck Selection (Shift-D, decision 0060): `Session.changeGain` at the duck depth over the
+    /// range on the selected tracks, with the ramps of the range gain. One edit, so one undo entry.
+    /// With no range, a clip set, ramps that reach no clip, or the -96 dB floor, a beep. VoiceOver
+    /// says the new total at the first frame of the range that a selected clip plays.
+    func runDuckSelection(_ studio: Studio) {
+        guard let selection = timeline.selection.marks?.selection(in: studio.session) else { return beep() }
+        let ducked = edit(ripple: false) { session throws(SessionError) -> Bool in
+            let depth = DuckShape.defaults(sampleRate: session.sampleRate).depth
+            let changed = try session.changeGain(
+                by: depth, in: selection.range, on: selection.tracks, ramp: session.gainRamp)
+            return !changed.isEmpty
+        }
+        guard let ducked else { return }
+        guard ducked else { return beep() }
+        let starts = studio.session.tracks.filter { selection.tracks.contains($0.id) }.flatMap(\.clips)
+            .filter { $0.range.overlaps(selection.range) }.map { max($0.start, selection.range.lowerBound) }
+        if let readFrame = starts.min() { announceGainPoint(.duckSelectionDone, at: readFrame, priority: .medium) }
+    }
+
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
     /// marker. Move and Delete act on the current marker when the session has it, else they beep;

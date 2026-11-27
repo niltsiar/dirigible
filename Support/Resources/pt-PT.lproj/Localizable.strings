@@ -530,9 +530,11 @@
 "menu.edit.slip.content.left" = "Deslizar conteúdo para a esquerda";
 "menu.edit.slip.content.right" = "Deslizar conteúdo para a direita";
 "menu.edit.gain.point.add" = "Adicionar ponto de ganho";
+"menu.edit.duck.selection" = "Atenuar seleção";
 "gain.point.added" = "Ponto de ganho adicionado em %@";
 "gain.point.set" = "Ponto de ganho definido em %@";
 "gain.point.at" = "Ponto de ganho em %@";
+"duck.selection.done" = "Seleção atenuada para %@";
 "menu.markers" = "Marcadores";
 "menu.markers.add" = "Adicionar marcador";
 "menu.markers.add.chapter" = "Adicionar capítulo";

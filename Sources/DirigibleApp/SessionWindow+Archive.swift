@@ -54,7 +54,7 @@ extension TimelineCommand {
             .raiseVolume, .lowerVolume, .resetVolume, .exportChapters, .exportStems, .exportPresets, .exportTranscript,
             .episodeInfo, .autoLevel, .autoLevelPerTrack, .levelOverTime, .removeLevelOverTime, .duck, .splitStereo,
             .reduceNoise, .repairSound, .restoreOriginal, .transcribe, .useAsVoiceReference, .findSilences, .syncClip,
-            .addGainPoint:
+            .addGainPoint, .duckSelection:
             true
         }
     }

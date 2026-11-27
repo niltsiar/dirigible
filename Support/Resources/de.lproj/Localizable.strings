@@ -530,9 +530,11 @@
 "menu.edit.slip.content.left" = "Inhalt nach links verschieben";
 "menu.edit.slip.content.right" = "Inhalt nach rechts verschieben";
 "menu.edit.gain.point.add" = "Pegelpunkt hinzufügen";
+"menu.edit.duck.selection" = "Auswahl absenken";
 "gain.point.added" = "Pegelpunkt bei %@ hinzugefügt";
 "gain.point.set" = "Pegelpunkt auf %@ gesetzt";
 "gain.point.at" = "Pegelpunkt bei %@";
+"duck.selection.done" = "Auswahl auf %@ abgesenkt";
 "menu.markers" = "Marker";
 "menu.markers.add" = "Marker hinzufügen";
 "menu.markers.add.chapter" = "Kapitel hinzufügen";

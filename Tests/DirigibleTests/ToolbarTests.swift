@@ -243,7 +243,7 @@ struct ToolbarValueTests {
     /// in each table. The test process has no app tables, so the titles and the format come from
     /// each table.
     @Test(arguments: [
-        ("en", "Record (⌘R) · Record with Pre-roll (P)"), ("es", "Grabar (⌘R) · Grabar con pre-roll (P)"),
+        ("en", "Record (⌘R) · Record with Pre-Roll (P)"), ("es", "Grabar (⌘R) · Grabar con pre-roll (P)"),
         ("de", "Aufnehmen (⌘R) · Mit Vorlauf aufnehmen (P)"),
         ("fr", "Enregistrer (⌘R) · Enregistrer avec pré-roll (P)"),
         ("it", "Registra (⌘R) · Registra con pre-roll (P)"), ("nl", "Neem op (⌘R) · Neem op met pre-roll (P)"),

@@ -15,7 +15,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 
 - Record several input devices at the same time, one mono or stereo track for each input.
 - Record the sound of another app, for example a call, on its own track (macOS 14.2 or later). Safari, Safari Technology Preview, and FaceTime cannot be a source: see the [limit of app sound](docs/guide.md#limits).
-- Start a take at the playhead after a short play of the session with **Record > Record with Pre-roll** (P).
+- Start a take at the playhead after a short play of the session with **Record > Record with Pre-Roll** (P).
 - Hear a microphone in your headphones while you record: click the headphones button in the track header, or choose **Track > Monitor Track** (Control-Command-M).
 - Keep the recorded audio after a crash, an unplug, or a full disk. A banner warns when less than 3 hours of record time is left.
 - Save a zip of the logs and crash reports of Dirigible with **Help > Report a Problem...**. The zip has no audio, and Dirigible sends nothing.

@@ -32,7 +32,6 @@ final class TrackFaderView: NSView {
         super.init(frame: NSRect(origin: .zero, size: Self.size))
         slider.controlSize = .mini
         slider.isContinuous = true
-        slider.refusesFirstResponder = true
         slider.toolTip = L10n.trackVolumeHelp.text
         slider.target = slider
         slider.action = #selector(FaderSlider.moved)
@@ -116,6 +115,26 @@ final class FaderSlider: NSSlider {
     /// The wheel scrolls the view and never changes the gain.
     override func scrollWheel(with event: NSEvent) {
         nextResponder?.scrollWheel(with: event)
+    }
+
+    /// Keyboard navigation (Full Keyboard Access) gives the key focus; a click keeps it on the timeline,
+    /// so its arrow keys stay with the playhead.
+    override var acceptsFirstResponder: Bool { isEnabled && NSApp.isFullKeyboardAccessEnabled }
+
+    /// An arrow key makes one edit of 1 dB on the fader track, as a VoiceOver increment. Space goes to the
+    /// menu, so it plays and stops as on the timeline.
+    override func keyDown(with event: NSEvent) {
+        let step: Double? =
+            switch event.specialKey {
+            case .upArrow?, .rightArrow?: 1
+            case .downArrow?, .leftArrow?: -1
+            default: nil
+            }
+        if let step {
+            if isEnabled { model?.stepVolume(by: step, tracks: [track]) }
+        } else if event.keyCode != 49 || NSApp.mainMenu?.performKeyEquivalent(with: event) != true {
+            super.keyDown(with: event)
+        }
     }
 
     func beginDrag() {

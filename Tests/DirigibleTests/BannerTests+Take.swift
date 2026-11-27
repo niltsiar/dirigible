@@ -343,4 +343,32 @@ extension BannerTests {
         #expect(heard.withLock { $0 } == [L10n.takeEnded.format(5)])
         await model.close()
     }
+
+    /// `Studio.stop` sets `lastTake` while the transport still finalizes, and a failed finalize leaves
+    /// the take pending. Neither is a finished take: VoiceOver hears the end only at idle with no
+    /// pending take, once.
+    @Test func voiceOverHearsNoEndWhileTheTakeFinalizesOrIsPending() async throws {
+        let url = try await timelinePackage(in: folder.url, tracks: 1, seconds: 2)
+        let (model, studio, _, _) = try await openLanes(app, url)
+        let chrome = try #require(model.chrome)
+        let heard = OSAllocatedUnfairLock(initialState: [String]())
+        chrome.announce = { text, _ in heard.withLock { $0.append(text) } }
+        let pending = Recording(take: 6, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"])
+
+        studio.lastTake = TakeResult(take: 6, end: .requested, gaps: [:])
+        studio.transport = .finalizing(take: 6)
+        chrome.update()
+        #expect(heard.withLock { $0 }.isEmpty, "the take still finalizes")
+
+        studio.transport = .idle
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(pending) }
+        chrome.update()
+        #expect(heard.withLock { $0 }.isEmpty, "the finalize failed and the take is pending")
+
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
+        chrome.update()
+        chrome.update()
+        #expect(heard.withLock { $0 } == [L10n.takeEnded.format(6)], "idle with no pending take: once")
+        await model.close()
+    }
 }

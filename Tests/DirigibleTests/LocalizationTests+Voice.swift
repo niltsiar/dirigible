@@ -41,12 +41,14 @@ extension LocalizationTests {
             "error.a": "The disk is full, and the export stopped.", "error.b": "The file moved, which stopped it.",
             "error.c": "The clip is empty, so nothing moved.", "error.d": "The disk is full. Free space. Try again.",
             "error.e": "It is full. The file moved, and the export stopped. Try again.",
+            "error.f": "The disk is full. The export stopped.",
         ]
         #expect(
             factProblems(tells) == [
                 "error.a: two facts in one sentence", "error.b: two facts in one sentence",
                 "error.c: two facts in one sentence", "error.d: 3 sentences",
                 "error.e: 3 sentences", "error.e: two facts in one sentence",
+                "error.f: a second sentence that is no step",
             ])
         let voice = [
             "error.a": "The session holds tracks, clips, and markers.", "error.b": "The disk is full. Free some space.",
@@ -210,16 +212,42 @@ private let sentenceBudget = 26
 private let sentenceLimit = 2
 
 /// One line for each tell of a message: `<key>: <tell>`, sorted by key. A ", and" with an earlier
-/// comma in its sentence closes a list ("A, B, and C") and joins no facts.
+/// comma in its sentence closes a list ("A, B, and C") and joins no facts. A second sentence after a
+/// question is its fact; else it says what to do.
 private func factProblems(_ values: [String: String]) -> [String] {
     var problems: [String] = []
     for (key, value) in values.sorted(by: { $0.key < $1.key }) {
         let sentences = value.split(separator: /[.?!;][ ]/, omittingEmptySubsequences: true)
         if sentences.count > sentenceLimit { problems.append("\(key): \(sentences.count) sentences") }
         if sentences.contains(where: joinsTwoFacts) { problems.append("\(key): two facts in one sentence") }
+        let afterQuestion = value.firstMatch(of: /[.?!;][ ]/)?.output.first == "?"
+        if sentences.count == 2, !afterQuestion, !stepWaivers.contains(key), !isStep(sentences[1]) {
+            problems.append("\(key): a second sentence that is no step")
+        }
     }
     return problems
 }
+
+/// The first word of a step: a verb in the imperative.
+private let stepVerbs: Set = [
+    "Add", "Allow", "Ask", "Check", "Choose", "Click", "Close", "Connect", "Copy", "Delete", "Download", "Drag",
+    "Drop", "Edit", "Export", "Finalize", "Find", "Free", "Give", "Import", "Install", "Keep", "Locate", "Lower",
+    "Move", "Open", "Paste", "Pick", "Place", "Press", "Put", "Quit", "Record", "Remove", "Rename", "Replace",
+    "Restart",
+    "Restore", "Run", "Save", "Scan", "Select", "Set", "Split", "Transcribe", "Try", "Turn", "Type", "Unarchive",
+    "Undo", "Update", "Use", "Wait",
+]
+
+private func isStep(_ sentence: Substring) -> Bool {
+    let word = sentence.split(separator: " ").first.map { $0.trimmingCharacters(in: .punctuationCharacters) }
+    return word.map(stepVerbs.contains) ?? false
+}
+
+/// The messages whose second sentence is a fact and right so: the consent warnings of decision 0050,
+/// and the alerts that add the one-sentence reason of a library error.
+private let stepWaivers: Set = [
+    "consent.app.tracks", "consent.message", "alert.transcript.unreadable", "error.transcribe.file.refused",
+]
 
 private func joinsTwoFacts(_ sentence: Substring) -> Bool {
     if sentence.contains(", which") || sentence.contains(", so ") { return true }
@@ -321,10 +349,8 @@ private func hasAppNameSubject(_ key: String, _ value: String) -> Bool {
     !appNameSubjectKeys.contains(key) && startsWithAppName(value)
 }
 
-/// The keys of a label and its value (a take and its sync state), which keep a colon.
-private let labelColonKeys: Set = [
-    "episode.take.sync.in", "episode.take.sync.broken", "episode.take.sync.fault",
-]
+/// The keys of a label and its value, which keep a colon.
+private let labelColonKeys: Set<String> = []
 
 /// One line for each tell of a text: `<key>: <tell>`, sorted by key.
 private func textProblems(_ values: [String: String], labelKeys: Set<String>) -> [String] {

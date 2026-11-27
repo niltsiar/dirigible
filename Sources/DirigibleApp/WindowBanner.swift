@@ -112,8 +112,9 @@ enum WindowBanner: Equatable {
     /// An agent record request ended with no answer (decision 0048). Nil: the agent gave no name.
     case consentExpired(agent: String?)
     /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060),
-    /// with the paths of the speech files that did not read. The press number of the duck makes a
-    /// new key for each duck, so VoiceOver reads each result.
+    /// with the paths of the speech files that did not read. The text names the unread files, the
+    /// likely cause, when there are any. The press number of the duck makes a new key for each duck,
+    /// so VoiceOver reads each result.
     case duckNoSpeech(threshold: Double, unread: [String], press: Int)
     /// A duck did not read the speech files of these paths, so the music stays up over them.
     case duckUnread([String], press: Int)
@@ -233,10 +234,10 @@ enum WindowBanner: Equatable {
         case .lowRecordTime(let minutes): lowRecordTimeText(minutes: minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
-        case .exportReport(nil, let file, _): L10n.bannerExportDone.format(file)
         case .exportReport(let report?, let file, _) where report.exceedsLevelLimit:
             L10n.bannerExportReportLarge.format(file, report.gain.dB)
-        case .exportReport(let report?, let file, _): L10n.bannerExportReport.format(file, L10n.message(for: report))
+        case .exportReport(let report, let file, _):
+            report?.output.map { L10n.bannerExportReport.format(file, $0.value) } ?? L10n.bannerExportDone.format(file)
         case .exportSetDone(let files, let old): old.isEmpty ? L10n.exportSetDoneText(files) : L10n.oldFilesText(old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
@@ -263,14 +264,12 @@ enum WindowBanner: Equatable {
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
         case .duckNoSpeech(let threshold, let unread, _) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
-        case .duckNoSpeech(let threshold, let unread, _):
-            L10n.bannerDuckNoSpeechUnread.format(threshold, unread.joined(separator: ", "))
-        case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
+        case .duckNoSpeech(_, let paths, _), .duckUnread(let paths, _):
+            L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
         case .syncMoved(let moved, _, _): moved.text()
         case .syncCut(let moved, _): moved.cutText()
         case .syncNoMatch(_, _, let clipName, let trackName, _, _): syncNoMatchText(clip: clipName, track: trackName)
-        case .takeSyncBroken(let take, let from, let rate, let agent, _):
-            takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
+        case .takeSyncBroken(let take, _, _, let agent, _): takeSyncBreakText(take: take, agent: agent)
         case .transcriptionStopped: L10n.transcribeStopped.text
         case .noWordsFound: L10n.transcribeNoWords.text
         case .sessionImported(let text, _): text
@@ -324,19 +323,17 @@ func stemsDoneText(_ count: Int, folder: String, text: (L10n) -> String = { $0.t
         ? String(format: text(.bannerStemsDoneOne), folder) : String(format: text(.bannerStemsDone), count, folder)
 }
 
-/// "The stem files a.wav, b.wav clip over 0 dBFS. They won't add up to the mix." `text` gives the value of a key.
+/// "The stem files a.wav, b.wav clip over 0 dBFS. Lower the track volumes and export again." `text` gives
+/// the value of a key.
 func stemsClippedText(_ names: [String], text: (L10n) -> String = { $0.text }) -> String {
     String(format: text(.bannerStemsClipped), names.joined(separator: ", "))
 }
 
-/// The text of the take sync banner: "Claude Code moved part of take 4. It's now out of sync with
-/// its recording from 0:21:07." `text` gives the value of a key.
-func takeSyncBreakText(
-    take: Int, from: Frames, rate: Int, agent: String?, text: (L10n) -> String = { $0.text }
-) -> String {
-    let time = takeSyncClock(from, rate: rate)
-    guard let agent else { return String(format: text(.bannerTakeSyncBrokenUnnamed), take, time) }
-    return String(format: text(.bannerTakeSyncBroken), agent, take, time)
+/// The text of the take sync banner: "Claude Code moved part of take 4 out of sync. Undo the edit to put
+/// it back." The Show button of the row gives the place. `text` gives the value of a key.
+func takeSyncBreakText(take: Int, agent: String?, text: (L10n) -> String = { $0.text }) -> String {
+    guard let agent else { return String(format: text(.bannerTakeSyncBrokenUnnamed), take) }
+    return String(format: text(.bannerTakeSyncBroken), agent, take)
 }
 
 /// A break time of the take sync texts: h:mm:ss, with the digits cut as in the time display.

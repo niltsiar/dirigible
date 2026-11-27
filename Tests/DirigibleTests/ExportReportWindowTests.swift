@@ -199,7 +199,7 @@ extension ExportWindowTests {
                 L10n.reportGainLarge.text))
         for language in AppLanguage.allCases.map(\.rawValue) {
             let text = (try? stringsTable(language))?["banner.export.report"] ?? ""
-            #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
+            #expect(text.contains("%1$@") && text.contains("%2$.1f"), "\(language): \(text)")
         }
     }
 

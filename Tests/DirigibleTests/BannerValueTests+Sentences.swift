@@ -15,11 +15,22 @@ extension BannerValueTests {
         }.max() ?? 0
     }
 
+    /// The most numbers in one sentence: a count and its measure ("Shortened 2 silences by 3.5 s"). A clock
+    /// time is one number.
+    private static let numberLimit = 2
+
     private func rowProblems(_ rows: [(String, String)]) -> [String] {
         rows.flatMap { name, text -> [String] in
             var problems: [String] = []
             if sentenceCount(text) > 2 { problems.append("\(name): \(sentenceCount(text)) sentences: \(text)") }
             if text.count >= 100 { problems.append("\(name): \(text.count) characters: \(text)") }
+            if text.firstMatch(of: /[a-z]: [a-z%0-9]/) != nil {
+                problems.append("\(name): a fact after a colon: \(text)")
+            }
+            let numbers = text.split(separator: /[.?!;][ ]/).map {
+                $0.matches(of: /\d+(?::\d+)+|\d+(?:[.,]\d+)?/).count
+            }
+            if (numbers.max() ?? 0) > Self.numberLimit { problems.append("\(name): several measurements: \(text)") }
             return problems
         }
     }
@@ -72,6 +83,18 @@ extension BannerValueTests {
             outcome: .corrected(fix))
         rows.append(("syncMoved corrected with a cut", WindowBanner.syncMoved(fixed, revision: 2, press: 1).text))
         rows.append(("syncCut corrected", WindowBanner.syncCut(fixed, press: 1).text))
+        let usual = LoudnessReport(
+            target: LUFS(value: -16), measured: LUFS(value: -20), gain: try #require(Gain(dB: 4)),
+            output: LUFS(value: -16), truePeak: -1)
+        rows.append(("exportReport usual", WindowBanner.exportReport(usual, file: "a.wav", url: url).text))
+        rows.append(("exported alert", L10n.exportedLoudness(for: large) ?? ""))
+        let transcript = L10n.transcriptImportResult(skipped: 3, untimed: 2, repeated: 1, dropped: ["a.json"])
+        rows.append(("transcriptImport", transcript ?? ""))
+        rows.append(("silenceNote", SilenceNote(shortened: 3, removed: 201_600, rate: 48_000).text()))
+        let fault = FinalizeError.readFailed(file: "Capture/take3.anchor", errno: EIO)
+        let takes = takeSyncLines(
+            [3: .broken(from: 2_976_000, shifts: 4), 2: .inSync(offset: 240_000)], faults: [fault], sampleRate: 48_000)
+        rows += takes.map { ("takeSync", $0) }
         let refused = StudioError.sessionImport(.source(.unsupportedVersion(99)), source: "Guest")
         let notDownloaded = StudioError.sessionImport(.paste(.notDownloaded(file: "a.wav")), source: "Guest")
         for (name, error) in [("refused", refused), ("not downloaded", notDownloaded)] {

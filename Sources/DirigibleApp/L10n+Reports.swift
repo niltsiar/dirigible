@@ -4,20 +4,14 @@ import Foundation
 
 /// The texts of library reports and results.
 extension L10n {
-    /// The loudness report of an export with a target (decision 0032): the output loudness, the
-    /// true peak, and the gain.
-    static func message(for report: LoudnessReport) -> String {
-        [
-            report.output.map { reportLoudness.format($0.value) } ?? reportLoudnessNone.text,
-            report.truePeak.map { reportPeak.format($0) } ?? reportPeakNone.text,
-            reportGain.format(report.gain.dB),
-        ].joined(separator: ", ")
-    }
-
-    /// The sentence after the report of a gain over the auto-level limit, for the exported alert. Empty
-    /// for a usual gain.
-    static func largeGainHint(for report: LoudnessReport) -> String {
-        report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
+    /// The loudness part of the exported alert of an export with a target (decision 0032): the output
+    /// loudness, then the check after a gain over the auto-level limit. Nil when neither exists.
+    static func exportedLoudness(for report: LoudnessReport) -> String? {
+        let parts = [
+            report.output.map { alertExportedLoudness.format($0.value) },
+            report.exceedsLevelLimit ? reportGainLarge.text : nil,
+        ].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     /// The text of `many` filled with `value`, or the text of `one` for a count of 1 (decision 0010,
@@ -116,23 +110,19 @@ extension L10n {
         return flat ? fill(.rideFlatMany, result.leveled) : fill(.rideDoneMany, result.leveled, result.gain)
     }
 
-    /// The banner of Import Transcript: one sentence for each count that is not zero ("3 words have
-    /// no clip."), then the names of the dropped transcripts. Nil when there is nothing to say.
-    /// `text` gives the value of a key, so a test can read a table.
+    /// The banner of Import Transcript: the first problem only, so the banner keeps one fact and its
+    /// step. The dropped transcripts come first, then the first count that is not zero ("3 words have
+    /// no clip."). Nil when there is nothing to say. `text` gives the value of a key, so a test can
+    /// read a table.
     static func transcriptImportResult(
         skipped: Int, untimed: Int, repeated: Int, dropped: [String], text: (L10n) -> String = { $0.text }
     ) -> String? {
-        func count(_ value: Int, one: L10n, many: L10n) -> String? {
-            value > 0 ? counted(value, one: one, many: many, text: text) : nil
-        }
-        var parts = [
-            count(skipped, one: .bannerTranscriptSkippedOne, many: .bannerTranscriptSkipped),
-            count(untimed, one: .bannerTranscriptUntimedOne, many: .bannerTranscriptUntimed),
-            count(repeated, one: .bannerTranscriptRepeatedOne, many: .bannerTranscriptRepeated),
-        ].compactMap { $0 }
-        if !dropped.isEmpty {
-            parts.append(String(format: text(.bannerTranscriptDropped), dropped.joined(separator: ", ")))
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " ")
+        if !dropped.isEmpty { return String(format: text(.bannerTranscriptDropped), dropped.joined(separator: ", ")) }
+        let counts: [(Int, L10n, L10n)] = [
+            (skipped, .bannerTranscriptSkippedOne, .bannerTranscriptSkipped),
+            (untimed, .bannerTranscriptUntimedOne, .bannerTranscriptUntimed),
+            (repeated, .bannerTranscriptRepeatedOne, .bannerTranscriptRepeated),
+        ]
+        return counts.first { $0.0 > 0 }.map { counted($0.0, one: $0.1, many: $0.2, text: text) }
     }
 }

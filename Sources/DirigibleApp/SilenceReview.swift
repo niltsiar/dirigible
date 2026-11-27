@@ -193,22 +193,17 @@ struct SilenceReview {
     }
 }
 
-/// What the tab says after Apply: the counts, the time removed, and the session length before and
-/// after. It stays until the next scan or a settings change.
+/// What the tab says after Apply: the shortened silences and the time removed. A mute and a marker show
+/// on the timeline, so the note leaves them out. It stays until the next scan or a settings change.
 struct SilenceNote: Equatable {
     let shortened: Int
-    let muted: Int
-    let marked: Int
     let removed: Frames
-    let before: Frames
-    let after: Frames
     let rate: Int
 
     func text(locale: Locale = .current, table: (L10n) -> String = { $0.text }) -> String {
-        let seconds = { SilenceReview.seconds($0, rate: rate, locale: locale) }
-        return String(
+        String(
             format: table(shortened == 1 ? .silencesNoteOne : .silencesNoteOther), locale: locale, shortened,
-            seconds(removed), seconds(before), seconds(after), muted, marked)
+            SilenceReview.seconds(removed, rate: rate, locale: locale))
     }
 }
 

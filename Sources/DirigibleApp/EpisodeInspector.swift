@@ -368,8 +368,8 @@ func takeSyncLines(
         switch state {
         case .inSync(let offset):
             String(format: text(.episodeTakeSyncIn), take, (Double(offset) / Double(sampleRate)).formatted(style))
-        case .broken(let from, let shifts):
-            String(format: text(.episodeTakeSyncBroken), take, takeSyncClock(from, rate: sampleRate), shifts)
+        case .broken(let from, _):
+            String(format: text(.episodeTakeSyncBroken), take, takeSyncClock(from, rate: sampleRate))
         }
     } + faults.map { String(format: text(.episodeTakeSyncFault), $0.fault.file) }
 }

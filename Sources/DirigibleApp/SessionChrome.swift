@@ -34,17 +34,7 @@ import Observation
     /// trigger during a read starts no second read: it asks for one more read after it.
     private var reading: Task<Void, Never>?
     private var readAgain = false
-    /// The tracks of the last record-over warning that was announced. Only a different, not empty
-    /// set of tracks announces again: a play across a clip end changes the clip, not the tracks.
-    private var announcedRecordOver: [TrackID] = []
-    /// The tracks whose **No sound from** or **No access** was announced, with that state, and the
-    /// take state of that time. A track leaves the map with its live entry, at a take start or end
-    /// (new writers), and when it leaves the warning with a sound. So a rearm or a come back with
-    /// no sound announces nothing, and only a change to the other warning announces again.
-    private var announcedWarnings: [TrackID: LiveTrack.State] = [:]
-    private var announcedInTake = false
-    /// The pre-roll of a take was announced: "Pre-roll" once at the press.
-    private var announcedPreRoll = false
+    private var announcer = ChromeAnnouncer()
     /// The reads that started and that ended, written or dropped, for the tests.
     private(set) var recordTimeReadsStarted = 0
     private(set) var recordTimeReads = 0
@@ -183,48 +173,8 @@ import Observation
             }
         }
         guard let model else { return }
-        if model.canStop != announcedInTake {
-            announcedInTake = model.canStop
-            announcedWarnings = [:]
-        }
-        if state.preRolling != announcedPreRoll {
-            announcedPreRoll = state.preRolling
-            if state.preRolling { announce(L10n.subtitlePreRoll.text, .medium) }
-        }
-        if let studio = model.studio {
-            announcedWarnings = announcedWarnings.filter { studio.liveStates[$0.key] != nil }
-        }
-        guard model.shown != state.shown else { return }
-        announceAppWarnings(state.shown.appWarnings, before: model.shown.appWarnings, model: model)
-        // A banner of a kind that did not show is announced once.
-        for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
-            if let priority = banner.announcement { announce(banner.spoken, priority) }
-        }
-        let tracks = state.shown.recordOver.reached.map(\.track)
-        if !tracks.isEmpty, tracks != announcedRecordOver {
-            announcedRecordOver = tracks
-            announce(state.shown.recordOver.detail, .high)
-        }
-        model.shown = state.shown
-    }
-
-    /// Announces each app track that enters `.noSound` or `.noAccess` and was not announced in
-    /// that state. A track that leaves the warning with a live peak above 0 can announce again:
-    /// the drain reports the levels first.
-    private func announceAppWarnings(
-        _ warnings: [TrackID: LiveTrack.State], before: [TrackID: LiveTrack.State], model: SessionWindow
-    ) {
-        guard let studio = model.studio else { return }
-        for track in before.keys where warnings[track] == nil && (studio.liveTracks[track]?.peak ?? 0) > 0 {
-            announcedWarnings[track] = nil
-        }
-        for track in studio.session.tracks {
-            guard let state = warnings[track.id], state != before[track.id], state != announcedWarnings[track.id],
-                case .app(let bundleID) = track.route, let text = HeaderStateText.app(state, model.appName(bundleID))
-            else { continue }
-            announcedWarnings[track.id] = state
-            announce(text.full, .high)
-        }
+        announcer.announce(state, model: model, post: announce)
+        if model.shown != state.shown { model.shown = state.shown }
     }
 
     private func apply(_ state: ChromeState, to item: NSToolbarItem) {
@@ -389,11 +339,4 @@ import Observation
         }
         model.run(command)
     }
-}
-
-/// Posts a VoiceOver announcement of the app.
-@MainActor func postAnnouncement(_ text: String, priority: NSAccessibilityPriorityLevel) {
-    NSAccessibility.post(
-        element: NSApp as Any, notification: .announcementRequested,
-        userInfo: [.announcement: text, .priority: priority.rawValue])
 }

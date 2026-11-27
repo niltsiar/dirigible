@@ -330,12 +330,32 @@ import os
         await model.close()
     }
 
-    /// C10: a slider action outside a drag (a key or an AX press) makes no edit and puts the thumb
-    /// back on the session value.
+    /// ui-audit A10: keyboard navigation reaches the fader, and an arrow key makes one edit of 1 dB on
+    /// its track, as a VoiceOver increment.
+    @Test func anArrowKeyStepsTheFaderTrack() async throws {
+        let (model, studio) = try await model()
+        let (window, view) = fader(model, studio)
+        #expect(!view.slider.refusesFirstResponder, "A10: the slider can take the key focus")
+        func arrow(_ scalar: Int, code: UInt16) -> NSEvent {
+            key(.keyDown, String(Character(UnicodeScalar(UInt32(scalar))!)), code: code, in: window)
+        }
+        let start = studio.sessionRevision
+
+        view.slider.keyDown(with: arrow(NSUpArrowFunctionKey, code: 126))
+        view.slider.keyDown(with: arrow(NSRightArrowFunctionKey, code: 124))
+        view.slider.keyDown(with: arrow(NSDownArrowFunctionKey, code: 125))
+
+        #expect(studio.session.track("t1")?.gain.dB == 1, "up, right, and down give +1 dB")
+        #expect(studio.sessionRevision == start + 3, "one edit for each key")
+        window.close()
+        await model.close()
+    }
+
+    /// C10: a slider action outside a drag (an AX press) makes no edit and puts the thumb back on the
+    /// session value.
     @Test func anActionOutsideADragMakesNoEdit() async throws {
         let (model, studio) = try await model()
         let (window, view) = fader(model, studio)
-        #expect(view.slider.refusesFirstResponder, "C10: no key reaches the slider")
 
         move(view.slider, to: -10)
 

@@ -170,9 +170,15 @@ extension MonitorWindowTests {
         }
         await studio.monitorWriter("app:\(Self.zoom)")?.started()
         await studio.monitorWriter("app:\(Self.zoom)")?.finish()
+        // The chrome announces the end of a clean take on its own turn, at idle with no pending
+        // take. The test waits for it, so its count does not depend on that turn.
+        let ended = L10n.takeEnded.format(try #require(studio.lastTake).take)
+        await until("no announcement of the end of the take") { announced.texts.last == ended }
+        #expect(announced.texts.count == 6, "no announcement of the end of the take")
         set(.noSound)
         await shows(true)
-        #expect(announced.texts.count == 6, "no announcement after the take")
+        #expect(announced.texts.count == 7, "no announcement after the take")
+        #expect(announced.texts.last == HeaderStateText.noSound(window.appName(Self.zoom)).full)
     }
 
     /// **No access** is announced as **No sound from** is. A come back with no sound announces

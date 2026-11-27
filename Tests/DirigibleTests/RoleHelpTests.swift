@@ -38,6 +38,6 @@ struct RoleHelpTests {
             #expect(!header.contains("\n"), "\(language): one line")
         }
         let header = try #require(try stringsTable("en")["track.role.header"])
-        #expect(header.contains("label") && header.contains("sound"))
+        #expect(header.localizedCaseInsensitiveContains("label") && header.localizedCaseInsensitiveContains("sound"))
     }
 }

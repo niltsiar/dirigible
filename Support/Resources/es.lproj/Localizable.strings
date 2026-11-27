@@ -690,7 +690,7 @@
 "announce.unused.moved.one" = "Se movió 1 archivo a la Papelera (%@).";
 "banner.unused.failed" = "No se pudo mover %@ a la Papelera.";
 "banner.level.none" = "Los clips ya están en el nivel objetivo.";
-"banner.level.volume" = "Cambia la ganancia del clip para cambiar su nivel.";
+"banner.level.volume" = "Ajusta la ganancia del clip para cambiar su nivel.";
 "banner.level.limit" = "Comprueba que los %lld clips en el límite de 20 dB tienen voz.";
 "banner.level.limit.one" = "Comprueba que el clip en el límite de 20 dB tiene voz.";
 "banner.level.unmeasured" = "%lld clips sin nivel que medir mantienen su ganancia.";

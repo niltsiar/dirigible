@@ -196,7 +196,7 @@ struct LevelReportBannerTests {
     @Test func theNoChangeTextHasTheTrackVolumeSentence() throws {
         #expect(
             try english(LevelReport(changed: 0, atLimit: 0, unmeasured: 0))
-                == "The clips are already at the target level. The track volume doesn't change the clip gain."
+                == "The clips are already at the target level. Set the clip gain to change a clip level."
         )
     }
 

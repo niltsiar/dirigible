@@ -388,9 +388,9 @@
 "take.pending.leave.hint" = "Als de schijf deze audio niet opnieuw kan lezen, rond de take dan af zonder de audio en plaats het bestand later.";
 "take.pending.space" = "Voor het afronden is %@ vrije ruimte nodig. Maak ruimte vrij en probeer het opnieuw.";
 "take.ended" = "Take %lld is afgerond.";
-"take.ended.disk.low" = "Take %lld is gestopt. De schijf is bijna vol.";
-"take.gap.device.lost" = "Spoor \U2018%@\U2019 heeft een gat door een weggevallen apparaat.";
-"take.gap.write.failed" = "Spoor \U2018%@\U2019 heeft een gat door een mislukte schrijfactie.";
+"take.ended.disk.low" = "Take %lld is gestopt door weinig schijfruimte. Maak ruimte vrij vóór de volgende take.";
+"take.gap.device.lost" = "Spoor \U2018%@\U2019 heeft een gat door een weggevallen apparaat. Controleer de verbinding vóór de volgende take.";
+"take.gap.write.failed" = "Spoor \U2018%@\U2019 heeft een gat door een mislukte schrijfactie. Controleer de schijf vóór de volgende take.";
 "take.dropped" = "Spoor '%1$@' heeft %2$lld frames verloren.";
 "take.late.start" = "Spoor '%@' mist het begin van de take.";
 "take.recovered" = "Take %lld is hersteld.";
@@ -567,8 +567,8 @@
 "banner.consent.expired.unnamed" = "Het opnameverzoek van een AI-agent is verlopen.";
 "consent.title" = "Een AI-agent laten opnemen?";
 "consent.agent.line" = "De agent zegt dat hij '%@' is.";
-"consent.app.tracks" = "Deze take neemt %@ op. Mensen in het gesprek krijgen geen melding.";
-"consent.message" = "De take neemt %1$@ op, op %2$@, vanaf %3$@. Je hebt %4$@ om te antwoorden.";
+"consent.app.tracks" = "Mensen in het gesprek krijgen geen melding dat deze take %@ opneemt.";
+"consent.message" = "De take neemt %1$@ op, op %2$@, vanaf %3$@. Antwoord binnen %4$@.";
 "consent.record.over" = "De opname vervangt audio op %1$@ na %2$@.";
 "consent.pre.roll.line" = "Begint met opnemen op %1$@, na een pre-roll van %2$@.";
 "consent.dont.record" = "Neem niet op";
@@ -652,7 +652,7 @@
 "sheet.take.time.field" = "Taketijd";
 "sheet.take.time.format" = "Typ de tijd vanaf het begin van de opname van de take als H:MM:SS.mmm (of H:MM:SS,mmm), M:SS of seconden.";
 "sheet.take.time.removed" = "Geen clip speelt deze tijd van take %lld af. Typ een andere tijd.";
-"alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen en worden als stilte geëxporteerd:\n%@";
+"alert.export.missing" = "Deze bestanden worden als stilte geëxporteerd:\n%@";
 "alert.export.confirm" = "Exporteer";
 "alert.exported" = "Sommige ontbrekende of onleesbare bestanden zijn als stilte geëxporteerd:\n%@";
 "alert.exported.loudness" = "De export zit op %.1f LUFS.";
@@ -689,7 +689,7 @@
 "announce.unused.moved.one" = "1 bestand naar de prullenmand verplaatst (%@).";
 "banner.unused.failed" = "%@ kon niet naar de prullenmand worden verplaatst.";
 "banner.level.none" = "De clips staan al op het doelniveau.";
-"banner.level.volume" = "Het spoorvolume verandert de clipversterking niet.";
+"banner.level.volume" = "Stel de clipversterking in om het niveau van een clip te wijzigen.";
 "banner.level.limit" = "Controleer of de %lld clips op de limiet van 20 dB spraak bevatten.";
 "banner.level.limit.one" = "Controleer of de clip op de limiet van 20 dB spraak bevat.";
 "banner.level.unmeasured" = "%lld clips zonder meetbaar niveau houden hun versterking.";
@@ -1135,4 +1135,4 @@
 "banner.archive.no.space" = "Het archiveren heeft geen schijfruimte vrijgemaakt.";
 "banner.archive.damaged" = "Deze bestanden zijn beschadigd (%@).";
 "subtitle.archived" = "Gearchiveerd";
-"subtitle.archived.part" = "Deels gearchiveerd: %lld van %lld bestanden zijn FLAC";
+"subtitle.archived.part" = "Deels gearchiveerd, %lld van %lld bestanden zijn FLAC";

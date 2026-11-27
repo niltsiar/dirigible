@@ -388,9 +388,9 @@
 "take.pending.leave.hint" = "Wenn die Festplatte dieses Audio nicht wieder lesen kann, schließe den Take ohne es ab und platziere die Datei später.";
 "take.pending.space" = "Der Abschluss benötigt %@ freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "take.ended" = "Take %lld ist abgeschlossen.";
-"take.ended.disk.low" = "Take %lld wurde gestoppt. Die Festplatte ist fast voll.";
-"take.gap.device.lost" = "Spur \U201E%@\U201C hat eine Lücke durch ein getrenntes Gerät.";
-"take.gap.write.failed" = "Spur \U201E%@\U201C hat eine Lücke durch einen fehlgeschlagenen Schreibvorgang.";
+"take.ended.disk.low" = "Take %lld wurde wegen wenig Speicherplatz gestoppt. Gib vor dem nächsten Take Speicherplatz frei.";
+"take.gap.device.lost" = "Spur \U201E%@\U201C hat eine Lücke durch ein getrenntes Gerät. Prüfe die Verbindung vor dem nächsten Take.";
+"take.gap.write.failed" = "Spur \U201E%@\U201C hat eine Lücke durch einen fehlgeschlagenen Schreibvorgang. Prüfe die Festplatte vor dem nächsten Take.";
 "take.dropped" = "Spur „%1$@“ hat %2$lld Frames verloren.";
 "take.late.start" = "Spur \U201E%@\U201C fehlt der Anfang des Takes.";
 "take.recovered" = "Take %lld wurde wiederhergestellt.";
@@ -567,8 +567,8 @@
 "banner.consent.expired.unnamed" = "Die Aufnahmeanfrage eines KI-Agenten ist abgelaufen.";
 "consent.title" = "Darf ein KI-Agent aufnehmen?";
 "consent.agent.line" = "Er sagt, er sei „%@“.";
-"consent.app.tracks" = "Dieser Take nimmt %@ auf. Personen im Anruf werden nicht benachrichtigt.";
-"consent.message" = "Der Take nimmt %1$@ auf, auf %2$@, ab %3$@. Du hast %4$@ zum Antworten.";
+"consent.app.tracks" = "Personen im Anruf werden nicht benachrichtigt, dass dieser Take %@ aufnimmt.";
+"consent.message" = "Der Take nimmt %1$@ auf, auf %2$@, ab %3$@. Antworte innerhalb von %4$@.";
 "consent.record.over" = "Die Aufnahme ersetzt Audio auf %1$@ nach %2$@.";
 "consent.pre.roll.line" = "Startet die Aufnahme bei %1$@ nach %2$@ Vorlauf.";
 "consent.dont.record" = "Nicht aufnehmen";
@@ -652,7 +652,7 @@
 "sheet.take.time.field" = "Take-Zeit";
 "sheet.take.time.format" = "Gib die Zeit ab dem Aufnahmebeginn des Takes als H:MM:SS.mmm (oder H:MM:SS,mmm), M:SS oder Sekunden ein.";
 "sheet.take.time.removed" = "Kein Clip spielt diese Zeit von Take %lld ab. Gib eine andere Zeit ein.";
-"alert.export.missing" = "Diese Dateien fehlen oder sind nicht lesbar und werden als Stille exportiert:\n%@";
+"alert.export.missing" = "Diese Dateien werden als Stille exportiert:\n%@";
 "alert.export.confirm" = "Exportieren";
 "alert.exported" = "Einige fehlende oder nicht lesbare Dateien wurden als Stille exportiert:\n%@";
 "alert.exported.loudness" = "Der Export liegt bei %.1f LUFS.";
@@ -689,7 +689,7 @@
 "announce.unused.moved.one" = "1 Datei in den Papierkorb gelegt (%@).";
 "banner.unused.failed" = "%@ konnte nicht in den Papierkorb gelegt werden.";
 "banner.level.none" = "Die Clips haben bereits den Zielpegel.";
-"banner.level.volume" = "Die Spurlautstärke ändert den Clip-Pegel nicht.";
+"banner.level.volume" = "Ändere die Verstärkung des Clips, um seinen Pegel zu ändern.";
 "banner.level.limit" = "Prüfe, ob die %lld Clips am Limit von 20 dB Sprache enthalten.";
 "banner.level.limit.one" = "Prüfe, ob der Clip am Limit von 20 dB Sprache enthält.";
 "banner.level.unmeasured" = "%lld Clips ohne messbaren Pegel bleiben unverändert.";
@@ -1135,4 +1135,4 @@
 "banner.archive.no.space" = "Das Archivieren hat keinen Speicherplatz freigegeben.";
 "banner.archive.damaged" = "Diese Dateien sind beschädigt (%@).";
 "subtitle.archived" = "Archiviert";
-"subtitle.archived.part" = "Teilweise archiviert: %lld von %lld Dateien sind FLAC";
+"subtitle.archived.part" = "Teilweise archiviert, %lld von %lld Dateien sind FLAC";

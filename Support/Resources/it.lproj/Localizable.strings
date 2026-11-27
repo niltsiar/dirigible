@@ -388,9 +388,9 @@
 "take.pending.leave.hint" = "Se il disco non riesce a leggere di nuovo questo audio, termina senza di esso e posiziona il file più tardi.";
 "take.pending.space" = "La finalizzazione richiede %@ di spazio libero. Libera spazio e riprova.";
 "take.ended" = "Il take %lld è terminato.";
-"take.ended.disk.low" = "Il take %lld si è interrotto. Il disco è quasi pieno.";
-"take.gap.device.lost" = "La traccia \U201C%@\U201D ha un vuoto per un dispositivo non più disponibile.";
-"take.gap.write.failed" = "La traccia \U201C%@\U201D ha un vuoto per una scrittura non riuscita.";
+"take.ended.disk.low" = "Il take %lld si è interrotto per poco spazio su disco. Libera spazio prima del prossimo take.";
+"take.gap.device.lost" = "La traccia \U201C%@\U201D ha un vuoto per un dispositivo non più disponibile. Controlla il collegamento prima del prossimo take.";
+"take.gap.write.failed" = "La traccia \U201C%@\U201D ha un vuoto per una scrittura non riuscita. Controlla il disco prima del prossimo take.";
 "take.dropped" = "La traccia “%1$@” ha perso %2$lld frame.";
 "take.late.start" = "Alla traccia \U201C%@\U201D manca l\U2019inizio del take.";
 "take.recovered" = "Il take %lld è stato recuperato.";
@@ -567,8 +567,8 @@
 "banner.consent.expired.unnamed" = "La richiesta di registrazione di un agente IA è scaduta.";
 "consent.title" = "Consentire a un agente IA di registrare?";
 "consent.agent.line" = "Dice di essere “%@”.";
-"consent.app.tracks" = "Questo take registra %@. Le persone nella chiamata non ricevono avvisi.";
-"consent.message" = "Il take registra %1$@ su %2$@ a partire da %3$@. Hai %4$@ per rispondere.";
+"consent.app.tracks" = "Le persone nella chiamata non ricevono avvisi che questo take registra %@.";
+"consent.message" = "Il take registra %1$@ su %2$@ a partire da %3$@. Rispondi entro %4$@.";
 "consent.record.over" = "La registrazione sostituisce l’audio su %1$@ dopo %2$@.";
 "consent.pre.roll.line" = "Inizia a registrare da %1$@, dopo un pre-roll di %2$@.";
 "consent.dont.record" = "Rifiuta";
@@ -652,7 +652,7 @@
 "sheet.take.time.field" = "Tempo del take";
 "sheet.take.time.format" = "Digita il tempo dall’inizio della registrazione del take come H:MM:SS.mmm (o H:MM:SS,mmm), M:SS o secondi.";
 "sheet.take.time.removed" = "Nessun clip riproduce questo tempo del take %lld. Digita un altro tempo.";
-"alert.export.missing" = "Questi file mancano o non sono leggibili e verranno esportati come silenzio:\n%@";
+"alert.export.missing" = "Questi file verranno esportati come silenzio:\n%@";
 "alert.export.confirm" = "Esporta";
 "alert.exported" = "Alcuni file mancanti o illeggibili sono stati esportati come silenzio:\n%@";
 "alert.exported.loudness" = "L\U2019esportazione è a %.1f LUFS.";
@@ -689,7 +689,7 @@
 "announce.unused.moved.one" = "Spostato 1 file nel Cestino (%@).";
 "banner.unused.failed" = "Impossibile spostare %@ nel Cestino.";
 "banner.level.none" = "I clip sono già al livello obiettivo.";
-"banner.level.volume" = "Il volume della traccia non cambia il guadagno del clip.";
+"banner.level.volume" = "Imposta il guadagno del clip per cambiare il livello di un clip.";
 "banner.level.limit" = "Controlla che i %lld clip al limite di 20 dB contengano parlato.";
 "banner.level.limit.one" = "Controlla che il clip al limite di 20 dB contenga parlato.";
 "banner.level.unmeasured" = "%lld clip senza livello misurabile mantengono il guadagno.";
@@ -1135,4 +1135,4 @@
 "banner.archive.no.space" = "L\U2019archiviazione non ha liberato spazio su disco.";
 "banner.archive.damaged" = "Questi file sono danneggiati (%@).";
 "subtitle.archived" = "Archiviata";
-"subtitle.archived.part" = "Archiviata in parte: %lld file su %lld sono FLAC";
+"subtitle.archived.part" = "Archiviata in parte, %lld file su %lld sono FLAC";

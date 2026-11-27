@@ -363,7 +363,7 @@ import os
         #expect(await answer.value == .declined)
         await model.close()
         let english = try stringsTable("en")[L10n.consentAppTracks.rawValue]
-        #expect(english == "This take records %@. People in the call aren't notified.")
+        #expect(english == "People in the call aren't notified that this take records %@.")
     }
 
     /// The IOPM assertions of this process named `name`.

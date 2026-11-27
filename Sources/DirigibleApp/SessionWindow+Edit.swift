@@ -143,9 +143,11 @@ extension SessionWindow {
 
     /// Edit > Duck Selection (Shift-D, decision 0060): `Session.changeGain` at the duck depth over the
     /// range on the selected tracks, with the ramps of the range gain. One edit, so one undo entry.
-    /// With no range, a clip set, ramps that reach no clip, or the -96 dB floor, a beep. VoiceOver
-    /// says the new total at the first frame of the range that a selected clip plays.
+    /// With no range, a clip set, ramps that reach no clip, or the -96 dB floor, a beep. During a take,
+    /// nothing in every selection state: the item is never off (a plain key), so the check is first.
+    /// VoiceOver says the new total at the first frame of the range that a selected clip plays.
     func runDuckSelection(_ studio: Studio) {
+        guard canEdit else { return }
         guard let selection = timeline.selection.marks?.selection(in: studio.session) else { return beep() }
         let ducked = edit(ripple: false) { session throws(SessionError) -> Bool in
             let depth = DuckShape.defaults(sampleRate: session.sampleRate).depth

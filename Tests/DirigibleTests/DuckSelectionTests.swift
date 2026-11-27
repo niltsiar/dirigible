@@ -192,13 +192,16 @@ import Testing
     }
 }
 
-/// Decision 0060: Duck Selection does nothing during a take, and the take goes on.
+/// Decision 0060: Duck Selection does nothing during a take, in every selection state, and the take goes on.
 extension EditTakeTests {
     @Test func duckSelectionDoesNothingDuringATake() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1"])
+        let selections: [Selection] = [
+            model.timeline.selection, .none, .clips(try #require(ClipSet(["c1"]))),
+        ]
         await model.record()
         try #require(studio.transport == .recording(take: 1))
         await hal.feed(seconds: 0.2)
@@ -206,7 +209,10 @@ extension EditTakeTests {
         model.beep = { beeps += 1 }
         let (before, undo) = (studio.session, studio.canUndo)
 
-        model.run(.duckSelection)
+        for selection in selections {
+            model.timeline.selection = selection
+            model.run(.duckSelection)
+        }
 
         #expect(studio.session == before && studio.canUndo == undo, "no envelope changed")
         #expect(studio.session.clip("c1")?.clip.envelope.isEmpty == true && beeps == 0 && model.alert == nil)

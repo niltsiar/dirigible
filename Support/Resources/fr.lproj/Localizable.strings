@@ -906,6 +906,7 @@
 "track.follow.help" = "« Suivre le décalage » est activé. Désactivez-le dans le menu Piste.";
 "track.follow.turn.off" = "Désactiver « Suivre le décalage »";
 "alert.follow.turn.off" = "Désactiver";
+"alert.follow.keep.on" = "Garder";
 "alert.follow.overlap.title" = "Un clip en recouvrirait un autre.";
 "alert.follow.overlap.body" = "Déplacez le clip de %1$@ à %2$@ ou désactivez « Suivre le décalage ».";
 "error.ripple.follow.only" = "Chaque piste suit le décalage. Désactivez \U00AB Suivre le décalage \U00BB sur une piste pour couper.";

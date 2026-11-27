@@ -906,6 +906,7 @@
 "track.follow.help" = "«Seguir el desplazamiento» está activado. Desactívalo en el menú Pista.";
 "track.follow.turn.off" = "Desactivar «Seguir el desplazamiento»";
 "alert.follow.turn.off" = "Desactivar";
+"alert.follow.keep.on" = "Mantener";
 "alert.follow.overlap.title" = "Un clip cubriría otro clip.";
 "alert.follow.overlap.body" = "Mueve el clip de %1$@ en %2$@ o desactiva «Seguir el desplazamiento».";
 "error.ripple.follow.only" = "Todas las pistas siguen el desplazamiento. Desactiva \U00ABSeguir el desplazamiento\U00BB en una pista para cortar.";

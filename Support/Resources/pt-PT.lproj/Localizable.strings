@@ -906,6 +906,7 @@
 "track.follow.help" = "“Acompanhar o deslocamento” está ativado. Desative-o no menu Faixa.";
 "track.follow.turn.off" = "Desativar “Acompanhar o deslocamento”";
 "alert.follow.turn.off" = "Desativar";
+"alert.follow.keep.on" = "Manter";
 "alert.follow.overlap.title" = "Um clipe cobriria outro clipe.";
 "alert.follow.overlap.body" = "Mova o clipe em %1$@ em %2$@ ou desative \U201CAcompanhar o deslocamento\U201D.";
 "error.ripple.follow.only" = "Todas as faixas acompanham o deslocamento. Desative \U201CAcompanhar o deslocamento\U201D numa faixa para cortar.";

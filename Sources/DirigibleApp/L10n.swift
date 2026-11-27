@@ -41,6 +41,7 @@ enum L10n: String, CaseIterable {
     case trackFollowHelp = "track.follow.help"
     case trackFollowTurnOff = "track.follow.turn.off"
     case alertFollowTurnOff = "alert.follow.turn.off"
+    case alertFollowKeepOn = "alert.follow.keep.on"
     case alertFollowOverlapTitle = "alert.follow.overlap.title"
     case alertFollowOverlapBody = "alert.follow.overlap.body"
     case errorRippleFollowOnly = "error.ripple.follow.only"

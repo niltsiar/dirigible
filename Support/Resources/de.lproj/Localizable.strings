@@ -906,6 +906,7 @@
 "track.follow.help" = "„Beim Ripple mitwandern“ ist an. Schalte es im Menü „Spur“ aus.";
 "track.follow.turn.off" = "„Beim Ripple mitwandern“ ausschalten";
 "alert.follow.turn.off" = "Ausschalten";
+"alert.follow.keep.on" = "Eingeschaltet lassen";
 "alert.follow.overlap.title" = "Ein Clip würde einen anderen Clip überdecken.";
 "alert.follow.overlap.body" = "Verschiebe den Clip auf %1$@ bei %2$@ oder schalte \U201EBeim Ripple mitwandern\U201C aus.";
 "error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit. Schalte \U201EBeim Ripple mitwandern\U201C auf einer Spur aus, um zu schneiden.";

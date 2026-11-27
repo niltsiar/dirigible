@@ -906,6 +906,7 @@
 "track.follow.help" = "“Meeschuiven bij ripple” staat aan. Zet het uit in het menu Spoor.";
 "track.follow.turn.off" = "Zet “Meeschuiven bij ripple” uit";
 "alert.follow.turn.off" = "Zet uit";
+"alert.follow.keep.on" = "Laat aan";
 "alert.follow.overlap.title" = "Een clip zou een andere clip bedekken.";
 "alert.follow.overlap.body" = "Verplaats de clip op %1$@ bij %2$@ of zet \U201CMeeschuiven bij ripple\U201D uit.";
 "error.ripple.follow.only" = "Elk spoor schuift mee bij ripple. Zet \U201CMeeschuiven bij ripple\U201D uit op een spoor om te knippen.";

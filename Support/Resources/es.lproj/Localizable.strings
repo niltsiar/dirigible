@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "No se pudo leer ni guardar Favoritos. Comprueba el almacén de Favoritos e inténtalo de nuevo.";
 "error.favorites.space" = "El disco del almacén de Favoritos no tiene suficiente espacio libre. Libera espacio en el disco e inténtalo de nuevo.";
 "error.favorites.copy" = "El audio no se copió en Favoritos (error %lld). Comprueba el disco e inténtalo de nuevo.";
-"error.favorites.source" = "Falta un archivo de audio de esta sesión o ha cambiado. Comprueba la carpeta Clips e inténtalo de nuevo.";
-"error.favorites.download" = "\U00AB%@\U00BB no está descargado en este Mac. Descárgalo e inténtalo de nuevo.";
+"error.favorites.source" = "No se puede añadir a Favoritos un archivo de audio que falta o ha cambiado. Comprueba la carpeta Clips e inténtalo de nuevo.";
+"error.favorites.download" = "No se puede añadir \U00AB%@\U00BB a Favoritos hasta que se descargue en este Mac. Descárgalo e inténtalo de nuevo.";
 "error.favorites.yielded" = "La acción de añadir a Favoritos se detuvo por una toma en otra ventana. Vuelve a añadir después de la toma.";
 "favorites.title" = "Favoritos";
 "favorites.empty" = "No hay favoritos";

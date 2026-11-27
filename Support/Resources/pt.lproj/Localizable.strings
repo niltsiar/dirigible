@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "Não foi possível ler ou salvar os Favoritos. Verifique o repositório de Favoritos e tente novamente.";
 "error.favorites.space" = "O disco do repositório de Favoritos não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
 "error.favorites.copy" = "O áudio não foi copiado para os Favoritos (erro %lld). Verifique o disco e tente novamente.";
-"error.favorites.source" = "Um arquivo de áudio desta sessão está ausente ou foi alterado. Verifique a pasta Clips e tente novamente.";
-"error.favorites.download" = "\U201C%@\U201D não foi baixado para este Mac. Baixe-o e tente novamente.";
+"error.favorites.source" = "Os Favoritos não podem receber um arquivo de áudio ausente ou alterado. Verifique a pasta Clips e tente novamente.";
+"error.favorites.download" = "Os Favoritos não podem receber \U201C%@\U201D até que seja baixado para este Mac. Baixe-o e tente novamente.";
 "error.favorites.yielded" = "A adição aos Favoritos foi interrompida por uma tomada em outra janela. Adicione novamente depois da tomada.";
 "favorites.title" = "Favoritos";
 "favorites.empty" = "Nenhum Favorito";

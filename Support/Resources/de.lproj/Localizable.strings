@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "Die Favoriten konnten nicht gelesen oder gesichert werden. Prüfe den Favoritenspeicher und versuche es erneut.";
 "error.favorites.space" = "Die Festplatte des Favoritenspeichers hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.favorites.copy" = "Das Audio wurde nicht in die Favoriten kopiert (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
-"error.favorites.source" = "Eine Audiodatei dieser Session fehlt oder wurde geändert. Prüfe den Clips-Ordner und versuche es erneut.";
-"error.favorites.download" = "\U201E%@\U201C ist nicht auf diesen Mac heruntergeladen. Lade die Datei herunter und versuche es erneut.";
+"error.favorites.source" = "Die Favoriten können keine fehlende oder geänderte Audiodatei aufnehmen. Prüfe den Clips-Ordner und versuche es erneut.";
+"error.favorites.download" = "Die Favoriten können \U201E%@\U201C erst aufnehmen, wenn die Datei auf diesen Mac heruntergeladen ist. Lade die Datei herunter und versuche es erneut.";
 "error.favorites.yielded" = "Das Hinzufügen zu den Favoriten wurde für einen Take in einem anderen Fenster gestoppt. Füge nach dem Take erneut hinzu.";
 "favorites.title" = "Favoriten";
 "favorites.empty" = "Keine Favoriten";

@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "Favorites couldn't be read or saved. Check the Favorites store and try again.";
 "error.favorites.space" = "The disk of the Favorites store doesn't have enough free space. Free some disk space and try again.";
 "error.favorites.copy" = "The audio couldn't be copied into Favorites (error %lld). Check the disk and try again.";
-"error.favorites.source" = "An audio file of this session is missing or changed. Check the Clips folder and try again.";
-"error.favorites.download" = "\U201C%@\U201D isn't downloaded to this Mac. Download it and try again.";
+"error.favorites.source" = "Favorites can't take a missing or changed audio file. Check the Clips folder and try again.";
+"error.favorites.download" = "Favorites can't take \U201C%@\U201D until it's downloaded to this Mac. Download it and try again.";
 "error.favorites.yielded" = "The add to Favorites stopped for a take in another window. Add again after the take.";
 "favorites.title" = "Favorites";
 "favorites.empty" = "No Favorites";

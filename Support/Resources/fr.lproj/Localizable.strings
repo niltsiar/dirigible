@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "Les favoris n’ont pas pu être lus ou enregistrés. Vérifiez le stockage des favoris et réessayez.";
 "error.favorites.space" = "Le disque du stockage des favoris n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
 "error.favorites.copy" = "L’audio n’a pas été copié dans les favoris (erreur %lld). Vérifiez le disque et réessayez.";
-"error.favorites.source" = "Un fichier audio de cette session est absent ou a changé. Vérifiez le dossier Clips et réessayez.";
-"error.favorites.download" = "« %@ \U00BB n\U2019est pas téléchargé sur ce Mac. Téléchargez-le et réessayez.";
+"error.favorites.source" = "Les favoris ne peuvent pas accepter un fichier audio absent ou modifié. Vérifiez le dossier Clips et réessayez.";
+"error.favorites.download" = "Les favoris ne peuvent pas accepter « %@ \U00BB avant son téléchargement sur ce Mac. Téléchargez-le et réessayez.";
 "error.favorites.yielded" = "L’ajout aux favoris s’est arrêté à cause d’une prise dans une autre fenêtre. Ajoutez à nouveau après la prise.";
 "favorites.title" = "Favoris";
 "favorites.empty" = "Aucun favori";

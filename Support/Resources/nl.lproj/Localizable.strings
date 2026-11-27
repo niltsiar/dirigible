@@ -1107,8 +1107,8 @@
 "error.favorites.file.other" = "De favorieten konden niet worden gelezen of bewaard. Controleer de favorietenopslag en probeer het opnieuw.";
 "error.favorites.space" = "De schijf van de favorietenopslag heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.favorites.copy" = "De audio is niet naar de favorieten gekopieerd (fout %lld). Controleer de schijf en probeer het opnieuw.";
-"error.favorites.source" = "Een audiobestand van deze sessie ontbreekt of is gewijzigd. Controleer de map Clips en probeer het opnieuw.";
-"error.favorites.download" = "'%@' is niet naar deze Mac gedownload. Download het en probeer het opnieuw.";
+"error.favorites.source" = "De favorieten kunnen geen ontbrekend of gewijzigd audiobestand opnemen. Controleer de map Clips en probeer het opnieuw.";
+"error.favorites.download" = "De favorieten kunnen '%@' pas opnemen als het naar deze Mac is gedownload. Download het en probeer het opnieuw.";
 "error.favorites.yielded" = "Het toevoegen aan de favorieten is gestopt vanwege een take in een ander venster. Voeg opnieuw toe na de take.";
 "favorites.title" = "Favorieten";
 "favorites.empty" = "Geen favorieten";

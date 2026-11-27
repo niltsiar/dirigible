@@ -115,8 +115,6 @@ extension DropTests {
     /// lanes in a window with room for three more show it. A drag cue, a window with no row of one
     /// lane under the last lane, and a take that records hide it.
     @Test func theAreaBelowTheLastLaneHintsAtADrop() async throws {
-        // The first NSRulerView registers units with AppKit strings, which withStrings breaks.
-        _ = NSRulerView(scrollView: nil, orientation: .horizontalRuler)
         try await HeaderStateLineTests().withStrings("en") {
             let (model, studio, view) = try await open(tracks: 2, seconds: 120, laneHeight: 60)
             let window = try #require(model.window)

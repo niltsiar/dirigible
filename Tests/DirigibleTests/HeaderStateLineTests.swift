@@ -25,28 +25,47 @@ import Testing
     /// Runs `body` with the strings of `language`, and restores the lookups of the test runner.
     /// A verbatim text of `L10n` takes the table. A SwiftUI `LocalizedStringKey` does not, in any
     /// of these variants: it shows its key. The header rows draw each text verbatim (decision 0010,
-    /// **Views**), so the tests draw them with the table.
+    /// **Views**), so the tests draw them with the table. Only `Bundle.main`, which `L10n` reads,
+    /// takes the table: each other bundle keeps its own lookup.
     func withStrings(_ language: String, _ body: () async throws -> Void) async throws {
         let table = try stringsTable(language)
-        let three: @convention(block) (Bundle, String, String?, String?) -> String = { _, key, value, _ in
-            table[key] ?? value ?? key
-        }
-        let four: @convention(block) (Bundle, String, String?, String?, AnyObject?) -> String = { _, key, value, _, _ in
-            table[key] ?? value ?? key
-        }
-        let lookups: [(String, Any)] = [
-            ("localizedStringForKey:value:table:", three),
-            ("localizedStringForKey:value:table:localization:", four),
-            ("localizedStringForKey:value:table:localizations:", four),
-            ("_localizedStringForKey:value:table:localizations:", four),
+        let lookups = [
+            "localizedStringForKey:value:table:", "localizedStringForKey:value:table:localization:",
+            "localizedStringForKey:value:table:localizations:", "_localizedStringForKey:value:table:localizations:",
         ]
         var olds: [(Method, IMP)] = []
         defer { for (method, old) in olds { method_setImplementation(method, old) } }
-        for (name, block) in lookups {
-            let method = try #require(class_getInstanceMethod(Bundle.self, NSSelectorFromString(name)), "\(name)")
+        for name in lookups {
+            let selector = NSSelectorFromString(name)
+            let method = try #require(class_getInstanceMethod(Bundle.self, selector), "\(name)")
+            let block = Self.mainBundleLookup(selector, old: method_getImplementation(method), table: table)
             olds.append((method, method_setImplementation(method, imp_implementationWithBlock(block))))
         }
         try await body()
+    }
+
+    /// The block of the lookup `selector`: the value of `table` for `Bundle.main`, and the `old`
+    /// lookup for each other bundle. It is nonisolated, because each thread can look up a string.
+    nonisolated static func mainBundleLookup(_ selector: Selector, old imp: IMP, table: [String: String]) -> Any {
+        func text(_ key: NSString, _ value: NSString?) -> NSString {
+            table[key as String].map { $0 as NSString } ?? value ?? key
+        }
+        typealias OldThree = @convention(c) (Bundle, Selector, NSString, NSString?, NSString?) -> NSString?
+        typealias Three = @convention(block) (Bundle, NSString, NSString?, NSString?) -> NSString?
+        typealias OldFour = @convention(c) (Bundle, Selector, NSString, NSString?, NSString?, AnyObject?) -> NSString?
+        typealias Four = @convention(block) (Bundle, NSString, NSString?, NSString?, AnyObject?) -> NSString?
+        if NSStringFromSelector(selector).hasSuffix("table:") {
+            let oldThree = unsafeBitCast(imp, to: OldThree.self)
+            let three: Three = { bundle, key, value, file in
+                bundle === Bundle.main ? text(key, value) : oldThree(bundle, selector, key, value, file)
+            }
+            return three
+        }
+        let oldFour = unsafeBitCast(imp, to: OldFour.self)
+        let four: Four = { bundle, key, value, file, languages in
+            bundle === Bundle.main ? text(key, value) : oldFour(bundle, selector, key, value, file, languages)
+        }
+        return four
     }
 
     /// The rows of 0.5 pt of row 1 (the no-sound track) that have orange pixels, from 8 pt to
@@ -84,6 +103,18 @@ import Testing
             gap = orange ? 0 : gap + 1
         }
         return bands
+    }
+
+    /// The swap gives the table to `Bundle.main` only. `+[NSRulerView initialize]` reads its unit
+    /// names from the AppKit bundle, and a swapped unit name stopped the test process.
+    @Test func aStringSwapLeavesOtherBundlesAlone() async throws {
+        let appKit = Bundle(for: NSView.self)
+        let unit = appKit.localizedString(forKey: "in", value: "", table: "Ruler")
+        try #require(!unit.isEmpty, "AppKit has the ruler unit in")
+        try await withStrings("de") {
+            #expect(appKit.localizedString(forKey: "in", value: "", table: "Ruler") == unit)
+            #expect(L10n.alertCancel.text == "Abbrechen")
+        }
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

@@ -236,10 +236,13 @@ struct ChromeState: Equatable {
     var agentConnected = false
     /// A pre-roll take plays before T: the subtitle starts with "Pre-roll".
     var preRolling = false
+    /// The number of the last take that ended with no disk-low stop. VoiceOver hears its end.
+    var finishedTake: Int?
 
     @MainActor init(model: SessionWindow) {
         agentConnected = (model.app?.agents.connected ?? 0) > 0
         guard let studio = model.studio else { return }
+        if let last = studio.lastTake, last.end != .diskLow { finishedTake = last.take }
         let recording = model.canStop
         playing = studio.playback != .stopped
         // During a take, the time shows the record head with tenths.

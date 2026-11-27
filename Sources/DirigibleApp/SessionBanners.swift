@@ -292,14 +292,15 @@ struct TakeBanner: View {
 }
 
 extension TakeResult {
-    /// The rows of the take banner: the end, then a row for each gap, each track that dropped
-    /// frames, and each track of a pre-roll take that started late. `name` gives a track name and
-    /// `text` the value of a key.
+    /// The rows of the take banner: a disk-low stop, then a row for each gap, each track that dropped
+    /// frames, and each track of a pre-roll take that started late. A clean end has no row: the clips
+    /// show on the timeline, and VoiceOver hears the end. `name` gives a track name and `text` the
+    /// value of a key.
     func bannerLines(name: (TrackID) -> String, text: (L10n) -> String = { $0.text }) -> [String] {
         func row(_ key: L10n, _ arguments: any CVarArg...) -> String {
             String(format: text(key), locale: .current, arguments: arguments)
         }
-        var lines = [end == .diskLow ? row(.takeEndedDiskLow, take) : row(.takeEnded, take)]
+        var lines = end == .diskLow ? [row(.takeEndedDiskLow, take)] : []
         for (track, gap) in gaps.sorted(by: { $0.key < $1.key }) {
             lines.append(row(gap == .deviceLost ? .takeGapDeviceLost : .takeGapWriteFailed, name(track)))
         }

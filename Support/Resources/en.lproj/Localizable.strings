@@ -906,6 +906,7 @@
 "track.follow.help" = "Follow in Ripples is on. Turn it off in the Track menu.";
 "track.follow.turn.off" = "Turn Off Follow in Ripples";
 "alert.follow.turn.off" = "Turn Off";
+"alert.follow.keep.on" = "Keep On";
 "alert.follow.overlap.title" = "A clip would cover another clip.";
 "alert.follow.overlap.body" = "Move the clip on %1$@ at %2$@, or turn off Follow in Ripples.";
 "error.ripple.follow.only" = "Every track follows ripples. Turn off Follow in Ripples on a track to cut.";

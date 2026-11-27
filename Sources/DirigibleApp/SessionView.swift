@@ -24,8 +24,9 @@ struct SessionView: View {
             ) { alert in
                 switch alert {
                 case .followOverlap:
+                    // The default button: Return closes the alert, and the edit does not run again.
+                    Button(L10n.alertFollowKeepOn.key) {}
                     Button(L10n.alertFollowTurnOff.key) { model.turnOffFollow(in: alert) }
-                    Button(L10n.alertCancel.key, role: .cancel) {}
                 // Stop and Close is the default (Return), as Stop and Quit: the user chose Close, and the
                 // finalize keeps the audio (HIG). The unsaved Close has no Return: Undo cannot give back
                 // the edits that the failed save lost.

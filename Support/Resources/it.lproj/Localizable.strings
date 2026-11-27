@@ -906,6 +906,7 @@
 "track.follow.help" = "“Segui lo spostamento” è attivo. Disattivalo nel menu Traccia.";
 "track.follow.turn.off" = "Disattiva “Segui lo spostamento”";
 "alert.follow.turn.off" = "Disattiva";
+"alert.follow.keep.on" = "Mantieni";
 "alert.follow.overlap.title" = "Una clip ne coprirebbe un'altra.";
 "alert.follow.overlap.body" = "Sposta la clip su %1$@ a %2$@ o disattiva \U201CSegui lo spostamento\U201D.";
 "error.ripple.follow.only" = "Ogni traccia segue lo spostamento. Disattiva \U201CSegui lo spostamento\U201D su una traccia per tagliare.";

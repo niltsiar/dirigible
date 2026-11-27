@@ -38,17 +38,41 @@ import Testing
         await model.close()
     }
 
-    /// ui-audit A4: the overlap alert of Follow in Ripples offers Turn Off and Cancel, not OK. Esc gives
-    /// Cancel, which keeps Follow on.
-    @Test func theFollowOverlapAlertHasTurnOffAndCancel() async throws {
+    /// The overlap alert of Follow in Ripples on a window where track `t1` follows.
+    func showFollowOverlap() async throws -> (SessionWindow, NSWindow, NSWindow) {
         let overlap = FollowOverlap(track: "t1", trackName: "T1", start: 48_000, rate: 48_000)
-        let (model, window, sheet) = try await show(.followOverlap(overlap))
+        let shown = try await show(.followOverlap(overlap))
+        let studio = try #require(shown.0.studio)
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.setFollowTrack(true, tracks: ["t1"]) }
+        return shown
+    }
+
+    /// ui-audit A4: the overlap alert of Follow in Ripples names its two actions, with no OK. Return
+    /// answers Keep On, so it closes the alert and Follow stays on.
+    @Test func returnOnTheFollowOverlapAlertKeepsFollowOn() async throws {
+        let (model, window, sheet) = try await showFollowOverlap()
         #expect(
-            buttons(sheet.contentView).map(\.title).sorted() == [L10n.alertCancel.text, L10n.alertFollowTurnOff.text])
+            buttons(sheet.contentView).map(\.title).sorted()
+                == [L10n.alertFollowKeepOn.text, L10n.alertFollowTurnOff.text].sorted())
+        let defaultButton = buttons(sheet.contentView).first { $0.keyEquivalent == "\r" }
+        #expect(defaultButton?.title == L10n.alertFollowKeepOn.text)
 
-        press("\u{1b}", code: 53, in: sheet)
+        press("\r", code: 36, in: sheet)
 
-        await until("Esc answers Cancel") { model.alert == nil && window.attachedSheet == nil }
+        await until("Return closes the alert") { model.alert == nil && window.attachedSheet == nil }
+        #expect(model.follows(["t1"]), "Return keeps Follow on")
+        await model.close()
+    }
+
+    @Test func turnOffOnTheFollowOverlapAlertTurnsFollowOff() async throws {
+        let (model, window, sheet) = try await showFollowOverlap()
+        #expect(model.follows(["t1"]))
+
+        let turnOff = try #require(buttons(sheet.contentView).first { $0.title == L10n.alertFollowTurnOff.text })
+        turnOff.performClick(nil)
+
+        await until("Turn Off closes the alert") { model.alert == nil && window.attachedSheet == nil }
+        #expect(!model.follows(["t1"]), "Turn Off ends Follow")
         await model.close()
     }
 

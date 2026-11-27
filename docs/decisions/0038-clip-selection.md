@@ -63,6 +63,7 @@ public enum Selection: Hashable, Sendable {
 | Copy | `Session.excerpt(of:)` of the live set clips, kind `.clips`; no change to the session |
 | Cut | One edit: the set excerpt and `removeClips`; the gaps stay; the playhead stays; the selection is empty. No ripple, so a pending or split take does not block it |
 | Heal Clips | Off: a clip set has no range |
+| Duck Selection | Beep: a clip set has no range (0060) |
 | Delete and Close Gap, the two "in Selected Tracks" items | Beep (a ripple needs a range scope, 0037) |
 | Paste, Insert | The first track (session order) with a set clip, at the playhead. After a set excerpt, the selection is the pasted clips |
 | Split | The playhead, only on the tracks where a set clip holds it |

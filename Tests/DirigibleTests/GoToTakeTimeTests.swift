@@ -40,6 +40,31 @@ import Testing
         await model.close()
     }
 
+    /// ui-audit A4: the action of the sheet is the verb Go, and its default button, the one that
+    /// Return presses, goes to the take time. The text of a SwiftUI button is not in the view tree.
+    @Test func theDefaultButtonOfTheSheetGoes() async throws {
+        let (model, studio) = try await sync.open(try sync.oneTake())
+        let window = try #require(model.window)
+        model.startTakeTime()
+        model.takeTimeDraft?.text = "0:00:10"
+
+        await until("the sheet shows") { window.attachedSheet != nil }
+        let sheet = try #require(window.attachedSheet)
+        sheet.contentView?.layoutSubtreeIfNeeded()
+        func buttons(_ view: NSView) -> [NSButton] {
+            (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+        }
+        let go = try #require(sheet.contentView.map(buttons)?.first { $0.keyEquivalent == "\r" })
+        go.performClick(nil)
+
+        await until("the sheet goes") { model.takeTimeDraft == nil }
+        #expect(studio.playhead == Frames(10 * Self.second))
+        var verb = ""
+        try await HeaderStateLineTests().withStrings("en") { verb = L10n.sheetTakeTimeGo.text }
+        #expect(verb == "Go")
+        await model.close()
+    }
+
     /// No take audio: the item is off, and the command opens no sheet.
     @Test func noTakeAudioTurnsTheItemOff() async throws {
         let (model, _) = try await sync.open(try await timelinePackage(in: sync.folder.url, tracks: 1, seconds: 60))

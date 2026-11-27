@@ -90,7 +90,8 @@ struct TakeTimeSheet: View {
             HStack {
                 Spacer()
                 Button(L10n.alertCancel.key) { model.takeTimeDraft = nil }.keyboardShortcut(.cancelAction)
-                Button(L10n.alertOK.key) { Task { await model.goToTakeTime() } }.keyboardShortcut(.defaultAction)
+                Button(L10n.sheetTakeTimeGo.key) { Task { await model.goToTakeTime() } }
+                    .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)

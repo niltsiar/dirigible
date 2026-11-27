@@ -38,6 +38,20 @@ import Testing
         await model.close()
     }
 
+    /// ui-audit A4: the overlap alert of Follow in Ripples offers Turn Off and Cancel, not OK. Esc gives
+    /// Cancel, which keeps Follow on.
+    @Test func theFollowOverlapAlertHasTurnOffAndCancel() async throws {
+        let overlap = FollowOverlap(track: "t1", trackName: "T1", start: 48_000, rate: 48_000)
+        let (model, window, sheet) = try await show(.followOverlap(overlap))
+        #expect(
+            buttons(sheet.contentView).map(\.title).sorted() == [L10n.alertCancel.text, L10n.alertFollowTurnOff.text])
+
+        press("\u{1b}", code: 53, in: sheet)
+
+        await until("Esc answers Cancel") { model.alert == nil && window.attachedSheet == nil }
+        await model.close()
+    }
+
     @Test func stopAndCloseTakesReturn() async throws {
         let (model, _, sheet) = try await show(.confirmStopAndClose)
         let cancel = buttons(sheet.contentView).first { $0.keyEquivalent == "\u{1b}" }

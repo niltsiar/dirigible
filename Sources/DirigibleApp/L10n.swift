@@ -307,6 +307,7 @@ enum L10n: String, CaseIterable {
     case sheetDuckApply = "sheet.duck.apply"
     case menuTransportTakeTime = "menu.transport.take.time"
     case sheetTakeTimeTitle = "sheet.take.time.title"
+    case sheetTakeTimeGo = "sheet.take.time.go"
     case sheetTakeTimeTake = "sheet.take.time.take"
     case sheetTakeTimeItem = "sheet.take.time.item"
     case sheetTakeTimeField = "sheet.take.time.field"

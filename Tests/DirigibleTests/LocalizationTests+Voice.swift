@@ -278,6 +278,7 @@ private let buttonKeys = [
     "consent.dont.record", "silences.scan.again", "report.save", "notice.unclean.later", "transcribe.again",
     "export.presets.choose.folder", "start.open.other", "alert.transcribe.locate", "banner.take.sync.show",
     "banner.archived.unarchive", "alert.archive.confirm", "alert.export.replace.confirm", "template.replace.replace",
+    "sheet.take.time.go",
 ]
 
 /// The help lines of Settings and the note of the Sync sheet.

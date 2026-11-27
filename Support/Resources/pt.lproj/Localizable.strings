@@ -647,6 +647,7 @@
 "sheet.duck.apply" = "Aplicar";
 "menu.transport.take.time" = "Ir para o Tempo da Tomada…";
 "sheet.take.time.title" = "Ir para o Tempo da Tomada";
+"sheet.take.time.go" = "Ir";
 "sheet.take.time.take" = "Tomada";
 "sheet.take.time.item" = "Tomada %lld";
 "sheet.take.time.field" = "Tempo da tomada";

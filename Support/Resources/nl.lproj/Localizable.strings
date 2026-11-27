@@ -647,6 +647,7 @@
 "sheet.duck.apply" = "Pas toe";
 "menu.transport.take.time" = "Ga naar taketijd…";
 "sheet.take.time.title" = "Ga naar taketijd";
+"sheet.take.time.go" = "Ga";
 "sheet.take.time.take" = "Take";
 "sheet.take.time.item" = "Take %lld";
 "sheet.take.time.field" = "Taketijd";

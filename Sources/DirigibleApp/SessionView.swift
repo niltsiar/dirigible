@@ -328,9 +328,7 @@ extension WindowAlert {
         case .noUnusedFiles(let scan): ([L10n.alertUnusedNone.text] + L10n.scanLines(scan)).joined(separator: "\n\n")
         case .exported(let paths, let report):
             L10n.alertExported.format(paths.joined(separator: "\n"))
-                + (report.map {
-                    "\n\n" + L10n.alertExportedLoudness.format(L10n.message(for: $0)) + L10n.largeGainHint(for: $0)
-                } ?? "")
+                + (report.flatMap(L10n.exportedLoudness).map { "\n\n" + $0 } ?? "")
         case .exportedSet(let media, let parts):
             L10n.alertExported.format(media.joined(separator: "\n")) + "\n\n"
                 + L10n.alertExportedParts.format(parts.joined(separator: "\n"))

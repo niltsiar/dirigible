@@ -234,7 +234,7 @@ import Testing
         await until("no banner names gone.wav") { model.shown.banners.contains(named) }
         #expect(named.kind == .warning && named.text == L10n.bannerDuckUnread.format("gone.wav"))
         let silent = WindowBanner.duckNoSpeech(threshold: -40, unread: ["gone.wav"], press: 1).text
-        #expect(silent == L10n.bannerDuckNoSpeechUnread.format(-40.0, "gone.wav"), "no speech: \(silent)")
+        #expect(silent == L10n.bannerDuckUnread.format("gone.wav"), "no speech: \(silent)")
         await model.close()
     }
 

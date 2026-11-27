@@ -125,16 +125,13 @@ extension SessionWindow {
             return
         }
         commitDrafts()
-        let (before, playhead) = (studio.session.end, studio.playhead)
+        let playhead = studio.playhead
         do throws(StudioError) {
             let result = try studio.applySilences(plan, scan: review.scan)
-            let summary = review.summary
             timeline.selection = .none
             let moved = playhead.afterRippleDelete(of: result.cuts.sorted { $0.lowerBound < $1.lowerBound })
             if moved != playhead { transport(.seek(.frame(moved))) }
-            let note = SilenceNote(
-                shortened: result.cuts.count, muted: summary.counts[.mute] ?? 0, marked: result.markers.count,
-                removed: result.removed, before: before, after: before - result.removed, rate: review.rate)
+            let note = SilenceNote(shortened: result.cuts.count, removed: result.removed, rate: review.rate)
             (silences.review, silences.selection, silences.note) = (nil, [], note)
             chrome?.announce(note.text(), .medium)
         } catch .rippleBlocked {

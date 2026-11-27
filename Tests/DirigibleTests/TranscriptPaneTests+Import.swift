@@ -129,13 +129,13 @@ extension TranscriptPaneTests {
                 skipped: 1, untimed: 0, repeated: 0, dropped: [], text: { table[$0.rawValue] ?? "" })
             #expect(text == expected, "\(language)")
         }
+        let english = try stringsTable("en")
         let all = L10n.transcriptImportResult(
-            skipped: 1, untimed: 2, repeated: 3, dropped: ["a", "b"],
-            text: { (try? stringsTable("en"))?[$0.rawValue] ?? "" })
-        #expect(
-            all
-                == "1 word has no clip. 2 words have no time. 3 words are over repeated audio. Dropped a, b. It didn't load."
-        )
+            skipped: 1, untimed: 2, repeated: 3, dropped: ["a", "b"], text: { english[$0.rawValue] ?? "" })
+        #expect(all == "a, b didn't load. Check the file and import it again.", "ui-audit A3: one fact and its step")
+        let counts = L10n.transcriptImportResult(
+            skipped: 0, untimed: 2, repeated: 3, dropped: [], text: { english[$0.rawValue] ?? "" })
+        #expect(counts == "2 words have no time.", "the first count only")
         #expect(L10n.transcriptImportResult(skipped: 0, untimed: 0, repeated: 0, dropped: []) == nil)
         await model.close()
     }

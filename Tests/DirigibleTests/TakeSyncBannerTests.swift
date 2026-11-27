@@ -142,13 +142,11 @@ import Testing
         #expect(model.shown.banners.filter { $0.key.hasPrefix("takeSyncBroken") } == [row])
         #expect(row.kind == .warning && row.announcement == .medium)
         #expect(
-            takeSyncBreakText(take: 1, from: 480_000, rate: 48_000, agent: "Test Agent", text: englishText)
-                == "Test Agent moved part of take 1. It's now out of sync with its recording from 0:00:10."
-        )
+            takeSyncBreakText(take: 1, agent: "Test Agent", text: englishText)
+                == "Test Agent moved part of take 1 out of sync. Undo the edit to put it back.")
         #expect(
-            takeSyncBreakText(take: 1, from: 480_000, rate: 48_000, agent: nil, text: englishText)
-                == "An AI agent moved part of take 1. It's now out of sync with its recording from 0:00:10."
-        )
+            takeSyncBreakText(take: 1, agent: nil, text: englishText)
+                == "An AI agent moved part of take 1 out of sync. Undo the edit to put it back.")
         await model.close()
     }
 

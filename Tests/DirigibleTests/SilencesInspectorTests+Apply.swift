@@ -110,10 +110,10 @@ extension SilencesInspectorTests {
         await second.close()
     }
 
-    /// C34: after Apply the tab gives the count of each action, the time removed, and the length
-    /// before and after, with the `.one` key for one shortened silence, and VoiceOver announces it.
-    /// It stays until the next scan or a settings change.
-    @Test func theNoteGivesTheLengthBeforeAndAfter() async throws {
+    /// C34, ui-audit A3: after Apply the tab gives the shortened silences and the time removed in one
+    /// sentence, with the `.one` key for one shortened silence, and VoiceOver announces it. It stays
+    /// until the next scan or a settings change.
+    @Test func theNoteGivesTheTimeRemoved() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let english = try stringsTable("en")
         let spanish = try stringsTable("es")
@@ -124,13 +124,10 @@ extension SilencesInspectorTests {
         model.setSilenceAction(.skip, rows: [1])
         model.applySilences()
         let note = try #require(model.silences.note)
-        #expect(note.shortened == 1 && note.removed == 96_000 && note.before == 480_000 && note.after == 384_000)
+        #expect(note.shortened == 1 && note.removed == 96_000)
         let en = Locale(identifier: "en")
-        #expect(
-            note.text(locale: en, table: { english[$0.rawValue]! })
-                == "Shortened 1 silence (removed 2.0 s, from 10.0 s to 8.0 s), muted 0, marked 0.")
-        #expect(
-            note.text(locale: Locale(identifier: "es"), table: { spanish[$0.rawValue]! }).contains("de 10,0 s a 8,0 s"))
+        #expect(note.text(locale: en, table: { english[$0.rawValue]! }) == "Shortened 1 silence by 2.0 s.")
+        #expect(note.text(locale: Locale(identifier: "es"), table: { spanish[$0.rawValue]! }).contains("2,0 s"))
         #expect(SilenceReview.seconds(Frames(360_000), rate: 48_000, locale: Locale(identifier: "es")) == "7,5")
         #expect(announced.contains("silences.note.one"), "VoiceOver announcements: \(announced)")
         model.silences.settings.threshold = -41
@@ -141,7 +138,7 @@ extension SilencesInspectorTests {
         model.applySilences()
         #expect(
             model.silences.note?.text(locale: en, table: { english[$0.rawValue]! })
-                == "Shortened 2 silences (removed 3.5 s, from 10.0 s to 6.5 s), muted 0, marked 0.")
+                == "Shortened 2 silences by 3.5 s in all.")
         await model.scanSilences()
         #expect(model.silences.note == nil, "a scan keeps the note")
         await model.close()

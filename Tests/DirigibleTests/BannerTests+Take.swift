@@ -296,8 +296,8 @@ extension BannerTests {
 
         #expect(rows.count == 3, "\(rows)")
         #expect(rows[0] == "Take 2 is finished.")
-        #expect(rows[1].contains("“Host”") && rows[1].contains("started recording late"), "\(rows[1])")
-        #expect(rows[2].contains("“Guest”") && rows[2].contains("started recording late"), "\(rows[2])")
+        #expect(rows[1].contains("“Host”") && rows[1].contains("misses the start of the take"), "\(rows[1])")
+        #expect(rows[2].contains("“Guest”") && rows[2].contains("misses the start of the take"), "\(rows[2])")
     }
 
     /// A track whose first record came after the stop is a late start with no audio: the row still
@@ -306,7 +306,7 @@ extension BannerTests {
         let take = TakeResult(take: 1, end: .requested, gaps: [:], lateStarts: ["t1"])
         let row = try #require(try rows(take).last)
 
-        #expect(row == "Track “t1” started recording late. The start of the take is missing from it.")
+        #expect(row == "Track “t1” misses the start of the take.")
     }
 
     /// Negative control: a take with no late start has no such row, and a gap keeps its own row.

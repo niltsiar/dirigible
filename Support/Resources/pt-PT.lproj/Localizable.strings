@@ -388,9 +388,9 @@
 "take.pending.leave.hint" = "Se o disco não conseguir voltar a ler este áudio, finalize sem ele e posicione o ficheiro mais tarde.";
 "take.pending.space" = "A finalização precisa de %@ de espaço livre. Liberte espaço e volte a tentar.";
 "take.ended" = "O excerto %lld foi finalizado.";
-"take.ended.disk.low" = "O excerto %lld parou. O disco está quase cheio.";
-"take.gap.device.lost" = "A faixa \U201C%@\U201D tem uma lacuna por um dispositivo indisponível.";
-"take.gap.write.failed" = "A faixa \U201C%@\U201D tem uma lacuna por uma escrita que falhou.";
+"take.ended.disk.low" = "O excerto %lld parou por falta de espaço em disco. Liberte espaço antes do próximo excerto.";
+"take.gap.device.lost" = "A faixa \U201C%@\U201D tem uma lacuna por um dispositivo indisponível. Verifique a ligação antes do próximo excerto.";
+"take.gap.write.failed" = "A faixa \U201C%@\U201D tem uma lacuna por uma escrita que falhou. Verifique o disco antes do próximo excerto.";
 "take.dropped" = "A faixa “%1$@” perdeu %2$lld frames.";
 "take.late.start" = "Falta à faixa \U201C%@\U201D o início do excerto.";
 "take.recovered" = "O excerto %lld foi recuperado.";
@@ -567,8 +567,8 @@
 "banner.consent.expired.unnamed" = "O pedido de gravação de um agente de IA expirou.";
 "consent.title" = "Permitir que um agente de IA grave?";
 "consent.agent.line" = "Diz ser “%@”.";
-"consent.app.tracks" = "Este excerto grava %@. As pessoas na chamada não são avisadas.";
-"consent.message" = "O excerto grava %1$@ em %2$@ a partir de %3$@. Tem %4$@ para responder.";
+"consent.app.tracks" = "As pessoas na chamada não são avisadas de que este excerto grava %@.";
+"consent.message" = "O excerto grava %1$@ em %2$@ a partir de %3$@. Responda dentro de %4$@.";
 "consent.record.over" = "A gravação substitui o áudio em %1$@ depois de %2$@.";
 "consent.pre.roll.line" = "Começa a gravar em %1$@, depois de um pré-roll de %2$@.";
 "consent.dont.record" = "Não gravar";
@@ -652,7 +652,7 @@
 "sheet.take.time.field" = "Tempo do excerto";
 "sheet.take.time.format" = "Introduza o tempo desde o início da gravação do excerto como H:MM:SS.mmm (ou H:MM:SS,mmm), M:SS ou segundos.";
 "sheet.take.time.removed" = "Nenhum clipe reproduz este tempo do excerto %lld. Introduza outro tempo.";
-"alert.export.missing" = "Estes ficheiros estão em falta ou não podem ser lidos e serão exportados como silêncio:\n%@";
+"alert.export.missing" = "Estes ficheiros serão exportados como silêncio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "Alguns ficheiros em falta ou ilegíveis foram exportados como silêncio:\n%@";
 "alert.exported.loudness" = "A exportação está a %.1f LUFS.";
@@ -689,7 +689,7 @@
 "announce.unused.moved.one" = "1 ficheiro movido para o Lixo (%@).";
 "banner.unused.failed" = "Não foi possível mover %@ para o Lixo.";
 "banner.level.none" = "Os clipes já estão no nível alvo.";
-"banner.level.volume" = "O volume da faixa não altera o ganho do clipe.";
+"banner.level.volume" = "Ajuste o ganho do clipe para alterar o nível de um clipe.";
 "banner.level.limit" = "Verifique se os %lld clipes no limite de 20 dB têm voz.";
 "banner.level.limit.one" = "Verifique se o clipe no limite de 20 dB tem voz.";
 "banner.level.unmeasured" = "%lld clipes sem nível para medir mantêm o ganho.";
@@ -1135,4 +1135,4 @@
 "banner.archive.no.space" = "O arquivamento não libertou espaço em disco.";
 "banner.archive.damaged" = "Estes ficheiros estão danificados (%@).";
 "subtitle.archived" = "Arquivada";
-"subtitle.archived.part" = "Arquivada em parte: %lld de %lld ficheiros são FLAC";
+"subtitle.archived.part" = "Arquivada em parte, %lld de %lld ficheiros são FLAC";

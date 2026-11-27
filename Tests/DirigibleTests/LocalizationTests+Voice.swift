@@ -230,7 +230,7 @@ private func factProblems(_ values: [String: String]) -> [String] {
 
 /// The first word of a step: a verb in the imperative.
 private let stepVerbs: Set = [
-    "Add", "Allow", "Ask", "Check", "Choose", "Click", "Close", "Connect", "Copy", "Delete", "Download", "Drag",
+    "Add", "Allow", "Answer", "Ask", "Check", "Choose", "Click", "Close", "Connect", "Copy", "Delete", "Download", "Drag",
     "Drop", "Edit", "Export", "Finalize", "Find", "Free", "Give", "Import", "Install", "Keep", "Locate", "Lower",
     "Move", "Open", "Paste", "Pick", "Place", "Press", "Put", "Quit", "Record", "Remove", "Rename", "Replace",
     "Restart",
@@ -243,11 +243,9 @@ private func isStep(_ sentence: Substring) -> Bool {
     return word.map(stepVerbs.contains) ?? false
 }
 
-/// The messages whose second sentence is a fact and right so: the consent warnings of decision 0050,
-/// and the alerts that add the one-sentence reason of a library error.
-private let stepWaivers: Set = [
-    "consent.app.tracks", "consent.message", "alert.transcript.unreadable", "error.transcribe.file.refused",
-]
+/// The messages whose second sentence is a fact and right so: the alerts that add the one-sentence
+/// reason of a library error.
+private let stepWaivers: Set = ["alert.transcript.unreadable", "error.transcribe.file.refused"]
 
 private func joinsTwoFacts(_ sentence: Substring) -> Bool {
     if sentence.contains(", which") || sentence.contains(", so ") { return true }

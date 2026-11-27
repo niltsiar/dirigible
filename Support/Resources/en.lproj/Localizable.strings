@@ -388,9 +388,9 @@
 "take.pending.leave.hint" = "If the disk can't read this audio again, finish without it and place the file later.";
 "take.pending.space" = "The finish needs %@ free. Free some space and try again.";
 "take.ended" = "Take %lld is finished.";
-"take.ended.disk.low" = "Take %lld stopped. The disk is almost full.";
-"take.gap.device.lost" = "Track \U201C%@\U201D has a gap from a lost device.";
-"take.gap.write.failed" = "Track \U201C%@\U201D has a gap from a failed write.";
+"take.ended.disk.low" = "Take %lld stopped on low disk space. Free some space before the next take.";
+"take.gap.device.lost" = "Track \U201C%@\U201D has a gap from a lost device. Check its connection before the next take.";
+"take.gap.write.failed" = "Track \U201C%@\U201D has a gap from a failed write. Check the disk before the next take.";
 "take.dropped" = "Track “%1$@” lost %2$lld frames.";
 "take.late.start" = "Track \U201C%@\U201D misses the start of the take.";
 "take.recovered" = "Take %lld was recovered.";
@@ -567,8 +567,8 @@
 "banner.consent.expired.unnamed" = "The recording request from an AI agent expired.";
 "consent.title" = "Allow an AI agent to record?";
 "consent.agent.line" = "It says it's \U201C%@\U201D.";
-"consent.app.tracks" = "This take records %@. People in the call aren't notified.";
-"consent.message" = "The take records %1$@ on %2$@ from %3$@. You have %4$@ to answer.";
+"consent.app.tracks" = "People in the call aren't notified that this take records %@.";
+"consent.message" = "The take records %1$@ on %2$@ from %3$@. Answer within %4$@.";
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
 "consent.pre.roll.line" = "Starts recording at %1$@, after a %2$@ pre-roll.";
 "consent.dont.record" = "Don't Record";
@@ -652,7 +652,7 @@
 "sheet.take.time.field" = "Take time";
 "sheet.take.time.format" = "Type the time from the record start of the take as H:MM:SS.mmm (or H:MM:SS,mmm), M:SS, or seconds.";
 "sheet.take.time.removed" = "No clip plays this time of take %lld. Type another time.";
-"alert.export.missing" = "These files are missing or can't be read and will export as silence:\n%@";
+"alert.export.missing" = "These files will export as silence:\n%@";
 "alert.export.confirm" = "Export";
 "alert.exported" = "Some missing or unreadable files exported as silence:\n%@";
 "alert.exported.loudness" = "The export is at %.1f LUFS.";
@@ -689,7 +689,7 @@
 "announce.unused.moved.one" = "Moved 1 file to the Trash (%@).";
 "banner.unused.failed" = "Couldn't move %@ to the Trash.";
 "banner.level.none" = "The clips are already at the target level.";
-"banner.level.volume" = "The track volume doesn't change the clip gain.";
+"banner.level.volume" = "Set the clip gain to change a clip level.";
 "banner.level.limit" = "Check that the %lld clips at the 20 dB limit have speech.";
 "banner.level.limit.one" = "Check that the clip at the 20 dB limit has speech.";
 "banner.level.unmeasured" = "%lld clips with no level keep their gain.";

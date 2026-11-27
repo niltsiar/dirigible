@@ -11,8 +11,8 @@ extension ConsentTests {
     /// with no "s" abbreviation for one of them.
     @Test func theConsentMessageGivesBothTimesInWords() throws {
         for (language, locale, expected) in [
-            ("en", "en_US", "The take records 30 seconds on Host from 0:00. You have 20 seconds to answer."),
-            ("es", "es_ES", "La toma graba 30 segundos en Host desde 0:00. Tienes 20 segundos para responder."),
+            ("en", "en_US", "The take records 30 seconds on Host from 0:00. Answer within 20 seconds."),
+            ("es", "es_ES", "La toma graba 30 segundos en Host desde 0:00. Responde en 20 segundos."),
         ] {
             let format = try #require(try stringsTable(language)[L10n.consentMessage.rawValue])
             let text = consentMessageText(

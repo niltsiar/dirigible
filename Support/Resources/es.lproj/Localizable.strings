@@ -551,7 +551,7 @@
 "settings.agents.on" = "Los agentes de IA pueden cambiar una sesión abierta, con un paso de Deshacer por cada cambio.";
 "settings.agents.off" = "Los agentes solo pueden editar sesiones cerradas.";
 "settings.agents.elsewhere" = "Para usar agentes aquí, cierra la otra copia de Dirigible.";
-"settings.agents.failed" = "El servidor de agentes no se inició.";
+"settings.agents.failed" = "El servidor de agentes no se inició. Desactiva y activa el interruptor para volver a intentarlo.";
 "settings.agents.copy" = "Copiar comando";
 "settings.agents.setup" = "Configuración del agente";
 "settings.agents.copied" = "Copiado";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "Insertar en el cursor de reproducción";
 "bins.rename" = "Renombrar";
 "bins.remove" = "Eliminar";
-"bins.missing" = "Falta el archivo de audio de este clip.";
-"bins.short" = "El archivo de audio de este clip es más corto de lo que dice la sesión.";
-"bins.unreadable" = "El archivo de audio de este clip no se pudo leer.";
+"bins.missing" = "Falta el archivo de audio de este clip. Vuelve a ponerlo en la carpeta Clips.";
+"bins.short" = "El archivo de audio de este clip es más corto de lo que dice la sesión. Restaura el archivo.";
+"bins.unreadable" = "El archivo de audio de este clip no se pudo leer. Comprueba el disco.";
 "error.bin.missing" = "El archivo de audio \U00AB%@\U00BB no está en la carpeta Clips de la sesión. Vuelve a ponerlo e inténtalo de nuevo.";
 "error.bin.short" = "El archivo de audio \U00AB%@\U00BB es más corto de lo que dice la sesión. Restaura el archivo e inténtalo de nuevo.";
 "error.bin.unreadable" = "El archivo de audio \U00AB%@\U00BB no se pudo leer. Comprueba el disco e inténtalo de nuevo.";

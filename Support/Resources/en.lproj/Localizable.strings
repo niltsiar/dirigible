@@ -551,7 +551,7 @@
 "settings.agents.on" = "AI agents can change an open session, with one Undo step for each change.";
 "settings.agents.off" = "Agents can edit only closed sessions.";
 "settings.agents.elsewhere" = "To use agents here, quit the other copy of Dirigible.";
-"settings.agents.failed" = "The agent server didn't start.";
+"settings.agents.failed" = "The agent server didn't start. Turn the switch off and on to try again.";
 "settings.agents.copy" = "Copy Command";
 "settings.agents.setup" = "Agent setup";
 "settings.agents.copied" = "Copied";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "Insert at Playhead";
 "bins.rename" = "Rename";
 "bins.remove" = "Delete";
-"bins.missing" = "The audio file of this clip is missing.";
-"bins.short" = "The audio file of this clip is shorter than the session says.";
-"bins.unreadable" = "The audio file of this clip couldn't be read.";
+"bins.missing" = "The audio file of this clip is missing. Put it back in the Clips folder.";
+"bins.short" = "The audio file of this clip is shorter than the session says. Restore the file.";
+"bins.unreadable" = "The audio file of this clip couldn't be read. Check the disk.";
 "error.bin.missing" = "The audio file \U201C%@\U201D isn't in the Clips folder of the session. Put it back and try again.";
 "error.bin.short" = "The audio file \U201C%@\U201D is shorter than the session says. Restore the file and try again.";
 "error.bin.unreadable" = "The audio file \U201C%@\U201D couldn't be read. Check the disk and try again.";

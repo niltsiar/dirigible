@@ -197,7 +197,7 @@ private let voiceAreas = ["announce"] + messageAreas
 private let oneFactKeys: Set = [
     "transport.stop.output.changed", "transport.stop.package.unavailable", "transport.stop.no.descriptor",
     "sheet.duck.note", "sheet.repair.declip.note", "take.late.start", "take.pending.leave.hint",
-    "sheet.transcribe.check.take",
+    "sheet.transcribe.check.take", "settings.agents.failed",
 ]
 private let voiceKeys = Set(["media.missing", "inspector.clips"]).union(oneFactKeys)
 
@@ -230,7 +230,8 @@ private func factProblems(_ values: [String: String]) -> [String] {
 
 /// The first word of a step: a verb in the imperative.
 private let stepVerbs: Set = [
-    "Add", "Allow", "Answer", "Ask", "Check", "Choose", "Click", "Close", "Connect", "Copy", "Delete", "Download", "Drag",
+    "Add", "Allow", "Answer", "Ask", "Check", "Choose", "Click", "Close", "Connect", "Copy", "Delete", "Download",
+    "Drag",
     "Drop", "Edit", "Export", "Finalize", "Find", "Free", "Give", "Import", "Install", "Keep", "Locate", "Lower",
     "Move", "Open", "Paste", "Pick", "Place", "Press", "Put", "Quit", "Record", "Remove", "Rename", "Replace",
     "Restart",
@@ -281,10 +282,11 @@ private let buttonKeys = [
     "sheet.take.time.go",
 ]
 
-/// The help lines of Settings and the note of the Sync sheet.
+/// The help lines of Settings and the note of the Sync sheet. The failed state of the agent server is an
+/// error, so `oneFactKeys` has it.
 private let noteKeys = [
     "settings.language.restart", "settings.agents.on", "settings.agents.off", "settings.agents.elsewhere",
-    "settings.agents.failed", "settings.agents.copy.hint", "settings.agents.move.first", "sheet.sync.no.call",
+    "settings.agents.copy.hint", "settings.agents.move.first", "sheet.sync.no.call",
 ]
 
 /// One line for each value with a capital after its first word, unless the word is a name in capitals

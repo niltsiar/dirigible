@@ -13,8 +13,16 @@ struct PackageItemMessageTests {
         let error = StudioError.file(.unreadableItem("Capture", errno: EACCES))
         #expect(L10n.message(for: error) == L10n.errorFileItemRead.rawValue)
         for (language, text) in [
-            ("en", "\u{201C}Capture\u{201D} in this package couldn't be read (error 13)."),
-            ("es", "No se puede leer \u{AB}Capture\u{BB} de este paquete (error 13)."),
+            (
+                "en",
+                "\u{201C}Capture\u{201D} in this package couldn't be read (error 13). "
+                    + "Check the disk and open the session again."
+            ),
+            (
+                "es",
+                "No se pudo leer \u{AB}Capture\u{BB} en este paquete (error 13). "
+                    + "Comprueba el disco y vuelve a abrir la sesión."
+            ),
         ] {
             let format = try #require(try stringsTable(language)[L10n.errorFileItemRead.rawValue])
             #expect(String(format: format, "Capture", 13) == text, "\(language)")

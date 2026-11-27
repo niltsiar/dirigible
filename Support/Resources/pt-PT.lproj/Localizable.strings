@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Sem mais tentativas. Desative e ative Níveis de entrada.";
 "track.state.waiting.app" = "A aguardar %@";
 "track.state.not.started" = "Não iniciado";
-"track.state.no.sound" = "Sem som de %@. Clique em Privacidade\U2026 e permita que o Dirigible grave o áudio do sistema.";
+"track.state.no.sound" = "Sem som de %@. Permita que o Dirigible grave o áudio do sistema em Privacidade e segurança.";
 "track.state.no.sound.short" = "Sem som de %@";
-"track.state.no.access" = "Sem acesso a %@. Clique em Privacidade\U2026 e permita que o Dirigible grave o áudio do sistema.";
+"track.state.no.access" = "Sem acesso a %@. Permita que o Dirigible grave o áudio do sistema em Privacidade e segurança.";
 "track.state.no.access.short" = "Sem acesso a %@";
 "track.listen.quiet" = "Sem som no monitor. Desative e ative Monitorizar faixa.";
 "track.listen.quiet.short" = "Sem som no monitor";

@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Plus d’essai. Désactivez et réactivez Niveaux d’entrée.";
 "track.state.waiting.app" = "Attente de %@";
 "track.state.not.started" = "Pas démarré";
-"track.state.no.sound" = "Aucun son de %@. Cliquez sur Confidentialité\U2026 et autorisez Dirigible à enregistrer l\U2019audio système.";
+"track.state.no.sound" = "Aucun son de %@. Autorisez Dirigible à enregistrer l\U2019audio système dans Confidentialité et sécurité.";
 "track.state.no.sound.short" = "Aucun son de %@";
-"track.state.no.access" = "Aucun accès à %@. Cliquez sur Confidentialité\U2026 et autorisez Dirigible à enregistrer l\U2019audio système.";
+"track.state.no.access" = "Aucun accès à %@. Autorisez Dirigible à enregistrer l\U2019audio système dans Confidentialité et sécurité.";
 "track.state.no.access.short" = "Aucun accès à %@";
 "track.listen.quiet" = "Aucun son de monitoring. Désactivez et réactivez Monitoring de la piste.";
 "track.listen.quiet.short" = "Monitoring sans son";

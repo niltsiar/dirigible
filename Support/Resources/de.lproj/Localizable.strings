@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Neuversuche gestoppt. „Eingangspegel“ aus und ein.";
 "track.state.waiting.app" = "Warten auf %@";
 "track.state.not.started" = "Nicht gestartet";
-"track.state.no.sound" = "Kein Ton von %@. Klicke auf \U201EDatenschutz\U00A0\U2026\U201C und erlaube Dirigible, Systemaudio aufzunehmen.";
+"track.state.no.sound" = "Kein Ton von %@. Erlaube Dirigible in \U201EDatenschutz & Sicherheit\U201C, Systemaudio aufzunehmen.";
 "track.state.no.sound.short" = "Kein Ton von %@";
-"track.state.no.access" = "Kein Zugriff auf %@. Klicke auf \U201EDatenschutz\U00A0\U2026\U201C und erlaube Dirigible, Systemaudio aufzunehmen.";
+"track.state.no.access" = "Kein Zugriff auf %@. Erlaube Dirigible in \U201EDatenschutz & Sicherheit\U201C, Systemaudio aufzunehmen.";
 "track.state.no.access.short" = "Kein Zugriff auf %@";
 "track.listen.quiet" = "Kein Monitor-Ton. Schalte „Spur-Monitoring“ aus und ein.";
 "track.listen.quiet.short" = "Kein Monitor-Ton";

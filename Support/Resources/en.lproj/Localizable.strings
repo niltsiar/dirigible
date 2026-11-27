@@ -352,7 +352,7 @@
 "track.route.choose" = "Choose Input…";
 "track.route.channel" = "Channel %lld";
 "track.route.channels" = "Channels %1$lld and %2$lld";
-"track.route.missing" = "Device not connected";
+"track.route.missing" = "Device Not Connected";
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Needs macOS 14.2 or Later";
 "track.no.sound.settings" = "Open Privacy Settings";
@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Stopped retrying. Turn Input Levels off and on.";
 "track.state.waiting.app" = "Waiting for %@";
 "track.state.not.started" = "Didn't start";
-"track.state.no.sound" = "No sound from %@. Click Privacy\U2026 and allow Dirigible to record system audio.";
+"track.state.no.sound" = "No sound from %@. Allow Dirigible to record system audio in Privacy & Security.";
 "track.state.no.sound.short" = "No sound from %@";
-"track.state.no.access" = "No access to %@. Click Privacy\U2026 and allow Dirigible to record system audio.";
+"track.state.no.access" = "No access to %@. Allow Dirigible to record system audio in Privacy & Security.";
 "track.state.no.access.short" = "No access to %@";
 "track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
 "track.listen.quiet.short" = "No monitor sound";
@@ -670,7 +670,7 @@
 "toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
 "toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
-"toolbar.pre.roll" = "Pre-roll";
+"toolbar.pre.roll" = "Pre-Roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). ⌘-scroll or pinch zooms at the pointer.";
 "key.space" = "Space";
 

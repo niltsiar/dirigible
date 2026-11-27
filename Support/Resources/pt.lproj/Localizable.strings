@@ -352,7 +352,7 @@
 "track.route.choose" = "Escolher Entrada…";
 "track.route.channel" = "Canal %lld";
 "track.route.channels" = "Canais %1$lld e %2$lld";
-"track.route.missing" = "Dispositivo não conectado";
+"track.route.missing" = "Dispositivo Não Conectado";
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Requer o macOS 14.2 ou posterior";
 "track.no.sound.settings" = "Abrir Ajustes de Privacidade";
@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Tentativas encerradas. Desative e ative Níveis de Entrada.";
 "track.state.waiting.app" = "Aguardando %@";
 "track.state.not.started" = "Não iniciado";
-"track.state.no.sound" = "Sem som de %@. Clique em Privacidade\U2026 e permita que o Dirigible grave o áudio do sistema.";
+"track.state.no.sound" = "Sem som de %@. Permita que o Dirigible grave o áudio do sistema em Privacidade e Segurança.";
 "track.state.no.sound.short" = "Sem som de %@";
-"track.state.no.access" = "Sem acesso a %@. Clique em Privacidade\U2026 e permita que o Dirigible grave o áudio do sistema.";
+"track.state.no.access" = "Sem acesso a %@. Permita que o Dirigible grave o áudio do sistema em Privacidade e Segurança.";
 "track.state.no.access.short" = "Sem acesso a %@";
 "track.listen.quiet" = "Sem som do monitor. Desative e ative Monitorar Pista.";
 "track.listen.quiet.short" = "Sem som do monitor";

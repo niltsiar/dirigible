@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Tentativi interrotti. Disattiva e attiva Livelli di ingresso.";
 "track.state.waiting.app" = "In attesa: %@";
 "track.state.not.started" = "Non avviato";
-"track.state.no.sound" = "Nessun suono da %@. Fai clic su Privacy\U2026 e consenti a Dirigible di registrare l\U2019audio di sistema.";
+"track.state.no.sound" = "Nessun suono da %@. Consenti a Dirigible di registrare l\U2019audio di sistema in Privacy e sicurezza.";
 "track.state.no.sound.short" = "Nessun suono: %@";
-"track.state.no.access" = "Nessun accesso a %@. Fai clic su Privacy\U2026 e consenti a Dirigible di registrare l\U2019audio di sistema.";
+"track.state.no.access" = "Nessun accesso a %@. Consenti a Dirigible di registrare l\U2019audio di sistema in Privacy e sicurezza.";
 "track.state.no.access.short" = "Nessun accesso: %@";
 "track.listen.quiet" = "Nessun suono di monitoraggio. Disattiva e riattiva Monitoraggio traccia.";
 "track.listen.quiet.short" = "Monitor senza suono";

@@ -115,9 +115,9 @@ struct AppBundleTests {
             ("track.state.waiting.app", "Waiting for %@", "Esperando a %@"),
             (
                 "track.state.no.sound",
-                // The pane name differs on macOS 14 and 15, so the text names the button, not the pane.
-                "No sound from %@. Click Privacy… and allow Dirigible to record system audio.",
-                "No hay sonido de %@. Haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema."
+                // The inner pane name differs on macOS 14 and 15, so the text names Privacy & Security only.
+                "No sound from %@. Allow Dirigible to record system audio in Privacy & Security.",
+                "No hay sonido de %@. Permite que Dirigible grabe el audio del sistema en Privacidad y seguridad."
             ),
             ("track.no.sound.settings", "Open Privacy Settings", "Abrir los ajustes de privacidad"),
             // The short title of the header button; the full name above is its help and AX label.

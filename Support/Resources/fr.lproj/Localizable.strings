@@ -33,7 +33,7 @@
 "menu.record.start" = "Enregistrer";
 "menu.record.pre.roll" = "Enregistrer avec pré-roll";
 "menu.record.retry" = "Réessayer la finalisation";
-"menu.record.leave.unreadable" = "Terminer sans l’audio illisible";
+"menu.record.leave.unreadable" = "Terminer quand même";
 "menu.unplaced.place" = "Placer";
 "menu.unplaced.place.playhead" = "Placer à la tête de lecture sur la piste sélectionnée";
 "menu.record.monitor" = "Niveaux d’entrée";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Réparer les pics écrêtés";
 "sheet.repair.declip.note" = "Trouve les pics aplatis et rend le clip plus faible. Utilisez ensuite Nivellement automatique.";
 "sheet.repair.rumble" = "Réduire les grondements";
-"sheet.repair.rumble.note" = "Coupe le son sous %lld Hz, comme les chocs et le vent.";
+"sheet.repair.rumble.note" = "Coupe les sons graves, comme les chocs et le vent.";
 "sheet.repair.deess" = "Adoucir les sons \U00AB\U00A0s\U00A0\U00BB";
-"sheet.repair.deess.note" = "Jusqu\U2019à %lld dB.";
 "sheet.repair.amount" = "Quantité";
 "sheet.repair.more" = "Plus";
 "sheet.repair.frequency" = "Fréquence";
@@ -377,7 +376,7 @@
 "take.recording" = "Enregistrement de la prise %lld";
 "take.agent" = "La prise %1$lld enregistre %2$@ pour un agent d’IA (il dit : « %3$@ ») · reste %4$@";
 "take.agent.unnamed" = "La prise %1$lld enregistre %2$@ pour un agent d’IA · reste %3$@";
-"take.agent.always.ask" = "Toujours redemander";
+"take.agent.always.ask" = "Redemander";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Finalisation de la prise %lld…";
 "take.placing" = "Placement de %@…";
@@ -427,7 +426,7 @@
 "transport.play" = "Lecture";
 "record.over.chip" = "Audio masqué menacé";
 "record.over.show" = "Afficher le clip";
-"record.over.disarm" = "Désactiver l’enregistrement sur %@";
+"record.over.disarm" = "Désarmer %@";
 "record.over.detail" = "L’enregistrement remplace l’audio sur %1$@. Le premier clip commence à %2$@.";
 "transport.stop.output.changed" = "L\U2019appareil de sortie a changé. Appuyez sur Espace pour lire sur le nouvel appareil.";
 "transport.stop.output.unavailable" = "L\U2019appareil de sortie n\U2019est pas disponible (erreur %lld). Connectez-le ou choisissez-en un autre.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Les agents ne peuvent modifier que les sessions fermées.";
 "settings.agents.elsewhere" = "Pour utiliser les agents ici, quittez l’autre copie de Dirigible.";
 "settings.agents.failed" = "Le serveur d’agents n’a pas démarré.";
-"settings.agents.copy" = "Copier la commande de configuration";
+"settings.agents.copy" = "Copier";
 "settings.agents.setup" = "Configuration de l’agent";
 "settings.agents.copied" = "Copié";
 "settings.agents.copy.hint" = "Collez-la dans Terminal, puis démarrez l’agent.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "Plus précis (%@, plus lent)";
 "sheet.transcribe.most.accurate" = "Précision maximale (%@, le plus lent)";
 "sheet.transcribe.start" = "Transcrire";
-"sheet.transcribe.download" = "Télécharger et transcrire";
+"sheet.transcribe.download" = "Transcrire";
 "sheet.transcribe.replace" = "Remplacer";
 "sheet.transcribe.note.download" = "Dirigible télécharge ce modèle une seule fois. Votre audio ne quitte jamais ce Mac.";
 "sheet.transcribe.note.replace.one" = "Cette piste contient 1 mot de transcription.";
 "sheet.transcribe.note.replace.many" = "Cette piste contient %lld mots de transcription.";
-"sheet.transcribe.choose" = "Choisir un fichier de modèle…";
+"sheet.transcribe.choose" = "Choisir…";
 "sheet.transcribe.missing" = "%@ (introuvable)";
 "sheet.transcribe.note.file" = "Un modèle hors de la liste de Dirigible peut varier en vitesse et en précision. Votre audio ne quitte jamais ce Mac.";
 "sheet.transcribe.check.running" = "Vérification de %@…";
@@ -911,6 +910,7 @@
 "track.follow.value" = "Activé";
 "track.follow.help" = "« Suivre le décalage » est activé. Désactivez-le dans le menu Piste.";
 "track.follow.turn.off" = "Désactiver « Suivre le décalage »";
+"alert.follow.turn.off" = "Désactiver";
 "alert.follow.overlap.title" = "Un clip en recouvrirait un autre.";
 "alert.follow.overlap.body" = "Déplacez le clip de %1$@ à %2$@ ou désactivez « Suivre le décalage ».";
 "error.ripple.follow.only" = "Chaque piste suit le décalage. Désactivez \U00AB Suivre le décalage \U00BB sur une piste pour couper.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "Début du clip coupé de %@ pour le garder dans la session.";
 "banner.sync.replaced" = "Le déplacement a remplacé l’audio de %@.";
 "banner.sync.no.match" = "Aucune correspondance trouvée pour %@ sur %@.";
-"banner.sync.choose" = "Choisir une autre piste…";
+"banner.sync.choose" = "Autre piste…";
 "banner.sync.undo" = "Annuler";
 "sheet.sync.drift" = "Corriger la dérive";
 "sheet.sync.drift.take" = "Une prise enregistre sur l'horloge de la session.";

@@ -17,8 +17,8 @@ struct TranscribeSheetTests {
         try #require(TranscribeDraft(tracks: tracks, selected: selected, onDisk: onDisk, language: .automatic))
     }
 
-    /// C20: with no model on disk the default button reads "Download and Transcribe", for each
-    /// offered model, and the chosen track stays. Control: with the model it reads "Transcribe".
+    /// C20: with no model on disk the default button has the download key, for each offered model,
+    /// and the chosen track stays. Control: with the model it has the start key.
     @Test func noModelShowsTheDownload() throws {
         var draft = try Self.draft(onDisk: [])
         #expect(draft.buttonTitle == .sheetTranscribeDownload)

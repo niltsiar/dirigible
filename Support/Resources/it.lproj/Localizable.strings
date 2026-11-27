@@ -33,7 +33,7 @@
 "menu.record.start" = "Registra";
 "menu.record.pre.roll" = "Registra con pre-roll";
 "menu.record.retry" = "Riprova la finalizzazione";
-"menu.record.leave.unreadable" = "Termina senza l’audio illeggibile";
+"menu.record.leave.unreadable" = "Termina comunque";
 "menu.unplaced.place" = "Posiziona";
 "menu.unplaced.place.playhead" = "Posiziona alla testina di riproduzione sulla traccia selezionata";
 "menu.record.monitor" = "Livelli di ingresso";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Ripara i picchi tagliati";
 "sheet.repair.declip.note" = "Trova picchi piatti e abbassa il volume della clip. Dopo, usa Livellamento automatico.";
 "sheet.repair.rumble" = "Riduci il rimbombo";
-"sheet.repair.rumble.note" = "Taglia il suono sotto %lld Hz, come urti e vento.";
+"sheet.repair.rumble.note" = "Taglia i suoni gravi, come urti e vento.";
 "sheet.repair.deess" = "Attenua i suoni \U201Cs\U201D";
-"sheet.repair.deess.note" = "Fino a %lld dB.";
 "sheet.repair.amount" = "Quantità";
 "sheet.repair.more" = "Altro";
 "sheet.repair.frequency" = "Frequenza";
@@ -377,7 +376,7 @@
 "take.recording" = "Registrazione del take %lld";
 "take.agent" = "Il take %1$lld registra %2$@ per un agente IA (dice: “%3$@”) · restano %4$@";
 "take.agent.unnamed" = "Il take %1$lld registra %2$@ per un agente IA · restano %3$@";
-"take.agent.always.ask" = "Chiedi sempre";
+"take.agent.always.ask" = "Chiedi ancora";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Finalizzazione del take %lld…";
 "take.placing" = "Posizionamento di %@…";
@@ -427,7 +426,7 @@
 "transport.play" = "Riproduci";
 "record.over.chip" = "Audio nascosto";
 "record.over.show" = "Mostra clip";
-"record.over.disarm" = "Disabilita registrazione di %@";
+"record.over.disarm" = "Disabilita %@";
 "record.over.detail" = "La registrazione sostituisce l’audio su %1$@. Il primo clip inizia a %2$@.";
 "transport.stop.output.changed" = "Il dispositivo di uscita è cambiato. Premi la barra spaziatrice per riprodurre sul nuovo dispositivo.";
 "transport.stop.output.unavailable" = "Il dispositivo di uscita non è disponibile (errore %lld). Collegalo o scegline un altro.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Gli agenti possono modificare solo le sessioni chiuse.";
 "settings.agents.elsewhere" = "Per usare gli agenti qui, esci dall’altra copia di Dirigible.";
 "settings.agents.failed" = "Il server degli agenti non si è avviato.";
-"settings.agents.copy" = "Copia comando di configurazione";
+"settings.agents.copy" = "Copia comando";
 "settings.agents.setup" = "Configurazione agente";
 "settings.agents.copied" = "Copiato";
 "settings.agents.copy.hint" = "Incollalo in Terminale, poi avvia l’agente.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "Più preciso (%@, più lento)";
 "sheet.transcribe.most.accurate" = "Massima precisione (%@, il più lento)";
 "sheet.transcribe.start" = "Trascrivi";
-"sheet.transcribe.download" = "Scarica e trascrivi";
+"sheet.transcribe.download" = "Trascrivi";
 "sheet.transcribe.replace" = "Sostituisci";
 "sheet.transcribe.note.download" = "Dirigible scarica questo modello una sola volta. Il tuo audio non lascia mai questo Mac.";
 "sheet.transcribe.note.replace.one" = "Questa traccia ha 1 parola di trascrizione.";
 "sheet.transcribe.note.replace.many" = "Questa traccia ha %lld parole di trascrizione.";
-"sheet.transcribe.choose" = "Scegli file del modello…";
+"sheet.transcribe.choose" = "Scegli…";
 "sheet.transcribe.missing" = "%@ (mancante)";
 "sheet.transcribe.note.file" = "Un modello fuori dall\U2019elenco di Dirigible può variare in velocità e precisione. Il tuo audio non lascia mai questo Mac.";
 "sheet.transcribe.check.running" = "Verifica di %@…";
@@ -911,6 +910,7 @@
 "track.follow.value" = "Attivo";
 "track.follow.help" = "“Segui lo spostamento” è attivo. Disattivalo nel menu Traccia.";
 "track.follow.turn.off" = "Disattiva “Segui lo spostamento”";
+"alert.follow.turn.off" = "Disattiva";
 "alert.follow.overlap.title" = "Una clip ne coprirebbe un'altra.";
 "alert.follow.overlap.body" = "Sposta la clip su %1$@ a %2$@ o disattiva \U201CSegui lo spostamento\U201D.";
 "error.ripple.follow.only" = "Ogni traccia segue lo spostamento. Disattiva \U201CSegui lo spostamento\U201D su una traccia per tagliare.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "Inizio del clip tagliato di %@ per tenerlo nella sessione.";
 "banner.sync.replaced" = "Lo spostamento ha sostituito l’audio di %@.";
 "banner.sync.no.match" = "Nessuna corrispondenza trovata per %@ su %@.";
-"banner.sync.choose" = "Scegli un’altra traccia…";
+"banner.sync.choose" = "Altra traccia…";
 "banner.sync.undo" = "Annulla";
 "sheet.sync.drift" = "Correggi deriva";
 "sheet.sync.drift.take" = "Una ripresa registra con il clock della sessione.";

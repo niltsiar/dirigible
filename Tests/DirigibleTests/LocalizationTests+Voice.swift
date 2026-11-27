@@ -145,6 +145,14 @@ extension LocalizationTests {
         #expect(voiceProblems(voice, nameLists: ["banner.d"]) == [])
     }
 
+    /// ui-audit A4: a button that a sheet, an alert, or a banner shows is a verb of one or two words.
+    @Test func buttonTextsHaveAtMostTwoWords() throws {
+        let english = try stringsTable("en")
+        #expect(buttonKeys.allSatisfy { english[$0] != nil }, "a key of the list is not in the table")
+        let long = buttonKeys.filter { (english[$0] ?? "").split(separator: " ").count > 2 }
+        #expect(long == [], "buttons of three words or more")
+    }
+
     /// The label of a form row keeps its capitals for the first word and for names only: sentence case.
     @Test func formLabelsUseSentenceCase() throws {
         let english = try stringsTable("en")
@@ -232,6 +240,18 @@ private let formLabelKeys = [
     "sheet.sync.reference", "sheet.sync.drift", "sheet.duck.speech", "sheet.duck.music", "sheet.duck.depth",
     "sheet.take.time.take", "sheet.take.time.field", "panel.stems.group", "panel.export.format",
     "panel.export.bits", "panel.export.rate", "panel.export.bitrate", "episode.url", "episode.feed.url",
+]
+
+/// The keys that a button of a sheet, an alert, or a banner shows. A menu item and the Help menu name
+/// of a report are not here.
+private let buttonKeys = [
+    "alert.follow.turn.off", "record.over.disarm", "record.over.show",
+    "sheet.transcribe.choose", "sheet.transcribe.download", "sheet.transcribe.start", "sheet.transcribe.replace",
+    "banner.sync.choose", "banner.sync.undo", "take.agent.always.ask", "settings.agents.copy",
+    "menu.record.leave.unreadable", "menu.record.retry", "alert.microphone.settings", "window.try.again",
+    "consent.dont.record", "silences.scan.again", "report.save", "notice.unclean.later", "transcribe.again",
+    "export.presets.choose.folder", "start.open.other", "alert.transcribe.locate", "banner.take.sync.show",
+    "banner.archived.unarchive", "alert.archive.confirm", "alert.export.replace.confirm", "template.replace.replace",
 ]
 
 /// The help lines of Settings and the note of the Sync sheet.

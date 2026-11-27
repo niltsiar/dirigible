@@ -33,7 +33,7 @@
 "menu.record.start" = "Grabar";
 "menu.record.pre.roll" = "Grabar con pre-roll";
 "menu.record.retry" = "Reintentar la finalización";
-"menu.record.leave.unreadable" = "Terminar sin el audio ilegible";
+"menu.record.leave.unreadable" = "Terminar igualmente";
 "menu.unplaced.place" = "Colocar";
 "menu.unplaced.place.playhead" = "Colocar en el cursor en la pista seleccionada";
 "menu.record.monitor" = "Niveles de entrada";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Reparar picos recortados";
 "sheet.repair.declip.note" = "Encuentra picos planos y hace que el clip suene más bajo. Usa Nivelar automáticamente después.";
 "sheet.repair.rumble" = "Reducir retumbo";
-"sheet.repair.rumble.note" = "Corta el sonido por debajo de %lld Hz, como golpes y viento.";
+"sheet.repair.rumble.note" = "Corta los sonidos graves, como golpes y viento.";
 "sheet.repair.deess" = "Suavizar sonidos \U00ABs\U00BB";
-"sheet.repair.deess.note" = "Hasta %lld dB.";
 "sheet.repair.amount" = "Cantidad";
 "sheet.repair.more" = "Más";
 "sheet.repair.frequency" = "Frecuencia";
@@ -427,7 +426,7 @@
 "transport.play" = "Reproducir";
 "record.over.chip" = "Audio oculto en riesgo";
 "record.over.show" = "Mostrar clip";
-"record.over.disarm" = "Desactivar grabar en %@";
+"record.over.disarm" = "Desarmar %@";
 "record.over.detail" = "La grabación sustituye el audio de %1$@. El primer clip empieza en %2$@.";
 "transport.stop.output.changed" = "Cambió el dispositivo de salida. Pulsa Espacio para reproducir en el nuevo dispositivo.";
 "transport.stop.output.unavailable" = "El dispositivo de salida no está disponible (error %lld). Conéctalo o elige otro.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Los agentes solo pueden editar sesiones cerradas.";
 "settings.agents.elsewhere" = "Para usar agentes aquí, cierra la otra copia de Dirigible.";
 "settings.agents.failed" = "El servidor de agentes no se inició.";
-"settings.agents.copy" = "Copiar comando de configuración";
+"settings.agents.copy" = "Copiar comando";
 "settings.agents.setup" = "Configuración del agente";
 "settings.agents.copied" = "Copiado";
 "settings.agents.copy.hint" = "Pégalo en Terminal y después abre el agente.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "Más preciso (%@, más lento)";
 "sheet.transcribe.most.accurate" = "Máxima precisión (%@, el más lento)";
 "sheet.transcribe.start" = "Transcribir";
-"sheet.transcribe.download" = "Descargar y transcribir";
+"sheet.transcribe.download" = "Transcribir";
 "sheet.transcribe.replace" = "Reemplazar";
 "sheet.transcribe.note.download" = "Dirigible descarga este modelo una vez. Tu audio nunca sale de este Mac.";
 "sheet.transcribe.note.replace.one" = "Esta pista tiene 1 palabra de transcripción.";
 "sheet.transcribe.note.replace.many" = "Esta pista tiene %lld palabras de transcripción.";
-"sheet.transcribe.choose" = "Elegir archivo de modelo…";
+"sheet.transcribe.choose" = "Elegir archivo…";
 "sheet.transcribe.missing" = "%@ (no encontrado)";
 "sheet.transcribe.note.file" = "Un modelo de fuera de la lista de Dirigible puede variar en velocidad y precisión. Tu audio nunca sale de este Mac.";
 "sheet.transcribe.check.running" = "Comprobando %@…";
@@ -911,6 +910,7 @@
 "track.follow.value" = "Activado";
 "track.follow.help" = "«Seguir el desplazamiento» está activado. Desactívalo en el menú Pista.";
 "track.follow.turn.off" = "Desactivar «Seguir el desplazamiento»";
+"alert.follow.turn.off" = "Desactivar";
 "alert.follow.overlap.title" = "Un clip cubriría otro clip.";
 "alert.follow.overlap.body" = "Mueve el clip de %1$@ en %2$@ o desactiva «Seguir el desplazamiento».";
 "error.ripple.follow.only" = "Todas las pistas siguen el desplazamiento. Desactiva \U00ABSeguir el desplazamiento\U00BB en una pista para cortar.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "Se cortaron %@ del inicio del clip para mantenerlo en la sesión.";
 "banner.sync.replaced" = "El movimiento sustituyó audio de %@.";
 "banner.sync.no.match" = "No se encontró una coincidencia para %@ en %@.";
-"banner.sync.choose" = "Elegir otra pista…";
+"banner.sync.choose" = "Elegir pista…";
 "banner.sync.undo" = "Deshacer";
 "sheet.sync.drift" = "Corregir deriva";
 "sheet.sync.drift.take" = "Una toma graba con el reloj de la sesión.";

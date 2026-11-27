@@ -33,7 +33,7 @@
 "menu.record.start" = "Aufnehmen";
 "menu.record.pre.roll" = "Mit Vorlauf aufnehmen";
 "menu.record.retry" = "Abschluss erneut versuchen";
-"menu.record.leave.unreadable" = "Ohne unlesbares Audio abschließen";
+"menu.record.leave.unreadable" = "Trotzdem abschließen";
 "menu.unplaced.place" = "Platzieren";
 "menu.unplaced.place.playhead" = "An Abspielposition auf ausgewählter Spur platzieren";
 "menu.record.monitor" = "Eingangspegel";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Übersteuerte Spitzen reparieren";
 "sheet.repair.declip.note" = "Findet abgeflachte Spitzen und macht den Clip leiser. Führe danach Auto-Pegel aus.";
 "sheet.repair.rumble" = "Rumpeln reduzieren";
-"sheet.repair.rumble.note" = "Schneidet Schall unter %lld Hz ab, etwa Poltern und Wind.";
+"sheet.repair.rumble.note" = "Schneidet tiefe Töne ab, etwa Poltern und Wind.";
 "sheet.repair.deess" = "Scharfe \U201ES\U201C-Laute abschwächen";
-"sheet.repair.deess.note" = "Bis zu %lld dB.";
 "sheet.repair.amount" = "Stärke";
 "sheet.repair.more" = "Mehr";
 "sheet.repair.frequency" = "Frequenz";
@@ -377,7 +376,7 @@
 "take.recording" = "Take %lld wird aufgenommen";
 "take.agent" = "Take %1$lld nimmt %2$@ für einen KI-Agenten auf (er sagt: „%3$@“) · noch %4$@";
 "take.agent.unnamed" = "Take %1$lld nimmt %2$@ für einen KI-Agenten auf · noch %3$@";
-"take.agent.always.ask" = "Immer wieder fragen";
+"take.agent.always.ask" = "Erneut fragen";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Take %lld wird abgeschlossen …";
 "take.placing" = "%@ wird platziert …";
@@ -427,7 +426,7 @@
 "transport.play" = "Wiedergabe";
 "record.over.chip" = "Verdecktes Audio";
 "record.over.show" = "Clip zeigen";
-"record.over.disarm" = "Aufnahme für %@ ausschalten";
+"record.over.disarm" = "%@ deaktivieren";
 "record.over.detail" = "Die Aufnahme ersetzt Audio auf %1$@. Der erste Clip beginnt bei %2$@.";
 "transport.stop.output.changed" = "Das Ausgabegerät hat sich geändert. Drücke die Leertaste, um auf dem neuen Gerät abzuspielen.";
 "transport.stop.output.unavailable" = "Das Ausgabegerät ist nicht verfügbar (Fehler %lld). Schließe es an oder wähle ein anderes.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Agenten können nur geschlossene Sessions bearbeiten.";
 "settings.agents.elsewhere" = "Um Agenten hier zu verwenden, beende die andere Kopie von Dirigible.";
 "settings.agents.failed" = "Der Agenten-Server wurde nicht gestartet.";
-"settings.agents.copy" = "Setup-Befehl kopieren";
+"settings.agents.copy" = "Befehl kopieren";
 "settings.agents.setup" = "Agent-Setup";
 "settings.agents.copied" = "Kopiert";
 "settings.agents.copy.hint" = "Setze ihn im Terminal ein und starte dann den Agenten.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "Genauer (%@, langsamer)";
 "sheet.transcribe.most.accurate" = "Am genauesten (%@, am langsamsten)";
 "sheet.transcribe.start" = "Transkribieren";
-"sheet.transcribe.download" = "Laden und transkribieren";
+"sheet.transcribe.download" = "Transkribieren";
 "sheet.transcribe.replace" = "Ersetzen";
 "sheet.transcribe.note.download" = "Dirigible lädt dieses Modell einmal herunter. Dein Audio verlässt diesen Mac nie.";
 "sheet.transcribe.note.replace.one" = "Diese Spur hat 1 Wort des Transkripts.";
 "sheet.transcribe.note.replace.many" = "Diese Spur hat %lld Wörter des Transkripts.";
-"sheet.transcribe.choose" = "Modelldatei auswählen …";
+"sheet.transcribe.choose" = "Datei wählen …";
 "sheet.transcribe.missing" = "%@ (fehlt)";
 "sheet.transcribe.note.file" = "Ein Modell außerhalb der Liste von Dirigible kann bei Geschwindigkeit und Genauigkeit abweichen. Dein Audio verlässt diesen Mac nie.";
 "sheet.transcribe.check.running" = "%@ wird geprüft …";
@@ -911,6 +910,7 @@
 "track.follow.value" = "Ein";
 "track.follow.help" = "„Beim Ripple mitwandern“ ist an. Schalte es im Menü „Spur“ aus.";
 "track.follow.turn.off" = "„Beim Ripple mitwandern“ ausschalten";
+"alert.follow.turn.off" = "Ausschalten";
 "alert.follow.overlap.title" = "Ein Clip würde einen anderen Clip überdecken.";
 "alert.follow.overlap.body" = "Verschiebe den Clip auf %1$@ bei %2$@ oder schalte \U201EBeim Ripple mitwandern\U201C aus.";
 "error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit. Schalte \U201EBeim Ripple mitwandern\U201C auf einer Spur aus, um zu schneiden.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "%@ vom Clipanfang wurden abgeschnitten, damit er in der Session bleibt.";
 "banner.sync.replaced" = "Die Verschiebung hat Audio von %@ ersetzt.";
 "banner.sync.no.match" = "Keine Übereinstimmung für %@ auf %@ gefunden.";
-"banner.sync.choose" = "Andere Spur wählen …";
+"banner.sync.choose" = "Spur wählen …";
 "banner.sync.undo" = "Widerrufen";
 "sheet.sync.drift" = "Drift korrigieren";
 "sheet.sync.drift.take" = "Eine Aufnahme läuft auf der Session-Uhr.";

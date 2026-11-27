@@ -165,7 +165,7 @@ struct RepairSheet: View {
         case .rumble:
             Toggle(L10n.sheetRepairRumble.key, isOn: $draft.rumble).toggleStyle(.checkbox)
                 .disabled(draft.rumbleMax == nil)
-            note(L10n.sheetRepairRumbleNote.format(draft.rumbleHertz)).padding(.leading, 20)
+            note(L10n.sheetRepairRumbleNote.text).padding(.leading, 20)
             if let top = draft.rumbleMax {
                 slider(
                     .sheetRepairCutoff, .sheetRepairRumble, $draft.rumbleHertz, Rumble.range.lowerBound...top,
@@ -175,7 +175,6 @@ struct RepairSheet: View {
             Toggle(L10n.sheetRepairDeess.key, isOn: $draft.deess).toggleStyle(.checkbox)
                 .disabled(draft.frequencyMax == nil)
             if let top = draft.frequencyMax {
-                note(L10n.sheetRepairDeessNote.format(draft.deessDecibels)).padding(.leading, 20)
                 slider(
                     .sheetRepairAmount, .sheetRepairAmount, $draft.deessDecibels, DeEss.decibelRange,
                     unit: .inspectorDecibels, enabled: draft.deess)

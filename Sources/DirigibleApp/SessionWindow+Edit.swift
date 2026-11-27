@@ -145,21 +145,34 @@ extension SessionWindow {
     /// range on the selected tracks, with the ramps of the range gain. One edit, so one undo entry.
     /// With no range, a clip set, ramps that reach no clip, or the -96 dB floor, a beep. During a take,
     /// nothing in every selection state: the item is never off (a plain key), so the check is first.
-    /// VoiceOver says the new total at the first frame of the range that a selected clip plays.
+    /// VoiceOver says the new total: the envelope gain of each changed clip at the first frame of the
+    /// range that it plays, or Mixed when they differ.
     func runDuckSelection(_ studio: Studio) {
         guard canEdit else { return }
         guard let selection = timeline.selection.marks?.selection(in: studio.session) else { return beep() }
-        let ducked = edit(ripple: false) { session throws(SessionError) -> Bool in
+        let changed = edit(ripple: false) { session throws(SessionError) -> [ClipID] in
             let depth = DuckShape.defaults(sampleRate: session.sampleRate).depth
-            let changed = try session.changeGain(
+            return try session.changeGain(
                 by: depth, in: selection.range, on: selection.tracks, ramp: session.gainRamp)
-            return !changed.isEmpty
         }
-        guard let ducked else { return }
-        guard ducked else { return beep() }
-        let starts = studio.session.tracks.filter { selection.tracks.contains($0.id) }.flatMap(\.clips)
-            .filter { $0.range.overlaps(selection.range) }.map { max($0.start, selection.range.lowerBound) }
-        if let readFrame = starts.min() { announceGainPoint(.duckSelectionDone, at: readFrame, priority: .medium) }
+        guard let changed else { return }
+        guard !changed.isEmpty else { return beep() }
+        guard let total = Self.duckTotal(of: changed, in: selection.range, session: studio.session) else { return }
+        announceGain(.duckSelectionDone, gain: total, priority: .medium)
+    }
+
+    /// The total that VoiceOver says after Duck Selection: the envelope gain of each clip of `changed`
+    /// that overlaps `range`, read at the first frame of `range` that the clip plays, and Mixed when
+    /// the totals differ. Nil when no changed clip overlaps `range`.
+    static func duckTotal(of changed: [ClipID], in range: Range<Frames>, session: Session)
+        -> ClipInspection.Shown<Double>?
+    {
+        let ids = Set(changed)
+        let totals = session.tracks.flatMap(\.clips)
+            .filter { ids.contains($0.id) && $0.range.overlaps(range) }
+            .map { $0.envelope.gain(at: max($0.start, range.lowerBound) - $0.start + $0.offset) }
+        guard let first = totals.first else { return nil }
+        return totals.dropFirst().reduce(ClipInspection.Shown.value(first)) { $0 == .value($1) ? $0 : .mixed }
     }
 
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers

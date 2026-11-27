@@ -116,6 +116,52 @@ extension DuckSelectionTests {
         await model.close()
     }
 
+    /// c1 starts at 60 000 and c2 at 72 000, both inside the range 48 000..<96 000. No frame of the range
+    /// holds both clips at their first frame, so the total reads each changed clip at its own first frame:
+    /// t2 ducked alone first puts c2 at -32 dB and c1 at -16 dB after the second press. The text of the
+    /// announcement is its key in a test run, so the test reads the total as a value.
+    @Test func theDuckTotalIsMixedForClipsThatStartAtDifferentFrames() async throws {
+        let (model, studio, window, view) = try await open()
+        #expect(window.makeFirstResponder(view.lanes))
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.move("c1", to: "t1", start: 60_000)
+            try session.move("c2", to: "t2", start: 72_000)
+        }
+        select(model, tracks: ["t2"])
+        press(window)
+        select(model)
+        press(window)
+
+        #expect(gain(model, studio, at: 60_000) == .value(-16), "a read at the earliest start sees c1 only")
+        #expect(SessionWindow.duckTotal(of: ["c1", "c2"], in: Self.range, session: studio.session) == .mixed)
+        await model.close()
+    }
+
+    /// One value, not Mixed: one clip whose range starts in a gap (c1 plays from 72 000), and two tracks
+    /// at the same total with clips that start at different frames (c2 plays from 60 000). No changed
+    /// clip in the range gives nil.
+    @Test func theDuckTotalIsOneValueWhenTheTotalsAreEqual() async throws {
+        let (model, studio, window, view) = try await open()
+        #expect(window.makeFirstResponder(view.lanes))
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.move("c1", to: "t1", start: 72_000)
+            try session.move("c2", to: "t2", start: 60_000)
+        }
+        func total(_ changed: [ClipID]) -> ClipInspection.Shown<Double>? {
+            SessionWindow.duckTotal(of: changed, in: Self.range, session: studio.session)
+        }
+
+        select(model, tracks: ["t1"])
+        press(window)
+        #expect(total(["c1"]) == .value(-16), "one clip, with a gap at the start of the range")
+        #expect(total([]) == nil)
+        try studio.undo()
+        select(model)
+        press(window)
+        #expect(total(["c1", "c2"]) == .value(-16), "both clips at -16 dB at their first frame")
+        await model.close()
+    }
+
     /// A beep says nothing: no selection, a clip set, ramps that reach no clip, and the floor. A range in
     /// silence whose ramp reaches c2 changes c2, but no selected clip plays a frame of the range.
     @Test func aDuckThatChangesNothingAnnouncesNothing() async throws {

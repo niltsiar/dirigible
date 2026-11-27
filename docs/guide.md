@@ -1658,7 +1658,7 @@ These commands are buttons in the banners of the window, not items of the menu b
 | **Transcribe Again** | **Transcribir de nuevo** | None |
 | **Cancel** | **Cancelar** | Command-Period |
 | **Stop** | **Detener** | None |
-| **Ask Again** | **Preguntar siempre** | None |
+| **Ask Again** | **Preguntar de nuevo** | None |
 
 ## Advanced
 

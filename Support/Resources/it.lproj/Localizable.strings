@@ -783,7 +783,7 @@
 "sheet.transcribe.note.download" = "Dirigible scarica questo modello una sola volta. Il tuo audio non lascia mai questo Mac.";
 "sheet.transcribe.note.replace.one" = "Questa traccia ha 1 parola di trascrizione.";
 "sheet.transcribe.note.replace.many" = "Questa traccia ha %lld parole di trascrizione.";
-"sheet.transcribe.choose" = "Scegli…";
+"sheet.transcribe.choose" = "Scegli file…";
 "sheet.transcribe.missing" = "%@ (mancante)";
 "sheet.transcribe.note.file" = "Un modello fuori dall\U2019elenco di Dirigible può variare in velocità e precisione. Il tuo audio non lascia mai questo Mac.";
 "sheet.transcribe.check.running" = "Verifica di %@…";
@@ -977,7 +977,7 @@
 "banner.sync.head.cut" = "Inizio del clip tagliato di %@ per tenerlo nella sessione.";
 "banner.sync.replaced" = "Lo spostamento ha sostituito l’audio di %@.";
 "banner.sync.no.match" = "Nessuna corrispondenza trovata per %@ su %@.";
-"banner.sync.choose" = "Altra traccia…";
+"banner.sync.choose" = "Scegli traccia…";
 "banner.sync.undo" = "Annulla";
 "sheet.sync.drift" = "Correggi deriva";
 "sheet.sync.drift.take" = "Una ripresa registra con il clock della sessione.";

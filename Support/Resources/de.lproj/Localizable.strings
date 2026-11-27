@@ -108,8 +108,8 @@
 "error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt (%@). Stelle sie wieder her und suche erneut.";
 "error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach. Wähle einen Bereich innerhalb der Session.";
 "banner.duck.unread" = "%@ konnte nicht gelesen werden. Prüfe die Festplatte und senke erneut ab.";
-"banner.take.sync.broken" = "%1$@ hat einen Teil von Take %2$lld asynchron verschoben. Mache die Änderung rückgängig.";
-"banner.take.sync.broken.unnamed" = "Ein KI-Agent hat einen Teil von Take %lld asynchron verschoben. Mache die Änderung rückgängig.";
+"banner.take.sync.broken" = "%1$@ hat einen Teil von Take %2$lld asynchron verschoben. Mache die Änderung rückgängig, um ihn wiederherzustellen.";
+"banner.take.sync.broken.unnamed" = "Ein KI-Agent hat einen Teil von Take %lld asynchron verschoben. Mache die Änderung rückgängig, um ihn wiederherzustellen.";
 "banner.take.sync.show" = "Zeigen";
 "episode.take.sync.in" = "Take %1$lld ist bei %2$@ s synchron.";
 "episode.take.sync.broken" = "Take %1$lld ist ab %2$@ nicht synchron.";

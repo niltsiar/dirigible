@@ -375,7 +375,7 @@
 "take.recording" = "Grabando la toma %lld";
 "take.agent" = "La toma %1$lld graba %2$@ para un agente de IA (dice: “%3$@”) · quedan %4$@";
 "take.agent.unnamed" = "La toma %1$lld graba %2$@ para un agente de IA · quedan %3$@";
-"take.agent.always.ask" = "Preguntar siempre";
+"take.agent.always.ask" = "Preguntar de nuevo";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Terminando la toma %lld…";
 "take.placing" = "Colocando %@…";

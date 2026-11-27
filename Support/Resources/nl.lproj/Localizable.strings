@@ -108,8 +108,8 @@
 "error.silences.faults" = "Deze bestanden ontbreken of zijn beschadigd (%@). Zet de bestanden terug en zoek opnieuw.";
 "error.duck.past.end" = "De selectie begint bij of na het einde van de sessie. Selecteer een bereik binnen de sessie.";
 "banner.duck.unread" = "%@ kon niet worden gelezen. Controleer de schijf en verlaag opnieuw.";
-"banner.take.sync.broken" = "%1$@ heeft een deel van take %2$lld uit de synchronisatie verplaatst. Maak de wijziging ongedaan.";
-"banner.take.sync.broken.unnamed" = "Een AI-agent heeft een deel van take %lld uit de synchronisatie verplaatst. Maak de wijziging ongedaan.";
+"banner.take.sync.broken" = "%1$@ heeft een deel van take %2$lld uit de synchronisatie verplaatst. Maak de wijziging ongedaan om dit te herstellen.";
+"banner.take.sync.broken.unnamed" = "Een AI-agent heeft een deel van take %lld uit de synchronisatie verplaatst. Maak de wijziging ongedaan om dit te herstellen.";
 "banner.take.sync.show" = "Toon";
 "episode.take.sync.in" = "Take %1$lld is synchroon bij %2$@ s.";
 "episode.take.sync.broken" = "Take %1$lld is niet synchroon vanaf %2$@.";

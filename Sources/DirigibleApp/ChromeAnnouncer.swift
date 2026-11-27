@@ -16,6 +16,8 @@ struct ChromeAnnouncer {
     private var inTake = false
     /// The pre-roll of a take was announced: "Pre-roll" once at the press.
     private var preRoll = false
+    /// The last take whose end was announced.
+    private var take: Int?
 
     /// Announces what `state` changes against the shown state of `model`. The caller then writes
     /// `state.shown` to the model.
@@ -30,6 +32,10 @@ struct ChromeAnnouncer {
         if state.preRolling != preRoll {
             preRoll = state.preRolling
             if state.preRolling { post(L10n.subtitlePreRoll.text, .medium) }
+        }
+        if let finished = state.finishedTake, finished != take {
+            take = finished
+            post(L10n.takeEnded.format(finished), .medium)
         }
         if let studio = model.studio {
             warnings = warnings.filter { studio.liveStates[$0.key] != nil }

@@ -294,10 +294,9 @@ extension BannerTests {
         let take = TakeResult(take: 2, end: .requested, gaps: [:], lateStarts: ["t2", "t1"])
         let rows = try rows(take, names: ["t1": "Host", "t2": "Guest"])
 
-        #expect(rows.count == 3, "\(rows)")
-        #expect(rows[0] == "Take 2 is finished.")
-        #expect(rows[1].contains("“Host”") && rows[1].contains("misses the start of the take"), "\(rows[1])")
-        #expect(rows[2].contains("“Guest”") && rows[2].contains("misses the start of the take"), "\(rows[2])")
+        #expect(rows.count == 2, "\(rows)")
+        #expect(rows[0].contains("“Host”") && rows[0].contains("misses the start of the take"), "\(rows[0])")
+        #expect(rows[1].contains("“Guest”") && rows[1].contains("misses the start of the take"), "\(rows[1])")
     }
 
     /// A track whose first record came after the stop is a late start with no audio: the row still
@@ -314,6 +313,34 @@ extension BannerTests {
         let take = TakeResult(take: 1, end: .requested, gaps: ["t1": .deviceLost])
         let rows = try rows(take)
 
-        #expect(rows.count == 2 && !rows.contains { $0.contains("late") }, "\(rows)")
+        #expect(rows.count == 1 && !rows.contains { $0.contains("late") }, "\(rows)")
+    }
+
+    // MARK: ui-audit A1 (run 2026-11-24-ui-design-audit)
+
+    /// A clean take has no banner row: its clips show on the timeline. A disk-low stop keeps its row.
+    @Test func aCleanTakeHasNoRowAndADiskLowStopHasOne() throws {
+        #expect(try rows(TakeResult(take: 2, end: .requested, gaps: [:])) == [])
+        #expect(
+            try rows(TakeResult(take: 3, end: .diskLow, gaps: [:]))
+                == ["Take 3 stopped on low disk space. Free some space before the next take."])
+    }
+
+    /// VoiceOver hears the end of a clean take once, and nothing for a disk-low stop, which has a row.
+    @Test func voiceOverHearsTheEndOfACleanTakeOnce() async throws {
+        let url = try await timelinePackage(in: folder.url, tracks: 1, seconds: 2)
+        let (model, studio, _, _) = try await openLanes(app, url)
+        let chrome = try #require(model.chrome)
+        let heard = OSAllocatedUnfairLock(initialState: [String]())
+        chrome.announce = { text, _ in heard.withLock { $0.append(text) } }
+
+        studio.lastTake = TakeResult(take: 4, end: .diskLow, gaps: [:])
+        chrome.update()
+        studio.lastTake = TakeResult(take: 5, end: .requested, gaps: [:])
+        chrome.update()
+        chrome.update()
+
+        #expect(heard.withLock { $0 } == [L10n.takeEnded.format(5)])
+        await model.close()
     }
 }

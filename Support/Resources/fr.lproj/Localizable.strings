@@ -72,7 +72,7 @@
 "error.duck.no.speech" = "L\U2019atténuation n\U2019a trouvé aucune voix au-dessus de %.1f dBFS. Choisissez d\U2019autres pistes de voix et réessayez.";
 "error.duck.no.speech.track" = "Sélectionnez une piste de voix ou donnez à une piste le rôle Dialogue.";
 "error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";
-"error.duck.both.lists" = "La piste \U00AB\U00A0%@\U00A0\U00BB ne peut pas être piste de voix et piste à atténuer. Choisissez une seule liste.";
+"error.duck.both.lists" = "La piste \U00AB\U00A0%@\U00A0\U00BB ne peut pas être une piste de voix et une piste à atténuer. Choisissez-la dans une seule liste.";
 "error.duck.read" = "Un fichier audio d\U2019une piste de voix n\U2019a pas pu être lu (erreur %lld). Vérifiez le disque et réessayez.";
 "error.ride.read" = "Le nivellement dans le temps n\U2019a pas pu lire un fichier audio (erreur %lld). Vérifiez le disque et réessayez.";
 "error.ride.missing" = "Le nivellement dans le temps ne trouve pas \U00AB %@ \U00BB dans le dossier Clips. Remettez le fichier et réessayez.";
@@ -552,7 +552,7 @@
 "settings.agents.off" = "Les agents ne peuvent modifier que les sessions fermées.";
 "settings.agents.elsewhere" = "Pour utiliser les agents ici, quittez l’autre copie de Dirigible.";
 "settings.agents.failed" = "Le serveur d’agents n’a pas démarré.";
-"settings.agents.copy" = "Copier";
+"settings.agents.copy" = "Copier la commande";
 "settings.agents.setup" = "Configuration de l’agent";
 "settings.agents.copied" = "Copié";
 "settings.agents.copy.hint" = "Collez-la dans Terminal, puis démarrez l’agent.";
@@ -783,7 +783,7 @@
 "sheet.transcribe.note.download" = "Dirigible télécharge ce modèle une seule fois. Votre audio ne quitte jamais ce Mac.";
 "sheet.transcribe.note.replace.one" = "Cette piste contient 1 mot de transcription.";
 "sheet.transcribe.note.replace.many" = "Cette piste contient %lld mots de transcription.";
-"sheet.transcribe.choose" = "Choisir…";
+"sheet.transcribe.choose" = "Choisir un fichier…";
 "sheet.transcribe.missing" = "%@ (introuvable)";
 "sheet.transcribe.note.file" = "Un modèle hors de la liste de Dirigible peut varier en vitesse et en précision. Votre audio ne quitte jamais ce Mac.";
 "sheet.transcribe.check.running" = "Vérification de %@…";
@@ -977,7 +977,7 @@
 "banner.sync.head.cut" = "Début du clip coupé de %@ pour le garder dans la session.";
 "banner.sync.replaced" = "Le déplacement a remplacé l’audio de %@.";
 "banner.sync.no.match" = "Aucune correspondance trouvée pour %@ sur %@.";
-"banner.sync.choose" = "Autre piste…";
+"banner.sync.choose" = "Choisir une piste…";
 "banner.sync.undo" = "Annuler";
 "sheet.sync.drift" = "Corriger la dérive";
 "sheet.sync.drift.take" = "Une prise enregistre sur l'horloge de la session.";

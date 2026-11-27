@@ -33,7 +33,7 @@
 "menu.record.start" = "Neem op";
 "menu.record.pre.roll" = "Neem op met pre-roll";
 "menu.record.retry" = "Probeer opnieuw af te ronden";
-"menu.record.leave.unreadable" = "Rond af zonder onleesbare audio";
+"menu.record.leave.unreadable" = "Toch afronden";
 "menu.unplaced.place" = "Plaats";
 "menu.unplaced.place.playhead" = "Plaats bij afspeelkop op geselecteerd spoor";
 "menu.record.monitor" = "Invoerniveaus";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Afgekapte pieken herstellen";
 "sheet.repair.declip.note" = "Vindt platte pieken en maakt de clip zachter. Voer daarna Automatische niveaus uit.";
 "sheet.repair.rumble" = "Gerommel verminderen";
-"sheet.repair.rumble.note" = "Knipt geluid onder %lld Hz weg, zoals bonken en wind.";
+"sheet.repair.rumble.note" = "Knipt lage geluiden weg, zoals bonken en wind.";
 "sheet.repair.deess" = "Scherpe 's'-klanken verzachten";
-"sheet.repair.deess.note" = "Maximaal %lld dB.";
 "sheet.repair.amount" = "Hoeveelheid";
 "sheet.repair.more" = "Meer";
 "sheet.repair.frequency" = "Frequentie";
@@ -377,7 +376,7 @@
 "take.recording" = "Take %lld wordt opgenomen";
 "take.agent" = "Take %1$lld neemt %2$@ op voor een AI-agent (die zegt: '%3$@') · nog %4$@";
 "take.agent.unnamed" = "Take %1$lld neemt %2$@ op voor een AI-agent · nog %3$@";
-"take.agent.always.ask" = "Vraag altijd opnieuw";
+"take.agent.always.ask" = "Vraag opnieuw";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Take %lld afronden…";
 "take.placing" = "%@ plaatsen…";
@@ -427,7 +426,7 @@
 "transport.play" = "Speel af";
 "record.over.chip" = "Verborgen audio";
 "record.over.show" = "Toon clip";
-"record.over.disarm" = "Deactiveer opname voor %@";
+"record.over.disarm" = "Deactiveer %@";
 "record.over.detail" = "De opname vervangt audio op %1$@. De eerste clip begint bij %2$@.";
 "transport.stop.output.changed" = "Het uitvoerapparaat is gewijzigd. Druk op de spatiebalk om af te spelen op het nieuwe apparaat.";
 "transport.stop.output.unavailable" = "Het uitvoerapparaat is niet beschikbaar (fout %lld). Sluit het aan of kies een ander.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Agents kunnen alleen gesloten sessies wijzigen.";
 "settings.agents.elsewhere" = "Stop de andere kopie van Dirigible om hier agents te gebruiken.";
 "settings.agents.failed" = "De agentserver is niet gestart.";
-"settings.agents.copy" = "Kopieer installatiecommando";
+"settings.agents.copy" = "Kopieer commando";
 "settings.agents.setup" = "Agent-installatie";
 "settings.agents.copied" = "Gekopieerd";
 "settings.agents.copy.hint" = "Plak het in Terminal en start dan de agent.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "Nauwkeuriger (%@, langzamer)";
 "sheet.transcribe.most.accurate" = "Nauwkeurigst (%@, langzaamst)";
 "sheet.transcribe.start" = "Transcriberen";
-"sheet.transcribe.download" = "Downloaden en transcriberen";
+"sheet.transcribe.download" = "Transcriberen";
 "sheet.transcribe.replace" = "Vervangen";
 "sheet.transcribe.note.download" = "Dirigible downloadt dit model één keer. Je audio verlaat deze Mac nooit.";
 "sheet.transcribe.note.replace.one" = "Dit spoor heeft 1 woord van het transcript.";
 "sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden van het transcript.";
-"sheet.transcribe.choose" = "Kies modelbestand…";
+"sheet.transcribe.choose" = "Kies bestand…";
 "sheet.transcribe.missing" = "%@ (ontbreekt)";
 "sheet.transcribe.note.file" = "Een model van buiten de lijst van Dirigible kan verschillen in snelheid en nauwkeurigheid. Je audio verlaat deze Mac nooit.";
 "sheet.transcribe.check.running" = "%@ controleren…";
@@ -911,6 +910,7 @@
 "track.follow.value" = "Aan";
 "track.follow.help" = "“Meeschuiven bij ripple” staat aan. Zet het uit in het menu Spoor.";
 "track.follow.turn.off" = "Zet “Meeschuiven bij ripple” uit";
+"alert.follow.turn.off" = "Zet uit";
 "alert.follow.overlap.title" = "Een clip zou een andere clip bedekken.";
 "alert.follow.overlap.body" = "Verplaats de clip op %1$@ bij %2$@ of zet \U201CMeeschuiven bij ripple\U201D uit.";
 "error.ripple.follow.only" = "Elk spoor schuift mee bij ripple. Zet \U201CMeeschuiven bij ripple\U201D uit op een spoor om te knippen.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "Het begin van de clip is %@ ingekort om de clip in de sessie te houden.";
 "banner.sync.replaced" = "De verplaatsing heeft audio van %@ vervangen.";
 "banner.sync.no.match" = "Geen overeenkomst gevonden voor %@ op %@.";
-"banner.sync.choose" = "Kies een ander spoor…";
+"banner.sync.choose" = "Kies spoor…";
 "banner.sync.undo" = "Herstel";
 "sheet.sync.drift" = "Drift corrigeren";
 "sheet.sync.drift.take" = "Een opname neemt op met de sessieklok.";

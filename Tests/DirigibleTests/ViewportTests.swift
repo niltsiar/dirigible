@@ -291,12 +291,12 @@ struct RecordOverTests {
         let texts: [String: [String: String]] = [
             "en": [
                 "record.over.chip": "Hidden Audio at Risk", "record.over.show": "Show Clip",
-                "record.over.disarm": "Turn Off Record on %@",
+                "record.over.disarm": "Disarm %@",
                 "record.over.detail": "Recording replaces audio on %1$@. The first clip starts at %2$@.",
             ],
             "es": [
                 "record.over.chip": "Audio oculto en riesgo", "record.over.show": "Mostrar clip",
-                "record.over.disarm": "Desactivar grabar en %@",
+                "record.over.disarm": "Desarmar %@",
                 "record.over.detail": "La grabación sustituye el audio de %1$@. El primer clip empieza en %2$@.",
             ],
         ]

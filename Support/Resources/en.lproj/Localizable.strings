@@ -33,7 +33,7 @@
 "menu.record.start" = "Record";
 "menu.record.pre.roll" = "Record with Pre-roll";
 "menu.record.retry" = "Retry Finalize";
-"menu.record.leave.unreadable" = "Finish Without Unreadable Audio";
+"menu.record.leave.unreadable" = "Finish Anyway";
 "menu.unplaced.place" = "Place";
 "menu.unplaced.place.playhead" = "Place at Playhead on Selected Track";
 "menu.record.monitor" = "Input Levels";
@@ -281,9 +281,8 @@
 "sheet.repair.declip" = "Repair clipped peaks";
 "sheet.repair.declip.note" = "Finds flat peaks and makes the clip quieter. Run Auto Level after.";
 "sheet.repair.rumble" = "Reduce rumble";
-"sheet.repair.rumble.note" = "Cuts sound below %lld Hz, such as thumps and wind.";
+"sheet.repair.rumble.note" = "Cuts low sounds, such as thumps and wind.";
 "sheet.repair.deess" = "Soften \U201Cs\U201D sounds";
-"sheet.repair.deess.note" = "Up to %lld dB.";
 "sheet.repair.amount" = "Amount";
 "sheet.repair.more" = "More";
 "sheet.repair.frequency" = "Frequency";
@@ -377,7 +376,7 @@
 "take.recording" = "Recording take %lld";
 "take.agent" = "Take %1$lld records %2$@ for an AI agent (it says: “%3$@”) · %4$@ left";
 "take.agent.unnamed" = "Take %1$lld records %2$@ for an AI agent · %3$@ left";
-"take.agent.always.ask" = "Always Ask Again";
+"take.agent.always.ask" = "Ask Again";
 "dock.badge.recording" = "REC";
 "take.finishing" = "Finishing take %lld…";
 "take.placing" = "Placing %@…";
@@ -427,7 +426,7 @@
 "transport.play" = "Play";
 "record.over.chip" = "Hidden Audio at Risk";
 "record.over.show" = "Show Clip";
-"record.over.disarm" = "Turn Off Record on %@";
+"record.over.disarm" = "Disarm %@";
 "record.over.detail" = "Recording replaces audio on %1$@. The first clip starts at %2$@.";
 "transport.stop.output.changed" = "The output device changed. Press Space to play on the new device.";
 "transport.stop.output.unavailable" = "The output device isn't available (error %lld). Connect it or choose another one.";
@@ -554,7 +553,7 @@
 "settings.agents.off" = "Agents can edit only closed sessions.";
 "settings.agents.elsewhere" = "To use agents here, quit the other copy of Dirigible.";
 "settings.agents.failed" = "The agent server didn't start.";
-"settings.agents.copy" = "Copy Setup Command";
+"settings.agents.copy" = "Copy Command";
 "settings.agents.setup" = "Agent setup";
 "settings.agents.copied" = "Copied";
 "settings.agents.copy.hint" = "Paste it in Terminal, then start the agent.";
@@ -785,12 +784,12 @@
 "sheet.transcribe.accurate" = "More Accurate (%@, slower)";
 "sheet.transcribe.most.accurate" = "Most Accurate (%@, slowest)";
 "sheet.transcribe.start" = "Transcribe";
-"sheet.transcribe.download" = "Download and Transcribe";
+"sheet.transcribe.download" = "Transcribe";
 "sheet.transcribe.replace" = "Replace";
 "sheet.transcribe.note.download" = "Dirigible downloads this model once. Your audio never leaves this Mac.";
 "sheet.transcribe.note.replace.one" = "This track has 1 word of transcript.";
 "sheet.transcribe.note.replace.many" = "This track has %lld words of transcript.";
-"sheet.transcribe.choose" = "Choose Model File…";
+"sheet.transcribe.choose" = "Choose File…";
 "sheet.transcribe.missing" = "%@ (missing)";
 "sheet.transcribe.note.file" = "A model from outside the Dirigible list can differ in speed and accuracy. Your audio never leaves this Mac.";
 "sheet.transcribe.check.running" = "Checking %@…";
@@ -911,6 +910,7 @@
 "track.follow.value" = "On";
 "track.follow.help" = "Follow in Ripples is on. Turn it off in the Track menu.";
 "track.follow.turn.off" = "Turn Off Follow in Ripples";
+"alert.follow.turn.off" = "Turn Off";
 "alert.follow.overlap.title" = "A clip would cover another clip.";
 "alert.follow.overlap.body" = "Move the clip on %1$@ at %2$@, or turn off Follow in Ripples.";
 "error.ripple.follow.only" = "Every track follows ripples. Turn off Follow in Ripples on a track to cut.";
@@ -983,7 +983,7 @@
 "banner.sync.head.cut" = "Cut %@ from the clip start to keep it in the session.";
 "banner.sync.replaced" = "The move replaced audio of %@.";
 "banner.sync.no.match" = "Couldn't find a match for %@ on %@.";
-"banner.sync.choose" = "Choose Another Track…";
+"banner.sync.choose" = "Choose Track…";
 "banner.sync.undo" = "Undo";
 "sheet.sync.drift" = "Correct drift";
 "sheet.sync.drift.take" = "A take records on the session clock.";

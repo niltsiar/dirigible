@@ -75,7 +75,7 @@ import Testing
                 == "Moved the clip 3.4 s earlier. The clip is shorter than the 60 s that drift measuring needs.")
         #expect(
             text(moved(lag: -163_200, headCut: 288_000))
-                == "Moved the clip 3.4 s earlier. Cut 6.0 s from the clip start to keep it in the session.")
+                == "Moved the clip 3.4 s earlier. The move cut 6.0 s from the clip start to fit the session.")
         #expect(
             text(moved(lag: -163_200, replaced: ["Part 2"]))
                 == "Moved the clip 3.4 s earlier. The move replaced audio of Part 2.")
@@ -156,11 +156,15 @@ import Testing
         #expect(!bannerText(cut).contains("Moved"), "\(bannerText(cut))")
         #expect(WindowBanner.syncCut(cut, press: 1).kind == .warning)
         #expect(
-            cutText(cut) == "Cut 6.0 s from the clip start to keep it in the session.", "\(cutText(cut))")
+            cutText(cut) == "The move cut 6.0 s from the clip start to fit the session.", "\(cutText(cut))")
+        let both = moved(lag: -163_200, headCut: 288_000, replaced: ["r"])
+        #expect(
+            cutText(both) == "The move cut 6.0 s from the clip start to fit the session.\n"
+                + "The move replaced audio of r.", "one row for each fact: \(cutText(both))")
         let drift = driftMoved(.notCorrected(.takeFile))
         #expect(WindowBanner.syncMoved(drift, revision: 3, press: 1).kind == .warning)
         #expect(
-            bannerText(drift) == "The drift wasn't corrected. A take records on the session clock.",
+            bannerText(drift) == "The drift of a take isn't corrected.",
             "\(bannerText(drift))")
         #expect(WindowBanner.syncMoved(moved(lag: -163_200), revision: 3, press: 1).kind == .info)
     }

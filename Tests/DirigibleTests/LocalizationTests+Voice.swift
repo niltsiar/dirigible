@@ -238,7 +238,7 @@ private let stepVerbs: Set = [
     "Undo", "Update", "Use", "Wait",
 ]
 
-private func isStep(_ sentence: Substring) -> Bool {
+func isStep(_ sentence: Substring) -> Bool {
     let word = sentence.split(separator: " ").first.map { $0.trimmingCharacters(in: .punctuationCharacters) }
     return word.map(stepVerbs.contains) ?? false
 }

@@ -6,7 +6,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// The A3 rule of the ui-audit skill for the banners that join several keys: a banner row has at most two
-/// sentences and under 100 characters, with one fact in each sentence.
+/// sentences and under 100 characters, with one fact in each sentence and a step as the second sentence.
 extension BannerValueTests {
     /// The sentences of a text: a full stop, a question mark, an exclamation mark, or a semicolon, then a space.
     private func sentenceCount(_ text: String) -> Int {
@@ -23,11 +23,17 @@ extension BannerValueTests {
         rows.flatMap { name, text -> [String] in
             var problems: [String] = []
             if sentenceCount(text) > 2 { problems.append("\(name): \(sentenceCount(text)) sentences: \(text)") }
+            for line in text.split(separator: "\n") {
+                let sentences = line.split(separator: /[.?!;][ ]/)
+                if sentences.count == 2, line.firstMatch(of: /[.?!;][ ]/)?.output.first != "?", !isStep(sentences[1]) {
+                    problems.append("\(name): a second sentence that is no step: \(line)")
+                }
+            }
             if text.count >= 100 { problems.append("\(name): \(text.count) characters: \(text)") }
             if text.firstMatch(of: /[a-z]: [a-z%0-9]/) != nil {
                 problems.append("\(name): a fact after a colon: \(text)")
             }
-            let numbers = text.split(separator: /[.?!;][ ]/).map {
+            let numbers = text.split(separator: "\n").flatMap { $0.split(separator: /[.?!;][ ]/) }.map {
                 $0.matches(of: /\d+(?::\d+)+|\d+(?:[.,]\d+)?/).count
             }
             if (numbers.max() ?? 0) > Self.numberLimit { problems.append("\(name): several measurements: \(text)") }
@@ -64,6 +70,12 @@ extension BannerValueTests {
             ("sessionImported", WindowBanner.sessionImported(importCheck, press: 1).text),
             ("saveError", L10n.bannerSaveError.text),
         ]
+        let take = TakeResult(
+            take: 3, end: .diskLow, gaps: ["t1": .deviceLost, "t2": .writeFailed], droppedFrames: ["t1": 512],
+            lateStarts: ["t2"])
+        rows += take.bannerLines { $0.rawValue }.map { ("takeResult", $0) }
+        let unchanged = SyncMoved(lag: 0, drift: .onePartMatched, headCut: 0, replaced: [], rate: 48_000)
+        rows.append(("syncMoved unchanged", WindowBanner.syncMoved(unchanged, revision: 2, press: 1).text))
         for (changed, atLimit, unmeasured) in [(0, 3, 3), (0, 0, 3), (0, 0, 0), (0, 3, 0), (2, 3, 3)] {
             let report = LevelReport(changed: changed, atLimit: atLimit, unmeasured: unmeasured)
             rows.append(("levelReport \(changed) \(atLimit) \(unmeasured)", L10n.message(for: report)))

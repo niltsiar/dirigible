@@ -116,17 +116,17 @@ struct SyncMoved: Equatable {
     var needsCheck: Bool { notCorrected || cuts }
 
     /// The text of the first row: the drift that was not corrected and its cause, else the cut head and
-    /// the replaced audio, else the result. The move shows on the timeline, so only VoiceOver reads it
-    /// next to a cut. `text` gives the value of a key.
+    /// the replaced audio, else the result, with one line for each fact. The move shows on the timeline,
+    /// so only VoiceOver reads it next to a cut. `text` gives the value of a key.
     func text(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
         let parts = sentences(text: text, locale: locale)
-        if !parts.drift.isEmpty { return parts.drift.joined(separator: " ") }
-        return (cuts ? parts.cut : parts.done).joined(separator: " ")
+        if !parts.drift.isEmpty { return parts.drift.joined(separator: "\n") }
+        return (cuts ? parts.cut : parts.done).joined(separator: "\n")
     }
 
     /// The text of the row for the cut head and the replaced audio. `text` gives the value of a key.
     func cutText(text: (L10n) -> String = { $0.text }, locale: Locale = .current) -> String {
-        sentences(text: text, locale: locale).cut.joined(separator: " ")
+        sentences(text: text, locale: locale).cut.joined(separator: "\n")
     }
 
     /// The result for VoiceOver: "Moved the clip 2 min 3.0 s later." (the direction as a word, never a
@@ -170,10 +170,7 @@ struct SyncMoved: Equatable {
             }
         }
         var drift: [String] = []
-        if case .notCorrected(let cause) = outcome {
-            drift.append(format(.bannerDriftNotCorrected))
-            drift.append(format(cause.reasonKey))
-        }
+        if case .notCorrected(let cause) = outcome { drift.append(format(cause.reasonKey)) }
         var cut: [String] = []
         if headCut > .zero { cut.append(format(.bannerSyncHeadCut, duration(headCut))) }
         if !replaced.isEmpty {
@@ -201,7 +198,8 @@ extension SyncMoved {
 }
 
 extension DriftCause {
-    /// The key of the sentence that the banner gives after "The drift wasn't corrected."
+    /// The key of the banner row of a drift that was not corrected: the fact with its cause, or the fact
+    /// and the step that removes the cause.
     var reasonKey: L10n {
         switch self {
         case .clipTooShort: .bannerDriftCauseTooShort

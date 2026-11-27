@@ -59,9 +59,9 @@ extension L10n {
         return line
     }
 
-    /// The banner of a window import: the muted call tracks and the markers that were left out, each when
-    /// there is one. The tracks show in the window, so the banner does not count them. `table` gives the
-    /// format of a key: the tests read the tables.
+    /// The banner of a window import: the muted call tracks and the markers that were left out, each in its
+    /// own row when there is one. The tracks show in the window, so the banner does not count them.
+    /// `table` gives the format of a key: the tests read the tables.
     static func sessionImportCheck(muted: Int, leftOut: Int, table: (L10n) -> String = { $0.text }) -> String {
         var parts: [String] = []
         if muted > 0 {
@@ -70,6 +70,6 @@ extension L10n {
         if leftOut > 0 {
             parts.append(counted(leftOut, one: .importSessionLeftOutOne, many: .importSessionLeftOutOther, text: table))
         }
-        return parts.joined(separator: " ")
+        return parts.joined(separator: "\n")
     }
 }

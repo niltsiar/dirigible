@@ -103,11 +103,11 @@ When you close the window during a take, Dirigible asks first. Press Return to s
 
 ### Record with a pre-roll
 
-A pre-roll is a short play of the session before a take starts. You hear what comes before the place where you speak, for example the end of the last sentence, and you start at the right moment. **Record > Record with Pre-roll** (**Grabar con pre-roll**, key P) starts a take at the playhead after a pre-roll. **Record** (Command-R) does not change: it plays nothing during a take.
+A pre-roll is a short play of the session before a take starts. You hear what comes before the place where you speak, for example the end of the last sentence, and you start at the right moment. **Record > Record with Pre-Roll** (**Grabar con pre-roll**, key P) starts a take at the playhead after a pre-roll. **Record** (Command-R) does not change: it plays nothing during a take.
 
 1. Put on headphones. With speakers, the microphone records the sound of the pre-roll.
 2. Put the playhead at the place where the take must start. Arm the tracks that you record.
-3. Press P, or choose **Record > Record with Pre-roll**. The window subtitle shows **Pre-roll** after the sample rate, and a red line shows at the start place of the take, on the lanes and in the time ruler.
+3. Press P, or choose **Record > Record with Pre-Roll**. The window subtitle shows **Pre-roll** after the sample rate, and a red line shows at the start place of the take, on the lanes and in the time ruler.
 4. Dirigible plays the session from the pre-roll length before the red line. When the play reaches the red line, the take starts, and the subtitle shows its other text again. Speak at the red line.
 5. Choose **Transport > Stop** (Command-Period) as for any take.
 
@@ -161,7 +161,7 @@ Before the show, open the call app and turn on **Input Levels** with its track a
 - While **Input Levels** is on, Dirigible checks the access at each tap of the app. When macOS does not allow System Audio Recording, the track shows "No access to" and the app name, with the same button as "No sound from". This warning does not wait for 5 seconds of silence. This check is tested only on macOS 15.8.1, for a stereo track of an app with one process. Allow Dirigible in the list **System Audio Recording Only**, then come back to Dirigible. Dirigible taps the app again, as for "No sound from". The warning goes when the new tap has access, or at the first app sound. The 8 come backs count for both warnings. A take does not check the access, so a take shows "No sound from".
 - If Dirigible is on in the list **System Audio Recording Only**, and the track still shows "No sound from" after the guest spoke, stop the take. Then select Dirigible in the list, and click the minus button (**-**) to remove it. Record again, and click **Allow** when macOS asks.
 - If the guest drops out of the call, keep recording. The track records the guest again when the call comes back.
-- On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or later".
+- On macOS 14.0 and 14.1, the **Apps** section shows "Needs macOS 14.2 or Later".
 - In Terminal, `dirigible apps` lists the apps, and `dirigible track route <package> <track> --app <bundle ID>` sets an app as the input. `dirigible track add-call <package> --device <UID> --channels 1 --app <bundle ID>` adds the **Host** and **Guest** tracks.
 
 ### Play the take
@@ -178,7 +178,7 @@ The loudness meter is the strip below the tracks. It measures the mix that you h
 - The bar shows the loudness of the last 400 ms. It is green up to the line of the export target and yellow over it.
 - **Average** is the loudness since the play start, and the time that it measured.
 - **Peak** is the highest true peak, in dBTP. It is red over -1 dBTP.
-- **Target** is the loudness target of the export: -16 LUFS for **Podcast** or **Off**, -18 LUFS for **Speech**, -23 LUFS for **EBU R 128**, and -24 LUFS for **US broadcast**.
+- **Target** is the loudness target of the export: -16 LUFS for **Podcast** or **Off**, -18 LUFS for **Speech**, -23 LUFS for **EBU R 128**, and -24 LUFS for **US Broadcast**.
 
 Before the first play, the strip says "Play to measure" in place of **Average** and **Peak**. When you play again from the frame where you stopped, **Average** and **Peak** go on. A play from another frame starts them again. A play in reverse, at half speed, at 4x, or at a **Playback Speed** other than 1x does not change them, and **Loudness** and the bar show a dash, as after a stop. During a take, or during **Input Levels** with no play, the strip shows dashes. Then each armed track shows its loudness in its header when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
@@ -841,7 +841,7 @@ The export panel has these settings. It keeps the last settings that you used, e
 | **Bit rate** (AAC and MP3) | 64, 96, 128, 160, 192, or 256 kbit/s |
 | **Channels** | **Stereo** or **Mono** |
 | **Sample rate** | The session rate, **44.1 kHz**, or **48 kHz** |
-| **Loudness** | **Off**, **Podcast** (-16 LUFS), **Speech** (-18), **EBU R 128** (-23), or **US broadcast** (-24). A mono export is 3 LU lower: Podcast is -19 LUFS. The default is **Podcast**. |
+| **Loudness** | **Off**, **Podcast** (-16 LUFS), **Speech** (-18), **EBU R 128** (-23), or **US Broadcast** (-24). A mono export is 3 LU lower: Podcast is -19 LUFS. The default is **Podcast**. |
 
 With a **Loudness** target, Dirigible measures the mix and sets one gain. A limiter keeps the true peak at or under -1 dBTP. When the limiter lowers the level of a mix with loud peaks, Dirigible raises the gain and renders the mix again, until the limited mix is within 0.1 LU of the target. An AAC or MP3 file, and a file at a sample rate other than the session rate, change the level and the peaks again. So Dirigible reads such a file back as macOS decodes it, and it writes the file again when the true peak is over -1 dBTP or the loudness is more than 0.2 LU off the target. The search stops after 4 trial renders in a round and 2 rewrites, so it can end short of the target. The banner shows the values of the file. Such an export takes longer. Export Selection measures the selection only, so each selection gets its own gain, and so does each file of a set. When the export is done, a banner shows the name of the file, the loudness, the true peak, and the gain, with **Show in Finder**, and VoiceOver reads it. With **Loudness** set to **Off**, the banner shows only the name of the file. When the gain is more than 20 dB, the banner is a warning that gives the gain and says to check that the selection has speech. The banner goes at the next export, take, edit, undo, or redo, because the file then no longer matches the session. An edit during the export also removes it. You can record while it shows.
 
@@ -1572,7 +1572,7 @@ The **Record** menu (**Grabación**).
 | Command | Spanish name | Key |
 |---|---|---|
 | **Record** | **Grabar** | Command-R |
-| **Record with Pre-roll** | **Grabar con pre-roll** | P |
+| **Record with Pre-Roll** | **Grabar con pre-roll** | P |
 | **Retry Finalize** | **Reintentar la finalización** | Option-Command-R |
 | **Input Levels** | **Niveles de entrada** | Shift-Command-M |
 

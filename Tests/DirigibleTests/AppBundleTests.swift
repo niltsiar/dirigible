@@ -143,7 +143,7 @@ struct AppBundleTests {
                 "Hear the input in your headphones (%@). Option-click to apply to all device tracks.",
                 "Oye la entrada en los auriculares (%@). Opción-clic para aplicarlo a todas las pistas de dispositivo."
             ),
-            ("track.route.apps.unavailable", "Needs macOS 14.2 or later", "Necesita macOS 14.2 o posterior"),
+            ("track.route.apps.unavailable", "Needs macOS 14.2 or Later", "Necesita macOS 14.2 o posterior"),
             // MP3 run criterion 14.
             ("panel.export.format.mp3", "MP3", "MP3"),
             // Beta fixes criterion V5.

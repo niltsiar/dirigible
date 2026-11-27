@@ -31,7 +31,7 @@
 "menu.track.monitor" = "Monitor Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
-"menu.record.pre.roll" = "Record with Pre-roll";
+"menu.record.pre.roll" = "Record with Pre-Roll";
 "menu.record.retry" = "Retry Finalize";
 "menu.record.leave.unreadable" = "Finish Anyway";
 "menu.unplaced.place" = "Place";
@@ -217,7 +217,7 @@
 "error.paste.convert" = "The audio from \U201C%1$@\U201D couldn't be converted (error %2$lld). Check the disk and try again.";
 "error.paste.yielded" = "The paste from “%@” stopped for a take in another window. Paste again after the take.";
 "error.writer.did.not.stop" = "The recording of %1$@ didn't stop. Click %2$@ to try again.";
-"error.studio.output.term" = "Record with Pre-roll can't read the delay of the output device. Record (\U2318R) still works.";
+"error.studio.output.term" = "Record with Pre-Roll can't read the delay of the output device. Record (\U2318R) still works.";
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
 "replace.done" = "Replaced %@ seconds";
@@ -355,7 +355,7 @@
 "track.route.channels" = "Channels %1$lld and %2$lld";
 "track.route.missing" = "Device not connected";
 "track.route.apps" = "Apps";
-"track.route.apps.unavailable" = "Needs macOS 14.2 or later";
+"track.route.apps.unavailable" = "Needs macOS 14.2 or Later";
 "track.no.sound.settings" = "Open Privacy Settings";
 "track.input.level" = "Input level";
 "track.no.sound.privacy" = "Privacy…";
@@ -618,7 +618,7 @@
 "panel.export.loudness.podcast" = "Podcast (%lld LUFS)";
 "panel.export.loudness.speech" = "Speech (%lld LUFS)";
 "panel.export.loudness.ebu" = "EBU R 128 (%lld LUFS)";
-"panel.export.loudness.atsc" = "US broadcast (%lld LUFS)";
+"panel.export.loudness.atsc" = "US Broadcast (%lld LUFS)";
 "export.chapter.intro" = "Intro";
 "sheet.export.title" = "Exporting…";
 "sheet.export.cancel" = "Cancel";

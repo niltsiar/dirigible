@@ -363,9 +363,9 @@
 "track.state.retry.stopped" = "Pogingen gestopt. Zet 'Invoerniveaus' uit en aan.";
 "track.state.waiting.app" = "Wachten op %@";
 "track.state.not.started" = "Niet gestart";
-"track.state.no.sound" = "Geen geluid van %@. Klik op \U2018Privacy\U2026\U2019 en sta Dirigible toe systeemaudio op te nemen.";
+"track.state.no.sound" = "Geen geluid van %@. Sta Dirigible in \U2018Privacy en beveiliging\U2019 toe systeemaudio op te nemen.";
 "track.state.no.sound.short" = "Geen geluid: %@";
-"track.state.no.access" = "Geen toegang tot %@. Klik op \U2018Privacy\U2026\U2019 en sta Dirigible toe systeemaudio op te nemen.";
+"track.state.no.access" = "Geen toegang tot %@. Sta Dirigible in \U2018Privacy en beveiliging\U2019 toe systeemaudio op te nemen.";
 "track.state.no.access.short" = "Geen toegang: %@";
 "track.listen.quiet" = "Geen monitorgeluid. Zet 'Spoormonitor' uit en aan.";
 "track.listen.quiet.short" = "Geen monitorgeluid";

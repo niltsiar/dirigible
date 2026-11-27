@@ -34,7 +34,9 @@ import Testing
                 "slipLeft \u{F702} \(EventModifiers([.shift, .option]).rawValue)",
                 "slipRight \u{F703} \(EventModifiers([.shift, .option]).rawValue)", "fade f \(command)",
                 "addGainPoint k \(EventModifiers.option.rawValue)",
+                "duckSelection d \(EventModifiers.shift.rawValue)",
             ])
+        #expect(TimelineCommand.menuItems[.duckSelection]?.title == .menuEditDuckSelection)
         let shift = EventModifiers.shift.rawValue
         let control = EventModifiers.control.rawValue
         #expect(
@@ -83,6 +85,9 @@ import Testing
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         #expect(KeyRule.problems(keys) == [])
+        #expect(
+            KeyRule.problems(keys + [KeyboardShortcut("d", modifiers: .shift)]) == ["repeat: d ⇧"],
+            "a second Shift-D item repeats Duck Selection")
         // Record monitor run 1b, B13: Track > Monitor Track, next to Shift-Command-M of Input Levels.
         #expect(MenuKeys.monitorTrack == KeyboardShortcut("m", modifiers: [.command, .control]), "Monitor Track")
         #expect(MenuKeys.all.contains(MenuKeys.monitorTrack), "the key rule checks Monitor Track")

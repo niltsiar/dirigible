@@ -95,6 +95,8 @@ extension AppDelegate {
             if model.binsCommand(command, isKey: event?.type == .keyDown) { return }
         }
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
+        // A held Shift-D ducks once. The guard sits after the forward, so a held key in a field still types.
+        if command == .duckSelection, let event, event.type == .keyDown, event.isARepeat { return }
         if let selector = command.selector {
             if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }
             return

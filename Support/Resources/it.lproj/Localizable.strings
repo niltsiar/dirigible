@@ -530,9 +530,11 @@
 "menu.edit.slip.content.left" = "Scorri il contenuto a sinistra";
 "menu.edit.slip.content.right" = "Scorri il contenuto a destra";
 "menu.edit.gain.point.add" = "Aggiungi punto di gain";
+"menu.edit.duck.selection" = "Abbassa la selezione";
 "gain.point.added" = "Punto di gain aggiunto a %@";
 "gain.point.set" = "Punto di gain impostato su %@";
 "gain.point.at" = "Punto di gain a %@";
+"duck.selection.done" = "Selezione abbassata a %@";
 "menu.markers" = "Marcatori";
 "menu.markers.add" = "Aggiungi marcatore";
 "menu.markers.add.chapter" = "Aggiungi capitolo";

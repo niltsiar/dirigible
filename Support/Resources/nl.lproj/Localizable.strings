@@ -530,9 +530,11 @@
 "menu.edit.slip.content.left" = "Schuif inhoud naar links";
 "menu.edit.slip.content.right" = "Schuif inhoud naar rechts";
 "menu.edit.gain.point.add" = "Voeg gainpunt toe";
+"menu.edit.duck.selection" = "Verlaag selectie";
 "gain.point.added" = "Gainpunt toegevoegd op %@";
 "gain.point.set" = "Gainpunt ingesteld op %@";
 "gain.point.at" = "Gainpunt op %@";
+"duck.selection.done" = "Selectie verlaagd naar %@";
 "menu.markers" = "Markeringen";
 "menu.markers.add" = "Voeg markering toe";
 "menu.markers.add.chapter" = "Voeg hoofdstuk toe";

@@ -530,9 +530,11 @@
 "menu.edit.slip.content.left" = "Slip Content Left";
 "menu.edit.slip.content.right" = "Slip Content Right";
 "menu.edit.gain.point.add" = "Add Gain Point";
+"menu.edit.duck.selection" = "Duck Selection";
 "gain.point.added" = "Gain point added at %@";
 "gain.point.set" = "Gain point set to %@";
 "gain.point.at" = "Gain point at %@";
+"duck.selection.done" = "Selection ducked to %@";
 "menu.markers" = "Markers";
 "menu.markers.add" = "Add Marker";
 "menu.markers.add.chapter" = "Add Chapter";

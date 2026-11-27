@@ -96,12 +96,12 @@ extension SessionWindow {
     }
 
     /// Announces `format` with the envelope value at `frame` of the selected tracks, as the field shows it.
-    func announceGainPoint(_ format: L10n, at frame: Frames) {
+    func announceGainPoint(_ format: L10n, at frame: Frames, priority: NSAccessibilityPriorityLevel = .high) {
         guard let studio, let point = PointGain(at: frame, selection: timeline.selection, session: studio.session)
         else { return }
         let value =
             point.gain == .mixed
             ? L10n.inspectorMixed.text : InspectorView.pointText(point) + " " + L10n.inspectorDecibels.text
-        chrome?.announce(format.format(value), .high)
+        chrome?.announce(format.format(value), priority)
     }
 }

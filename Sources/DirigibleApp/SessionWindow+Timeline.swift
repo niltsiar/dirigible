@@ -90,6 +90,8 @@ enum TimelineCommand: Hashable, CaseIterable {
     /// Tools > Sync Clip to Track... and the same item of the clip menu (decision 0076).
     case syncClip
     case addGainPoint, previousGainPoint, nextGainPoint
+    /// Edit > Duck Selection (Shift-D): the range gain of decision 0060 at the duck depth.
+    case duckSelection
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -124,8 +126,8 @@ enum TimelineCommand: Hashable, CaseIterable {
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         // A focused text field ends its edit with Return.
         case .renameTrack, .removeTrack, .showInFinder: true
-        // A focused text field types the capital letter of Shift-M and Shift-S.
-        case .muteTracks, .soloTracks: true
+        // A focused text field types the capital letter of Shift-M, Shift-S, and Shift-D.
+        case .muteTracks, .soloTracks, .duckSelection: true
         // A text field does nothing with Control-=, Control-minus, or Control-0.
         case .raiseVolume, .lowerVolume, .resetVolume: false
         case .zoomIn, .zoomOut, .zoomToSession, .zoomBack, .zoomForward, .pagePrevious, .pageNext, .toggleFollow: false
@@ -296,6 +298,7 @@ extension SessionWindow {
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .fade: runFade(studio)
         case .heal: runHeal(studio)
+        case .duckSelection: runDuckSelection(studio)
         case .closeGaps, .rollToPlayhead, .slipLeft, .slipRight: runTrim(command, studio)
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)

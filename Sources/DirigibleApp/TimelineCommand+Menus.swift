@@ -85,6 +85,7 @@ extension TimelineCommand {
             command: .slipRight, title: .menuEditSlipContentRight, key: .rightArrow, modifiers: [.shift, .option]),
         MenuItem(command: .fade, title: .menuEditFade, key: "f", modifiers: .command),
         MenuItem(command: .addGainPoint, title: .menuEditAddGainPoint, key: "k", modifiers: .option),
+        MenuItem(command: .duckSelection, title: .menuEditDuckSelection, key: "d", modifiers: .shift),
     ]
 
     /// The Transport items that move the playhead to a gain point (decision 0060).

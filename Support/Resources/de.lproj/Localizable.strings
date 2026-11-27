@@ -551,7 +551,7 @@
 "settings.agents.on" = "KI-Agenten können eine offene Session ändern, mit einem Schritt für „Widerrufen“ pro Änderung.";
 "settings.agents.off" = "Agenten können nur geschlossene Sessions bearbeiten.";
 "settings.agents.elsewhere" = "Um Agenten hier zu verwenden, beende die andere Kopie von Dirigible.";
-"settings.agents.failed" = "Der Agenten-Server wurde nicht gestartet.";
+"settings.agents.failed" = "Der Agenten-Server wurde nicht gestartet. Schalte den Schalter aus und wieder ein, um es erneut zu versuchen.";
 "settings.agents.copy" = "Befehl kopieren";
 "settings.agents.setup" = "Agent-Setup";
 "settings.agents.copied" = "Kopiert";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "An Abspielposition einfügen";
 "bins.rename" = "Umbenennen";
 "bins.remove" = "Löschen";
-"bins.missing" = "Die Audiodatei dieses Clips fehlt.";
-"bins.short" = "Die Audiodatei dieses Clips ist kürzer, als die Session angibt.";
-"bins.unreadable" = "Die Audiodatei dieses Clips konnte nicht gelesen werden.";
+"bins.missing" = "Die Audiodatei dieses Clips fehlt. Lege sie wieder in den Clips-Ordner.";
+"bins.short" = "Die Audiodatei dieses Clips ist kürzer, als die Session angibt. Stelle die Datei wieder her.";
+"bins.unreadable" = "Die Audiodatei dieses Clips konnte nicht gelesen werden. Prüfe die Festplatte.";
 "error.bin.missing" = "Die Audiodatei \U201E%@\U201C ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.bin.short" = "Die Audiodatei \U201E%@\U201C ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
 "error.bin.unreadable" = "Die Audiodatei \U201E%@\U201C konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";

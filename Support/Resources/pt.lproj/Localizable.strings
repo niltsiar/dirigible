@@ -551,7 +551,7 @@
 "settings.agents.on" = "Agentes de IA podem alterar uma sessão aberta, com uma etapa de Desfazer por alteração.";
 "settings.agents.off" = "Os agentes só podem editar sessões fechadas.";
 "settings.agents.elsewhere" = "Para usar os agentes aqui, encerre a outra cópia do Dirigible.";
-"settings.agents.failed" = "O servidor de agentes não foi iniciado.";
+"settings.agents.failed" = "O servidor de agentes não foi iniciado. Desative e ative o botão para tentar novamente.";
 "settings.agents.copy" = "Copiar Comando";
 "settings.agents.setup" = "Configuração do agente";
 "settings.agents.copied" = "Copiado";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "Inserir no Indicador de Reprodução";
 "bins.rename" = "Renomear";
 "bins.remove" = "Apagar";
-"bins.missing" = "O arquivo de áudio deste clipe está ausente.";
-"bins.short" = "O arquivo de áudio deste clipe é mais curto do que a sessão indica.";
-"bins.unreadable" = "Não foi possível ler o arquivo de áudio deste clipe.";
+"bins.missing" = "O arquivo de áudio deste clipe está ausente. Coloque-o de volta na pasta Clips.";
+"bins.short" = "O arquivo de áudio deste clipe é mais curto do que a sessão indica. Restaure o arquivo.";
+"bins.unreadable" = "Não foi possível ler o arquivo de áudio deste clipe. Verifique o disco.";
 "error.bin.missing" = "O arquivo de áudio \U201C%@\U201D não está na pasta Clips da sessão. Coloque o arquivo de volta e tente novamente.";
 "error.bin.short" = "O arquivo de áudio \U201C%@\U201D é mais curto do que a sessão indica. Restaure o arquivo e tente novamente.";
 "error.bin.unreadable" = "Não foi possível ler o arquivo de áudio \U201C%@\U201D. Verifique o disco e tente novamente.";

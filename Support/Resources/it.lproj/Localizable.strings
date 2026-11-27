@@ -551,7 +551,7 @@
 "settings.agents.on" = "Gli agenti IA possono modificare una sessione aperta, con un solo comando Annulla per ogni modifica.";
 "settings.agents.off" = "Gli agenti possono modificare solo le sessioni chiuse.";
 "settings.agents.elsewhere" = "Per usare gli agenti qui, esci dall’altra copia di Dirigible.";
-"settings.agents.failed" = "Il server degli agenti non si è avviato.";
+"settings.agents.failed" = "Il server degli agenti non si è avviato. Disattiva e riattiva l\U2019interruttore per riprovare.";
 "settings.agents.copy" = "Copia comando";
 "settings.agents.setup" = "Configurazione agente";
 "settings.agents.copied" = "Copiato";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "Inserisci all’indicatore di riproduzione";
 "bins.rename" = "Rinomina";
 "bins.remove" = "Elimina";
-"bins.missing" = "Il file audio di questa clip non è presente.";
-"bins.short" = "Il file audio di questa clip è più corto di quanto dichiara la sessione.";
-"bins.unreadable" = "Impossibile leggere il file audio di questa clip.";
+"bins.missing" = "Il file audio di questa clip non è presente. Rimettilo nella cartella Clips.";
+"bins.short" = "Il file audio di questa clip è più corto di quanto dichiara la sessione. Ripristina il file.";
+"bins.unreadable" = "Impossibile leggere il file audio di questa clip. Controlla il disco.";
 "error.bin.missing" = "Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.bin.short" = "Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
 "error.bin.unreadable" = "Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";

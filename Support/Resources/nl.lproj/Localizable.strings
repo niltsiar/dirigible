@@ -551,7 +551,7 @@
 "settings.agents.on" = "AI-agents kunnen een open sessie wijzigen, met één ongedaanmaakstap per wijziging.";
 "settings.agents.off" = "Agents kunnen alleen gesloten sessies wijzigen.";
 "settings.agents.elsewhere" = "Stop de andere kopie van Dirigible om hier agents te gebruiken.";
-"settings.agents.failed" = "De agentserver is niet gestart.";
+"settings.agents.failed" = "De agentserver is niet gestart. Zet de schakelaar uit en weer aan om het opnieuw te proberen.";
 "settings.agents.copy" = "Kopieer commando";
 "settings.agents.setup" = "Agent-installatie";
 "settings.agents.copied" = "Gekopieerd";
@@ -1091,9 +1091,9 @@
 "bins.insert" = "Voeg in bij afspeelkop";
 "bins.rename" = "Wijzig naam";
 "bins.remove" = "Verwijder";
-"bins.missing" = "Het audiobestand van deze clip ontbreekt.";
-"bins.short" = "Het audiobestand van deze clip is korter dan de sessie aangeeft.";
-"bins.unreadable" = "Het audiobestand van deze clip kon niet worden gelezen.";
+"bins.missing" = "Het audiobestand van deze clip ontbreekt. Zet het terug in de map Clips.";
+"bins.short" = "Het audiobestand van deze clip is korter dan de sessie aangeeft. Herstel het bestand.";
+"bins.unreadable" = "Het audiobestand van deze clip kon niet worden gelezen. Controleer de schijf.";
 "error.bin.missing" = "Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug en probeer het opnieuw.";
 "error.bin.short" = "Het audiobestand '%@' is korter dan de sessie aangeeft. Herstel het bestand en probeer het opnieuw.";
 "error.bin.unreadable" = "Het audiobestand '%@' kon niet worden gelezen. Controleer de schijf en probeer het opnieuw.";

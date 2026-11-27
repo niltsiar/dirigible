@@ -551,7 +551,7 @@
 "settings.agents.on" = "Os agentes de IA podem alterar uma sessão aberta, com um passo de Desfazer por alteração.";
 "settings.agents.off" = "Os agentes só podem editar sessões fechadas.";
 "settings.agents.elsewhere" = "Para utilizar os agentes aqui, saia da outra cópia do Dirigible.";
-"settings.agents.failed" = "O servidor de agentes não foi iniciado. Desative e ative o interruptor para tentar novamente.";
+"settings.agents.failed" = "O servidor de agentes não foi iniciado. Desative e ative o interruptor para voltar a tentar.";
 "settings.agents.copy" = "Copiar comando";
 "settings.agents.setup" = "Configuração do agente";
 "settings.agents.copied" = "Copiado";

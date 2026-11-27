@@ -388,7 +388,7 @@
 "take.pending.leave.hint" = "Wenn die Festplatte dieses Audio nicht wieder lesen kann, schließe den Take ohne es ab und platziere die Datei später.";
 "take.pending.space" = "Der Abschluss benötigt %@ freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "take.ended" = "Take %lld ist abgeschlossen.";
-"take.ended.disk.low" = "Take %lld wurde wegen wenig Speicherplatz gestoppt. Gib vor dem nächsten Take Speicherplatz frei.";
+"take.ended.disk.low" = "Take %lld wurde wegen zu wenig Speicherplatz gestoppt. Gib vor dem nächsten Take Speicherplatz frei.";
 "take.gap.device.lost" = "Spur \U201E%@\U201C hat eine Lücke durch ein getrenntes Gerät. Prüfe die Verbindung vor dem nächsten Take.";
 "take.gap.write.failed" = "Spur \U201E%@\U201C hat eine Lücke durch einen fehlgeschlagenen Schreibvorgang. Prüfe die Festplatte vor dem nächsten Take.";
 "take.dropped" = "Spur „%1$@“ hat %2$lld Frames verloren.";

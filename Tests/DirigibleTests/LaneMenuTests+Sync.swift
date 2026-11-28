@@ -19,8 +19,9 @@ extension LaneMenuTests {
             ).map { $0.map(\.command) }
         }
         let tools: [TimelineCommand] = [.delete, .reduceNoise, .repairSound, .levelOverTime, .restoreOriginal]
-        #expect(commands(true) == [[.cut, .copy, .paste], tools + [.syncClip, .fade], [.addMarker, .addChapter]])
-        #expect(commands(false) == [[.cut, .copy, .paste], tools + [.fade], [.addMarker, .addChapter]])
+        let edits: [TimelineCommand] = [.cut, .copy, .paste, .duplicate]
+        #expect(commands(true) == [edits, tools + [.syncClip, .fade], [.addMarker, .addChapter]])
+        #expect(commands(false) == [edits, tools + [.fade], [.addMarker, .addChapter]])
 
         let (model, studio, window, view) = try await lanes()
         let title = L10n.menuToolsSyncClip.text

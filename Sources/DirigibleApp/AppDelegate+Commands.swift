@@ -111,7 +111,7 @@ extension AppDelegate {
 
 extension AppDelegate {
     /// The items that a field gives a key to, and that are still off when no session window is key.
-    private static let needsWindow: Set<TimelineCommand> = [.addMarker, .addChapter, .replace, .fill]
+    private static let needsWindow: Set<TimelineCommand> = [.addMarker, .addChapter, .replace, .fill, .duplicate]
 
     /// File > Remove Unused Files… is on while the key session window takes an edit (decision 0047).
     /// Also the state of the archive item, Archive Session... or Unarchive Session (decision 0072).
@@ -120,8 +120,8 @@ extension AppDelegate {
     /// The state of a timeline menu item (`SessionWindow.isOn`). With no key session window (a sheet
     /// of the window, the Settings window, or the start window is key), only the items whose key a
     /// field uses (0018 K1) and the items that send a selector stay on. Add Marker and Add Chapter
-    /// are off, because their key adds no marker then (F107 C9d); so are Replace and Paste to Fill
-    /// Selection, which need a clipboard and a range of a window.
+    /// are off, because their key adds no marker then (F107 C9d); so are Replace, Paste to Fill
+    /// Selection, and Duplicate, which need a range or a clip set of a window.
     func isOn(_ command: TimelineCommand) -> Bool {
         guard let key else {
             return command.selector != nil || (command.forwardsKey && !Self.needsWindow.contains(command))

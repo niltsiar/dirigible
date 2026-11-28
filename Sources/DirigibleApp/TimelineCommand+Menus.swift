@@ -49,6 +49,7 @@ extension TimelineCommand {
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
     /// Cut, Delete and Close Gap, Insert, and Replace ripple all tracks (decisions 0037 and 0053).
+    /// Duplicate moves nothing.
     static let pasteboardItems = [
         MenuItem(command: .cut, title: .menuEditCut, key: "x", modifiers: .command),
         MenuItem(command: .copy, title: .menuEditCopy, key: "c", modifiers: .command),
@@ -58,6 +59,7 @@ extension TimelineCommand {
         MenuItem(command: .replace, title: .menuEditReplace, key: "v", modifiers: [.command, .shift]),
         MenuItem(command: .delete, title: .menuEditDelete, key: .delete, modifiers: []),
         MenuItem(command: .deleteCloseGap, title: .menuEditDeleteCloseGap, key: .delete, modifiers: .shift),
+        MenuItem(command: .duplicate, title: .menuEditDuplicate, key: "d", modifiers: .command),
         MenuItem(command: .selectAll, title: .menuEditSelectAll, key: "a", modifiers: .command),
     ]
 

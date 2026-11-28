@@ -222,6 +222,7 @@
 "replace.done" = "%@ seconden vervangen";
 "fill.done" = "%1$@ seconden gevuld met %2$lld clips.";
 "fill.done.one" = "%@ seconden gevuld met 1 clip.";
+"duplicate.done" = "Gedupliceerd.";
 "split.banner" = "Stereoclips worden gesplitst in monosporen";
 "split.done" = "Gesplitst in twee monosporen.";
 "split.suffix.left" = "L";
@@ -517,6 +518,7 @@
 "menu.edit.insert" = "Voeg in";
 "menu.edit.replace" = "Vervang";
 "menu.edit.fill" = "Plak om de selectie te vullen";
+"menu.edit.duplicate" = "Dupliceer";
 "menu.edit.cut.selected.tracks" = "Knip in geselecteerde sporen";
 "menu.edit.delete.close.gap.selected.tracks" = "Verwijder en sluit gat in geselecteerde sporen";
 "menu.edit.select.all" = "Selecteer alles";

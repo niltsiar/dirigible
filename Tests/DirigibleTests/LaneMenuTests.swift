@@ -43,8 +43,8 @@ import Testing
             canRipple: true, closeGaps: false)
         #expect(
             groups.map { $0.map(\.command) } == [
-                [.cut, .copy, .paste, .fill, .insert, .replace], [.delete, .deleteCloseGap, .split, .fade],
-                [.addMarker, .addChapter],
+                [.cut, .copy, .paste, .fill, .insert, .replace, .duplicate],
+                [.delete, .deleteCloseGap, .split, .fade], [.addMarker, .addChapter],
             ])
         let enabled = groups.joined().allSatisfy { $0.enabled }
         #expect(enabled)
@@ -61,8 +61,8 @@ import Testing
         }
         let tools: [TimelineCommand] = [.delete, .reduceNoise, .repairSound, .levelOverTime, .restoreOriginal, .fade]
         let markers: [TimelineCommand] = [.addMarker, .addChapter]
-        #expect(commands(true) == [[.cut, .copy, .paste], tools, [.useAsVoiceReference], markers])
-        #expect(commands(false) == [[.cut, .copy, .paste], tools, markers])
+        #expect(commands(true) == [[.cut, .copy, .paste, .duplicate], tools, [.useAsVoiceReference], markers])
+        #expect(commands(false) == [[.cut, .copy, .paste, .duplicate], tools, markers])
     }
 
     /// Control: an item with a key equivalent, or an Undo item.
@@ -74,7 +74,7 @@ import Testing
         let menu = try menu(view, 120, 10)
         #expect(menu.items.allSatisfy { $0.keyEquivalent.isEmpty }, "\(menu.items.map(\.keyEquivalent))")
         #expect(!titles(menu).contains("Undo"))
-        #expect(menu.items.count == 17, "\(titles(menu))")
+        #expect(menu.items.count == 18, "\(titles(menu))")
         await model.close()
     }
 
@@ -130,7 +130,7 @@ import Testing
             canRipple: false, closeGaps: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
-                [.copy, .paste, .fill], [.delete, .split, .fade], [.addMarker, .addChapter],
+                [.copy, .paste, .fill, .duplicate], [.delete, .split, .fade], [.addMarker, .addChapter],
             ])
     }
 
@@ -147,7 +147,7 @@ import Testing
                 clipboard: clipboard, split: false, canEdit: true, canRipple: ripple, closeGaps: false)
         }
         func first(_ groups: [[LaneMenu.Item]]) -> [LaneMenu.Item] { groups[0] }
-        #expect(first(commands()).map(\.command) == [.cut, .copy, .paste, .fill, .insert, .replace])
+        #expect(first(commands()).map(\.command) == [.cut, .copy, .paste, .fill, .insert, .replace, .duplicate])
         #expect(first(commands(clipboard: false)).filter { $0.command == .fill }.map(\.enabled) == [false])
         #expect(!first(commands(clipboard: false)).map(\.command).contains(.replace))
         #expect(!first(commands(ripple: false)).map(\.command).contains(.replace))
@@ -217,7 +217,7 @@ import Testing
             canRipple: true, closeGaps: false)
         #expect(
             set.map { $0.map(\.command) } == [
-                [.cut, .copy, .paste, .insert], [.delete, .split, .fade], [.addMarker, .addChapter],
+                [.cut, .copy, .paste, .insert, .duplicate], [.delete, .split, .fade], [.addMarker, .addChapter],
             ])
         let enabled = set.joined().allSatisfy { $0.enabled }
         #expect(enabled, "Cut and Copy are enabled")
@@ -227,7 +227,7 @@ import Testing
             canRipple: false, closeGaps: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
-                [.cut, .copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
+                [.cut, .copy, .paste, .duplicate], [.delete, .split, .fade], [.addMarker, .addChapter],
             ])
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
@@ -299,7 +299,7 @@ import Testing
         }
         #expect(
             model.leafCalls == [
-                "cut", "copy", "paste", "fill", "insert", "replace", "delete", "deleteCloseGap", "split",
+                "cut", "copy", "paste", "fill", "insert", "replace", "duplicate", "delete", "deleteCloseGap", "split",
                 "reduceNoise", "repairSound", "levelOverTime", "fade", "addMarker", "addChapter",
             ])
         await model.close()
@@ -320,7 +320,7 @@ extension LaneMenuTests {
         }
         #expect(
             commands(stereo: true) == [
-                [.cut, .copy, .paste], [.delete, .split, .splitStereo, .fade], [.addMarker, .addChapter],
+                [.cut, .copy, .paste, .duplicate], [.delete, .split, .splitStereo, .fade], [.addMarker, .addChapter],
             ])
         #expect(commands(stereo: false)[1] == [.delete, .split, .fade])
         #expect(commands(stereo: true, canEdit: false) == [[.addMarker, .addChapter]])
@@ -383,9 +383,9 @@ extension LaneMenuTests {
         #expect(model.timeline.selection == set)
         #expect(
             shown == [
-                "menu.edit.cut", "menu.edit.copy", "menu.edit.paste (off)", "-", "menu.edit.delete",
-                "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.tools.level.over.time", "menu.edit.fade",
-                "menu.edit.close.gaps", "-", "menu.markers.add", "menu.markers.add.chapter",
+                "menu.edit.cut", "menu.edit.copy", "menu.edit.paste (off)", "menu.edit.duplicate", "-",
+                "menu.edit.delete", "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.tools.level.over.time",
+                "menu.edit.fade", "menu.edit.close.gaps", "-", "menu.markers.add", "menu.markers.add.chapter",
             ])
         _ = try menu(view, 50, 110)
         #expect(model.timeline.selection == .clips(ClipSet("c2")), "c2 is not in the set")

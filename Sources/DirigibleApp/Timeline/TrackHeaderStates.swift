@@ -10,13 +10,13 @@ func meterLevel(_ live: LiveTrack) -> Double {
 /// The live state of `track` in a one-line row. It reads `liveTracks` in its own body, so a meter
 /// report runs it and not the row (decision 0014).
 struct CompactLiveState: View {
-    let studio: Studio
+    weak var studio: Studio?
     let track: TrackID
     let source: String
     let showsLoudness: Bool
 
     var body: some View {
-        if let live = studio.liveTracks[track] {
+        if let live = studio?.liveTracks[track] {
             CompactLiveStateContent(live: live, source: source, showsLoudness: showsLoudness)
         }
     }
@@ -60,14 +60,14 @@ struct CompactLiveStateContent: View {
 /// The live state of `track` on line 2 of a row. It reads `liveTracks` in its own body, as
 /// `CompactLiveState`.
 struct LiveState: View {
-    let studio: Studio
+    weak var studio: Studio?
     let track: TrackID
     let source: String
     let showsNoSound: Bool
     let openSettings: () -> Void
 
     var body: some View {
-        if let live = studio.liveTracks[track] {
+        if let live = studio?.liveTracks[track] {
             LiveStateContent(live: live, source: source, showsNoSound: showsNoSound, openSettings: openSettings)
         }
     }

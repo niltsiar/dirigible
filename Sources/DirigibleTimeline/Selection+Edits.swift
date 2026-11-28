@@ -9,19 +9,48 @@ extension Selection {
         Set(clips.map { session.tracks[$0.lane].id })
     }
 
-    /// Copy: the range on the lanes that a Cut of it copies (`Marks.rippleScope` `selected`), or the
-    /// live set clips whole (`Session.excerpt(of:)`). Nil when nothing is selected, or when no lane
-    /// of the range cuts (decision 0073).
-    public func excerpt(in session: Session) throws(SessionError) -> Excerpt? {
+    /// What Copy and Duplicate take (decisions 0038 and 0053): a range on the lanes that a Cut of it
+    /// copies, or the live clips of a set.
+    public enum CopySource: Equatable, Sendable {
+        case range(Range<Frames>, on: [TrackID])
+        case clips([ClipID])
+
+        /// Duplicates in `session` and gives the selection after it: the copy.
+        public func duplicate(_ session: inout Session) throws(SessionError) -> Selection {
+            switch self {
+            case .range(let range, let tracks):
+                try session.duplicate(range, on: tracks)
+                let end = range.upperBound + (range.upperBound - range.lowerBound)
+                return .range(Marks(inPoint: range.upperBound, outPoint: end, tracks: Set(tracks)))
+            case .clips(let ids):
+                let pasted = try session.duplicate(ids)
+                return ClipSet(Set(pasted)).map { .clips($0) } ?? .none
+            }
+        }
+    }
+
+    /// The source of Copy and Duplicate: the range on the lanes that a Cut of it copies
+    /// (`Marks.rippleScope` `selected`), or the live set clips. Nil when nothing is selected, when no
+    /// lane of the range cuts (decision 0073), and for a set with no live clip.
+    public func copySource(in session: Session) -> CopySource? {
         switch self {
         case .range(let marks):
             guard let scope = marks.rippleScope(selectedOnly: false, in: session), !scope.selected.isEmpty else {
                 return nil
             }
-            return try session.excerpt(of: scope.range, on: scope.selected)
+            return .range(scope.range, on: scope.selected)
         case .clips:
             let ids = selectedClips(in: session).map(\.clip.id)
-            return ids.isEmpty ? nil : try session.excerpt(of: ids)
+            return ids.isEmpty ? nil : .clips(ids)
+        }
+    }
+
+    /// Copy: the excerpt of `copySource(in:)`. Nil when it is nil.
+    public func excerpt(in session: Session) throws(SessionError) -> Excerpt? {
+        switch copySource(in: session) {
+        case .range(let range, let tracks): return try session.excerpt(of: range, on: tracks)
+        case .clips(let ids): return try session.excerpt(of: ids)
+        case nil: return nil
         }
     }
 
@@ -116,41 +145,6 @@ extension Selection {
     /// for a clip set, so neither command reads a clip set as a range.
     public func replaceRange(in session: Session) -> Range<Frames>? {
         marks?.selection(in: session)?.range
-    }
-
-    /// What Edit > Duplicate copies (decision 0053): a range on the lanes that Copy takes, or the
-    /// live clips of a set.
-    public enum DuplicateSource: Equatable, Sendable {
-        case range(Range<Frames>, on: [TrackID])
-        case clips([ClipID])
-
-        /// Duplicates in `session` and gives the selection after it: the copy.
-        public func duplicate(_ session: inout Session) throws(SessionError) -> Selection {
-            switch self {
-            case .range(let range, let tracks):
-                try session.duplicate(range, on: tracks)
-                let end = range.upperBound + (range.upperBound - range.lowerBound)
-                return .range(Marks(inPoint: range.upperBound, outPoint: end, tracks: Set(tracks)))
-            case .clips(let ids):
-                let pasted = try session.duplicate(ids)
-                return ClipSet(Set(pasted)).map { .clips($0) } ?? .none
-            }
-        }
-    }
-
-    /// The source of Duplicate. Nil when nothing is selected, when a range has no frames or no lane
-    /// that Copy takes (decision 0073), and for a set with no live clip.
-    public func duplicateSource(in session: Session) -> DuplicateSource? {
-        switch self {
-        case .range(let marks):
-            guard let scope = marks.rippleScope(selectedOnly: false, in: session), !scope.selected.isEmpty else {
-                return nil
-            }
-            return .range(scope.range, on: scope.selected)
-        case .clips:
-            let ids = selectedClips(in: session).map(\.clip.id)
-            return ids.isEmpty ? nil : .clips(ids)
-        }
     }
 
     /// The frames and tracks of a split: for a clip set, the playhead on the tracks where it cuts a

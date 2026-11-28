@@ -110,6 +110,12 @@ extension Session {
     /// track with a listed clip, in session order: a track between them gives an empty lane. An
     /// unknown ID throws. An empty list gives no lane and length 0.
     public func excerpt(of clips: [ClipID]) throws(SessionError) -> Excerpt {
+        try clipSetExcerpt(clips).excerpt
+    }
+
+    /// The excerpt of `excerpt(of:)` and the last end of the clips, where Duplicate pastes. The end
+    /// is 0 for an empty excerpt.
+    private func clipSetExcerpt(_ clips: [ClipID]) throws(SessionError) -> (excerpt: Excerpt, end: Frames) {
         // One pass over the lanes: a check of each ID with `clip(_:)` scans every lane per ID.
         let wanted = Set(clips)
         let picked = tracks.map { $0.clips.filter { wanted.contains($0.id) } }
@@ -118,7 +124,7 @@ extension Session {
         guard let first = picked.firstIndex(where: { !$0.isEmpty }),
             let last = picked.lastIndex(where: { !$0.isEmpty }),
             let start = picked.compactMap(\.first?.start).min(), let end = picked.compactMap(\.last?.end).max()
-        else { return Excerpt(kind: .clips, length: .zero, lanes: [], sampleRate: sampleRate, pool: [:]) }
+        else { return (Excerpt(kind: .clips, length: .zero, lanes: [], sampleRate: sampleRate, pool: [:]), .zero) }
         let lanes = (first...last).map { index in
             Excerpt.Lane(
                 source: tracks[index].id, name: tracks[index].name, layout: tracks[index].layout,
@@ -128,9 +134,10 @@ extension Session {
                     return clip
                 })
         }
-        return Excerpt(
+        let excerpt = Excerpt(
             kind: .clips, length: end - start, lanes: lanes, sampleRate: sampleRate, pool: files,
             transcripts: transcripts(copiedFor: Set(lanes.flatMap { $0.clips.map(\.file) })))
+        return (excerpt, end)
     }
 
     /// Lane i goes to `tracks[i]`. A range excerpt clears the whole block `start..<start + length`
@@ -208,11 +215,8 @@ extension Session {
     /// A throw changes nothing.
     @discardableResult
     public mutating func duplicate(_ clips: [ClipID]) throws(SessionError) -> [ClipID] {
-        let copy = try excerpt(of: clips)
-        let wanted = Set(clips)
-        guard let end = tracks.compactMap({ $0.clips.filter { wanted.contains($0.id) }.last?.end }).max() else {
-            throw .emptyExcerpt
-        }
+        let (copy, end) = try clipSetExcerpt(clips)
+        guard copy.length > .zero else { throw .emptyExcerpt }
         return try paste(copy, at: end, on: copy.lanes.map(\.source))
     }
 

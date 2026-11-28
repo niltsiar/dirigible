@@ -41,6 +41,12 @@ extension MCPEditTableTests {
                 tool: "clip_paste_clips", arguments: ["clips": ["A"], "at": 200_000, "onto": ["e"]],
                 command: ["clip", "paste-clips", "PKG", "A", "--at", "200000", "--onto", "e"]),
             EditRow(
+                tool: "clip_duplicate", arguments: ["from": 12_000, "to": 36_000, "track": ["a"]],
+                command: ["clip", "duplicate", "PKG", "--from", "12000", "--to", "36000", "--track", "a"]),
+            EditRow(
+                tool: "clip_duplicate_clips", arguments: ["clips": ["A", "C"]],
+                command: ["clip", "duplicate-clips", "PKG", "A", "C"]),
+            EditRow(
                 tool: "clip_paste_clips", arguments: ["clips": ["A"], "at": 200_000],
                 command: ["clip", "paste-clips", "PKG", "A", "--at", "200000"]),
             EditRow(
@@ -129,6 +135,15 @@ extension MCPEditTableTests {
             EditRow(
                 tool: "clip_paste_clips", arguments: ["clips": ["zz"], "at": 0],
                 command: ["clip", "paste-clips", "PKG", "zz", "--at", "0"]),
+            EditRow(
+                tool: "clip_duplicate", arguments: ["from": 0, "to": 10, "track": ["zz"]],
+                command: ["clip", "duplicate", "PKG", "--from", "0", "--to", "10", "--track", "zz"]),
+            EditRow(
+                tool: "clip_duplicate", arguments: ["from": 100, "to": 100, "track": ["a"]],
+                command: ["clip", "duplicate", "PKG", "--from", "100", "--to", "100", "--track", "a"]),
+            EditRow(
+                tool: "clip_duplicate_clips", arguments: ["clips": ["zz"]],
+                command: ["clip", "duplicate-clips", "PKG", "zz"]),
             EditRow(
                 tool: "clip_nudge", arguments: ["clips": ["zz"], "by": 1],
                 command: ["clip", "nudge", "PKG", "zz", "--by", "1"]),

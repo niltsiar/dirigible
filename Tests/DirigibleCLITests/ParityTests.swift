@@ -36,6 +36,7 @@ struct ParityTests {
         "paste": ["clip paste", "clip paste-clips"],
         "replace": ["clip replace"],
         "fill": ["clip fill"],
+        "duplicate": ["clip duplicate", "clip duplicate-clips"],
         "splitClips": ["clip split-at"],
         "splitStereo": ["clip split-stereo"],
         "nudge": ["clip nudge"],

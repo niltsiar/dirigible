@@ -5,7 +5,7 @@ import Testing
 /// Each tool of `Tool.all` names its batch role (decision 0063). A new tool must join one of the
 /// two lists below, and this test fails until it does.
 struct BatchRoleTests {
-    /// The 44 tools whose call can be a step.
+    /// The 46 tools whose call can be a step.
     static let steps: Set<String> = [
         "track_add", "track_add_call", "track_remove", "track_rename", "track_gain", "track_route", "track_layout",
         "track_mute", "track_solo", "track_role", "track_follow", "track_match_voice", "marker_set", "marker_remove",
@@ -17,7 +17,7 @@ struct BatchRoleTests {
         "clip_crossfade",
         "clip_heal", "clip_close_gaps", "clip_roll", "clip_slip", "clip_shuffle", "clip_envelope", "clip_gain_range",
         "clip_ripple_delete", "clip_ripple_insert",
-        "clip_ripple_trim", "silence_edit",
+        "clip_ripple_trim", "silence_edit", "clip_duplicate", "clip_duplicate_clips",
     ]
 
     /// The 51 tools that are never a step.
@@ -86,7 +86,7 @@ struct BatchRoleTests {
     }
 
     @Test func eachToolHasItsBatchRole() {
-        #expect(Self.steps.count == 44 && Self.alone.count == 51 && Self.steps.isDisjoint(with: Self.alone))
+        #expect(Self.steps.count == 46 && Self.alone.count == 51 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)
         let unlisted = Set(names).subtracting(Self.steps).subtracting(Self.alone)
         #expect(unlisted.isEmpty, "BATCH-S2-6 tools in neither list: \(unlisted.sorted())")

@@ -32,6 +32,7 @@
 - Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F148). A selected track header in a key window shows a light tint of the accent color (alpha 0.22), not the full selection fill, and its labels keep their normal text color. In a window that is not key, the header keeps the unemphasized source list fill (`HeaderRowStyle`).
 - Amended: 2026-11-25, run `2026-11-24-ui-design-audit`. The selection band in the lanes and in the overview strip moves each channel 30 % toward the system accent color in light mode too (`LanePalette.selected`). A light lane keeps its hue under the band, and the waveform keeps its contrast.
 - Amended: 2026-11-25, run `2026-11-24-ui-design-audit` (F147). The row under the last lane has a hint in secondary text: a drop of audio files there adds tracks. It is a text layer of `LaneDrop`, over the lane pixels (0022), so it draws no lane pixel. It shows when the lanes in view have a row of one lane height or more under the last lane and no take records. A drop cue hides it.
+- Amended: 2026-11-28, run `2026-11-27-header-menu-lock`. The track header views (`TrackHeaders`, `TrackRow`, `CompactLiveState`, `LiveState`) hold the studio weakly. A header menu keeps the header host alive after the window closes. A strong studio there kept the package lock, so File > Open Recent refused the session.
 
 ## Context
 

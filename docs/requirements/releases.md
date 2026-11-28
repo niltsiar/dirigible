@@ -204,10 +204,10 @@ Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edi
 | Requirement | What Release 6 gives |
 |---|---|
 | R6 | Remove the raw CAF of a take after its WAV passes the checks (F170). |
-| R7 | Part: pre-roll, replace, room-tone fill, close gaps, roll and slip trims, a follow track, drag modes, a session index, waveform zoom, and sync by waveform (F08, F21, F69, F70, F74, F76, F78, F80, F81). |
+| R7 | Part: pre-roll, replace, room-tone fill, duplicate, close gaps, roll and slip trims, a follow track, drag modes, a session index, waveform zoom, and sync by waveform (F08, F21, F69, F70, F74, F76, F78, F80, F81). |
 
 1. **Pre-roll (F08).** Record at the playhead after a pre-roll of the other tracks, with a length in Settings. The run decides playback during a take and its take anchor (amends 0039).
-2. **Replace and room-tone fill (F21).** Each with a menu item, a key, a `dirigible` command, and an MCP tool (0018, 0053). Duplicate stays Later (F21).
+2. **Replace, room-tone fill, and Duplicate (F21).** Each with a menu item, a key, a `dirigible` command, and an MCP tool (0018, 0053).
 3. **Timeline edits (F81, F69, F70, F80).** Close gaps, roll and slip trims, a follow track in a ripple, and drag modes. The run splits at its plan.
 4. **Session index and waveform zoom (F76, F78).** A list of clips, markers, and chapters with search, and a vertical zoom of the waveforms.
 5. **Sync by waveform (F74).** F74 lands in two steps.

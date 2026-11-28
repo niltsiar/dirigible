@@ -118,6 +118,41 @@ extension Selection {
         marks?.selection(in: session)?.range
     }
 
+    /// What Edit > Duplicate copies (decision 0053): a range on the lanes that Copy takes, or the
+    /// live clips of a set.
+    public enum DuplicateSource: Equatable, Sendable {
+        case range(Range<Frames>, on: [TrackID])
+        case clips([ClipID])
+
+        /// Duplicates in `session` and gives the selection after it: the copy.
+        public func duplicate(_ session: inout Session) throws(SessionError) -> Selection {
+            switch self {
+            case .range(let range, let tracks):
+                try session.duplicate(range, on: tracks)
+                let end = range.upperBound + (range.upperBound - range.lowerBound)
+                return .range(Marks(inPoint: range.upperBound, outPoint: end, tracks: Set(tracks)))
+            case .clips(let ids):
+                let pasted = try session.duplicate(ids)
+                return ClipSet(Set(pasted)).map { .clips($0) } ?? .none
+            }
+        }
+    }
+
+    /// The source of Duplicate. Nil when nothing is selected, when a range has no frames or no lane
+    /// that Copy takes (decision 0073), and for a set with no live clip.
+    public func duplicateSource(in session: Session) -> DuplicateSource? {
+        switch self {
+        case .range(let marks):
+            guard let scope = marks.rippleScope(selectedOnly: false, in: session), !scope.selected.isEmpty else {
+                return nil
+            }
+            return .range(scope.range, on: scope.selected)
+        case .clips:
+            let ids = selectedClips(in: session).map(\.clip.id)
+            return ids.isEmpty ? nil : .clips(ids)
+        }
+    }
+
     /// The frames and tracks of a split: for a clip set, the playhead on the tracks where it cuts a
     /// set clip.
     public func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {

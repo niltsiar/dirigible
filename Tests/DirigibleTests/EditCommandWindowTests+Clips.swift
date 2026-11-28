@@ -133,4 +133,80 @@ extension EditCommandWindowTests {
         #expect(studio.session == before, "C7: one undo entry")
         await model.close()
     }
+
+    func ranges(_ studio: Studio, _ track: TrackID) -> [Range<Frames>] {
+        studio.session.track(track)?.clips.map(\.range) ?? []
+    }
+
+    /// C16: Duplicate (decision 0053) is on with a range on a track or a clip set, and it needs no
+    /// clipboard. Control: with a range with no track, one point, a stale set, no selection, a take,
+    /// a paste run, or no session window, it is off.
+    @Test func duplicateMenuStates() async throws {
+        let (model, studio, _, _) = try await open()
+        let range = Marks(inPoint: 96_000, outPoint: 240_000, tracks: ["t2"])
+        let set = try #require(ClipSet(["c1", "c2"]))
+        let stale = try #require(ClipSet(["gone"]))
+        let cases: [(String, Selection, Bool)] = [
+            ("a range on a track", .range(range), true), ("a clip set", .clips(set), true),
+            ("a range with no track", .range(Marks(inPoint: 96_000, outPoint: 240_000)), false),
+            ("one point", .range(Marks(inPoint: 96_000, tracks: ["t2"])), false),
+            ("a stale set", .clips(stale), false), ("no selection", .none, false),
+        ]
+        for (name, selection, on) in cases {
+            model.timeline.selection = selection
+            #expect(model.isOn(.duplicate) == on && app.isOn(.duplicate) == on, "\(name)")
+        }
+
+        model.timeline.selection = .range(range)
+        #expect(model.clipboard == nil && model.isOn(.duplicate), "no clipboard")
+        studio.transport = .recording(take: 1)
+        #expect(!model.isOn(.duplicate), "a take")
+        studio.transport = .idle
+        model.importJob = ImportJob(visible: false)
+        #expect(!model.isOn(.duplicate), "a paste run")
+        model.importJob = nil
+        #expect(model.isOn(.duplicate), "after the run")
+        app.key = nil
+        #expect(!app.isOn(.duplicate), "no session window")
+        await model.close()
+    }
+
+    /// C17: after Duplicate the selection is the copy, so a second Duplicate puts a third copy after
+    /// it, as a loop of the same audio. Each is one undo entry and one announcement, and the
+    /// clipboard stays. A range case on t2, then a one-clip case on t1.
+    @Test func duplicateTwiceMakesALoop() async throws {
+        let (model, studio, _, _) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
+        model.run(.copy)
+        let clipboard = try #require(model.clipboard)
+        let before = studio.session
+        model.timeline.marks = Marks(inPoint: 96_000, outPoint: 144_000, tracks: ["t2"])
+
+        model.run(.duplicate)
+        #expect(model.timeline.selection == .range(Marks(inPoint: 144_000, outPoint: 192_000, tracks: ["t2"])))
+        #expect(ranges(studio, "t2") == [0..<144_000, 144_000..<192_000, 192_000..<2_880_000])
+        model.run(.duplicate)
+
+        #expect(model.timeline.selection == .range(Marks(inPoint: 192_000, outPoint: 240_000, tracks: ["t2"])))
+        #expect(ranges(studio, "t2") == [0..<144_000, 144_000..<192_000, 192_000..<240_000, 240_000..<2_880_000])
+        let offsets = studio.session.track("t2")?.clips.map(\.offset)
+        #expect(offsets == [0, 96_000, 96_000, 240_000], "both copies play the audio of the source")
+        #expect(studio.session.track("t1") == before.track("t1") && model.clipboard == clipboard)
+        #expect(heard == Array(repeating: L10n.duplicateDone.text, count: 2), "\(heard)")
+        model.undo()
+        model.undo()
+        #expect(studio.session == before && !studio.canUndo, "one undo entry for each")
+
+        model.timeline.selection = .clips(ClipSet("c1"))
+        model.run(.duplicate)
+        model.run(.duplicate)
+
+        let loop = model.timeline.selection.selectedClips(in: studio.session).map(\.clip)
+        #expect(loop.map(\.range) == [5_760_000..<8_640_000] && loop.map(\.offset) == [0] && loop.map(\.file) == ["f1"])
+        #expect(ranges(studio, "t1") == [0..<2_880_000, 2_880_000..<5_760_000, 5_760_000..<8_640_000])
+        #expect(heard.count == 4 && model.clipboard == clipboard)
+        await model.close()
+    }
 }

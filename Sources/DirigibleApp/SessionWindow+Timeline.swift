@@ -73,6 +73,8 @@ enum TimelineCommand: Hashable, CaseIterable {
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     /// Replace and Paste to Fill Selection (decision 0053): a paste into the selected range.
     case replace, fill
+    /// Edit > Duplicate (decision 0053): a copy of the selection after it, over what is there.
+    case duplicate
     case split, nudgeLeft, nudgeRight, fade, heal
     /// The trim edits of decision 0036: Close Gaps, Roll Edit to Playhead, and the two slips.
     case closeGaps, rollToPlayhead, slipLeft, slipRight
@@ -122,7 +124,7 @@ enum TimelineCommand: Hashable, CaseIterable {
         // A text field does nothing with Option-Command-Up, Option-Command-Down, or Option-Command-0 (U18).
         case .waveformZoomIn, .waveformZoomOut, .waveformZoomReset: false
         // A name field gets the key first: Shift-Command-V is a plain-paste habit in text fields (UQ5).
-        case .replace, .fill: true
+        case .replace, .fill, .duplicate: true
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         // A focused text field ends its edit with Return.
         case .renameTrack, .removeTrack, .showInFinder: true
@@ -293,6 +295,7 @@ extension SessionWindow {
         case .selectAll: timeline.selection = .range(Marks.all(in: studio.session))
         case .copy, .paste, .delete: runClipboard(command, studio)
         case .replace, .fill: runRangePaste(command, studio)
+        case .duplicate: runDuplicate()
         case .cut, .deleteCloseGap, .insert, .cutSelectedTracks, .deleteCloseGapSelectedTracks:
             runRipple(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)

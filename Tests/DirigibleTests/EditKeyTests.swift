@@ -24,7 +24,8 @@ import Testing
                 "cut x \(command)", "copy c \(command)", "paste v \(command)",
                 "fill v \(EventModifiers([.command, .option]).rawValue)", "insert i \(command)",
                 "replace v \(EventModifiers([.command, .shift]).rawValue)", "delete \u{8} 0",
-                "deleteCloseGap \u{8} \(EventModifiers.shift.rawValue)", "selectAll a \(command)",
+                "deleteCloseGap \u{8} \(EventModifiers.shift.rawValue)", "duplicate d \(command)",
+                "selectAll a \(command)",
                 "cutSelectedTracks x \(EventModifiers([.command, .option]).rawValue)",
                 "deleteCloseGapSelectedTracks \u{8} \(EventModifiers([.shift, .option]).rawValue)", "setIn i 0",
                 "setOut o 0",
@@ -37,6 +38,7 @@ import Testing
                 "duckSelection d \(EventModifiers.shift.rawValue)",
             ])
         #expect(TimelineCommand.menuItems[.duckSelection]?.title == .menuEditDuckSelection)
+        #expect(TimelineCommand.menuItems[.duplicate]?.title == .menuEditDuplicate)
         let shift = EventModifiers.shift.rawValue
         let control = EventModifiers.control.rawValue
         #expect(
@@ -168,10 +170,12 @@ import Testing
         await model.close()
     }
 
-    /// C16 (UQ5 b): with a name field focused, the key of Replace or of Paste to Fill Selection goes to
-    /// the field first. The session, the playhead, and the Marks stay, and so does the text. Control:
-    /// with no forward, the command edits the session.
-    func aFocusedFieldTakes(_ command: TimelineCommand, flags: NSEvent.ModifierFlags) async throws {
+    /// C16 (UQ5 b): with a name field focused, the key of Replace, of Paste to Fill Selection, or of
+    /// Duplicate goes to the field first. The session, the playhead, and the Marks stay, and so does
+    /// the text. Control: with no forward, the command edits the session.
+    func aFocusedFieldTakes(
+        _ command: TimelineCommand, flags: NSEvent.ModifierFlags, key: String = "v", code: UInt16 = 9
+    ) async throws {
         let (model, studio, window, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
@@ -186,7 +190,7 @@ import Testing
         let event = try #require(
             NSEvent.keyEvent(
                 with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
-                context: nil, characters: "v", charactersIgnoringModifiers: "v", isARepeat: false, keyCode: 9))
+                context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: code))
 
         app.timeline(command, event: event, in: window)
 
@@ -202,6 +206,10 @@ import Testing
 
     @Test func fillKeyGoesToAFocusedField() async throws {
         try await aFocusedFieldTakes(.fill, flags: [.command, .option])
+    }
+
+    @Test func duplicateKeyGoesToAFocusedField() async throws {
+        try await aFocusedFieldTakes(.duplicate, flags: .command, key: "d", code: 2)
     }
 
     /// Criterion 14: with a name field focused, the marker keys change no marker, no playhead, and

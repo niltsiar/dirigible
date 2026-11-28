@@ -19,7 +19,7 @@ extension TimelineCommand {
             .slipRight, .addGainPoint, .removeTrack, .muteTracks, .soloTracks, .raiseVolume, .lowerVolume,
             .resetVolume, .autoLevel, .autoLevelPerTrack, .levelOverTime, .removeLevelOverTime, .duck, .splitStereo,
             .reduceNoise, .repairSound, .restoreOriginal, .transcribe, .useAsVoiceReference, .syncClip,
-            .duckSelection:
+            .duckSelection, .duplicate:
             .beep
         case .zoomIn, .zoomOut, .zoomToSession, .zoomToSelection, .zoomBack, .zoomForward, .pagePrevious, .pageNext,
             .toggleFollow, .tallerTracks, .shorterTracks, .fitTracks, .waveformZoomIn, .waveformZoomOut,

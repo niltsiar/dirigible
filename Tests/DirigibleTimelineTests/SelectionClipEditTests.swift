@@ -170,4 +170,36 @@ struct SelectionClipEditTests {
         #expect(set.replaceRange(in: session) == nil, "a clip set is no range")
         #expect(Selection.none.replaceRange(in: session) == nil)
     }
+
+    /// C16, C17: Duplicate copies the range on the lanes that Copy takes, or the live clips of the
+    /// set, and the selection after it is the copy. One point, no track, a stale track, a stale set,
+    /// and no selection give no source.
+    @Test func duplicateTakesTheRangeOrTheSetAndSelectsTheCopy() throws {
+        let marks = Marks(inPoint: 0, outPoint: 96_000, tracks: ["t1", "gone"])
+        let range = try #require(Selection.range(marks).duplicateSource(in: session))
+        #expect(range == .range(0..<96_000, on: ["t1"]), "a track that the session lost drops out")
+        var ranged = session
+        let selected = try range.duplicate(&ranged)
+        #expect(selected == .range(Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1"])))
+        #expect(
+            try #require(ranged.track("t1")).clips.map(\.range) == [
+                0..<48_000, 48_000..<96_000, 96_000..<144_000, 144_000..<192_000,
+            ])
+
+        let clips = try #require(set.duplicateSource(in: session))
+        #expect(clips == .clips(["A", "B"]))
+        var copied = session
+        let copy = try clips.duplicate(&copied)
+        #expect(copy.selectedClips(in: copied).map(\.clip.range) == [144_000..<192_000, 240_000..<288_000])
+        #expect(copied.clip("C")?.clip.range == 48_000..<96_000, "a clip outside the set stays")
+        #expect(Self.clips(["A", "gone"]).duplicateSource(in: session) == .clips(["A"]), "the live clips")
+
+        let none: [(String, Selection)] = [
+            ("no track", .range(Marks(inPoint: 0, outPoint: 96_000))),
+            ("one point", .range(Marks(inPoint: 0, tracks: ["t1"]))),
+            ("a stale track", .range(Marks(inPoint: 0, outPoint: 96_000, tracks: ["gone"]))),
+            ("a stale set", Self.clips(["gone"])), ("no selection", .none),
+        ]
+        for (name, selection) in none { #expect(selection.duplicateSource(in: session) == nil, "\(name)") }
+    }
 }

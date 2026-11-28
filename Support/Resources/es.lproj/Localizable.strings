@@ -222,6 +222,7 @@
 "replace.done" = "Reemplazados %@ segundos";
 "fill.done" = "Rellenados %1$@ segundos con %2$lld clips.";
 "fill.done.one" = "Rellenados %@ segundos con 1 clip.";
+"duplicate.done" = "Duplicado.";
 "split.banner" = "Dividiendo clips estéreo en pistas mono";
 "split.done" = "Dividido en dos pistas mono.";
 "split.suffix.left" = "I";
@@ -517,6 +518,7 @@
 "menu.edit.insert" = "Insertar";
 "menu.edit.replace" = "Reemplazar";
 "menu.edit.fill" = "Pegar para rellenar la selección";
+"menu.edit.duplicate" = "Duplicar";
 "menu.edit.cut.selected.tracks" = "Cortar en las pistas seleccionadas";
 "menu.edit.delete.close.gap.selected.tracks" = "Eliminar y cerrar hueco en las pistas seleccionadas";
 "menu.edit.select.all" = "Seleccionar todo";

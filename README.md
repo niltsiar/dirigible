@@ -35,6 +35,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Find the long silences with Tools > Find Silences, then shorten, mute, or mark each one from a list, in one undo step. An AI agent does the same with `silence_edit`.
 - Move a clip that you recorded on another device to the place where its audio matches a track, with Tools > Sync Clip to Track (Option-Command-G), in one undo step. An AI agent does the same with `clip_sync`.
 - Replace a selected range with the copy (Edit > Replace, Shift-Command-V), or fill it with the copy again and again, for example with room tone (Edit > Paste to Fill Selection, Option-Command-V).
+- Duplicate a selected range or a set of clips with Edit > Duplicate (Command-D). The copy goes right after the selection, and a second Command-D adds the next copy, for example to loop a music bed.
 - Split a stereo clip into two mono tracks with Tools > Split Stereo to Mono (Shift-Command-D), then cut, level, and mute each voice alone.
 - Take background noise or mains hum out of a clip with Tools > Reduce Noise, and listen to a preview first. It makes a new file for the clip, and Tools > Restore Original Audio (Shift-Command-O) puts the old file back at any time.
 - Move the sound of a track toward a reference voice with Track > Match Voice. Choose a clip with Use as Voice Reference, then Match Voice to that clip. The match is a live EQ curve with an Amount slider, Bypass, and Remove, and no audio file changes.

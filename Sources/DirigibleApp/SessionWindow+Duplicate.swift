@@ -5,9 +5,9 @@ import DirigibleTimeline
 extension SessionWindow {
     /// What Duplicate copies, when it can run: an idle studio, no run of the window, and a range on a
     /// track or a clip set with a live clip. Nil otherwise. It reads no clipboard.
-    var duplicateSource: Selection.DuplicateSource? {
+    var duplicateSource: Selection.CopySource? {
         guard importJob == nil, let studio = idleStudio else { return nil }
-        return timeline.selection.duplicateSource(in: studio.session)
+        return timeline.selection.copySource(in: studio.session)
     }
 
     /// Duplicate: one edit, so one undo entry. The copy goes after the source, over the audio that is

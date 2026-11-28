@@ -176,7 +176,7 @@ struct SelectionClipEditTests {
     /// and no selection give no source.
     @Test func duplicateTakesTheRangeOrTheSetAndSelectsTheCopy() throws {
         let marks = Marks(inPoint: 0, outPoint: 96_000, tracks: ["t1", "gone"])
-        let range = try #require(Selection.range(marks).duplicateSource(in: session))
+        let range = try #require(Selection.range(marks).copySource(in: session))
         #expect(range == .range(0..<96_000, on: ["t1"]), "a track that the session lost drops out")
         var ranged = session
         let selected = try range.duplicate(&ranged)
@@ -186,13 +186,13 @@ struct SelectionClipEditTests {
                 0..<48_000, 48_000..<96_000, 96_000..<144_000, 144_000..<192_000,
             ])
 
-        let clips = try #require(set.duplicateSource(in: session))
+        let clips = try #require(set.copySource(in: session))
         #expect(clips == .clips(["A", "B"]))
         var copied = session
         let copy = try clips.duplicate(&copied)
         #expect(copy.selectedClips(in: copied).map(\.clip.range) == [144_000..<192_000, 240_000..<288_000])
         #expect(copied.clip("C")?.clip.range == 48_000..<96_000, "a clip outside the set stays")
-        #expect(Self.clips(["A", "gone"]).duplicateSource(in: session) == .clips(["A"]), "the live clips")
+        #expect(Self.clips(["A", "gone"]).copySource(in: session) == .clips(["A"]), "the live clips")
 
         let none: [(String, Selection)] = [
             ("no track", .range(Marks(inPoint: 0, outPoint: 96_000))),
@@ -200,6 +200,32 @@ struct SelectionClipEditTests {
             ("a stale track", .range(Marks(inPoint: 0, outPoint: 96_000, tracks: ["gone"]))),
             ("a stale set", Self.clips(["gone"])), ("no selection", .none),
         ]
-        for (name, selection) in none { #expect(selection.duplicateSource(in: session) == nil, "\(name)") }
+        for (name, selection) in none { #expect(selection.copySource(in: session) == nil, "\(name)") }
+    }
+
+    /// Code gate L3 item 1: Duplicate copies the lanes and the clips that Copy takes. With t3
+    /// following, I and O leave it out of both, and a range on its lane puts it in both; a stale
+    /// track drops from both.
+    @Test func duplicateCopiesTheLanesAndClipsThatCopyTakes() throws {
+        var session = session
+        try session.setFollowTrack(true, tracks: ["t3"])
+        let io = Marks().settingIn(0, in: session).settingOut(144_000, in: session)
+        let selections: [(String, Selection)] = [
+            ("I and O, t3 follows", .range(io)),
+            ("a range on the follow lane", .range(Marks.drag(from: 0, to: 144_000, lanes: (2, 2), in: session))),
+            ("a stale track", .range(Marks(inPoint: 0, outPoint: 96_000, tracks: ["t1", "gone"]))),
+            ("a clip set", set), ("a partly stale clip set", Self.clips(["A", "gone"])),
+        ]
+        for (name, selection) in selections {
+            let copy = try #require(try selection.excerpt(in: session), "\(name): Copy takes it")
+            switch try #require(selection.copySource(in: session), "\(name): Duplicate takes it") {
+            case .range(let range, let tracks):
+                #expect(tracks == copy.lanes.map(\.source), "\(name): the lanes")
+                #expect(range.upperBound - range.lowerBound == copy.length, "\(name): the length")
+            case .clips(let ids):
+                #expect(Set(ids) == Set(copy.lanes.flatMap { $0.clips.map(\.id) }), "\(name): the clips")
+            }
+        }
+        #expect(io.rippleScope(selectedOnly: false, in: session)?.selected == ["t1", "t2"], "t3 follows")
     }
 }

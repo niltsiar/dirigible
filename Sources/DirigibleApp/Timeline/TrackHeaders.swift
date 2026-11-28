@@ -5,7 +5,8 @@ import SwiftUI
 /// The track headers: row n is the header of lane n, with the lane height.
 struct TrackHeaders: View {
     let model: SessionWindow
-    let studio: Studio
+    /// Weak: a header host that outlives its window keeps no studio, and so no package lock.
+    weak var studio: Studio?
     let laneHeight: Double
     /// The tracks that `Selection.headerTracks` gives, not the selection: a range drag over the
     /// same tracks gives an equal input, so it runs no row body (ui-polish C16).
@@ -49,11 +50,11 @@ struct TrackHeaders: View {
         let _ = model.countHeaderRun(row: false)
         // The layout of a row comes from the header width and the lane height only, never from
         // the text: a typed name that picks another layout rebuilds its field (code gate 1).
-        let taking = studio.transport.liveTake != nil
+        let taking = studio?.transport.liveTake != nil
         let matching = model.matchingTracks
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(studio.session.tracks) { track in
+                ForEach(studio?.session.tracks ?? []) { track in
                     TrackRow(
                         model: model, studio: studio, track: track, selected: selected.contains(track.id),
                         secondLine: laneHeight >= 56, tall: laneHeight >= 80, taking: taking,
@@ -79,7 +80,7 @@ struct TrackHeaders: View {
 /// the name, the layout, a route symbol menu, and the compact meter and state.
 private struct TrackRow: View {
     let model: SessionWindow
-    let studio: Studio
+    weak var studio: Studio?
     let track: Track
     let selected: Bool
     /// True in a lane of 56 pt or more: the row has two lines (H7).
@@ -141,7 +142,7 @@ private struct TrackRow: View {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
                     if !taking { compactRoute } else if track.route != nil { takeRouteSymbol }
-                    if studio.liveStates[track.id] != nil {
+                    if studio?.liveStates[track.id] != nil {
                         CompactLiveState(
                             studio: studio, track: track.id, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
@@ -149,7 +150,7 @@ private struct TrackRow: View {
                 }
             }
             if secondLine {
-                let state = studio.liveStates[track.id]
+                let state = studio?.liveStates[track.id]
                 // The live state and the quiet symbol take the place of the fader, so the fader
                 // never reads as an input gain next to the meter. A tall row has the quiet text
                 // on line 3.
@@ -256,7 +257,7 @@ private struct TrackRow: View {
     /// reads the name before this row has the new track, and it wrote the old name as a draft.
     private var name: Binding<String> {
         Binding(
-            get: { model.drafts[track.id] ?? studio.session.track(track.id)?.name ?? track.name },
+            get: { model.drafts[track.id] ?? studio?.session.track(track.id)?.name ?? track.name },
             set: { model.drafts[track.id] = $0 })
     }
 
@@ -314,8 +315,8 @@ private struct TrackRow: View {
     /// The state of a listened track that plays no monitor sound (decision 0044).
     private var quiet: HeaderStateText? {
         HeaderStateText.quiet(
-            state: studio.liveStates[track.id], quiet: studio.quietListens.contains(track.id),
-            loopback: studio.loopbackListens.contains(track.id))
+            state: studio?.liveStates[track.id], quiet: studio?.quietListens.contains(track.id) ?? false,
+            loopback: studio?.loopbackListens.contains(track.id) ?? false)
     }
 
     private func quietSymbol(_ quiet: HeaderStateText) -> some View {

@@ -50,8 +50,9 @@ struct EnvelopeEditTests {
             let before = session
             let lane = session.tracks[0].clips
             func anyClip() -> Clip? { lane.randomElement(using: &random) }
-            // Two draws of 18 heal: a heal needs parts of one file map, so many heals do nothing.
-            let kind = Int.random(in: 0..<18, using: &random)
+            // Three draws of 21 heal, and two split: a heal needs parts of one file map, so many heals do
+            // nothing, and a split makes such a pair.
+            let kind = Int.random(in: 0..<21, using: &random)
             let name: String
             do {
                 switch kind {
@@ -72,7 +73,7 @@ struct EnvelopeEditTests {
                     let start = frame(0...30_000)
                     let excerpt = try session.excerpt(of: start..<(start + frame(1...8_000)), on: ["t1"])
                     try session.paste(excerpt, at: frame(0...30_000), on: ["t1"])
-                case 3:
+                case 3, 17:
                     name = "split"
                     try session.splitClips(at: [frame(0...35_000), frame(0...35_000)], on: ["t1"])
                 case 4:
@@ -141,6 +142,10 @@ struct EnvelopeEditTests {
                     name = "shuffle"
                     guard let clip = anyClip() else { continue }
                     try session.shuffle(clip.id, to: "t1", start: frame(0...30_000))
+                case 16:
+                    name = "duplicate"
+                    let start = frame(0...30_000)
+                    try session.duplicate(start..<(start + frame(1_000...8_000)), on: ["t1"])
                 default:
                     name = "heal"
                     try session.heal()
@@ -158,7 +163,7 @@ struct EnvelopeEditTests {
             wrong += result.wrong.map { "seed \(seed) step \(step) \(name): \($0)" }
         }
         #expect(wrong.isEmpty, "\(wrong.count) wrong gains, first: \(wrong.prefix(3))")
-        #expect(done.keys.count == 17, "each kind of edit ran: \(done)")
+        #expect(done.keys.count == 18, "each kind of edit ran: \(done)")
         #expect((done["heal"] ?? 0) >= 10, "heals: \(done["heal"] ?? 0)")
         #expect(compared >= 5_000 && outside >= 500, "\(compared) frames compared, \(outside) with a point outside")
     }

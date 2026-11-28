@@ -192,6 +192,30 @@ extension Session {
         return pasted
     }
 
+    /// Duplicate (decision 0053): pastes a copy of `range` on `tracks` at the range end, over what is
+    /// there. Nothing moves. A range with no frame throws `.emptyExcerpt`, because `paste` throws
+    /// none. Returns the pasted IDs. A throw changes nothing.
+    @discardableResult
+    public mutating func duplicate(_ range: Range<Frames>, on tracks: [TrackID]) throws(SessionError) -> [ClipID] {
+        let copy = try excerpt(of: range, on: tracks)
+        guard copy.length > .zero else { throw .emptyExcerpt }
+        return try paste(copy, at: range.upperBound, on: tracks)
+    }
+
+    /// Duplicate (decision 0053): pastes a copy of the whole `clips` after the last end of them, on the
+    /// same tracks and with the same distances in time, over what is there. Nothing moves. A list with
+    /// no clip throws `.emptyExcerpt`, and an unknown ID throws `.unknownClip`. Returns the pasted IDs.
+    /// A throw changes nothing.
+    @discardableResult
+    public mutating func duplicate(_ clips: [ClipID]) throws(SessionError) -> [ClipID] {
+        let copy = try excerpt(of: clips)
+        let wanted = Set(clips)
+        guard let end = tracks.compactMap({ $0.clips.filter { wanted.contains($0.id) }.last?.end }).max() else {
+            throw .emptyExcerpt
+        }
+        return try paste(copy, at: end, on: copy.lanes.map(\.source))
+    }
+
     /// Splits each clip on each track that holds a frame strictly inside it. The frames go in
     /// descending order, so the IDs are those of single `split` calls in that order. A frame at a
     /// clip edge or in a gap does nothing. Returns the IDs of the right parts.
